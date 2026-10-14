@@ -1,0 +1,4 @@
+# Aster project (key=value)
+name=@NAME@
+engine=@ASTER_ROOT@
+scene=scenes/arena.scene

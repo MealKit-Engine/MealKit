@@ -1,0 +1,62 @@
+{
+    // Ctrl+Shift+B: 게임 코드 빌드 → 켜 둔 에디터가 자동으로 바꿔 끼운다 (핫 리로드).
+    // 다른 작업은 Ctrl+Shift+P → "Tasks: Run Task"
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "label": "Build Game Code",
+            "type": "shell",
+            "command": "${workspaceFolder}\\build.bat",
+            "args": ["Editor"],
+            "group": { "kind": "build", "isDefault": true },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Build Release",
+            "type": "shell",
+            "command": "${workspaceFolder}\\build.bat",
+            "args": ["Release"],
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Build Debug",
+            "type": "shell",
+            "command": "${workspaceFolder}\\build.bat",
+            "args": ["Debug"],
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Build Profile (Tracy)",
+            "type": "shell",
+            "command": "${workspaceFolder}\\build.bat",
+            "args": ["Profile"],
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Export Game",
+            "type": "shell",
+            "command": "${workspaceFolder}\\build.bat",
+            "args": ["Export"],
+            "group": "build",
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "Open Editor",
+            "type": "shell",
+            "command": "${workspaceFolder}\\editor.bat",
+            "problemMatcher": []
+        },
+        {
+            "label": "Multiplayer Determinism Test",
+            "type": "shell",
+            "command": "powershell",
+            "args": ["-ExecutionPolicy", "Bypass", "-File", "@ASTER_ROOT_FWD@/tools/mp_test.ps1", "-Clients", "3", "-Ticks", "900",
+                     "-Exe", "${workspaceFolder}\\build\\Release\\bin\\@NAME@.exe"],
+            "dependsOn": "Build Release",
+            "problemMatcher": []
+        }
+    ]
+}

@@ -1,0 +1,347 @@
+// Aster Sandbox: 결정론적 락스텝 멀티플레이 샘플 (게임 빌드, 에디터 없음).
+//
+//   sandbox.exe                         혼자 플레이
+//   sandbox.exe --host [port]           방 만들기 (로비에서 Enter로 시작)
+//   sandbox.exe --join 127.0.0.1[:port] 참가
+//   sandbox.exe --scene my.scene        다른 씬으로 플레이 (모든 플레이어가 같은 파일이어야 한다)
+//
+// 조작: WASD 이동, Space 점프, 왼쪽 클릭 밀치기, 오른쪽 드래그 카메라, 휠 줌, V 수직동기, F12 스크린샷, Esc 종료
+
+#include "GameSession.h"
+
+#include "aster/asset/ModelCache.h"
+#include "aster/core/Clock.h"
+#include "aster/core/Log.h"
+#include "aster/core/Profile.h"
+#include "aster/net/Lockstep.h"
+#include "aster/platform/Paths.h"
+#include "aster/platform/Steam.h"
+#include "aster/platform/Window.h"
+#include "aster/render/DrawList.h"
+#include "aster/render/Renderer.h"
+#include "aster/scene/Scene.h"
+
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+#include <ctime>
+#include <string>
+#include <vector>
+
+using namespace aster;
+
+namespace {
+
+struct Options {
+    enum class Mode { Offline, Host, Join, SteamHost, SteamJoin } mode = Mode::Offline;
+    u64 steamLobby = 0;
+    u16 port = 27015;
+    std::string joinAddress;
+    std::string scenePath;
+    u32 maxPlayers = 4;
+    u32 bodies = 2000;
+    u32 inputDelay = 3;
+    u64 seed = 0;
+    bool vsync = true;
+    f64 fpsCap = 0.0;
+    u32 width = 1280, height = 720;
+    bool debugLayer = false;
+    bool loopbackOnly = false;
+    u32 physicsThreads = 0;
+    // 자동 테스트용
+    u32 autoStart = 0;
+    u32 exitTick = 0;
+    bool bot = false;
+    std::string capturePath;
+    u32 captureTick = 0;
+};
+
+void printUsage() {
+    std::printf(
+        "Aster Sandbox\n"
+        "  --host [port]          host a match (default port 27015)\n"
+        "  --join <addr[:port]>   join a host\n"
+        "  --steam                host a Steam friends-only lobby (invite with I or Shift+Tab)\n"
+        "  --steam-join <lobby>   join a Steam lobby by id (invites from Steam join automatically)\n"
+        "  --scene <file>         scene to play (default assets/scenes/arena.scene)\n"
+        "  --players <n>          max players when hosting (default 4, max 8)\n"
+        "  --bodies <n>           physics bodies (default 2000, set by host)\n"
+        "  --delay <ticks>        input delay in 33ms ticks (default 3)\n"
+        "  --seed <n>             world seed\n"
+        "  --vsync <0|1>          vertical sync (default 1)\n"
+        "  --fps <n>              frame cap when vsync is off\n"
+        "  --size <w> <h>         window size\n"
+        "  --debug                enable the D3D12 debug layer\n"
+        "  --local                host on 127.0.0.1 only (same-PC testing)\n"
+        "  --threads <n>          physics worker threads (default: auto)\n"
+        "  --auto-start <n>       host: start when n players are in the lobby\n"
+        "  --exit-tick <t>        print the state hash after tick t and exit\n"
+        "  --bot                  drive the local player with scripted input\n"
+        "  --capture <png> <tick> save a screenshot after the given tick\n");
+}
+
+bool parseArgs(int argc, char** argv, Options& o) {
+    for (int i = 1; i < argc; ++i) {
+        const std::string a = argv[i];
+        auto next = [&](const char*& out) {
+            if (i + 1 >= argc) return false;
+            out = argv[++i];
+            return true;
+        };
+        auto hasValue = [&] { return i + 1 < argc && argv[i + 1][0] != '-'; };
+        const char* v = nullptr;
+        if (a == "--host") {
+            o.mode = Options::Mode::Host;
+            if (hasValue()) o.port = static_cast<u16>(std::atoi(argv[++i]));
+        } else if (a == "--join" && next(v)) {
+            o.mode = Options::Mode::Join;
+            o.joinAddress = v;
+        } else if (a == "--steam") o.mode = Options::Mode::SteamHost;
+        else if (a == "--steam-join" && next(v)) {
+            o.mode = Options::Mode::SteamJoin;
+            o.steamLobby = std::strtoull(v, nullptr, 10);
+        } else if (a == "+connect_lobby" && next(v)) { // Steam이 친구 초대를 수락했을 때 붙이는 인자
+            o.mode = Options::Mode::SteamJoin;
+            o.steamLobby = std::strtoull(v, nullptr, 10);
+        } else if (a == "--scene" && next(v)) o.scenePath = v;
+        else if (a == "--players" && next(v)) o.maxPlayers = static_cast<u32>(std::atoi(v));
+        else if (a == "--bodies" && next(v)) o.bodies = static_cast<u32>(std::atoi(v));
+        else if (a == "--delay" && next(v)) o.inputDelay = static_cast<u32>(std::atoi(v));
+        else if (a == "--seed" && next(v)) o.seed = std::strtoull(v, nullptr, 10);
+        else if (a == "--vsync" && next(v)) o.vsync = std::atoi(v) != 0;
+        else if (a == "--fps" && next(v)) o.fpsCap = std::atof(v);
+        else if (a == "--size" && i + 2 < argc) {
+            o.width = static_cast<u32>(std::atoi(argv[++i]));
+            o.height = static_cast<u32>(std::atoi(argv[++i]));
+        } else if (a == "--debug") o.debugLayer = true;
+        else if (a == "--local") o.loopbackOnly = true;
+        else if (a == "--threads" && next(v)) o.physicsThreads = static_cast<u32>(std::atoi(v));
+        else if (a == "--auto-start" && next(v)) o.autoStart = static_cast<u32>(std::atoi(v));
+        else if (a == "--exit-tick" && next(v)) o.exitTick = static_cast<u32>(std::atoi(v));
+        else if (a == "--bot") o.bot = true;
+        else if (a == "--capture" && i + 2 < argc) {
+            o.capturePath = argv[++i];
+            o.captureTick = static_cast<u32>(std::atoi(argv[++i]));
+        } else if (a == "--help" || a == "-h") return false;
+        else {
+            std::printf("Unknown option: %s\n", a.c_str());
+            return false;
+        }
+    }
+#if defined(ASTER_DEBUG)
+    o.debugLayer = true;
+#endif
+    return true;
+}
+
+const char* stateName(net::SessionState s) {
+    switch (s) {
+    case net::SessionState::Idle: return "idle";
+    case net::SessionState::Connecting: return "connecting";
+    case net::SessionState::Lobby: return "lobby";
+    case net::SessionState::Running: return "running";
+    case net::SessionState::Ended: return "ended";
+    }
+    return "?";
+}
+
+} // namespace
+
+int main(int argc, char** argv) {
+    Options opt;
+    if (!parseArgs(argc, argv, opt)) {
+        printUsage();
+        return 1;
+    }
+    const bool automated = opt.exitTick > 0;
+    if (automated) log::setDialogs(false);
+
+    scene::Scene scene;
+    const std::string scenePath = opt.scenePath.empty() ? findAsset("assets/scenes/arena.scene") : opt.scenePath;
+    if (!scenePath.empty()) {
+        std::string error;
+        if (!scene::load(scene, scenePath, &error)) ASTER_FATAL("Cannot load scene %s: %s", scenePath.c_str(), error.c_str());
+        ASTER_INFO("Scene: %s (%zu entities)", scenePath.c_str(), scene.entities.size());
+    } else {
+        scene = scene::makeDefault();
+        ASTER_INFO("Scene file not found - using the built-in arena");
+    }
+
+    Window window;
+    if (!window.create({"Aster Sandbox", opt.width, opt.height})) return 1;
+
+    render::Renderer renderer;
+    if (!renderer.init({window.nativeHandle(), window.width(), window.height(), opt.vsync, opt.debugLayer}))
+        ASTER_FATAL("Renderer initialization failed. A Direct3D 12 GPU with Shader Model 6.0 is required.");
+    asset::ModelCache models;
+    models.setRenderer(&renderer);
+
+    net::LockstepSession session;
+    // 실행 파일 + 씬 + 모델 파일이 모두 같아야 접속할 수 있다
+    session.setContentHash(scene.contentHash() ^ models.hashModels(scene));
+    const u64 seed = opt.seed ? opt.seed : static_cast<u64>(std::time(nullptr));
+    switch (opt.mode) {
+    case Options::Mode::Offline:
+        session.startOffline(seed, opt.bodies);
+        break;
+    case Options::Mode::Host:
+        if (!session.host(opt.port, opt.maxPlayers, opt.inputDelay, opt.loopbackOnly))
+            ASTER_FATAL("Could not host on port %u", opt.port);
+        break;
+    case Options::Mode::Join: {
+        net::Address address;
+        if (!net::startup() || !net::resolveAddress(opt.joinAddress.c_str(), 27015, address))
+            ASTER_FATAL("Could not resolve '%s'", opt.joinAddress.c_str());
+        net::cleanup();
+        if (!session.join(address)) ASTER_FATAL("Could not open a UDP socket");
+        break;
+    }
+    case Options::Mode::SteamHost:
+    case Options::Mode::SteamJoin:
+        break; // 로비가 준비되면 아래 루프에서 세션을 연다
+    }
+
+    // Steam: 로비를 만들거나 들어간 뒤, 방장의 Steam ID로 락스텝 세션을 연다 (Steam 릴레이 경유)
+    const bool useSteam = opt.mode == Options::Mode::SteamHost || opt.mode == Options::Mode::SteamJoin;
+    steam::Lobby lobby;
+    if (useSteam) {
+        if (!steam::init()) ASTER_FATAL("Steam is not available. Run the Steam client, and build with the Steamworks SDK (see README).");
+        if (opt.mode == Options::Mode::SteamHost) lobby.create(opt.maxPlayers);
+        else lobby.join(opt.steamLobby);
+    }
+
+    sandbox::GameSession game;
+    aster::game::PlayOptions gameOptions;
+    gameOptions.bot = opt.bot;
+    gameOptions.exitTick = opt.exitTick;
+    gameOptions.capture = !opt.capturePath.empty();
+    gameOptions.captureTick = opt.captureTick;
+    gameOptions.physicsThreads = opt.physicsThreads;
+
+    FrameLimiter limiter;
+    limiter.setTargetFps(opt.vsync ? 0.0 : opt.fpsCap);
+
+    render::DrawList drawList;
+    f64 lastTime = nowSeconds();
+    f64 titleTimer = 0.0, frameTimeSum = 0.0;
+    u32 frameCount = 0, perfLogCounter = 0;
+    int exitCode = 0;
+    f64 exitDeadline = 0.0; // --exit-tick 도달 후 종료 시각
+
+    while (window.pumpMessages()) {
+        const f64 now = nowSeconds();
+        const f64 dt = std::min(now - lastTime, 0.25);
+        lastTime = now;
+        Input& input = window.input();
+        if (exitDeadline > 0.0 && now >= exitDeadline) break;
+
+        if (input.keyPressed(key::Escape)) break;
+        if (input.keyPressed('V')) renderer.setVsync(!renderer.vsync());
+        if (input.keyPressed(key::F12)) renderer.requestCapture("screenshot.png");
+        if (window.consumeResize()) renderer.resize(window.width(), window.height());
+
+        if (useSteam) {
+            steam::runCallbacks();
+            if (lobby.state() == steam::LobbyState::Failed) ASTER_FATAL("Steam lobby failed (see log)");
+            if (session.state() == net::SessionState::Idle && lobby.state() == steam::LobbyState::InLobby) {
+                if (lobby.isOwner()) {
+                    session.hostWith(steam::createTransport(), opt.maxPlayers, opt.inputDelay);
+                    lobby.inviteFriends();
+                } else {
+                    net::Address hostAddress;
+                    hostAddress.steamId = lobby.ownerSteamId();
+                    session.joinWith(steam::createTransport(), hostAddress);
+                }
+            }
+            if (const u64 invited = lobby.takeJoinRequest())
+                ASTER_INFO("Steam invite to lobby %llu received - restart the game from the invite to join",
+                           static_cast<unsigned long long>(invited));
+            if (input.keyPressed('I')) lobby.inviteFriends();
+        }
+
+        session.update(now);
+
+        if (session.isHost() && session.state() == net::SessionState::Lobby) {
+            if (input.keyPressed(key::Enter) || (opt.autoStart && session.lobbyPlayerCount() >= opt.autoStart))
+                session.startMatch(seed, opt.bodies);
+        }
+        if (session.state() == net::SessionState::Ended && automated && exitDeadline == 0.0) {
+            ASTER_ERROR("Session ended before the exit tick: %s", session.endReason());
+            exitCode = 3;
+            break;
+        }
+
+        if (!game.started() && session.state() == net::SessionState::Running) {
+            game.start(scene, session, gameOptions, models);
+            ASTER_INFO("World ready: %u bodies, %u player(s), you are player %u", session.matchData(),
+                       session.playerCount(), session.localPlayer());
+        }
+
+        game.update(dt, session, window, window.focused(), window.focused());
+        if (game.captureDue()) renderer.requestCapture(opt.capturePath.c_str());
+        if (game.finished() && exitDeadline == 0.0) {
+            std::printf("FINAL tick=%u hash=%016llx desync=%d\n", game.nextTick() - 1,
+                        static_cast<unsigned long long>(game.stateHash()), session.desynced() ? 1 : 0);
+            std::fflush(stdout);
+            exitCode = session.desynced() ? 2 : 0;
+            exitDeadline = now + 1.0; // 상대가 마지막 틱을 받을 시간을 준 뒤 종료
+        }
+
+        if (!window.minimized()) {
+            ASTER_ZONE("Render");
+            render::FrameParams frame;
+            drawList.clear();
+            const render::Viewport full{0.0f, 0.0f, static_cast<f32>(window.width()), static_cast<f32>(window.height())};
+            game.buildFrame(now, session.localPlayer(), full, frame, drawList);
+            if (renderer.beginFrame(frame)) {
+                drawList.submit(renderer);
+                renderer.endFrame();
+            }
+        }
+
+        limiter.wait();
+        ASTER_FRAME_MARK();
+
+        // ---- 창 제목에 상태 표시 (4Hz) ----
+        frameTimeSum += dt;
+        ++frameCount;
+        titleTimer += dt;
+        if (titleTimer >= 0.25) {
+            char title[256];
+            const f64 avgMs = frameTimeSum / std::max(frameCount, 1u) * 1000.0;
+            const f64 simMs = game.takeSimMsPerTick();
+            const net::SessionStats& st = session.stats();
+            const net::SessionState state = session.state();
+            if (useSteam && state == net::SessionState::Idle) {
+                snprintf(title, sizeof(title), "Aster Sandbox | Steam lobby: %s",
+                         lobby.state() == steam::LobbyState::Creating ? "creating..." : "joining...");
+            } else if (state == net::SessionState::Lobby && session.isHost()) {
+                snprintf(title, sizeof(title), "Aster Sandbox | LOBBY %u/%u players - %sEnter: start",
+                         session.lobbyPlayerCount(), opt.maxPlayers, useSteam ? "I: invite friends, " : "");
+            } else if (state == net::SessionState::Lobby || state == net::SessionState::Connecting) {
+                snprintf(title, sizeof(title), "Aster Sandbox | %s - waiting for host (%u in lobby)", stateName(state),
+                         session.lobbyPlayerCount());
+            } else if (state == net::SessionState::Ended) {
+                snprintf(title, sizeof(title), "Aster Sandbox | ENDED: %s", session.endReason());
+            } else {
+                snprintf(title, sizeof(title),
+                         "Aster Sandbox | %.0f fps %.2f ms | sim %.2f ms/tick | tick %u | P%u of %u | rtt %.0f ms | "
+                         "net %.1f/%.1f KB/s | %u draws %u inst | %s%s",
+                         1000.0 / avgMs, avgMs, simMs, game.nextTick(), session.localPlayer() + 1, session.playerCount(),
+                         st.rttMs, st.sentBytesPerSec / 1024.0, st.recvBytesPerSec / 1024.0, renderer.stats().drawCalls,
+                         renderer.stats().instances, session.desynced() ? "DESYNC" : "in sync",
+                         renderer.vsync() ? " | vsync" : "");
+            }
+            window.setTitle(title);
+            if (automated && (perfLogCounter++ % 8) == 7) ASTER_INFO("perf: %s", title + 15);
+            titleTimer = frameTimeSum = 0.0;
+            frameCount = 0;
+        }
+    }
+
+    session.shutdown();
+    lobby.leave();
+    steam::shutdown();
+    renderer.shutdown();
+    return exitCode;
+}

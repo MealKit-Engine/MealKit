@@ -1,0 +1,292 @@
+# Aster scene
+version 1
+
+sun 0.400000006 0.800000012 0.300000012
+sunColor 1 0.949999988 0.850000024
+sky 0.300000012 0.379999995 0.5
+groundColor 0.200000003 0.170000002 0.140000001
+fog 0.5 0.620000005 0.779999971 0.00800000038
+
+entity
+id 1
+name Ground
+kind solid
+position 0 -0.5 0
+rotation 0 0 0 1
+scale 120 1 120
+color FF609676
+flags 1
+end
+
+entity
+id 2
+name Wall North
+kind solid
+position 0 1 60.5
+rotation 0 0 0 1
+scale 122 2 1
+color FF8C9296
+flags 0
+end
+
+entity
+id 3
+name Wall South
+kind solid
+position 0 1 -60.5
+rotation 0 0 0 1
+scale 122 2 1
+color FF8C9296
+flags 0
+end
+
+entity
+id 4
+name Wall East
+kind solid
+position 60.5 1 0
+rotation 0 0 0 1
+scale 1 2 120
+color FF8C9296
+flags 0
+end
+
+entity
+id 5
+name Wall West
+kind solid
+position -60.5 1 0
+rotation 0 0 0 1
+scale 1 2 120
+color FF8C9296
+flags 0
+end
+
+entity
+id 6
+name Ramp
+kind solid
+position 18 1.25 -10
+rotation 0 0 0.130526185 0.991444886
+scale 10 0.5 4
+color FF6EA0C4
+flags 0
+end
+
+entity
+id 7
+name Platform
+kind solid
+position 26 2.5 -10
+rotation 0 0 0 1
+scale 6 0.5 6
+color FF648CAA
+flags 0
+end
+
+entity
+id 8
+name Pillar A
+kind solid
+position -7.36503649 2 14.0621119
+rotation 0 0 0 1
+scale 2 4 2
+color FFB6AAAA
+flags 0
+end
+
+entity
+id 9
+name Pillar B
+kind solid
+position 15 2 15
+rotation 0 0 0 1
+scale 2 4 2
+color FFB6AAAA
+flags 0
+end
+
+entity
+id 10
+name Block
+kind solid
+position -20 1 -15
+rotation 0 0.258819044 0 0.965925813
+scale 6 2 3
+color FFC87896
+flags 0
+end
+
+entity
+id 11
+name Crate
+kind solid
+position 0 1 25
+rotation 0 0.382683426 0 0.923879504
+scale 4 2 4
+color FF508CCD
+flags 0
+end
+
+entity
+id 12
+name Banner
+kind decoration
+position 0 6 -59.9000015
+rotation 0 0 0 1
+scale 14 5 0.200000003
+color FF3C3CC8
+flags 0
+end
+
+entity
+id 13
+name Spawn 1
+kind spawn
+position -6 0.899999976 -6
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 14
+name Spawn 2
+kind spawn
+position 6 0.899999976 6
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 15
+name Spawn 3
+kind spawn
+position 6 0.899999976 -6
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 16
+name Spawn 4
+kind spawn
+position -6 0.899999976 6
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 17
+name Tree 1
+kind solid
+position -30 0 30
+rotation 0 0 0 1
+scale 1.60000002 1.60000002 1.60000002
+model models/tree.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 18
+name Tree 2
+kind solid
+position -36 0 22
+rotation 0 0.382683426 0 0.923879504
+scale 1.29999995 1.29999995 1.29999995
+model models/tree.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 19
+name Tree 3
+kind solid
+position 32 0 34
+rotation 0 0.258819044 0 0.965925813
+scale 1.79999995 1.79999995 1.79999995
+model models/tree.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 20
+name Tree 4
+kind solid
+position 40 0 -32
+rotation 0 0 0 1
+scale 1.39999998 1.39999998 1.39999998
+model models/tree.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 21
+name Tree 5
+kind solid
+position -42 0 -36
+rotation 0 0.5 0 0.866025388
+scale 1.70000005 1.70000005 1.70000005
+model models/tree.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 22
+name Rock 1
+kind solid
+position 12 0 22
+rotation 0 0.258819044 0 0.965925813
+scale 1.5 1.5 1.5
+model models/rock.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 23
+name Rock 2
+kind solid
+position -28 0 2
+rotation 0 0 0 1
+scale 2.20000005 2 2.20000005
+model models/rock.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 24
+name Rock 3
+kind solid
+position 36 0 8
+rotation 0 0.707106769 0 0.707106769
+scale 1.29999995 1.29999995 1.29999995
+model models/rock.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 25
+name Ring
+kind solid
+position 0 0 42
+rotation 0 0 0 1
+scale 2 2 2
+model models/ring.glb
+color FFFFFFFF
+flags 0
+end

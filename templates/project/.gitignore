@@ -1,0 +1,6 @@
+build/
+export/
+.vs/
+*.png
+*.autosave
+aster_editor.ini

@@ -1,0 +1,45 @@
+{
+    // F5: 선택한 구성을 빌드하고 디버거로 실행한다 (C/C++ 확장 ms-vscode.cpptools 필요)
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // 에디터에서 게임 코드(@NAME@_game.dll)에 중단점을 건다. 디버깅 중에는 PDB가 잠겨 핫 리로드 빌드가 실패할 수 있다.
+            "name": "Editor (debug game code)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "@ASTER_ROOT_FWD@/build/Editor/bin/AsterEditor.exe",
+            "args": ["--project", "${workspaceFolder}"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Game Code"
+        },
+        {
+            "name": "Game (Debug)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/@NAME@.exe",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Debug"
+        },
+        {
+            "name": "Game Host (Release)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Release/bin/@NAME@.exe",
+            "args": ["--host", "--local"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Release"
+        },
+        {
+            "name": "Game Join 127.0.0.1 (Release)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Release/bin/@NAME@.exe",
+            "args": ["--join", "127.0.0.1"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        }
+    ]
+}

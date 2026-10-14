@@ -1,0 +1,3 @@
+# Aster project: 엔진 저장소 자신도 예제 게임(samples/sandbox) 프로젝트로 열 수 있다.
+name=sandbox
+scene=scenes/arena.scene

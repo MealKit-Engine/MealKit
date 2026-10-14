@@ -1,0 +1,12 @@
+Library        Version                       License   Used in                     Source
+-------------  ----------------------------  --------  --------------------------  ---------------------------------------------
+Jolt Physics   v5.6.0                        MIT       engine (game)               https://github.com/jrouwe/JoltPhysics
+cgltf          v1.15                         MIT       engine (model loading)      https://github.com/jkuhlmann/cgltf
+meshoptimizer  v1.3                          MIT       engine (model loading)      https://github.com/zeux/meshoptimizer
+Tracy          v0.14.1                       BSD-3     Profile builds only         https://github.com/wolfpld/tracy
+Dear ImGui     v1.92.9b-docking (b48d1af)    MIT       editor only                 https://github.com/ocornut/imgui
+ImGuizmo       18cef5e (2026-08-08)          MIT       editor only                 https://github.com/CedricGuillemet/ImGuizmo
+Steamworks SDK (not included, see README)    Valve     engine when present         https://partner.steamgames.com/
+
+Only the files needed to build are copied (Jolt: Jolt/ + Build/CMakeLists.txt, Tracy: public/, meshoptimizer: src/).
+When updating a library, change this file and THIRD_PARTY_NOTICES.txt at the repository root.

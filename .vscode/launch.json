@@ -1,0 +1,55 @@
+{
+    // F5: 선택한 구성을 빌드하고 디버거로 실행한다 (C/C++ 확장 ms-vscode.cpptools 필요)
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // 범용 에디터 (RelWithDebInfo: 최적화 + 디버그 정보)로 엔진 예제 프로젝트를 연다
+            "name": "Editor",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Editor/bin/AsterEditor.exe",
+            "args": ["--project", "${workspaceFolder}"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Editor"
+        },
+        {
+            // 프로젝트 없이 실행: 프로젝트 관리자
+            "name": "Editor (project manager)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Editor/bin/AsterEditor.exe",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Editor"
+        },
+        {
+            "name": "Game (Debug)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Debug/bin/sandbox.exe",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Debug"
+        },
+        {
+            "name": "Game Host (Release)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Release/bin/sandbox.exe",
+            "args": ["--host", "--local"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "preLaunchTask": "Build Release"
+        },
+        {
+            "name": "Game Join 127.0.0.1 (Release)",
+            "type": "cppvsdbg",
+            "request": "launch",
+            "program": "${workspaceFolder}/build/Release/bin/sandbox.exe",
+            "args": ["--join", "127.0.0.1"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        }
+    ]
+}
