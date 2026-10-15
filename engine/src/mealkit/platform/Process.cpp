@@ -33,6 +33,64 @@ std::string toUtf8Line(const std::string& bytes) {
 
 } // namespace
 
+ProcessGroup::~ProcessGroup() { terminateAll(); }
+
+bool ProcessGroup::launch(const std::string& exe, const std::string& arguments, const std::string& workingDirectory,
+                          const std::string& logPath) {
+    if (!m_job) {
+        m_job = CreateJobObjectW(nullptr, nullptr);
+        if (!m_job) return false;
+        JOBOBJECT_EXTENDED_LIMIT_INFORMATION limits{};
+        limits.BasicLimitInformation.LimitFlags = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE;
+        SetInformationJobObject(m_job, JobObjectExtendedLimitInformation, &limits, sizeof(limits));
+    }
+    SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
+    HANDLE log = CreateFileW(widen(logPath).c_str(), GENERIC_WRITE, FILE_SHARE_READ, &sa, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL,
+                             nullptr);
+    STARTUPINFOW si{};
+    si.cb = sizeof(si);
+    if (log != INVALID_HANDLE_VALUE) {
+        si.dwFlags = STARTF_USESTDHANDLES;
+        si.hStdInput = GetStdHandle(STD_INPUT_HANDLE);
+        si.hStdOutput = log;
+        si.hStdError = log;
+    }
+    std::wstring cmd = L"\"" + widen(exe) + L"\" " + widen(arguments);
+    const std::wstring dir = widen(workingDirectory);
+    PROCESS_INFORMATION pi{};
+    const BOOL ok = CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr,
+                                   dir.empty() ? nullptr : dir.c_str(), &si, &pi);
+    if (log != INVALID_HANDLE_VALUE) CloseHandle(log);
+    if (!ok) {
+        MEALKIT_ERROR("CreateProcess failed (%lu): %s %s", GetLastError(), exe.c_str(), arguments.c_str());
+        return false;
+    }
+    AssignProcessToJobObject(m_job, pi.hProcess); // 시작하기 전에 넣어야 손자 프로세스까지 묶인다
+    ResumeThread(pi.hThread);
+    CloseHandle(pi.hThread);
+    m_processes.push_back(pi.hProcess);
+    return true;
+}
+
+unsigned ProcessGroup::running() const {
+    unsigned count = 0;
+    for (void* p : m_processes)
+        if (WaitForSingleObject(p, 0) == WAIT_TIMEOUT) ++count;
+    return count;
+}
+
+void ProcessGroup::terminateAll() {
+    for (void* p : m_processes) {
+        TerminateProcess(p, 0);
+        CloseHandle(p);
+    }
+    m_processes.clear();
+    if (m_job) {
+        CloseHandle(m_job);
+        m_job = nullptr;
+    }
+}
+
 ChildProcess::~ChildProcess() { close(); }
 
 bool ChildProcess::start(const std::string& commandLine, const std::string& workingDirectory) {

@@ -183,7 +183,9 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/GameModuleHost.h
         src/mealkit/editor/GameModuleHost.cpp
         src/mealkit/editor/FieldEditor.h
-        src/mealkit/editor/FieldEditor.cpp)
+        src/mealkit/editor/FieldEditor.cpp
+        src/mealkit/editor/PlaySession.h
+        src/mealkit/editor/PlaySession.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit mealkit_imgui comdlg32)
     target_compile_definitions(mealkit_editor PUBLIC MEALKIT_EDITOR=1)
 
