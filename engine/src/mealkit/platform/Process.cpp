@@ -20,7 +20,8 @@ std::wstring widen(const std::string& s) {
 // 컴파일러·cmd 출력은 콘솔 코드 페이지(한국어 Windows는 CP949)일 수 있다. UTF-8이 아니면 OEM 코드 페이지로 본다.
 std::string toUtf8Line(const std::string& bytes) {
     if (bytes.empty()) return {};
-    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), nullptr, 0) > 0)
+    if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), nullptr, 0) >
+        0)
         return bytes;
     const int n = MultiByteToWideChar(CP_OEMCP, 0, bytes.data(), static_cast<int>(bytes.size()), nullptr, 0);
     std::wstring w(static_cast<size_t>(n), L'\0');
@@ -45,8 +46,8 @@ bool ProcessGroup::launch(const std::string& exe, const std::string& arguments, 
         SetInformationJobObject(m_job, JobObjectExtendedLimitInformation, &limits, sizeof(limits));
     }
     SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
-    HANDLE log = CreateFileW(widen(logPath).c_str(), GENERIC_WRITE, FILE_SHARE_READ, &sa, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL,
-                             nullptr);
+    HANDLE log = CreateFileW(widen(logPath).c_str(), GENERIC_WRITE, FILE_SHARE_READ, &sa, CREATE_ALWAYS,
+                             FILE_ATTRIBUTE_NORMAL, nullptr);
     STARTUPINFOW si{};
     si.cb = sizeof(si);
     if (log != INVALID_HANDLE_VALUE) {
@@ -58,8 +59,8 @@ bool ProcessGroup::launch(const std::string& exe, const std::string& arguments, 
     std::wstring cmd = L"\"" + widen(exe) + L"\" " + widen(arguments);
     const std::wstring dir = widen(workingDirectory);
     PROCESS_INFORMATION pi{};
-    const BOOL ok = CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW | CREATE_SUSPENDED, nullptr,
-                                   dir.empty() ? nullptr : dir.c_str(), &si, &pi);
+    const BOOL ok = CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW | CREATE_SUSPENDED,
+                                   nullptr, dir.empty() ? nullptr : dir.c_str(), &si, &pi);
     if (log != INVALID_HANDLE_VALUE) CloseHandle(log);
     if (!ok) {
         MEALKIT_ERROR("CreateProcess failed (%lu): %s %s", GetLastError(), exe.c_str(), arguments.c_str());
@@ -182,8 +183,8 @@ bool launchDetached(const std::string& exe, const std::string& arguments, const 
     STARTUPINFOW si{};
     si.cb = sizeof(si);
     PROCESS_INFORMATION pi{};
-    if (!CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, 0, nullptr, dir.empty() ? nullptr : dir.c_str(), &si,
-                        &pi)) {
+    if (!CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, 0, nullptr, dir.empty() ? nullptr : dir.c_str(),
+                        &si, &pi)) {
         MEALKIT_ERROR("CreateProcess failed (%lu): %s", GetLastError(), exe.c_str());
         return false;
     }

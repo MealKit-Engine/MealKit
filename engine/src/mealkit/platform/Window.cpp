@@ -130,9 +130,7 @@ std::intptr_t Window::handleMessage(void* hwndPtr, u32 msg, std::uintptr_t wpara
         if (handled) return handled;
     }
     switch (msg) {
-    case WM_CLOSE:
-        m_quit = true;
-        return 0;
+    case WM_CLOSE: m_quit = true; return 0;
     case WM_SIZE:
         m_minimized = wparam == SIZE_MINIMIZED;
         if (!m_minimized) {
@@ -151,22 +149,14 @@ std::intptr_t Window::handleMessage(void* hwndPtr, u32 msg, std::uintptr_t wpara
             setCursorCaptured(false);
         }
         return 0;
-    case WM_KEYDOWN:
-        m_input.setKey(static_cast<u8>(wparam), true);
-        return 0;
-    case WM_KEYUP:
-        m_input.setKey(static_cast<u8>(wparam), false);
-        return 0;
-    case WM_SYSKEYDOWN:
-        m_input.setKey(static_cast<u8>(wparam), true);
-        break; // Alt+F4 등은 기본 처리
-    case WM_SYSKEYUP:
-        m_input.setKey(static_cast<u8>(wparam), false);
-        break;
+    case WM_KEYDOWN: m_input.setKey(static_cast<u8>(wparam), true); return 0;
+    case WM_KEYUP: m_input.setKey(static_cast<u8>(wparam), false); return 0;
+    case WM_SYSKEYDOWN: m_input.setKey(static_cast<u8>(wparam), true); break; // Alt+F4 등은 기본 처리
+    case WM_SYSKEYUP: m_input.setKey(static_cast<u8>(wparam), false); break;
     case WM_LBUTTONDOWN:
     case WM_RBUTTONDOWN:
     case WM_MBUTTONDOWN: {
-        const MouseButton b = msg == WM_LBUTTONDOWN ? MouseButton::Left
+        const MouseButton b = msg == WM_LBUTTONDOWN   ? MouseButton::Left
                               : msg == WM_RBUTTONDOWN ? MouseButton::Right
                                                       : MouseButton::Middle;
         m_input.setMouse(b, true);
@@ -176,7 +166,7 @@ std::intptr_t Window::handleMessage(void* hwndPtr, u32 msg, std::uintptr_t wpara
     case WM_LBUTTONUP:
     case WM_RBUTTONUP:
     case WM_MBUTTONUP: {
-        const MouseButton b = msg == WM_LBUTTONUP ? MouseButton::Left
+        const MouseButton b = msg == WM_LBUTTONUP   ? MouseButton::Left
                               : msg == WM_RBUTTONUP ? MouseButton::Right
                                                     : MouseButton::Middle;
         m_input.setMouse(b, false);
@@ -204,10 +194,8 @@ std::intptr_t Window::handleMessage(void* hwndPtr, u32 msg, std::uintptr_t wpara
                      SWP_NOZORDER | SWP_NOACTIVATE);
         return 0;
     }
-    case WM_ERASEBKGND:
-        return 1;
-    default:
-        break;
+    case WM_ERASEBKGND: return 1;
+    default: break;
     }
     return DefWindowProcW(hwnd, msg, wparam, lparam);
 }

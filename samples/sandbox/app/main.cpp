@@ -61,30 +61,29 @@ struct Options {
 };
 
 void printUsage() {
-    std::printf(
-        "MealKit Sandbox\n"
-        "  --host [port]          host a match (default port 27015)\n"
-        "  --join <addr[:port]>   join a host\n"
-        "  --steam                host a Steam friends-only lobby (invite with I or Shift+Tab)\n"
-        "  --steam-join <lobby>   join a Steam lobby by id (invites from Steam join automatically)\n"
-        "  --scene <file>         scene to play (default assets/scenes/arena.scene)\n"
-        "  --tuning <file>        tuning values (default assets/game.tuning)\n"
-        "  --players <n>          max players when hosting (default 4, max 8)\n"
-        "  --bodies <n>           physics bodies (default 2000, set by host)\n"
-        "  --delay <ticks>        input delay in 33ms ticks (default 3)\n"
-        "  --seed <n>             world seed\n"
-        "  --vsync <0|1>          vertical sync (default 1)\n"
-        "  --fps <n>              frame cap when vsync is off\n"
-        "  --size <w> <h>         window size\n"
-        "  --debug                enable the D3D12 debug layer\n"
-        "  --local                host on 127.0.0.1 only (same-PC testing)\n"
-        "  --threads <n>          physics worker threads (default: auto)\n"
-        "  --auto-start <n>       host: start when n players are in the lobby\n"
-        "  --exit-tick <t>        print the state hash after tick t and exit\n"
-        "  --bot                  drive the local player with scripted input\n"
-        "  --shadow               run a shadow simulation and compare state hashes every tick\n"
-        "  --rewind-test          record inputs and snapshots, rewind and replay at the exit tick\n"
-        "  --capture <png> <tick> save a screenshot after the given tick\n");
+    std::printf("MealKit Sandbox\n"
+                "  --host [port]          host a match (default port 27015)\n"
+                "  --join <addr[:port]>   join a host\n"
+                "  --steam                host a Steam friends-only lobby (invite with I or Shift+Tab)\n"
+                "  --steam-join <lobby>   join a Steam lobby by id (invites from Steam join automatically)\n"
+                "  --scene <file>         scene to play (default assets/scenes/arena.scene)\n"
+                "  --tuning <file>        tuning values (default assets/game.tuning)\n"
+                "  --players <n>          max players when hosting (default 4, max 8)\n"
+                "  --bodies <n>           physics bodies (default 2000, set by host)\n"
+                "  --delay <ticks>        input delay in 33ms ticks (default 3)\n"
+                "  --seed <n>             world seed\n"
+                "  --vsync <0|1>          vertical sync (default 1)\n"
+                "  --fps <n>              frame cap when vsync is off\n"
+                "  --size <w> <h>         window size\n"
+                "  --debug                enable the D3D12 debug layer\n"
+                "  --local                host on 127.0.0.1 only (same-PC testing)\n"
+                "  --threads <n>          physics worker threads (default: auto)\n"
+                "  --auto-start <n>       host: start when n players are in the lobby\n"
+                "  --exit-tick <t>        print the state hash after tick t and exit\n"
+                "  --bot                  drive the local player with scripted input\n"
+                "  --shadow               run a shadow simulation and compare state hashes every tick\n"
+                "  --rewind-test          record inputs and snapshots, rewind and replay at the exit tick\n"
+                "  --capture <png> <tick> save a screenshot after the given tick\n");
 }
 
 bool parseArgs(int argc, char** argv, Options& o) {
@@ -170,7 +169,8 @@ int main(int argc, char** argv) {
     const std::string scenePath = opt.scenePath.empty() ? findAsset("assets/scenes/arena.scene") : opt.scenePath;
     if (!scenePath.empty()) {
         std::string error;
-        if (!scene::load(scene, scenePath, &error)) MEALKIT_FATAL("Cannot load scene %s: %s", scenePath.c_str(), error.c_str());
+        if (!scene::load(scene, scenePath, &error))
+            MEALKIT_FATAL("Cannot load scene %s: %s", scenePath.c_str(), error.c_str());
         MEALKIT_INFO("Scene: %s (%zu entities)", scenePath.c_str(), scene.entities.size());
     } else {
         scene = scene::makeDefault();
@@ -190,12 +190,11 @@ int main(int argc, char** argv) {
     // 실행 파일 + 씬 + 모델 파일 + 튜닝이 모두 같아야 접속할 수 있다
     sandbox::Tuning tuning;
     game::loadTuning(reflect::typeOf<sandbox::Tuning>(), &tuning, opt.tuningPath);
-    session.setContentHash(game::contentHash(scene, models, &reflect::moduleObjectTypes(), &reflect::typeOf<sandbox::Tuning>(), &tuning));
+    session.setContentHash(
+        game::contentHash(scene, models, &reflect::moduleObjectTypes(), &reflect::typeOf<sandbox::Tuning>(), &tuning));
     const u64 seed = opt.seed ? opt.seed : static_cast<u64>(std::time(nullptr));
     switch (opt.mode) {
-    case Options::Mode::Offline:
-        session.startOffline(seed, opt.bodies);
-        break;
+    case Options::Mode::Offline: session.startOffline(seed, opt.bodies); break;
     case Options::Mode::Host:
         if (!session.host(opt.port, opt.maxPlayers, opt.inputDelay, opt.loopbackOnly))
             MEALKIT_FATAL("Could not host on port %u", opt.port);
@@ -209,15 +208,16 @@ int main(int argc, char** argv) {
         break;
     }
     case Options::Mode::SteamHost:
-    case Options::Mode::SteamJoin:
-        break; // 로비가 준비되면 아래 루프에서 세션을 연다
+    case Options::Mode::SteamJoin: break; // 로비가 준비되면 아래 루프에서 세션을 연다
     }
 
     // Steam: 로비를 만들거나 들어간 뒤, 방장의 Steam ID로 락스텝 세션을 연다 (Steam 릴레이 경유)
     const bool useSteam = opt.mode == Options::Mode::SteamHost || opt.mode == Options::Mode::SteamJoin;
     steam::Lobby lobby;
     if (useSteam) {
-        if (!steam::init()) MEALKIT_FATAL("Steam is not available. Run the Steam client, and build with the Steamworks SDK (see README).");
+        if (!steam::init())
+            MEALKIT_FATAL(
+                "Steam is not available. Run the Steam client, and build with the Steamworks SDK (see README).");
         if (opt.mode == Options::Mode::SteamHost) lobby.create(opt.maxPlayers);
         else lobby.join(opt.steamLobby);
     }
@@ -271,7 +271,7 @@ int main(int argc, char** argv) {
             }
             if (const u64 invited = lobby.takeJoinRequest())
                 MEALKIT_INFO("Steam invite to lobby %llu received - restart the game from the invite to join",
-                           static_cast<unsigned long long>(invited));
+                             static_cast<unsigned long long>(invited));
             if (input.keyPressed('I')) lobby.inviteFriends();
         }
 
@@ -290,7 +290,7 @@ int main(int argc, char** argv) {
         if (!game.started() && session.state() == net::SessionState::Running) {
             game.start(ctx, scene, gameOptions);
             MEALKIT_INFO("World ready: %u bodies, %u player(s), you are player %u", session.matchData(),
-                       session.playerCount(), session.localPlayer());
+                         session.playerCount(), session.localPlayer());
         }
 
         ctx.viewport = {0.0f, 0.0f, static_cast<f32>(window.width()), static_cast<f32>(window.height())};
@@ -354,18 +354,18 @@ int main(int argc, char** argv) {
                 snprintf(title, sizeof(title), "MealKit Sandbox | LOBBY %u/%u players - %sEnter: start",
                          session.lobbyPlayerCount(), opt.maxPlayers, useSteam ? "I: invite friends, " : "");
             } else if (state == net::SessionState::Lobby || state == net::SessionState::Connecting) {
-                snprintf(title, sizeof(title), "MealKit Sandbox | %s - waiting for host (%u in lobby)", stateName(state),
-                         session.lobbyPlayerCount());
+                snprintf(title, sizeof(title), "MealKit Sandbox | %s - waiting for host (%u in lobby)",
+                         stateName(state), session.lobbyPlayerCount());
             } else if (state == net::SessionState::Ended) {
                 snprintf(title, sizeof(title), "MealKit Sandbox | ENDED: %s", session.endReason());
             } else {
                 snprintf(title, sizeof(title),
                          "MealKit Sandbox | %.0f fps %.2f ms | sim %.2f ms/tick | tick %u | P%u of %u | rtt %.0f ms | "
                          "net %.1f/%.1f KB/s | %u draws %u inst | %s%s",
-                         1000.0 / avgMs, avgMs, simMs, game.nextTick(), session.localPlayer() + 1, session.playerCount(),
-                         st.rttMs, st.sentBytesPerSec / 1024.0, st.recvBytesPerSec / 1024.0, renderer.stats().drawCalls,
-                         renderer.stats().instances, session.desynced() ? "DESYNC" : "in sync",
-                         renderer.vsync() ? " | vsync" : "");
+                         1000.0 / avgMs, avgMs, simMs, game.nextTick(), session.localPlayer() + 1,
+                         session.playerCount(), st.rttMs, st.sentBytesPerSec / 1024.0, st.recvBytesPerSec / 1024.0,
+                         renderer.stats().drawCalls, renderer.stats().instances,
+                         session.desynced() ? "DESYNC" : "in sync", renderer.vsync() ? " | vsync" : "");
             }
             window.setTitle(title);
             if (automated && (perfLogCounter++ % 8) == 7) MEALKIT_INFO("perf: %s", title + 15);

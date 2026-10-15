@@ -106,7 +106,8 @@ bool removeFile(const std::string& path) {
 unsigned long long fileWriteTime(const std::string& path) {
     WIN32_FILE_ATTRIBUTE_DATA data{};
     if (!GetFileAttributesExW(fromUtf8(path).c_str(), GetFileExInfoStandard, &data)) return 0;
-    return (static_cast<unsigned long long>(data.ftLastWriteTime.dwHighDateTime) << 32) | data.ftLastWriteTime.dwLowDateTime;
+    return (static_cast<unsigned long long>(data.ftLastWriteTime.dwHighDateTime) << 32) |
+           data.ftLastWriteTime.dwLowDateTime;
 }
 
 } // namespace mealkit

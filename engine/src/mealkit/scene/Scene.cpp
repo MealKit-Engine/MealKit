@@ -70,7 +70,8 @@ void writeVec3(FILE* f, const char* key, Vec3 v) { fprintf(f, "%s %.9g %.9g %.9g
 
 const std::vector<const reflect::TypeInfo*>& builtinTypes() {
     static const reflect::TypeInfo solid = makeBuiltin(kTypeSolid, "충돌 상자", 0);
-    static const reflect::TypeInfo decoration = makeBuiltin(kTypeDecoration, "장식 (충돌 없음)", reflect::kObjectCosmetic);
+    static const reflect::TypeInfo decoration =
+        makeBuiltin(kTypeDecoration, "장식 (충돌 없음)", reflect::kObjectCosmetic);
     static const reflect::TypeInfo spawn = makeBuiltin(kTypeSpawn, "스폰 지점", reflect::kObjectMarker);
     static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn};
     return list;
@@ -223,8 +224,7 @@ bool load(Scene& out, const std::string& path, std::string* error) {
                 if (*value) *value++ = '\0';
                 ok = rest[0] != '\0';
                 e.fields.emplace_back(rest, value);
-            }
-            else if (std::strcmp(key, "position") == 0) ok = readVec3(rest, e.position);
+            } else if (std::strcmp(key, "position") == 0) ok = readVec3(rest, e.position);
             else if (std::strcmp(key, "rotation") == 0) {
                 f32 q[4];
                 ok = readFloats(rest, q, 4);
@@ -274,7 +274,8 @@ bool load(Scene& out, const std::string& path, std::string* error) {
             else p = parent->parent;
         }
         if (bad) {
-            MEALKIT_WARN("%s: entity %u has an invalid parent %u - moved to the top level", path.c_str(), ent.id, ent.parent);
+            MEALKIT_WARN("%s: entity %u has an invalid parent %u - moved to the top level", path.c_str(), ent.id,
+                         ent.parent);
             ent.parent = 0;
         }
     }
@@ -287,8 +288,10 @@ Transform localTransform(const Entity& e) { return {e.position, e.rotation, e.sc
 namespace {
 
 Transform combine(const Transform& parent, const Transform& local) {
-    const Vec3 scaled{local.position.x * parent.scale.x, local.position.y * parent.scale.y, local.position.z * parent.scale.z};
-    return {parent.position + rotate(parent.rotation, scaled), normalize(parent.rotation * local.rotation),
+    const Vec3 scaled{local.position.x * parent.scale.x, local.position.y * parent.scale.y,
+                      local.position.z * parent.scale.z};
+    return {parent.position + rotate(parent.rotation, scaled),
+            normalize(parent.rotation * local.rotation),
             {parent.scale.x * local.scale.x, parent.scale.y * local.scale.y, parent.scale.z * local.scale.z}};
 }
 

@@ -18,7 +18,8 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     // 상자는 매치 중에 늘지 않으므로 Pool 용량 = 상자 수
     const u32 propCount = session.matchData();
     m_sim.start(options, kTickDt, [&](World& world, u32 physicsThreads) {
-        world.reset(session.seed(), session.playerCount(), propCount, propCount, tuning, m_scene, ctx.models, physicsThreads);
+        world.reset(session.seed(), session.playerCount(), propCount, propCount, tuning, m_scene, ctx.models,
+                    physicsThreads);
     });
     m_input.clearLatches();
     m_effects = {};

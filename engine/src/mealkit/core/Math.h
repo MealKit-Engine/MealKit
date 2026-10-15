@@ -20,16 +20,29 @@ struct Vec3 {
     constexpr Vec3 operator*(f32 s) const { return {x * s, y * s, z * s}; }
     constexpr Vec3 operator/(f32 s) const { return {x / s, y / s, z / s}; }
     constexpr Vec3 operator-() const { return {-x, -y, -z}; }
-    constexpr Vec3& operator+=(Vec3 b) { x += b.x; y += b.y; z += b.z; return *this; }
-    constexpr Vec3& operator-=(Vec3 b) { x -= b.x; y -= b.y; z -= b.z; return *this; }
-    constexpr Vec3& operator*=(f32 s) { x *= s; y *= s; z *= s; return *this; }
+    constexpr Vec3& operator+=(Vec3 b) {
+        x += b.x;
+        y += b.y;
+        z += b.z;
+        return *this;
+    }
+    constexpr Vec3& operator-=(Vec3 b) {
+        x -= b.x;
+        y -= b.y;
+        z -= b.z;
+        return *this;
+    }
+    constexpr Vec3& operator*=(f32 s) {
+        x *= s;
+        y *= s;
+        z *= s;
+        return *this;
+    }
 };
 
 constexpr Vec3 operator*(f32 s, Vec3 v) { return v * s; }
 constexpr f32 dot(Vec3 a, Vec3 b) { return a.x * b.x + a.y * b.y + a.z * b.z; }
-constexpr Vec3 cross(Vec3 a, Vec3 b) {
-    return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x};
-}
+constexpr Vec3 cross(Vec3 a, Vec3 b) { return {a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x}; }
 constexpr f32 lengthSq(Vec3 v) { return dot(v, v); }
 inline f32 length(Vec3 v) { return std::sqrt(lengthSq(v)); }
 inline Vec3 normalize(Vec3 v) {
@@ -45,10 +58,12 @@ struct Quat {
 
 // 해밀턴 곱: (a * b)로 회전하면 b를 먼저, a를 나중에 적용한다.
 constexpr Quat operator*(Quat a, Quat b) {
+    // clang-format off
     return {a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
             a.w * b.y - a.x * b.z + a.y * b.w + a.z * b.x,
             a.w * b.z + a.x * b.y - a.y * b.x + a.z * b.w,
             a.w * b.w - a.x * b.x - a.y * b.y - a.z * b.z};
+    // clang-format on
 }
 
 inline Quat normalize(Quat q) {
@@ -107,9 +122,11 @@ inline Mat4 lookAtLH(Vec3 eye, Vec3 target, Vec3 up) {
     const Vec3 xAxis = normalize(cross(up, zAxis));
     const Vec3 yAxis = cross(zAxis, xAxis);
     Mat4 r;
+    // clang-format off
     r.m[0][0] = xAxis.x; r.m[0][1] = yAxis.x; r.m[0][2] = zAxis.x;
     r.m[1][0] = xAxis.y; r.m[1][1] = yAxis.y; r.m[1][2] = zAxis.y;
     r.m[2][0] = xAxis.z; r.m[2][1] = yAxis.z; r.m[2][2] = zAxis.z;
+    // clang-format on
     r.m[3][0] = -dot(xAxis, eye);
     r.m[3][1] = -dot(yAxis, eye);
     r.m[3][2] = -dot(zAxis, eye);

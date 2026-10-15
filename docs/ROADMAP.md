@@ -209,7 +209,10 @@ DX12 포워드 렌더러(인스턴싱, 정점 색), Jolt 물리(결정론), 입�
   사용자가 고친 템플릿 파일(예: `CMakeLists.txt`의 SOURCES)은 덮어쓰지 않고 차이를 보여 준다.
 - **엔진 버전**: 엔진에 `MEALKIT_VERSION`, `mealkit.project`에 `engineVersion=`. 에디터가 프로젝트를 열 때 버전이 다르면 업그레이드를 권한다.
 
-### [ ] 코드 서식 통일 (`.clang-format`, `.editorconfig`)
+### [x] 코드 서식 통일 (`.clang-format`, `.editorconfig`) (완료 2026-10-15)
+- **구현됨**: 저장소 루트와 프로젝트 템플릿에 `.clang-format`(LLVM 기반, 4칸, 120열, 중괄호 같은 줄, 짧은 함수·if·case 한 줄, include 순서는 그대로)과 `.editorconfig`.
+  `third_party/.clang-format`은 서식을 끈다. VS Code는 C/C++ 파일을 저장할 때 서식을 맞춘다(`.vscode/settings.json`, 템플릿도).
+  기존 엔진·예제 코드에 한 번 적용했다(서식만 바뀐 커밋). 줄 맞춤이 뜻이 있는 행렬 코드는 `// clang-format off`로 둔다.
 - **왜**: 프로젝트가 여러 개가 되거나 AI로 코드를 짜도 스타일이 일관되게. 지금 스타일(4칸, 120열, 중괄호 같은 줄)을 규칙 파일로 고정한다.
 - **방식**: 엔진과 프로젝트 템플릿에 넣고, VS Code에서 저장할 때 자동 서식. `third_party/`는 제외. 비용 거의 없음.
 

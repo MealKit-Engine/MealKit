@@ -7,10 +7,7 @@
 #include <cmath>
 
 namespace sandbox {
-namespace {
-
-
-} // namespace
+namespace {} // namespace
 
 void spawnProps(World& world, u64 seed, u32 count) {
     mealkit::Pcg32 rng(seed);
@@ -40,9 +37,10 @@ void pushProps(World& world, const Vec3& center) {
         const f32 dist = std::sqrt(dist2);
         const Vec3 dir = dist > 1e-4f ? d / dist : Vec3{0, 1, 0};
         const f32 strength = 1.0f - dist / t.pushRadius;
-        world.physics.addLinearVelocity(prop.body, dir * (t.pushSpeed * strength) + Vec3{0.0f, t.pushLift * strength, 0.0f});
-        world.physics.setAngularVelocity(prop.body,
-                                         world.physics.angularVelocity(prop.body) + Vec3{dir.z, 0.0f, -dir.x} * (t.pushSpin * strength));
+        world.physics.addLinearVelocity(prop.body,
+                                        dir * (t.pushSpeed * strength) + Vec3{0.0f, t.pushLift * strength, 0.0f});
+        world.physics.setAngularVelocity(prop.body, world.physics.angularVelocity(prop.body) +
+                                                        Vec3{dir.z, 0.0f, -dir.x} * (t.pushSpin * strength));
     }
 }
 

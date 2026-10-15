@@ -14,13 +14,13 @@
 // 개발 중에는 앱 ID 480(Valve의 테스트 앱 Spacewar)을 쓴다. 실행 파일 옆의 steam_appid.txt에 적혀 있다.
 namespace mealkit::steam {
 
-bool compiledIn();            // SDK가 들어간 빌드인가
-bool init();                  // Steam 클라이언트가 실행 중이어야 한다
+bool compiledIn(); // SDK가 들어간 빌드인가
+bool init();       // Steam 클라이언트가 실행 중이어야 한다
 void shutdown();
-void runCallbacks();          // 매 프레임 호출
-bool available();             // init 성공 여부
+void runCallbacks(); // 매 프레임 호출
+bool available();    // init 성공 여부
 u64 localSteamId();
-std::string personaName();    // 내 Steam 닉네임
+std::string personaName(); // 내 Steam 닉네임
 
 // ISteamNetworkingMessages 기반 전송. 주소는 Address::steamId를 쓴다. NAT/방화벽은 Steam 릴레이가 처리한다.
 std::unique_ptr<net::Transport> createTransport();

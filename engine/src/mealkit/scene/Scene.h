@@ -30,9 +30,9 @@ struct Entity {
     Vec3 position;
     Quat rotation;
     Vec3 scale{1.0f, 1.0f, 1.0f};
-    u32 color = 0xFFC8C8C8; // rgba8 sRGB (render::rgba와 같은 배치). 모델의 재질 색과 곱해진다
-    u32 flags = 0;          // render::kInstance* 플래그
-    std::string model;      // glTF 경로 (assets 폴더 기준, 예: models/tree.glb). 비어 있으면 상자
+    u32 color = 0xFFC8C8C8;     // rgba8 sRGB (render::rgba와 같은 배치). 모델의 재질 색과 곱해진다
+    u32 flags = 0;              // render::kInstance* 플래그
+    std::string model;          // glTF 경로 (assets 폴더 기준, 예: models/tree.glb). 비어 있으면 상자
     reflect::TextFields fields; // 게임 종류의 필드 (경로, 값 텍스트)
 
     bool is(const char* typeName) const { return type == typeName; }

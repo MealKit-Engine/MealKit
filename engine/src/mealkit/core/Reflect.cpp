@@ -157,8 +157,8 @@ bool resolve(const TypeInfo& type, void* data, const char* path, const ValueInfo
 void diffValue(const ValueInfo& v, const void* a, const void* b, const std::string& path, std::vector<std::string>& out,
                u32 maxLines);
 
-void diffFields(const TypeInfo& type, const void* a, const void* b, const std::string& prefix, std::vector<std::string>& out,
-                u32 maxLines) {
+void diffFields(const TypeInfo& type, const void* a, const void* b, const std::string& prefix,
+                std::vector<std::string>& out, u32 maxLines) {
     for (const FieldInfo& f : type.fields) {
         if (out.size() >= maxLines) return;
         diffValue(*f.value, at(a, f.offset), at(b, f.offset), prefix + f.name, out, maxLines);
@@ -172,8 +172,8 @@ void diffValue(const ValueInfo& v, const void* a, const void* b, const std::stri
     case Kind::Struct: diffFields(*v.type, a, b, path + ".", out, maxLines); break;
     case Kind::Array:
         for (u32 i = 0; i < v.count && out.size() < maxLines; ++i)
-            diffValue(*v.element, at(a, i * v.element->size), at(b, i * v.element->size), path + "[" + std::to_string(i) + "]",
-                      out, maxLines);
+            diffValue(*v.element, at(a, i * v.element->size), at(b, i * v.element->size),
+                      path + "[" + std::to_string(i) + "]", out, maxLines);
         break;
     case Kind::Container: {
         const ContainerOps& ops = *v.ops;
@@ -198,7 +198,8 @@ void diffValue(const ValueInfo& v, const void* a, const void* b, const std::stri
         break;
     }
     default:
-        if (std::memcmp(a, b, v.size) != 0) out.push_back(path + ": " + formatScalar(v, a) + " -> " + formatScalar(v, b));
+        if (std::memcmp(a, b, v.size) != 0)
+            out.push_back(path + ": " + formatScalar(v, a) + " -> " + formatScalar(v, b));
         break;
     }
 }
@@ -271,7 +272,9 @@ std::string formatScalar(const ValueInfo& v, const void* data) {
     switch (v.kind) {
     case Kind::Bool: return *static_cast<const bool*>(data) ? "true" : "false";
     case Kind::Int: snprintf(text, sizeof(text), "%lld", static_cast<long long>(readInt(data, v.size))); break;
-    case Kind::UInt: snprintf(text, sizeof(text), "%llu", static_cast<unsigned long long>(readUInt(data, v.size))); break;
+    case Kind::UInt:
+        snprintf(text, sizeof(text), "%llu", static_cast<unsigned long long>(readUInt(data, v.size)));
+        break;
     case Kind::Float: snprintf(text, sizeof(text), "%.9g", *static_cast<const f32*>(data)); break;
     case Kind::Vec3: {
         const Vec3& p = *static_cast<const Vec3*>(data);
@@ -344,7 +347,8 @@ bool loadTextFile(const TypeInfo& type, void* data, const std::string& path, std
         line = line.substr(first);
         const size_t space = line.find(' ');
         const std::string key = line.substr(0, space);
-        const std::string value = space == std::string::npos ? std::string() : line.substr(line.find_first_not_of(' ', space));
+        const std::string value =
+            space == std::string::npos ? std::string() : line.substr(line.find_first_not_of(' ', space));
         if (!setFromText(type, data, key, value))
             MEALKIT_WARN("%s:%d: unknown key or invalid value '%s' ignored", path.c_str(), lineNo, key.c_str());
     }

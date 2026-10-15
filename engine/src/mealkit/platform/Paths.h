@@ -18,7 +18,7 @@ const std::string& projectRoot();
 
 bool fileExists(const std::string& path);
 bool directoryExists(const std::string& path);
-std::string fileName(const std::string& path); // 경로에서 파일 이름만
+std::string fileName(const std::string& path);        // 경로에서 파일 이름만
 std::string parentDirectory(const std::string& path); // 경로에서 폴더 부분만
 
 // 파일 전체를 읽고 쓴다 (경로는 UTF-8). 쓰기는 같은 폴더의 임시 파일에 쓴 뒤 바꿔 넣어, 도중에 꺼져도 원본이 깨지지 않는다.

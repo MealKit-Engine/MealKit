@@ -4,6 +4,15 @@
     "C_Cpp.default.compileCommands": "${workspaceFolder}/build/Editor/compile_commands.json",
     "C_Cpp.default.cppStandard": "c++20",
     "files.encoding": "utf8",
+    // 저장할 때 .clang-format 규칙으로 서식을 맞춘다 (C/C++ 확장에 들어 있는 clang-format)
+    "C_Cpp.formatting": "clangFormat",
+    "C_Cpp.clang_format_style": "file",
+    "[cpp]": {
+        "editor.formatOnSave": true
+    },
+    "[c]": {
+        "editor.formatOnSave": true
+    },
     "files.associations": {
         "*.scene": "plaintext"
     },

@@ -43,12 +43,12 @@ inline int runAll() {
 
 } // namespace mealkit::test
 
-#define TEST_CASE(name)                                                    \
-    void test_##name();                                                    \
-    const ::mealkit::test::Register register_##name(#name, &test_##name); \
+#define TEST_CASE(name)                                                                                                \
+    void test_##name();                                                                                                \
+    const ::mealkit::test::Register register_##name(#name, &test_##name);                                              \
     void test_##name()
 
-#define TEST_CHECK(cond)                                                       \
-    do {                                                                       \
-        if (!(cond)) ::mealkit::test::fail(#cond, __FILE__, __LINE__);         \
+#define TEST_CHECK(cond)                                                                                               \
+    do {                                                                                                               \
+        if (!(cond)) ::mealkit::test::fail(#cond, __FILE__, __LINE__);                                                 \
     } while (0)

@@ -31,7 +31,8 @@ void loadScene(World& world, const scene::Scene& scene, mealkit::asset::ModelCac
             if (model) {
                 std::vector<Vec3> points;
                 points.reserve(model->hullPoints.size());
-                for (const Vec3& p : model->hullPoints) points.push_back({p.x * e.scale.x, p.y * e.scale.y, p.z * e.scale.z});
+                for (const Vec3& p : model->hullPoints)
+                    points.push_back({p.x * e.scale.x, p.y * e.scale.y, p.z * e.scale.z});
                 world.physics.createConvexHull(points.data(), static_cast<u32>(points.size()), d);
             } else {
                 world.physics.createBox(e.scale * 0.5f, d);

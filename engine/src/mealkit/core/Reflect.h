@@ -32,9 +32,9 @@ namespace mealkit::reflect {
 
 enum class Kind : u8 {
     Bool,
-    Int,       // 부호 있는 정수·enum (size 1, 2, 4, 8)
-    UInt,      // 부호 없는 정수·enum
-    Float,     // f32
+    Int,   // 부호 있는 정수·enum (size 1, 2, 4, 8)
+    UInt,  // 부호 없는 정수·enum
+    Float, // f32
     Vec3,
     Quat,
     Id,        // sim::Id<T> (slot, generation)
@@ -204,14 +204,14 @@ struct FieldSlot {};
 
 template <class C, class V>
 struct FieldDecl {
-    V C::*member;
+    V C::* member;
     const char* name;
     const char* label;
     u32 flags;
 };
 
 template <class C, class V>
-constexpr FieldDecl<C, V> makeDecl(V C::*member, const char* name, const char* label, u32 flags) {
+constexpr FieldDecl<C, V> makeDecl(V C::* member, const char* name, const char* label, u32 flags) {
     return {member, name, label, flags};
 }
 
@@ -296,8 +296,8 @@ TypeInfo makeType() {
     forEachField<T>([&](auto decl) {
         using V = std::remove_cvref_t<decltype(probe.get()->*decl.member)>;
         const char* at = reinterpret_cast<const char*>(&(probe.get()->*decl.member));
-        t.fields.push_back({decl.name, decl.label && decl.label[0] ? decl.label : decl.name, static_cast<u32>(at - base),
-                            decl.flags, &valueOf<V>()});
+        t.fields.push_back({decl.name, decl.label && decl.label[0] ? decl.label : decl.name,
+                            static_cast<u32>(at - base), decl.flags, &valueOf<V>()});
     });
     t.create = []() -> void* { return new T(); };
     t.destroy = [](void* p) { delete static_cast<T*>(p); };
@@ -336,35 +336,35 @@ bool registerObjectType() {
 
 // ---------------------------------------------------------------- 매크로
 
-#define MEALKIT_DETAIL_STRUCT_HEAD(Name)                                                                      \
-    struct Name;                                                                                            \
-    [[maybe_unused]] static constexpr int mealkitFieldBase(const Name*) { return __COUNTER__; }             \
+#define MEALKIT_DETAIL_STRUCT_HEAD(Name)                                                                               \
+    struct Name;                                                                                                       \
+    [[maybe_unused]] static constexpr int mealkitFieldBase(const Name*) { return __COUNTER__; }                        \
     constexpr const char* mealkitTypeName(const Name*) { return #Name; }
 
-#define MEALKIT_STRUCT(Name)                                                                                  \
-    MEALKIT_DETAIL_STRUCT_HEAD(Name)                                                                        \
+#define MEALKIT_STRUCT(Name)                                                                                           \
+    MEALKIT_DETAIL_STRUCT_HEAD(Name)                                                                                   \
     struct Name : ::mealkit::reflect::Reflected<Name>
 
-#define MEALKIT_OBJECT(Name)                                                                                  \
-    MEALKIT_DETAIL_STRUCT_HEAD(Name)                                                                        \
-    inline const bool mealkitObjectRegistered_##Name = ::mealkit::reflect::registerObjectType<Name>();     \
+#define MEALKIT_OBJECT(Name)                                                                                           \
+    MEALKIT_DETAIL_STRUCT_HEAD(Name)                                                                                   \
+    inline const bool mealkitObjectRegistered_##Name = ::mealkit::reflect::registerObjectType<Name>();                 \
     struct Name : ::mealkit::reflect::Reflected<Name>
 
-#define MEALKIT_DETAIL_DECL(name, label, flags)                                                               \
-    static constexpr auto mealkitField(                                                                     \
+#define MEALKIT_DETAIL_DECL(name, label, flags)                                                                        \
+    static constexpr auto mealkitField(                                                                                \
         ::mealkit::reflect::FieldSlot<__COUNTER__ - mealkitFieldBase(static_cast<const MealkitSelf*>(nullptr)) - 1>) { \
-        return ::mealkit::reflect::makeDecl(&MealkitSelf::name, #name, label, flags);                         \
+        return ::mealkit::reflect::makeDecl(&MealkitSelf::name, #name, label, flags);                                  \
     }
 
-#define MEALKIT_FIELD(Type, name, def, label)                                                                 \
-    Type name = def;                                                                                        \
+#define MEALKIT_FIELD(Type, name, def, label)                                                                          \
+    Type name = def;                                                                                                   \
     MEALKIT_DETAIL_DECL(name, label, 0u)
 
 // 콘텐츠 해시에서 빠지는 필드 (색, 효과 같은 보이기만 하는 값)
-#define MEALKIT_VIEW_FIELD(Type, name, def, label)                                                            \
-    Type name = def;                                                                                        \
+#define MEALKIT_VIEW_FIELD(Type, name, def, label)                                                                     \
+    Type name = def;                                                                                                   \
     MEALKIT_DETAIL_DECL(name, label, ::mealkit::reflect::kFieldView)
 
-#define MEALKIT_ARRAY(Type, count, name, label)                                                               \
-    ::std::array<Type, count> name{};                                                                       \
+#define MEALKIT_ARRAY(Type, count, name, label)                                                                        \
+    ::std::array<Type, count> name{};                                                                                  \
     MEALKIT_DETAIL_DECL(name, label, 0u)

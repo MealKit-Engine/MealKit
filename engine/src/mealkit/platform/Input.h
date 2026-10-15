@@ -49,7 +49,10 @@ public:
     }
     void setKey(u8 vk, bool down) { m_keys[vk] = down; }
     void setMouse(MouseButton b, bool down) { m_mouse[static_cast<u8>(b)] = down; }
-    void addMouseDelta(f32 dx, f32 dy) { m_dx += dx; m_dy += dy; }
+    void addMouseDelta(f32 dx, f32 dy) {
+        m_dx += dx;
+        m_dy += dy;
+    }
     void addWheel(f32 notches) { m_wheel += notches; }
     void clear() {
         for (bool& k : m_keys) k = false;

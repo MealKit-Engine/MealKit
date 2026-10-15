@@ -123,8 +123,8 @@ i32 UdpSocket::receiveFrom(Address& from, void* buffer, u32 capacity) {
     if (!isOpen()) return -1;
     sockaddr_in addr{};
     int addrLen = sizeof(addr);
-    const int received = recvfrom(static_cast<SOCKET>(m_socket), static_cast<char*>(buffer),
-                                  static_cast<int>(capacity), 0, reinterpret_cast<sockaddr*>(&addr), &addrLen);
+    const int received = recvfrom(static_cast<SOCKET>(m_socket), static_cast<char*>(buffer), static_cast<int>(capacity),
+                                  0, reinterpret_cast<sockaddr*>(&addr), &addrLen);
     if (received == SOCKET_ERROR) return -1; // WSAEWOULDBLOCK 포함: 받을 것 없음
     from.ip = ntohl(addr.sin_addr.s_addr);
     from.port = ntohs(addr.sin_port);

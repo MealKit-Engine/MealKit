@@ -48,7 +48,7 @@ TEST_CASE(pool) {
     const Id<Item> b = p.create({2});
     TEST_CHECK(a.slot == 0 && b.slot == 1);
     TEST_CHECK(p.get(a) && p.get(a)->value == 1); // 만든 틱에도 get은 된다
-    TEST_CHECK(countIter(p) == 0);                 // 만든 틱에는 순회에 안 나온다
+    TEST_CHECK(countIter(p) == 0);                // 만든 틱에는 순회에 안 나온다
     p.endTick();
     TEST_CHECK(countIter(p) == 2);
 
@@ -176,7 +176,8 @@ TEST_CASE(reflect) {
     const reflect::TypeInfo& t = reflect::typeOf<Outer>();
     TEST_CHECK(std::string(t.name) == "Outer");
     TEST_CHECK(t.fields.size() == 9);
-    TEST_CHECK(std::string(t.fields[0].name) == "small" && t.fields[0].value->kind == Kind::UInt && t.fields[0].value->size == 1);
+    TEST_CHECK(std::string(t.fields[0].name) == "small" && t.fields[0].value->kind == Kind::UInt &&
+               t.fields[0].value->size == 1);
     TEST_CHECK(t.fields[2].flags == reflect::kFieldView && t.fields[2].value->kind == Kind::Float);
     TEST_CHECK(t.fields[3].value->kind == Kind::Struct && t.fields[3].value->type == &reflect::typeOf<Inner>());
     TEST_CHECK(t.fields[4].value->kind == Kind::Array && t.fields[4].value->count == 2);
@@ -293,7 +294,9 @@ TEST_CASE(physics_snapshot) {
     std::printf("  physics snapshot: %zu bytes for 61 bodies\n", snap.byteSize());
 }
 
-bool near(Vec3 a, Vec3 b) { return std::fabs(a.x - b.x) < 1e-4f && std::fabs(a.y - b.y) < 1e-4f && std::fabs(a.z - b.z) < 1e-4f; }
+bool near(Vec3 a, Vec3 b) {
+    return std::fabs(a.x - b.x) < 1e-4f && std::fabs(a.y - b.y) < 1e-4f && std::fabs(a.z - b.z) < 1e-4f;
+}
 
 TEST_CASE(scene_hierarchy) {
     scene::Scene s;
@@ -319,7 +322,8 @@ TEST_CASE(scene_hierarchy) {
 
     TEST_CHECK(scene::isDescendant(s, 3, 1) && !scene::isDescendant(s, 1, 3) && scene::subtree(s, 2).size() == 2);
     const scene::Scene flat = scene::flattened(s);
-    TEST_CHECK(flat.entities[2].parent == 0 && near(flat.entities[2].position, scene::worldTransform(s, s.entities[2]).position));
+    TEST_CHECK(flat.entities[2].parent == 0 &&
+               near(flat.entities[2].position, scene::worldTransform(s, s.entities[2]).position));
 
     // 저장 → 불러오기: 부모 유지, 잘못된 부모는 최상위로
     s.entities[0].parent = 99;
@@ -328,7 +332,10 @@ TEST_CASE(scene_hierarchy) {
     scene::Scene loaded;
     TEST_CHECK(scene::load(loaded, path));
     TEST_CHECK(loaded.entities.size() == 3 && loaded.entities[0].parent == 0 && loaded.entities[2].parent == 2);
-    TEST_CHECK(loaded.contentHash() == [&] { s.entities[0].parent = 0; return s.contentHash(); }());
+    TEST_CHECK(loaded.contentHash() == [&] {
+        s.entities[0].parent = 0;
+        return s.contentHash();
+    }());
     removeFile(path);
 }
 
@@ -350,8 +357,8 @@ struct FakeWorld {
     FakeState state;
     physics::PhysicsWorld physics;
     sim::TickEvents<FakeEvent, 4> events;
-    bool useGlobal = false;  // 전역 상태를 섞는다 → 결정론 위반
-    u32 undeclared = 0;      // 선언하지 않은 상태 → 되감기 검증이 잡아야 한다
+    bool useGlobal = false; // 전역 상태를 섞는다 → 결정론 위반
+    u32 undeclared = 0;     // 선언하지 않은 상태 → 되감기 검증이 잡아야 한다
     bool useUndeclared = false;
 
     void reset(u32 threads) {

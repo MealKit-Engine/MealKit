@@ -21,9 +21,9 @@ void assertFailed(const char* condition, const char* file, int line);
 
 // 프로그래머 실수 검사. Debug와 Editor 빌드(MEALKIT_ASSERTS)에서 켜지고 출시 빌드에서는 빠진다.
 #if defined(MEALKIT_DEBUG) || defined(MEALKIT_ASSERTS)
-#define MEALKIT_ASSERT(cond)                                                      \
-    do {                                                                        \
-        if (!(cond)) ::mealkit::log::assertFailed(#cond, __FILE__, __LINE__);   \
+#define MEALKIT_ASSERT(cond)                                                                                           \
+    do {                                                                                                               \
+        if (!(cond)) ::mealkit::log::assertFailed(#cond, __FILE__, __LINE__);                                          \
     } while (0)
 #else
 #define MEALKIT_ASSERT(cond) ((void)0)

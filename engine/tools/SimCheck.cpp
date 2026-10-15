@@ -90,7 +90,8 @@ public:
             } else if (isIdentStart(static_cast<unsigned char>(c))) {
                 std::string id = ident();
                 const char next = m_pos < m_src.size() ? m_src[m_pos] : '\0';
-                if (next == '"' && !id.empty() && id.back() == 'R' && (id == "R" || id == "u8R" || id == "uR" || id == "UR" || id == "LR")) {
+                if (next == '"' && !id.empty() && id.back() == 'R' &&
+                    (id == "R" || id == "u8R" || id == "uR" || id == "UR" || id == "LR")) {
                     rawString();
                     out.tokens.push_back({Tok::String, "\"\"", line, col});
                 } else if ((next == '"' || next == '\'') && (id == "u8" || id == "u" || id == "U" || id == "L")) {
@@ -249,20 +250,21 @@ constexpr const char* kMsgMath =
     "CRT math is not bit-identical across CPUs and compilers. Use mealkit::detSin/detCos/detAtan2/detQuatFromAxisAngle "
     "(mealkit/core/DetMath.h), or compute the angle in view/ and send it as quantized input";
 constexpr const char* kMsgRandom = "use mealkit::Pcg32 seeded from the match seed (core/Random.h)";
-constexpr const char* kMsgTime =
-    "real time differs between peers. Use the tick number (world.state.tick) and mealkit::sim::TickTimer (mealkit/sim/TickTimer.h)";
+constexpr const char* kMsgTime = "real time differs between peers. Use the tick number (world.state.tick) and "
+                                 "mealkit::sim::TickTimer (mealkit/sim/TickTimer.h)";
 constexpr const char* kMsgAlloc =
     "no heap objects. Use mealkit::sim::Pool<T> (mealkit/sim/Pool.h) for objects created during a match, "
     "or fixed arrays sized in World::reset()";
-constexpr const char* kMsgVirtual =
-    "no inheritance or virtual Update. Use flat arrays with a kind enum and free system functions called from World::step()";
-constexpr const char* kMsgAsync =
-    "completion order differs between peers and cannot be hashed. Use mealkit::sim::TickTimer and enum class state machines";
+constexpr const char* kMsgVirtual = "no inheritance or virtual Update. Use flat arrays with a kind enum and free "
+                                    "system functions called from World::step()";
+constexpr const char* kMsgAsync = "completion order differs between peers and cannot be hashed. Use "
+                                  "mealkit::sim::TickTimer and enum class state machines";
 constexpr const char* kMsgUnordered = "iteration order is not deterministic. Look up by id or use a sorted array";
 constexpr const char* kMsgGlobal =
     "global mutable state breaks the shadow simulation and hot reload. Keep state in World, or make it constexpr";
 constexpr const char* kMsgViewHeader =
-    "the simulation must not read rendering, platform, input, editor or view state. Read World only; report to the screen with tick events (mealkit::sim::TickEvents)";
+    "the simulation must not read rendering, platform, input, editor or view state. Read World only; report to the "
+    "screen with tick events (mealkit::sim::TickEvents)";
 constexpr const char* kMsgUsingStd = "write std:: explicitly so the check can see what is used";
 
 enum class Qual {
@@ -456,14 +458,15 @@ public:
 private:
     void report(int line, int col, const char* code, const std::string& what, const char* message) {
         char buf[1024];
-        std::snprintf(buf, sizeof(buf), "%s(%d,%d): error %s: %s is not allowed in sim/: %s\n", m_path.c_str(), line, col, code,
-                      what.c_str(), message);
+        std::snprintf(buf, sizeof(buf), "%s(%d,%d): error %s: %s is not allowed in sim/: %s\n", m_path.c_str(), line,
+                      col, code, what.c_str(), message);
         m_reports.push_back({line, col, buf});
     }
 
     void flush() {
-        std::stable_sort(m_reports.begin(), m_reports.end(),
-                         [](const Report& a, const Report& b) { return a.line != b.line ? a.line < b.line : a.col < b.col; });
+        std::stable_sort(m_reports.begin(), m_reports.end(), [](const Report& a, const Report& b) {
+            return a.line != b.line ? a.line < b.line : a.col < b.col;
+        });
         for (const Report& r : m_reports) std::fputs(r.text.c_str(), stdout);
     }
 
@@ -485,7 +488,8 @@ private:
                 break;
             }
             if (match) {
-                report(inc.line, inc.col, r.code, inc.angle ? "#include <" + inc.path + ">" : "#include \"" + inc.path + "\"", r.message);
+                report(inc.line, inc.col, r.code,
+                       inc.angle ? "#include <" + inc.path + ">" : "#include \"" + inc.path + "\"", r.message);
                 return;
             }
         }
@@ -614,8 +618,10 @@ private:
         for (size_t j = begin; j < end; ++j) {
             const std::string& s = t[j].text;
             if (t[j].kind == Tok::Ident && s == "namespace") return Scope::Namespace;
-            if (t[j].kind == Tok::Ident && s == "extern" && j + 1 < end && t[j + 1].kind == Tok::String) return Scope::Namespace;
-            if (t[j].kind == Tok::Ident && (s == "class" || s == "struct" || s == "union" || s == "enum") && !paren && !assign)
+            if (t[j].kind == Tok::Ident && s == "extern" && j + 1 < end && t[j + 1].kind == Tok::String)
+                return Scope::Namespace;
+            if (t[j].kind == Tok::Ident && (s == "class" || s == "struct" || s == "union" || s == "enum") && !paren &&
+                !assign)
                 return Scope::Class;
             if (t[j].kind == Tok::Punct && s == "(") paren = true;
             if (t[j].kind == Tok::Punct && s == "=") assign = true;
@@ -629,8 +635,9 @@ private:
         if (begin >= end) return;
         const std::string& first = t[begin].text;
         if (t[begin].kind != Tok::Ident) return; // [[attr]] 등은 무시
-        if (first == "using" || first == "namespace" || first == "template" || first == "typedef" || first == "static_assert" ||
-            first == "class" || first == "struct" || first == "union" || first == "enum" || first == "friend" || first == "concept")
+        if (first == "using" || first == "namespace" || first == "template" || first == "typedef" ||
+            first == "static_assert" || first == "class" || first == "struct" || first == "union" || first == "enum" ||
+            first == "friend" || first == "concept")
             return;
         size_t limit = end;
         for (size_t j = begin; j < end; ++j) {
@@ -642,7 +649,8 @@ private:
         for (size_t j = begin; j < limit; ++j) {
             const std::string& s = t[j].text;
             if (t[j].kind == Tok::Punct && s == "(") return; // 함수 선언
-            if (t[j].kind == Tok::Ident && (s == "const" || s == "constexpr" || s == "static" || s == "operator")) return;
+            if (t[j].kind == Tok::Ident && (s == "const" || s == "constexpr" || s == "static" || s == "operator"))
+                return;
         }
         if (limit == begin) return;
         report(t[begin].line, t[begin].col, "SIM008", "a mutable global variable", kMsgGlobal);
@@ -688,7 +696,9 @@ int main(int argc, char** argv) {
         errors += checker.run(Lexer(src).run());
     }
     if (errors) {
-        std::printf("SimCheck: %d problem(s) in sim/ code. Rules: docs/CODING_MODEL.md (engine), README \"Determinism rules\".\n", errors);
+        std::printf("SimCheck: %d problem(s) in sim/ code. Rules: docs/CODING_MODEL.md (engine), README \"Determinism "
+                    "rules\".\n",
+                    errors);
         std::fflush(stdout);
         return 1;
     }

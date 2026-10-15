@@ -18,7 +18,8 @@ namespace mealkit::editor {
 constexpr u32 kSrvCapacity = 64;
 
 struct ImGuiLayerAccess {
-    static void alloc(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* cpu, D3D12_GPU_DESCRIPTOR_HANDLE* gpu) {
+    static void alloc(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* cpu,
+                      D3D12_GPU_DESCRIPTOR_HANDLE* gpu) {
         auto* self = static_cast<ImGuiLayer*>(info->UserData);
         if (self->m_freeSlots.empty()) MEALKIT_FATAL("ImGui descriptor heap exhausted");
         const u32 slot = self->m_freeSlots.back();

@@ -24,10 +24,10 @@ namespace sandbox {
 
 using mealkit::f32;
 using mealkit::i8;
+using mealkit::Quat;
 using mealkit::u32;
 using mealkit::u64;
 using mealkit::u8;
-using mealkit::Quat;
 using mealkit::Vec3;
 
 inline constexpr f32 kTickRate = 30.0f;

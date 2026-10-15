@@ -15,9 +15,13 @@ constexpr u32 kShockwaveSegments = 16;
 
 void Effects::onEvent(const GameEvent& event, f64 now) {
     switch (event.kind) {
-    case EventKind::Push: shockwaves.push_back({event.position - Vec3{0.0f, kPlayerHalfHeight - 0.05f, 0.0f}, now, event.radius}); break;
+    case EventKind::Push:
+        shockwaves.push_back({event.position - Vec3{0.0f, kPlayerHalfHeight - 0.05f, 0.0f}, now, event.radius});
+        break;
     case EventKind::Bounce: shockwaves.push_back({event.position + Vec3{0.0f, 0.05f, 0.0f}, now, event.radius}); break;
-    case EventKind::Spawn: shockwaves.push_back({event.position - Vec3{0.0f, kPlayerHalfHeight - 0.05f, 0.0f}, now, event.radius}); break;
+    case EventKind::Spawn:
+        shockwaves.push_back({event.position - Vec3{0.0f, kPlayerHalfHeight - 0.05f, 0.0f}, now, event.radius});
+        break;
     case EventKind::Fall: break;
     }
 }
@@ -37,8 +41,11 @@ void Effects::draw(f64 now, render::MeshId box, render::DrawList& out) const {
         for (u32 i = 0; i < kShockwaveSegments; ++i) {
             const f32 angle = 2.0f * 3.14159265f * static_cast<f32>(i) / kShockwaveSegments;
             const Vec3 offset{std::sin(angle) * radius, 0.0f, std::cos(angle) * radius};
-            out.add(box, {center + offset, render::rgba(255, 240, 200), quatFromAxisAngle({0, 1, 0}, angle),
-                          {segment, thickness, thickness}, 0});
+            out.add(box, {center + offset,
+                          render::rgba(255, 240, 200),
+                          quatFromAxisAngle({0, 1, 0}, angle),
+                          {segment, thickness, thickness},
+                          0});
         }
     }
 }

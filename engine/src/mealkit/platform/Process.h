@@ -45,8 +45,8 @@ public:
     void terminateAll();
 
 private:
-    void* m_job = nullptr;           // HANDLE
-    std::vector<void*> m_processes;  // HANDLE
+    void* m_job = nullptr;          // HANDLE
+    std::vector<void*> m_processes; // HANDLE
 };
 
 // 탐색기로 폴더를 연다.

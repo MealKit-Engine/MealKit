@@ -11,14 +11,14 @@ namespace {
 
 // 씬에 스폰 지점이 없을 때 쓰는 기본 위치 (삼각함수 대신 고정 테이블)
 constexpr Vec3 kDefaultSpawns[mealkit::net::kMaxPlayers] = {
-    {-6, kPlayerHalfHeight, -6}, {6, kPlayerHalfHeight, 6},  {6, kPlayerHalfHeight, -6}, {-6, kPlayerHalfHeight, 6},
-    {0, kPlayerHalfHeight, -9},  {0, kPlayerHalfHeight, 9},  {-9, kPlayerHalfHeight, 0}, {9, kPlayerHalfHeight, 0},
+    {-6, kPlayerHalfHeight, -6}, {6, kPlayerHalfHeight, 6}, {6, kPlayerHalfHeight, -6}, {-6, kPlayerHalfHeight, 6},
+    {0, kPlayerHalfHeight, -9},  {0, kPlayerHalfHeight, 9}, {-9, kPlayerHalfHeight, 0}, {9, kPlayerHalfHeight, 0},
 };
 constexpr f32 kArenaHalf = 40.0f; // AI가 목표로 삼는 범위
 
 // 이번 틱에 Pawn이 하려는 것 (사람은 입력에서, AI는 판단에서)
 struct Intent {
-    Vec3 wish;     // 수평 이동 방향, 길이 0..1
+    Vec3 wish; // 수평 이동 방향, 길이 0..1
     bool jump = false;
     bool push = false;
 };
@@ -42,7 +42,8 @@ Intent thinkAI(World& world, Controller& c, const Pawn& pawn) {
         const f32 angle = rng.range(-mealkit::kDetPi, mealkit::kDetPi);
         const f32 distance = rng.range(4.0f, 14.0f);
         const Vec3 target = pawn.position + Vec3{mealkit::detSin(angle), 0.0f, mealkit::detCos(angle)} * distance;
-        c.aiTarget = {std::clamp(target.x, -kArenaHalf, kArenaHalf), 0.0f, std::clamp(target.z, -kArenaHalf, kArenaHalf)};
+        c.aiTarget = {std::clamp(target.x, -kArenaHalf, kArenaHalf), 0.0f,
+                      std::clamp(target.z, -kArenaHalf, kArenaHalf)};
         i.jump = rng.below(4) == 0;
         i.push = rng.below(3) == 0;
     }
@@ -152,7 +153,8 @@ void respawnPawns(World& world) {
         const Vec3 at = spawnPosition(world, c.spawnIndex);
         const Id<Pawn> pawn = spawnPawn(world, at);
         possess(world, id, pawn);
-        world.events.push({EventKind::Spawn, c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer, at, 1.2f});
+        world.events.push(
+            {EventKind::Spawn, c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer, at, 1.2f});
     }
 }
 
@@ -161,7 +163,8 @@ void controlPawns(World& world) {
     for (auto [id, c] : s.controllers) { // 컨트롤러 순서 = 플레이어 슬롯 순서, 그다음 AI
         Pawn* p = s.pawns.get(c.pawn);
         if (!p) continue;
-        if (c.kind == ControllerKind::Player) movePawn(world, *p, intentFromInput(world.inputs[c.slot]), static_cast<u8>(c.slot));
+        if (c.kind == ControllerKind::Player)
+            movePawn(world, *p, intentFromInput(world.inputs[c.slot]), static_cast<u8>(c.slot));
         else if (c.kind == ControllerKind::AI) movePawn(world, *p, thinkAI(world, c, *p), kNoPlayer);
     }
 }
@@ -209,7 +212,8 @@ void sensePawns(World& world) {
         p.position = world.physics.position(p.body);
         p.velocity = world.physics.linearVelocity(p.body);
         mealkit::physics::RayHit hit;
-        p.grounded = world.physics.castRay(p.position, {0.0f, -(kPlayerHalfHeight + 0.12f), 0.0f}, hit, p.body) ? 1u : 0u;
+        p.grounded =
+            world.physics.castRay(p.position, {0.0f, -(kPlayerHalfHeight + 0.12f), 0.0f}, hit, p.body) ? 1u : 0u;
     }
 }
 

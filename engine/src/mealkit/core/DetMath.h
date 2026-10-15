@@ -45,7 +45,9 @@ inline f32 detAtanPositive(f32 x) {
         x = (x - 1.0f) / (x + 1.0f);
     }
     const f32 z = x * x;
-    return base + ((((8.05374449538e-2f * z - 1.38776856032e-1f) * z + 1.99777106478e-1f) * z - 3.33329491539e-1f) * z * x + x);
+    return base +
+           ((((8.05374449538e-2f * z - 1.38776856032e-1f) * z + 1.99777106478e-1f) * z - 3.33329491539e-1f) * z * x +
+            x);
 }
 
 } // namespace detail
