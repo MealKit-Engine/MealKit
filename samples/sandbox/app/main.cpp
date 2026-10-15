@@ -7,7 +7,7 @@
 //
 // 조작: WASD 이동, Space 점프, 왼쪽 클릭 밀치기, 오른쪽 드래그 카메라, 휠 줌, V 수직동기, F12 스크린샷, Esc 종료
 
-#include "GameSession.h"
+#include "app/GameSession.h"
 
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/core/Clock.h"

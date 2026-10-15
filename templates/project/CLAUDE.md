@@ -15,9 +15,10 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
 ## 규칙
 
 - 엔진 코드와 에디터는 이 폴더에 없다. 엔진을 고쳐야 하면 `@MEALKIT_ROOT@`에서 고친다 (그쪽 CLAUDE.md를 따른다).
-- `source/World.*`는 결정론 코드다: CRT 삼각함수 금지, `/fp:precise` 유지, `Pcg32`만 사용, 순회·바디 생성 순서 고정, 새 상태는 `hash()`에 추가.
+- `source/sim/`은 결정론 코드다: CRT 삼각함수 금지, `/fp:precise` 유지, `Pcg32`만 사용, 순회·바디 생성 순서 고정, 새 상태는 `World::hash()`에 추가.
+  빌드 때 SimCheck가 검사해 어기면 `error SIMnnn`으로 빌드가 멈춘다(대신 쓸 것을 알려 준다). 규칙의 근거는 엔진의 `docs/CODING_MODEL.md`.
   시뮬레이션 코드를 바꾸면 결정론 테스트로 디싱크가 없는지 확인한다.
-- 소스 파일을 추가하면 `CMakeLists.txt`의 `mealkit_add_game(... SOURCES ...)`에 넣는다.
-- 게임 로직은 `source/World.*`, 한 판 진행은 `source/GameSession.*` (`mealkit::game::GameInstance` 구현, 출시 exe와 에디터 DLL이 공유).
-  `source/GameModule.cpp`의 `MEALKIT_GAME_MODULE`이 에디터가 부르는 진입점이다.
+- 게임 코드 폴더: `source/sim/`(규칙: 시스템별 파일, 시스템 함수는 `World&`만 받고 `World::step()`이 순서대로 호출),
+  `source/view/`(카메라·로컬 입력·그리기, sim 상태는 읽기만), `source/app/`(`GameSession` = `mealkit::game::GameInstance` 구현, `main.cpp`, `GameModule.cpp`의 `MEALKIT_GAME_MODULE`).
+  include는 `"sim/World.h"`처럼 `source/` 기준으로 쓴다. 파일을 추가해도 `CMakeLists.txt`를 고치지 않는다.
 - 씬 충돌 데이터나 모델 파일이 바뀌면 콘텐츠 해시가 바뀌어, 다른 데이터를 쓰는 피어는 접속이 거부된다.

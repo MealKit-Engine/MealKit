@@ -109,6 +109,11 @@ target_compile_options(mealkit PUBLIC /W4 /permissive- /utf-8 /Zc:__cplusplus /G
 
 target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid ws2_32 windowscodecs ole32 uuid shell32 mealkit_tracy PRIVATE Jolt mealkit_meshopt)
 
+# --- SimCheck: 게임 sim/ 폴더의 결정론 규칙 검사 (빌드 도구, mealkit_add_game이 게임 코드보다 먼저 실행한다) ---
+add_executable(mealkit_simcheck tools/SimCheck.cpp)
+target_compile_options(mealkit_simcheck PRIVATE /W4 /permissive- /utf-8)
+set_target_properties(mealkit_simcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tools)
+
 # --- Steamworks (선택): SDK를 third_party/steamworks/sdk 에 풀면 자동으로 켜진다 ---
 set(MEALKIT_STEAMWORKS_SDK ${MEALKIT_THIRD_PARTY}/steamworks/sdk)
 # 에디터 빌드는 Steam을 쓰지 않는다 (여러 명 플레이 시험은 출시 exe로 한다)
@@ -165,6 +170,6 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     # 프로젝트 관리자의 새 프로젝트 만들기가 쓰는 엔진 폴더 (에디터는 배포하지 않는다)
     target_compile_definitions(MealKitEditor PRIVATE MEALKIT_ENGINE_DIR="${MEALKIT_ENGINE_DIR}")
 
-    # 게임 프로젝트의 에디터 빌드가 include한다: mealkit.dll의 가져오기 라이브러리, 헤더 경로, 컴파일 옵션
-    export(TARGETS mealkit mealkit_tracy FILE ${CMAKE_BINARY_DIR}/MealKitTargets.cmake)
+    # 게임 프로젝트의 에디터 빌드가 include한다: mealkit.dll의 가져오기 라이브러리, 헤더 경로, 컴파일 옵션, SimCheck
+    export(TARGETS mealkit mealkit_tracy mealkit_simcheck FILE ${CMAKE_BINARY_DIR}/MealKitTargets.cmake)
 endif()

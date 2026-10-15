@@ -1,6 +1,9 @@
 #pragma once
 
-#include "World.h"
+#include "sim/World.h"
+#include "view/Camera.h"
+#include "view/Draw.h"
+#include "view/LocalInput.h"
 
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/game/GameInstance.h"
@@ -12,7 +15,7 @@
 #include <string>
 #include <vector>
 
-// 한 판의 진행: 결정론 시뮬레이션 실행, 로컬 입력 샘플링, 3인칭 카메라, 장면 그리기.
+// 한 판의 진행: 확정된 틱마다 시뮬레이션(sim/)을 돌리고 로컬 입력을 보내며, 화면(view/)을 그린다.
 // 출시용 게임(main.cpp)은 이 클래스를 직접 쓰고, 범용 에디터는 게임 DLL(GameModule.cpp)을 통해 쓴다.
 namespace sandbox {
 
@@ -49,13 +52,9 @@ private:
     bool m_captureDue = false;
     u32 m_nextTick = 0;
     mealkit::f64 m_accumulator = 0.0;
-    bool m_pushLatch = false;
-    bool m_jumpLatch = false;
-    bool m_orbiting = false;
-    f32 m_cameraYaw = 0.8f;
-    f32 m_cameraPitch = 0.55f;
-    f32 m_cameraDistance = 18.0f;
-    f32 m_facing[mealkit::net::kMaxPlayers] = {};
+    OrbitCamera m_camera;
+    LocalInput m_input;
+    WorldView m_view;
     mealkit::f64 m_simSeconds = 0.0;
     u32 m_simTicks = 0;
 };

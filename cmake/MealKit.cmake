@@ -3,7 +3,7 @@
 #   cmake_minimum_required(VERSION 3.25)
 #   project(MyGame LANGUAGES CXX)
 #   include(${MEALKIT_ROOT}/cmake/MealKit.cmake)
-#   mealkit_add_game(MyGame SOURCES ... GAME_MAIN main.cpp MODULE GameModule.cpp)
+#   mealkit_add_game(MyGame)   # source/sim, source/view, source/app
 #
 # 빌드 종류 (MEALKIT_BUILD_KIND, build_project.bat이 정한다):
 #   Game    출시용: 엔진을 정적 라이브러리로 넣은 <이름>.exe 하나 (정적 CRT). build\Release, build\Debug, build\Profile
@@ -97,35 +97,95 @@ endif()
 # ---------------------------------------------------------------- 게임
 
 # mealkit_add_game(<이름>
-#     SOURCES <게임 코드...>          게임과 에디터가 같이 쓰는 코드 (World, GameSession 등)
-#     GAME_MAIN <main.cpp>            출시용 게임 실행 파일 <이름>.exe (Game 빌드)
-#     MODULE <GameModule.cpp>         MEALKIT_GAME_MODULE이 있는 파일 → <이름>_game.dll (Editor 빌드)
+#     [SOURCE_DIR <폴더>]             게임 코드 폴더 (기본 source). 그 아래 sim/ view/ app/ 의 .h/.cpp를 모두 쓴다.
+#                                     파일을 추가해도 CMakeLists.txt를 고치지 않는다 (CONFIGURE_DEPENDS GLOB). include 기준 폴더도 이것이다.
+#     [GAME_MAIN <main.cpp>]          출시용 게임 실행 파일 <이름>.exe (Game 빌드). 기본 <SOURCE_DIR>/app/main.cpp
+#     [MODULE <GameModule.cpp>]       MEALKIT_GAME_MODULE이 있는 파일 → <이름>_game.dll (Editor 빌드). 기본 <SOURCE_DIR>/app/GameModule.cpp
+#     [SOURCES <게임 코드...>]         예전 방식: 파일을 직접 나열한다 (주면 GLOB 대신 이것을 쓴다)
 #     [STEAM_APP_ID <id>])            기본 480 (Valve 테스트 앱 Spacewar)
 #
+# 경로 안에 sim/ 폴더가 있는 파일은 빌드 전에 SimCheck(engine/tools/SimCheck.cpp)가 결정론 규칙을 검사하고, 어기면 빌드가 실패한다.
 # 프로젝트 폴더는 최상위 CMakeLists.txt가 있는 곳이다. 그 아래 assets/를 쓰고, 출시 빌드는 export/<이름>/에 만든다.
 # game_export 타깃: 게임 실행 파일 + assets + Steam DLL + 라이선스 고지를 export/<이름>/에 모은다 (build.bat Export).
 function(mealkit_add_game name)
-    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "GAME_MAIN;MODULE;STEAM_APP_ID" "SOURCES")
-    if(NOT ARG_GAME_MAIN OR NOT ARG_MODULE)
-        message(FATAL_ERROR "mealkit_add_game(${name}): GAME_MAIN and MODULE are required")
+    cmake_parse_arguments(PARSE_ARGV 1 ARG "" "SOURCE_DIR;GAME_MAIN;MODULE;STEAM_APP_ID" "SOURCES")
+    if(NOT ARG_SOURCE_DIR)
+        set(ARG_SOURCE_DIR source)
     endif()
+    get_filename_component(source_dir "${ARG_SOURCE_DIR}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    if(NOT ARG_GAME_MAIN)
+        set(ARG_GAME_MAIN "${source_dir}/app/main.cpp")
+    endif()
+    if(NOT ARG_MODULE)
+        set(ARG_MODULE "${source_dir}/app/GameModule.cpp")
+    endif()
+    get_filename_component(ARG_GAME_MAIN "${ARG_GAME_MAIN}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    get_filename_component(ARG_MODULE "${ARG_MODULE}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
     if(NOT ARG_STEAM_APP_ID)
         set(ARG_STEAM_APP_ID 480)
     endif()
     set(project_dir ${CMAKE_SOURCE_DIR})
 
+    if(ARG_SOURCES)
+        set(game_sources "")
+        foreach(f IN LISTS ARG_SOURCES)
+            get_filename_component(f "${f}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+            list(APPEND game_sources "${f}")
+        endforeach()
+    else()
+        file(GLOB_RECURSE game_sources CONFIGURE_DEPENDS
+            "${source_dir}/sim/*.h" "${source_dir}/sim/*.cpp"
+            "${source_dir}/view/*.h" "${source_dir}/view/*.cpp"
+            "${source_dir}/app/*.h" "${source_dir}/app/*.cpp")
+        if(NOT game_sources)
+            message(FATAL_ERROR "mealkit_add_game(${name}): no game code in ${source_dir}/sim, view, app")
+        endif()
+    endif()
+    list(REMOVE_ITEM game_sources "${ARG_GAME_MAIN}" "${ARG_MODULE}")
+    foreach(f "${ARG_GAME_MAIN}" "${ARG_MODULE}")
+        if(NOT EXISTS "${f}")
+            message(FATAL_ERROR "mealkit_add_game(${name}): ${f} not found")
+        endif()
+    endforeach()
+
+    # sim/ 결정론 검사: 통과하면 stamp를 남기고, sim/ 파일이 바뀔 때만 다시 돈다
+    set(sim_sources "")
+    foreach(f IN LISTS game_sources)
+        file(RELATIVE_PATH rel "${source_dir}" "${f}")
+        if(rel MATCHES "(^|/)sim/")
+            list(APPEND sim_sources "${f}")
+        endif()
+    endforeach()
+    if(sim_sources)
+        set(sim_stamp "${CMAKE_CURRENT_BINARY_DIR}/${name}_simcheck.stamp")
+        add_custom_command(OUTPUT "${sim_stamp}"
+            COMMAND mealkit_simcheck "${sim_stamp}" ${sim_sources}
+            DEPENDS mealkit_simcheck ${sim_sources}
+            COMMENT "SimCheck ${name}: sim/ determinism rules"
+            VERBATIM)
+        add_custom_target(${name}_simcheck DEPENDS "${sim_stamp}")
+    endif()
+
     if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         # 에디터가 불러오는 게임 코드. 엔진은 mealkit.dll에서 가져온다.
-        add_library(${name}_game SHARED ${ARG_MODULE} ${ARG_SOURCES})
+        add_library(${name}_game SHARED ${ARG_MODULE} ${game_sources})
         target_link_libraries(${name}_game PRIVATE mealkit)
+        target_include_directories(${name}_game PRIVATE ${source_dir})
         target_compile_definitions(${name}_game PRIVATE MEALKIT_GAME_NAME="${name}")
+        if(sim_sources)
+            add_dependencies(${name}_game ${name}_simcheck)
+        endif()
         return()
     endif()
 
     # 출시용 게임: 에디터와 ImGui가 들어가지 않는다.
-    add_executable(${name} ${ARG_GAME_MAIN} ${ARG_SOURCES})
+    add_executable(${name} ${ARG_GAME_MAIN} ${game_sources})
     target_link_libraries(${name} PRIVATE mealkit)
+    target_include_directories(${name} PRIVATE ${source_dir})
     target_compile_definitions(${name} PRIVATE MEALKIT_GAME_NAME="${name}")
+    if(sim_sources)
+        add_dependencies(${name} ${name}_simcheck)
+    endif()
     if(MEALKIT_STEAM_DLL)
         add_custom_command(TARGET ${name} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${MEALKIT_STEAM_DLL} $<TARGET_FILE_DIR:${name}>)

@@ -55,6 +55,7 @@
 1. **엔진이 주는 도구가 곧 답이다.** `Pool<T>`, 틱 이벤트, 틱 타이머, `GameContext`, Job System만 제공하고, 같은 일을 하는 다른 헬퍼는 만들지 않는다.
 2. **`sim/` 금지 검사.** static 가변 변수, `new`/`delete`/`make_unique`, `virtual`, `co_await`, `std::thread`/`async`/`future`, `<chrono>`, CRT 삼각함수, `unordered_map`, 렌더러·플랫폼·설정 헤더.
    주석과 문자열은 빼고 검사한다. 걸리면 빌드가 실패하고 대신 쓸 것을 알려 준다("`Pool<T>`를 쓰세요").
+   구현: `engine/tools/SimCheck.cpp` (`mealkit_add_game()`이 빌드 전에 실행, 오류 코드 `SIM001`~`SIM010`). 규칙을 바꾸면 이 문서와 도구를 같이 고친다.
 3. **시뮬레이션 상태 타입 제한.** 필드 선언은 `f32/i32/u32/bool/Vec3/Quat/Id<T>/physics::BodyId/고정 배열`만 받고 `static_assert(std::is_trivially_copyable_v<T>)`로 확인한다.
    포인터, `std::string`, `vector`가 상태에 들어가지 않으므로 해시와 스냅샷이 항상 맞는다.
 4. **실행 중 검사.** 전역 상태를 쓰면 그림자 시뮬레이션이 바로 잡고, 마지막으로 `mp_test`가 확인한다. `MEALKIT_ASSERT`는 Editor 빌드에서도 켠다(지금은 Debug에서만 켜진다).

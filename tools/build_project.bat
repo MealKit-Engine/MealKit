@@ -51,7 +51,7 @@ if /I "%CONFIG%"=="Editor" if /I not "%PROJECT_DIR%"=="%MEALKIT_ROOT%" (
 
 set BUILD_DIR=%PROJECT_DIR%\build\%BUILD_NAME%
 rem Editor builds are rebuilt often (hot reload): configure only once, Ninja re-runs CMake when CMakeLists change.
-if /I "%CONFIG%"=="Editor" if exist "%BUILD_DIR%\build.ninja" goto build
+if /I "%CONFIG%"=="Editor" if exist "%BUILD_DIR%\build.ninja" if exist "%BUILD_DIR%\CMakeCache.txt" goto build
 cmake -S "%PROJECT_DIR%" -B "%BUILD_DIR%" -G Ninja --no-warn-unused-cli -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DCMAKE_EXPORT_COMPILE_COMMANDS=ON "-DMEALKIT_ROOT=%MEALKIT_ROOT%" %EXTRA% || exit /b 1
 :build
 cmake --build "%BUILD_DIR%" %TARGET% || exit /b 1

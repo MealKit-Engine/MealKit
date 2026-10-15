@@ -1,7 +1,7 @@
 # 새 게임 프로젝트 만들기: 엔진 밖의 폴더에 게임 코드 + 에셋 + 빌드 파일을 만든다.
 # 게임 코드와 에셋은 예제 게임(samples/sandbox, assets/)에서 복사하고, 빌드 파일은 templates/project를 채워 만든다.
 #   powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame [-Path D:\GameEngine\MealKit]
-# 결과: <Path>\<Name>\ (build.bat, editor.bat, source\, assets\). 엔진은 이 폴더(스크립트의 상위 폴더)를 가리킨다.
+# 결과: <Path>\<Name>\ (build.bat, editor.bat, source\sim|view|app\, assets\). 엔진은 이 폴더(스크립트의 상위 폴더)를 가리킨다.
 param(
     [Parameter(Mandatory = $true)][string]$Name,
     [string]$Path = "D:\GameEngine\MealKit"
@@ -44,12 +44,15 @@ Get-ChildItem $template -Recurse -File -Force | ForEach-Object {
     Write-Text (Join-Path $dest $_.FullName.Substring($template.Length + 1)) $text
 }
 
-# 2) 게임 코드: 예제 게임에서 복사. 창 제목과 도움말의 이름만 바꾼다 (namespace sandbox는 그대로 둔다)
+# 2) 게임 코드: 예제 게임의 sim/ view/ app/ 을 source/ 로 복사. 창 제목과 도움말의 이름만 바꾼다 (namespace sandbox는 그대로 둔다)
 $sample = Join-Path $engine "samples\sandbox"
-Get-ChildItem $sample -File | Where-Object { $_.Extension -in ".h", ".cpp" } | ForEach-Object {
-    $text = [IO.File]::ReadAllText($_.FullName, $utf8)
-    $text = $text.Replace("MealKit Sandbox", $Name).Replace("sandbox.exe", "$Name.exe")
-    Write-Text (Join-Path $dest "source\$($_.Name)") $text
+foreach ($dir in "sim", "view", "app") {
+    $from = Join-Path $sample $dir
+    Get-ChildItem $from -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | ForEach-Object {
+        $text = [IO.File]::ReadAllText($_.FullName, $utf8)
+        $text = $text.Replace("MealKit Sandbox", $Name).Replace("sandbox.exe", "$Name.exe")
+        Write-Text (Join-Path $dest ("source\$dir\" + $_.FullName.Substring($from.Length + 1))) $text
+    }
 }
 
 # 3) 에셋: 씬과 모델 (자동 저장 파일 제외)

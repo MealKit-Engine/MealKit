@@ -65,8 +65,8 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 | 하고 싶은 일 | 어디서 |
 |---|---|
 | 맵 배치 (상자, 모델, 스폰 지점, 조명·안개) | 에디터 → `Ctrl+S` 로 `assets/scenes/*.scene` 저장 |
-| 게임 규칙 (이동, 점프, 밀치기, 물리) | VS Code → 프로젝트의 `source/World.cpp` (엔진 예제는 `samples/sandbox/World.cpp`) |
-| 카메라, 조작, 화면에 그리는 것 | VS Code → 프로젝트의 `source/GameSession.cpp` |
+| 게임 규칙 (이동, 점프, 밀치기, 물리) | VS Code → 프로젝트의 `source/sim/` (엔진 예제는 `samples/sandbox/sim/`). 시스템별 파일, 실행 순서는 `World::step()` |
+| 카메라, 조작, 화면에 그리는 것 | VS Code → 프로젝트의 `source/view/` (한 판 진행은 `source/app/GameSession.cpp`) |
 | 엔진·에디터 기능 추가 | VS Code → 엔진 폴더의 `engine/src/mealkit/...` → `build.bat Editor` (에디터를 닫고) |
 | 출시용 게임 만들기 | 에디터 → 빌드 → 출시 빌드 (`Ctrl+B`) → `export/<게임>/` |
 | 3D 모델 만들기 | Blender → glTF(.glb)로 `assets/models/`에 내보내기 |
@@ -225,10 +225,11 @@ engine/
   src/mealkit/scene/           Scene (.scene 읽기/쓰기)
   src/mealkit/game/            GameInstance (엔진·에디터와 게임 코드의 경계, MEALKIT_GAME_MODULE)
   src/mealkit/editor/          MealKitEditor: EditorMain, ProjectManager, Project, GameModuleHost(DLL 핫 리로드), Editor, ImGuiLayer
-samples/sandbox/
-  World                      결정론 시뮬레이션 (게임 규칙, Jolt 물리)
-  GameSession                한 판 진행: 틱 실행, 입력, 카메라, 그리기 (GameInstance 구현, 출시 exe와 에디터가 공유)
-  main.cpp / GameModule.cpp  출시 게임 exe / 에디터용 게임 DLL 진입점
+  tools/SimCheck.cpp         게임 sim/ 폴더의 결정론 규칙 검사 (빌드 때 mealkit_add_game이 실행)
+samples/sandbox/             예제 게임 = 새 프로젝트 템플릿 (프로젝트에서는 source/ 아래)
+  sim/                       결정론 시뮬레이션: World(상태, step 순서, hash), Systems.h, Players, Props
+  view/                      Camera, LocalInput(조작 → GameInput), Draw (sim/ 상태는 읽기만)
+  app/                       GameSession(한 판 진행, GameInstance 구현), main.cpp(출시 exe), GameModule.cpp(에디터 DLL 진입점)
 mealkit.project                엔진 저장소를 예제 게임 프로젝트로 열 때 쓰는 프로젝트 파일
 assets/scenes, assets/models 씬과 모델
 third_party/                 외부 라이브러리 (VERSIONS.txt)
@@ -249,7 +250,10 @@ tools/                       build_project.bat (공통 빌드), new_project.ps1 
 
 ## 결정론 규칙 (시뮬레이션 코드)
 
-락스텝은 모든 PC가 비트 단위로 같은 계산을 해야 동작한다.
+락스텝은 모든 PC가 비트 단위로 같은 계산을 해야 동작한다. 게임의 시뮬레이션 코드는 `sim/` 폴더에 두고, `World::step()`이 시스템 함수를 정해진 순서로 직접 부른다.
+`sim/` 파일은 빌드 전에 **SimCheck**(`engine/tools/SimCheck.cpp`)가 검사해, 아래 규칙과 `docs/CODING_MODEL.md`의 금지 목록
+(CRT 수학 함수, 실제 시간, `rand`, `new`/`delete`, `virtual`, 코루틴·스레드, `unordered_map`, 가변 전역·`static` 변수, 렌더러·플랫폼·`view/`·`app/` 헤더)을 어기면
+`파일(줄,열): error SIMnnn`과 대신 쓸 것을 출력하고 빌드를 멈춘다.
 
 - 사칙연산과 `sqrt`만 쓴다. `sin/cos/atan2/pow/exp` 같은 CRT 함수는 CPU에 따라 다른 경로(FMA)를 탈 수 있다. 방향이 필요하면 입력 단계에서 계산해 양자화해서 보낸다.
 - 컴파일 옵션은 `/fp:precise`로 고정한다. `/fp:fast`, `/fp:contract`, `/arch:AVX2`는 쓰지 않는다.
