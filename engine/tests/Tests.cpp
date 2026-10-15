@@ -4,6 +4,7 @@
 #include "mealkit/core/DetMath.h"
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
+#include "mealkit/core/Reflect.h"
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
@@ -136,6 +137,101 @@ TEST_CASE(det_math) {
     TEST_CHECK(detSin(0.0f) == 0.0f && detCos(0.0f) == 1.0f);
     TEST_CHECK(detAtan2(0.0f, 0.0f) == 0.0f && detAtan2(1.0f, 0.0f) == kDetHalfPi);
     TEST_CHECK(std::fabs(detAtan2(0.0f, -1.0f) - kDetPi) < 1e-6f);
+}
+
+enum class Color8 : u8 { Red, Green };
+
+MEALKIT_STRUCT(Inner) {
+    MEALKIT_FIELD(i32, a, -3, "에이");
+    MEALKIT_FIELD(Vec3, v, (Vec3{1.0f, 2.0f, 3.0f}), "");
+};
+
+MEALKIT_STRUCT(Outer) {
+    MEALKIT_FIELD(u8, small, 7, "작은 값");
+    MEALKIT_FIELD(bool, flag, true, "깃발");
+    MEALKIT_VIEW_FIELD(f32, look, 0.25f, "보기만");
+    MEALKIT_FIELD(Inner, inner, {}, "안쪽");
+    MEALKIT_ARRAY(Inner, 2, list, "목록");
+    MEALKIT_FIELD(sim::Pool<Inner>, pool, {}, "풀");
+    MEALKIT_FIELD(sim::Id<Inner>, ref, {}, "참조");
+    MEALKIT_FIELD(Color8, color, Color8::Green, "색");
+    MEALKIT_FIELD(sim::TickTimer, timer, {}, "타이머");
+    u32 notReflected = 99; // 선언하지 않은 필드는 해시·저장에서 빠진다
+};
+
+MEALKIT_OBJECT(TestPad) {
+    static constexpr const char* kObjectLabel = "시험 발판";
+    static constexpr u32 kObjectFlags = reflect::kObjectMarker;
+    MEALKIT_FIELD(f32, power, 12.0f, "힘");
+};
+
+TEST_CASE(reflect) {
+    using reflect::Kind;
+    const reflect::TypeInfo& t = reflect::typeOf<Outer>();
+    TEST_CHECK(std::string(t.name) == "Outer");
+    TEST_CHECK(t.fields.size() == 9);
+    TEST_CHECK(std::string(t.fields[0].name) == "small" && t.fields[0].value->kind == Kind::UInt && t.fields[0].value->size == 1);
+    TEST_CHECK(t.fields[2].flags == reflect::kFieldView && t.fields[2].value->kind == Kind::Float);
+    TEST_CHECK(t.fields[3].value->kind == Kind::Struct && t.fields[3].value->type == &reflect::typeOf<Inner>());
+    TEST_CHECK(t.fields[4].value->kind == Kind::Array && t.fields[4].value->count == 2);
+    TEST_CHECK(t.fields[5].value->kind == Kind::Container && t.fields[6].value->kind == Kind::Id);
+    TEST_CHECK(t.fields[7].value->kind == Kind::UInt && t.fields[8].value->kind == Kind::Struct);
+    TEST_CHECK(t.fields[1].offset == offsetof(Outer, flag) && t.fields[4].offset == offsetof(Outer, list));
+    TEST_CHECK(std::string(reflect::typeOf<Inner>().fields[1].label) == "v"); // 빈 라벨은 이름
+
+    Outer a;
+    a.pool.init(4);
+    a.pool.create({});
+    a.pool.endTick();
+    a.list[1].a = 42;
+    reflect::TextFields text;
+    reflect::toText(t, &a, text);
+    TEST_CHECK(!text.empty() && text[0].first == "small" && text[0].second == "7");
+    bool sawNested = false;
+    for (const auto& [k, v] : text)
+        if (k == "list[1].a") sawNested = v == "42";
+    TEST_CHECK(sawNested);
+
+    Outer b;
+    b.pool.init(4);
+    b.pool.create({});
+    b.pool.endTick();
+    std::string warnings;
+    reflect::fromText(t, &b, text, &warnings);
+    TEST_CHECK(warnings.empty());
+    TEST_CHECK(b.list[1].a == 42);
+    TEST_CHECK(reflect::hashOf(a) == reflect::hashOf(b));
+    b.look = 9.0f;
+    TEST_CHECK(reflect::hashOf(a, reflect::kFieldView) == reflect::hashOf(b, reflect::kFieldView));
+    TEST_CHECK(reflect::hashOf(a) != reflect::hashOf(b));
+    TEST_CHECK(!reflect::setFromText(t, &b, "list[5].a", "1") && !reflect::setFromText(t, &b, "nope", "1"));
+    TEST_CHECK(reflect::setFromText(t, &b, "inner.v", "4 5 6") && b.inner.v.y == 5.0f);
+
+    std::vector<std::string> diff;
+    reflect::diffStruct(t, &a, &b, diff);
+    TEST_CHECK(diff.size() == 2); // look, inner.v
+
+    // 스냅샷: 저장 → 바꾸기 → 되돌리기
+    const u64 saved = reflect::hashOf(a);
+    reflect::ByteWriter w;
+    reflect::saveStruct(t, &a, w);
+    const sim::Id<Inner> extra = a.pool.create({});
+    a.pool.endTick();
+    a.timer.start(5, 10);
+    a.notReflected = 1;
+    const u64 changed = reflect::hashOf(a);
+    reflect::ByteReader r(w.data().data(), w.data().size());
+    TEST_CHECK(reflect::loadStruct(t, &a, r) && r.atEnd());
+    TEST_CHECK(!a.pool.alive(extra) && a.pool.count() == 1 && a.timer.readyTick == 0);
+    TEST_CHECK(changed != saved && reflect::hashOf(a) == saved);
+
+    bool registered = false;
+    for (const reflect::TypeInfo* type : reflect::moduleObjectTypes())
+        if (std::string(type->name) == "TestPad")
+            registered = std::string(type->label) == "시험 발판" && type->flags == reflect::kObjectMarker;
+    TEST_CHECK(registered);
+    reflect::Instance inst(reflect::typeOf<TestPad>());
+    TEST_CHECK(static_cast<const TestPad*>(inst.data())->power == 12.0f);
 }
 
 } // namespace

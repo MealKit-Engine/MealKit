@@ -66,6 +66,29 @@ void movePlayers(World& world) {
     }
 }
 
+void usePads(World& world) {
+    const u32 tick = world.state.tick;
+    for (auto [padId, pad] : world.state.pads) {
+        if (!pad.ready.ready(tick)) continue;
+        const f32 top = pad.center.y + pad.halfExtents.y;
+        for (u32 i = 0; i < world.state.playerCount; ++i) { // 플레이어 번호 순서
+            const Player& p = world.state.players[i];
+            const f32 feet = p.position.y - kPlayerHalfHeight;
+            const Vec3 d = p.position - pad.center;
+            const bool over = d.x <= pad.halfExtents.x && -d.x <= pad.halfExtents.x && d.z <= pad.halfExtents.z &&
+                              -d.z <= pad.halfExtents.z;
+            if (!over || feet < top - 0.3f || feet > top + 0.4f) continue;
+            const mealkit::physics::BodyId body = world.playerBodies[i];
+            Vec3 v = world.physics.linearVelocity(body);
+            v.y = pad.power;
+            world.physics.setLinearVelocity(body, v);
+            pad.ready.start(tick, pad.cooldownTicks);
+            world.events.push({EventKind::Bounce, static_cast<u8>(i), {pad.center.x, top, pad.center.z}});
+            break;
+        }
+    }
+}
+
 void respawnFallenPlayers(World& world) {
     for (u32 i = 0; i < world.state.playerCount; ++i) {
         const mealkit::physics::BodyId id = world.playerBodies[i];

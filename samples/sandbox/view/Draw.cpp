@@ -33,7 +33,7 @@ void applyEnvironment(const scene::Environment& env, render::FrameParams& frame)
 void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3& eye, render::DrawList& out) {
     const render::MeshId box = models.boxMesh();
     for (const scene::Entity& e : scene.entities) {
-        if (e.kind == scene::EntityKind::SpawnPoint) continue; // 게임에서는 보이지 않음
+        if (e.is(scene::kTypeSpawn)) continue; // 게임에서는 보이지 않음
         const asset::Model* model = e.model.empty() ? nullptr : models.get(e.model);
         const render::MeshId mesh = model ? models.pickLod(*model, eye, e.position, e.scale) : box;
         out.add(mesh, {e.position, e.color, e.rotation, e.scale, e.flags});

@@ -178,7 +178,7 @@ int main(int argc, char** argv) {
 
     net::LockstepSession session;
     // 실행 파일 + 씬 + 모델 파일이 모두 같아야 접속할 수 있다
-    session.setContentHash(scene.contentHash() ^ models.hashModels(scene));
+    session.setContentHash(scene.contentHash(&reflect::moduleObjectTypes()) ^ models.hashModels(scene));
     const u64 seed = opt.seed ? opt.seed : static_cast<u64>(std::time(nullptr));
     switch (opt.mode) {
     case Options::Mode::Offline:

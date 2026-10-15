@@ -11,6 +11,7 @@ Vec3 spawnPosition(const World& world, u32 player);
 void spawnPlayers(World& world);
 void movePlayers(World& world); // 입력 → 속도, 점프, 밀치기
 void respawnFallenPlayers(World& world);
+void usePads(World& world); // 점프대 위의 플레이어를 튕겨 올린다
 void sensePlayers(World& world); // 물리 결과 → 위치, 속도, 접지
 
 // Props.cpp

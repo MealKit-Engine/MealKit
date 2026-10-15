@@ -4,6 +4,7 @@
 #include "mealkit/core/Log.h"
 
 #include <algorithm>
+#include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -43,11 +44,23 @@ bool readVec3(const char* text, Vec3& v) {
     return true;
 }
 
-bool parseKind(const char* text, EntityKind& out) {
-    if (std::strcmp(text, "solid") == 0) out = EntityKind::Solid;
-    else if (std::strcmp(text, "decoration") == 0) out = EntityKind::Decoration;
-    else if (std::strcmp(text, "spawn") == 0) out = EntityKind::SpawnPoint;
-    else return false;
+reflect::TypeInfo makeBuiltin(const char* name, const char* label, u32 flags) {
+    reflect::TypeInfo t;
+    t.name = name;
+    t.label = label;
+    t.flags = flags;
+    t.size = 1;
+    t.create = []() -> void* { return new u8(0); };
+    t.destroy = [](void* p) { delete static_cast<u8*>(p); };
+    t.copy = [](void*, const void*) {};
+    return t;
+}
+
+// 종류 이름: 영문자로 시작하고 영문자·숫자·_ 만 (C++ 타입 이름과 같은 규칙)
+bool validTypeName(const char* text) {
+    if (!std::isalpha(static_cast<unsigned char>(*text))) return false;
+    for (const char* p = text; *p; ++p)
+        if (!std::isalnum(static_cast<unsigned char>(*p)) && *p != '_') return false;
     return true;
 }
 
@@ -55,19 +68,34 @@ void writeVec3(FILE* f, const char* key, Vec3 v) { fprintf(f, "%s %.9g %.9g %.9g
 
 } // namespace
 
-const char* kindName(EntityKind kind) {
-    switch (kind) {
-    case EntityKind::Solid: return "solid";
-    case EntityKind::Decoration: return "decoration";
-    case EntityKind::SpawnPoint: return "spawn";
-    }
-    return "solid";
+const std::vector<const reflect::TypeInfo*>& builtinTypes() {
+    static const reflect::TypeInfo solid = makeBuiltin(kTypeSolid, "충돌 상자", 0);
+    static const reflect::TypeInfo decoration = makeBuiltin(kTypeDecoration, "장식 (충돌 없음)", reflect::kObjectCosmetic);
+    static const reflect::TypeInfo spawn = makeBuiltin(kTypeSpawn, "스폰 지점", reflect::kObjectMarker);
+    static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn};
+    return list;
 }
 
-Entity& Scene::add(EntityKind kind, const std::string& name) {
+const reflect::TypeInfo* findType(const std::string& name, const TypeList* gameTypes) {
+    for (const reflect::TypeInfo* t : builtinTypes())
+        if (name == t->name) return t;
+    if (gameTypes)
+        for (const reflect::TypeInfo* t : *gameTypes)
+            if (name == t->name) return t;
+    return nullptr;
+}
+
+reflect::TextFields defaultFields(const reflect::TypeInfo& type) {
+    reflect::Instance instance(type);
+    reflect::TextFields fields;
+    reflect::toText(type, instance.data(), fields);
+    return fields;
+}
+
+Entity& Scene::add(const std::string& type, const std::string& name) {
     Entity e;
     e.id = nextId++;
-    e.kind = kind;
+    e.type = type;
     e.name = name;
     entities.push_back(e);
     return entities.back();
@@ -89,15 +117,25 @@ int Scene::indexOf(u32 id) const {
     return -1;
 }
 
-u64 Scene::contentHash() const {
+u64 Scene::contentHash(const TypeList* gameTypes) const {
     Hasher h;
     for (const Entity& e : entities) {
-        if (e.kind == EntityKind::Decoration) continue;
-        h.add(static_cast<u8>(e.kind));
+        const reflect::TypeInfo* type = findType(e.type, gameTypes);
+        if (type && (type->flags & reflect::kObjectCosmetic)) continue;
+        h.bytes(e.type.data(), e.type.size() + 1);
         h.add(e.position);
         h.add(e.rotation);
         h.add(e.scale);
-        h.bytes(e.model.data(), e.model.size());
+        h.bytes(e.model.data(), e.model.size() + 1);
+        for (const auto& [path, value] : e.fields) {
+            if (type) { // 보기 전용 필드는 뺀다 (경로의 첫 이름이 필드 이름)
+                const std::string top = path.substr(0, path.find_first_of(".["));
+                const reflect::FieldInfo* f = type->field(top.c_str());
+                if (f && (f->flags & reflect::kFieldView)) continue;
+            }
+            h.bytes(path.data(), path.size() + 1);
+            h.bytes(value.data(), value.size() + 1);
+        }
     }
     return h.value;
 }
@@ -109,19 +147,21 @@ bool save(const Scene& scene, const std::string& path) {
         return false;
     }
     const Environment& env = scene.environment;
-    fprintf(f, "# MealKit scene\nversion 1\n\n");
+    fprintf(f, "# MealKit scene\nversion 2\n\n");
     writeVec3(f, "sun", env.sunDirection);
     writeVec3(f, "sunColor", env.sunColor);
     writeVec3(f, "sky", env.skyColor);
     writeVec3(f, "groundColor", env.groundColor);
     fprintf(f, "fog %.9g %.9g %.9g %.9g\n", env.fogColor.x, env.fogColor.y, env.fogColor.z, env.fogDensity);
     for (const Entity& e : scene.entities) {
-        fprintf(f, "\nentity\nid %u\nname %s\nkind %s\n", e.id, e.name.c_str(), kindName(e.kind));
+        fprintf(f, "\nentity\nid %u\nname %s\nkind %s\n", e.id, e.name.c_str(), e.type.c_str());
         writeVec3(f, "position", e.position);
         fprintf(f, "rotation %.9g %.9g %.9g %.9g\n", e.rotation.x, e.rotation.y, e.rotation.z, e.rotation.w);
         writeVec3(f, "scale", e.scale);
         if (!e.model.empty()) fprintf(f, "model %s\n", e.model.c_str());
-        fprintf(f, "color %08X\nflags %u\nend\n", e.color, e.flags);
+        fprintf(f, "color %08X\nflags %u\n", e.color, e.flags);
+        for (const auto& [key, value] : e.fields) fprintf(f, "field %s %s\n", key.c_str(), value.c_str());
+        fprintf(f, "end\n");
     }
     const bool ok = fflush(f) == 0;
     fclose(f);
@@ -157,7 +197,8 @@ bool load(Scene& out, const std::string& path, std::string* error) {
 
         bool ok = true;
         if (std::strcmp(key, "version") == 0) {
-            ok = std::atoi(rest) == 1;
+            const int version = std::atoi(rest);
+            ok = version >= 1 && version <= 2;
         } else if (std::strcmp(key, "entity") == 0) {
             ok = !inEntity;
             e = Entity{};
@@ -169,7 +210,16 @@ bool load(Scene& out, const std::string& path, std::string* error) {
         } else if (inEntity) {
             if (std::strcmp(key, "id") == 0) e.id = static_cast<u32>(std::strtoul(rest, nullptr, 10));
             else if (std::strcmp(key, "name") == 0) e.name = rest;
-            else if (std::strcmp(key, "kind") == 0) ok = parseKind(rest, e.kind);
+            else if (std::strcmp(key, "kind") == 0) {
+                ok = validTypeName(rest);
+                e.type = rest;
+            } else if (std::strcmp(key, "field") == 0) {
+                char* value = rest;
+                while (*value && *value != ' ') ++value;
+                if (*value) *value++ = '\0';
+                ok = rest[0] != '\0';
+                e.fields.emplace_back(rest, value);
+            }
             else if (std::strcmp(key, "position") == 0) ok = readVec3(rest, e.position);
             else if (std::strcmp(key, "rotation") == 0) {
                 f32 q[4];
@@ -220,7 +270,7 @@ Scene makeDefault() {
     const Quat rotY30{0.0f, 0.258819045f, 0.0f, 0.965925826f};
     const Quat rotY45{0.0f, 0.382683432f, 0.0f, 0.923879533f};
 
-    auto box = [&](EntityKind kind, const char* name, Vec3 pos, Vec3 scale, u32 color, Quat rot = {}, u32 flags = 0) {
+    auto box = [&](const char* kind, const char* name, Vec3 pos, Vec3 scale, u32 color, Quat rot = {}, u32 flags = 0) {
         Entity& e = s.add(kind, name);
         e.position = pos;
         e.scale = scale;
@@ -230,23 +280,23 @@ Scene makeDefault() {
     };
 
     const u32 wall = rgba(150, 146, 140);
-    box(EntityKind::Solid, "Ground", {0, -0.5f, 0}, {120, 1, 120}, rgba(118, 150, 96), {}, 1u);
-    box(EntityKind::Solid, "Wall North", {0, 1, 60.5f}, {122, 2, 1}, wall);
-    box(EntityKind::Solid, "Wall South", {0, 1, -60.5f}, {122, 2, 1}, wall);
-    box(EntityKind::Solid, "Wall East", {60.5f, 1, 0}, {1, 2, 120}, wall);
-    box(EntityKind::Solid, "Wall West", {-60.5f, 1, 0}, {1, 2, 120}, wall);
-    box(EntityKind::Solid, "Ramp", {18, 1.25f, -10}, {10, 0.5f, 4}, rgba(196, 160, 110), rotZ15);
-    box(EntityKind::Solid, "Platform", {26, 2.5f, -10}, {6, 0.5f, 6}, rgba(170, 140, 100));
-    box(EntityKind::Solid, "Pillar A", {-15, 2, 15}, {2, 4, 2}, rgba(170, 170, 182));
-    box(EntityKind::Solid, "Pillar B", {15, 2, 15}, {2, 4, 2}, rgba(170, 170, 182));
-    box(EntityKind::Solid, "Block", {-20, 1, -15}, {6, 2, 3}, rgba(150, 120, 200), rotY30);
-    box(EntityKind::Solid, "Crate", {0, 1, 25}, {4, 2, 4}, rgba(205, 140, 80), rotY45);
-    box(EntityKind::Decoration, "Banner", {0, 6, -59.9f}, {14, 5, 0.2f}, rgba(200, 60, 60));
+    box(kTypeSolid, "Ground", {0, -0.5f, 0}, {120, 1, 120}, rgba(118, 150, 96), {}, 1u);
+    box(kTypeSolid, "Wall North", {0, 1, 60.5f}, {122, 2, 1}, wall);
+    box(kTypeSolid, "Wall South", {0, 1, -60.5f}, {122, 2, 1}, wall);
+    box(kTypeSolid, "Wall East", {60.5f, 1, 0}, {1, 2, 120}, wall);
+    box(kTypeSolid, "Wall West", {-60.5f, 1, 0}, {1, 2, 120}, wall);
+    box(kTypeSolid, "Ramp", {18, 1.25f, -10}, {10, 0.5f, 4}, rgba(196, 160, 110), rotZ15);
+    box(kTypeSolid, "Platform", {26, 2.5f, -10}, {6, 0.5f, 6}, rgba(170, 140, 100));
+    box(kTypeSolid, "Pillar A", {-15, 2, 15}, {2, 4, 2}, rgba(170, 170, 182));
+    box(kTypeSolid, "Pillar B", {15, 2, 15}, {2, 4, 2}, rgba(170, 170, 182));
+    box(kTypeSolid, "Block", {-20, 1, -15}, {6, 2, 3}, rgba(150, 120, 200), rotY30);
+    box(kTypeSolid, "Crate", {0, 1, 25}, {4, 2, 4}, rgba(205, 140, 80), rotY45);
+    box(kTypeDecoration, "Banner", {0, 6, -59.9f}, {14, 5, 0.2f}, rgba(200, 60, 60));
     const u32 spawn = rgba(255, 220, 90);
-    box(EntityKind::SpawnPoint, "Spawn 1", {-6, 0.9f, -6}, {1, 1, 1}, spawn);
-    box(EntityKind::SpawnPoint, "Spawn 2", {6, 0.9f, 6}, {1, 1, 1}, spawn);
-    box(EntityKind::SpawnPoint, "Spawn 3", {6, 0.9f, -6}, {1, 1, 1}, spawn);
-    box(EntityKind::SpawnPoint, "Spawn 4", {-6, 0.9f, 6}, {1, 1, 1}, spawn);
+    box(kTypeSpawn, "Spawn 1", {-6, 0.9f, -6}, {1, 1, 1}, spawn);
+    box(kTypeSpawn, "Spawn 2", {6, 0.9f, 6}, {1, 1, 1}, spawn);
+    box(kTypeSpawn, "Spawn 3", {6, 0.9f, -6}, {1, 1, 1}, spawn);
+    box(kTypeSpawn, "Spawn 4", {-6, 0.9f, 6}, {1, 1, 1}, spawn);
     return s;
 }
 

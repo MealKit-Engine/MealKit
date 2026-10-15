@@ -22,5 +22,7 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
   `source/view/`(카메라·로컬 입력·그리기, sim 상태는 읽기만), `source/app/`(`GameSession` = `mealkit::game::GameInstance` 구현, `main.cpp`, `GameModule.cpp`의 `MEALKIT_GAME_MODULE`).
   `sim/`에서 매치 중 생기고 사라지는 객체는 `mealkit::sim::Pool<T>`, "N틱 뒤"는 `TickTimer`, 화면에 알릴 일은 `world.events`(`TickEvents`)로 한다.
   화면 쪽은 엔진 서비스를 `mealkit::game::GameContext&`로 받는다 (`docs/CODING_MODEL.md`).
+- 에디터에 놓을 새 물체 종류는 `source/sim/Objects.h`에 `MEALKIT_OBJECT(이름) { MEALKIT_FIELD(타입, 필드, 기본값, "표시 이름"); };`로 선언하고,
+  `World.cpp`의 `loadScene`에서 `scene::readObject<이름>(entity)`로 읽는다. 게임 코드를 다시 빌드하면 에디터 [추가] 메뉴에 나온다.
   include는 `"sim/World.h"`처럼 `source/` 기준으로 쓴다. 파일을 추가해도 `CMakeLists.txt`를 고치지 않는다.
 - 씬 충돌 데이터나 모델 파일이 바뀌면 콘텐츠 해시가 바뀌어, 다른 데이터를 쓰는 피어는 접속이 거부된다.

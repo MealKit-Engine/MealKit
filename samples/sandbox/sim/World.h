@@ -8,6 +8,7 @@
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
+#include "sim/Objects.h"
 
 #include <vector>
 
@@ -62,8 +63,17 @@ struct Prop {
     mealkit::physics::BodyId body = mealkit::physics::kInvalidBody;
 };
 
+// 씬의 점프대 (매치 시작 때 씬에서 만든다)
+struct Pad {
+    Vec3 center;
+    Vec3 halfExtents;
+    f32 power = 0.0f;
+    u32 cooldownTicks = 0;
+    mealkit::sim::TickTimer ready;
+};
+
 // 시뮬레이션 → 화면 알림 (소리·효과용). sim/은 쓰기만 하고 읽지 않는다.
-enum class EventKind : u8 { Push };
+enum class EventKind : u8 { Push, Bounce };
 
 struct GameEvent {
     EventKind kind = EventKind::Push;
@@ -78,6 +88,7 @@ struct WorldState {
     u32 playerCount = 0;
     Player players[mealkit::net::kMaxPlayers];
     mealkit::sim::Pool<Prop> props; // 위치·회전은 물리 결과를 매 틱 옮겨 담은 것
+    mealkit::sim::Pool<Pad> pads;
 };
 
 // 시뮬레이션 전체. sim/ 시스템 함수(Systems.h)는 이것 하나(World&)만 받는다.

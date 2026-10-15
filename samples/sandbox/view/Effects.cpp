@@ -15,7 +15,8 @@ constexpr u32 kShockwaveSegments = 16;
 
 void Effects::onEvent(const GameEvent& event, f64 now) {
     switch (event.kind) {
-    case EventKind::Push: shockwaves.push_back({event.position, now}); break;
+    case EventKind::Push: shockwaves.push_back({event.position - Vec3{0.0f, kPlayerHalfHeight - 0.05f, 0.0f}, now, kPushRadius}); break;
+    case EventKind::Bounce: shockwaves.push_back({event.position + Vec3{0.0f, 0.05f, 0.0f}, now, 2.0f}); break;
     }
 }
 
@@ -27,10 +28,10 @@ void Effects::prune(f64 now) {
 void Effects::draw(f64 now, render::MeshId box, render::DrawList& out) const {
     for (const Shockwave& w : shockwaves) {
         const f32 t = std::clamp(static_cast<f32>((now - w.start) / kShockwaveSeconds), 0.0f, 1.0f);
-        const f32 radius = kPushRadius * t;
+        const f32 radius = w.radius * t;
         const f32 segment = 2.0f * 3.14159265f * std::max(radius, 0.1f) / kShockwaveSegments;
         const f32 thickness = 0.25f * (1.0f - t) + 0.05f;
-        const Vec3 center = w.position - Vec3{0.0f, kPlayerHalfHeight - 0.05f, 0.0f};
+        const Vec3 center = w.position;
         for (u32 i = 0; i < kShockwaveSegments; ++i) {
             const f32 angle = 2.0f * 3.14159265f * static_cast<f32>(i) / kShockwaveSegments;
             const Vec3 offset{std::sin(angle) * radius, 0.0f, std::cos(angle) * radius};

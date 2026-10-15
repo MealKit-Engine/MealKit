@@ -49,6 +49,8 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/core/Clock.cpp
     src/mealkit/core/Math.h
     src/mealkit/core/DetMath.h
+    src/mealkit/core/Reflect.h
+    src/mealkit/core/Reflect.cpp
     src/mealkit/core/Random.h
     src/mealkit/core/Hash.h
     src/mealkit/core/Profile.h
@@ -176,7 +178,9 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/ProjectManager.h
         src/mealkit/editor/ProjectManager.cpp
         src/mealkit/editor/GameModuleHost.h
-        src/mealkit/editor/GameModuleHost.cpp)
+        src/mealkit/editor/GameModuleHost.cpp
+        src/mealkit/editor/FieldEditor.h
+        src/mealkit/editor/FieldEditor.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit mealkit_imgui comdlg32)
     target_compile_definitions(mealkit_editor PUBLIC MEALKIT_EDITOR=1)
 

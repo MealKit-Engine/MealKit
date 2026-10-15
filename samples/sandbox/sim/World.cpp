@@ -12,14 +12,18 @@ namespace {
 
 using mealkit::physics::BodyDesc;
 using mealkit::physics::Motion;
-using mealkit::scene::EntityKind;
+namespace scene = mealkit::scene;
 
 constexpr Vec3 kGravity{0.0f, -20.0f, 0.0f};
 
-// 씬의 충돌 상자(정적)와 스폰 지점
-void loadScene(World& world, const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models) {
-    for (const mealkit::scene::Entity& e : scene.entities) {
-        if (e.kind == EntityKind::Solid) {
+// 씬의 충돌 상자(정적), 스폰 지점, 점프대
+void loadScene(World& world, const scene::Scene& scene, mealkit::asset::ModelCache& models) {
+    u32 padCount = 0;
+    for (const scene::Entity& e : scene.entities) padCount += e.is<JumpPad>() ? 1u : 0u;
+    world.state.pads.init(padCount);
+
+    for (const scene::Entity& e : scene.entities) {
+        if (e.is(scene::kTypeSolid)) {
             BodyDesc d;
             d.motion = Motion::Static;
             d.position = e.position;
@@ -34,10 +38,19 @@ void loadScene(World& world, const mealkit::scene::Scene& scene, mealkit::asset:
             } else {
                 world.physics.createBox(e.scale * 0.5f, d);
             }
-        } else if (e.kind == EntityKind::SpawnPoint) {
+        } else if (e.is(scene::kTypeSpawn)) {
             world.spawns.push_back(e.position);
+        } else if (e.is<JumpPad>()) {
+            const JumpPad def = scene::readObject<JumpPad>(e);
+            Pad pad;
+            pad.center = e.position;
+            pad.halfExtents = e.scale * 0.5f;
+            pad.power = def.power;
+            pad.cooldownTicks = def.cooldownTicks;
+            world.state.pads.create(pad);
         }
     }
+    world.state.pads.endTick();
     world.physics.optimize();
 }
 
@@ -68,6 +81,7 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
     events.clear();
 
     movePlayers(*this);
+    usePads(*this);
     physics.step(kTickDt, 2); // 30Hz 틱을 물리 2단계로 나눠 안정성을 높인다
     respawnFallenPlayers(*this);
     recoverFallenProps(*this);
@@ -90,6 +104,8 @@ u64 World::hash() const {
         h.add(prop.body);
         h.add(prop.colorIndex);
     }
+    state.pads.hashState(h);
+    for (auto [id, pad] : state.pads) h.add(pad.ready.readyTick);
     physics.hashState(h);
     return h.value;
 }
