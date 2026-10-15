@@ -4,7 +4,9 @@
 #include "mealkit/core/DetMath.h"
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
+#include "mealkit/core/Random.h"
 #include "mealkit/core/Reflect.h"
+#include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
@@ -232,6 +234,59 @@ TEST_CASE(reflect) {
     TEST_CHECK(registered);
     reflect::Instance inst(reflect::typeOf<TestPad>());
     TEST_CHECK(static_cast<const TestPad*>(inst.data())->power == 12.0f);
+}
+
+// 같은 조작을 하면서 매 틱 해시를 남긴다. 30틱째에 바디 하나를 지우고 새 바디를 만든다 (복원이 바디 목록 변화도 되돌리는지)
+std::vector<u64> runPhysics(physics::PhysicsWorld& w, std::vector<physics::BodyId>& bodies, u32 ticks, u32 startTick) {
+    std::vector<u64> hashes;
+    for (u32 t = 0; t < ticks; ++t) {
+        const u32 tick = startTick + t;
+        if (tick == 30) {
+            w.destroy(bodies[3]);
+            physics::BodyDesc d;
+            d.position = {0.5f, 12.0f, 0.25f};
+            bodies[3] = w.createSphere(0.4f, d);
+        }
+        if (tick % 7 == 0) w.addLinearVelocity(bodies[tick % bodies.size()], {1.0f, 3.0f, -0.5f});
+        w.step(1.0f / 30.0f, 2);
+        Hasher h;
+        w.hashState(h);
+        for (physics::BodyId id : bodies) h.add(id);
+        hashes.push_back(h.value);
+    }
+    return hashes;
+}
+
+TEST_CASE(physics_snapshot) {
+    physics::PhysicsWorld w;
+    w.init(1024, 2);
+    w.setGravity({0.0f, -20.0f, 0.0f});
+    physics::BodyDesc ground;
+    ground.motion = physics::Motion::Static;
+    ground.position = {0.0f, -0.5f, 0.0f};
+    w.createBox({20.0f, 0.5f, 20.0f}, ground);
+    Pcg32 rng(7);
+    std::vector<physics::BodyId> bodies;
+    for (int i = 0; i < 60; ++i) {
+        physics::BodyDesc d;
+        d.position = {rng.range(-3.0f, 3.0f), rng.range(1.0f, 10.0f), rng.range(-3.0f, 3.0f)};
+        bodies.push_back(w.createBox({0.3f, 0.3f, 0.3f}, d));
+    }
+    runPhysics(w, bodies, 20, 0);
+
+    physics::PhysicsSnapshot snap;
+    w.save(snap);
+    const std::vector<physics::BodyId> savedBodies = bodies;
+    const std::vector<u64> first = runPhysics(w, bodies, 40, 20); // 30틱에 바디가 바뀐다
+    const physics::BodyId newBody = bodies[3];
+
+    TEST_CHECK(w.restore(snap));
+    bodies = savedBodies;
+    const std::vector<u64> second = runPhysics(w, bodies, 40, 20);
+    TEST_CHECK(first == second);
+    TEST_CHECK(bodies[3] == newBody); // 다시 만든 바디의 id도 같다
+    TEST_CHECK(w.bodyCount() == 61);
+    std::printf("  physics snapshot: %zu bytes for 61 bodies\n", snap.byteSize());
 }
 
 } // namespace

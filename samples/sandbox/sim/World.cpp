@@ -98,18 +98,7 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
 
 u64 World::hash() const {
     mealkit::Hasher h;
-    h.add(state.tick);
-    for (u32 i = 0; i < state.playerCount; ++i) {
-        h.add(state.players[i].pushReady.readyTick);
-        h.add(state.players[i].grounded);
-    }
-    state.props.hashState(h);
-    for (auto [id, prop] : state.props) { // 위치·회전은 물리 상태에 이미 들어 있다
-        h.add(prop.body);
-        h.add(prop.colorIndex);
-    }
-    state.pads.hashState(h);
-    for (auto [id, pad] : state.pads) h.add(pad.ready.readyTick);
+    mealkit::reflect::hashStruct(mealkit::reflect::typeOf<WorldState>(), &state, h); // 선언한 상태 필드 전부
     physics.hashState(h);
     return h.value;
 }

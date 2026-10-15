@@ -135,6 +135,12 @@ struct TypeInfo {
     const FieldInfo* field(const char* fieldName) const;
 };
 
+// 타입을 모르는 쪽(에디터)에 값 하나를 보여 줄 때
+struct View {
+    const TypeInfo* type = nullptr;
+    const void* data = nullptr;
+};
+
 // 타입을 정의한 모듈 쪽 함수로 만들고 지우는 인스턴스 (에디터가 게임 DLL의 타입을 편집할 때)
 class Instance {
 public:

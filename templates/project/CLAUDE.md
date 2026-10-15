@@ -15,7 +15,8 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
 ## 규칙
 
 - 엔진 코드와 에디터는 이 폴더에 없다. 엔진을 고쳐야 하면 `@MEALKIT_ROOT@`에서 고친다 (그쪽 CLAUDE.md를 따른다).
-- `source/sim/`은 결정론 코드다: CRT 삼각함수 금지, `/fp:precise` 유지, `Pcg32`만 사용, 순회·바디 생성 순서 고정, 새 상태는 `World::hash()`에 추가.
+- `source/sim/`은 결정론 코드다: CRT 삼각함수 금지(`mealkit/core/DetMath.h`를 쓴다), `/fp:precise` 유지, `Pcg32`만 사용, 순회·바디 생성 순서 고정.
+  틱을 넘어 남는 상태는 `WorldState` 안에 `MEALKIT_FIELD`로 선언한다. 선언하면 해시·스냅샷·에디터 [상태] 패널에 저절로 들어간다.
   빌드 때 SimCheck가 검사해 어기면 `error SIMnnn`으로 빌드가 멈춘다(대신 쓸 것을 알려 준다). 규칙의 근거는 엔진의 `docs/CODING_MODEL.md`.
   시뮬레이션 코드를 바꾸면 결정론 테스트로 디싱크가 없는지 확인한다.
 - 게임 코드 폴더: `source/sim/`(규칙: 시스템별 파일, 시스템 함수는 `World&`만 받고 `World::step()`이 순서대로 호출),

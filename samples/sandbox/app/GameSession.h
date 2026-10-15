@@ -42,6 +42,7 @@ public:
     bool captureDue() override;
     mealkit::f64 takeSimMsPerTick() override;
     void setTuning(const void* tuning) override { m_world.setTuning(*static_cast<const Tuning*>(tuning)); }
+    mealkit::reflect::View stateView() const override { return {&mealkit::reflect::typeOf<WorldState>(), &m_world.state}; }
 
 private:
     World m_world;
