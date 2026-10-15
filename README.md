@@ -238,7 +238,9 @@ cmake/MealKit.cmake            빌드 공통 설정 + mealkit_add_game() (엔진
 cmake/MealKitExport.cmake      출시 폴더 만들기 (game_export 타깃)
 cmake/FixExportsDef.cmake    mealkit.dll 내보내기 목록에서 MSVC CRT 약한 별칭 줄 제거 (Editor 빌드)
 templates/project/           새 게임 프로젝트의 빌드 파일 템플릿
-tools/                       build_project.bat (공통 빌드), new_project.ps1 (새 프로젝트), check.ps1 (전체 검증), mp_test.ps1 (멀티플레이 테스트), make_sample_models.py
+tools/                       build_project.bat (공통 빌드), new_project.ps1 (새 프로젝트), upgrade_project.ps1 (프로젝트를 새 엔진 템플릿으로),
+                             check.ps1 (전체 검증), mp_test.ps1 (멀티플레이 테스트), make_sample_models.py
+VERSION                      엔진 버전 (mealkit.project의 engineVersion=과 비교)
 .vscode/                     빌드 작업, 디버그 실행 구성
 ```
 

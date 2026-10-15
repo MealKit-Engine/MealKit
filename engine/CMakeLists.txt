@@ -43,6 +43,7 @@ else()
 endif()
 add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/core/Types.h
+    src/mealkit/core/Version.h
     src/mealkit/core/Log.h
     src/mealkit/core/Log.cpp
     src/mealkit/core/Clock.h
@@ -114,6 +115,7 @@ target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf)
 
 target_compile_definitions(mealkit PUBLIC
     NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE
+    MEALKIT_VERSION="${MEALKIT_VERSION}"
     $<$<CONFIG:Debug>:MEALKIT_DEBUG=1>)
 # MEALKIT_ASSERT는 Editor 빌드(에디터 + 게임 DLL)에서도 켠다. PUBLIC이라 MealKitTargets.cmake로 게임 DLL에도 넘어간다.
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")

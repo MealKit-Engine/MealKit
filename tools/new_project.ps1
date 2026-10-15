@@ -1,19 +1,21 @@
-# 새 게임 프로젝트 만들기: 엔진 밖의 폴더에 게임 코드 + 에셋 + 빌드 파일을 만든다.
+﻿# 새 게임 프로젝트 만들기: 엔진 밖의 폴더에 게임 코드 + 에셋 + 빌드 파일을 만든다.
 # 게임 코드와 에셋은 예제 게임(samples/sandbox, assets/)에서 복사하고, 빌드 파일은 templates/project를 채워 만든다.
 #   powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame [-Path D:\GameEngine\MealKit]
 # 결과: <Path>\<Name>\ (build.bat, editor.bat, source\sim|view|app\, assets\). 엔진은 이 폴더(스크립트의 상위 폴더)를 가리킨다.
+# 템플릿 파일의 해시는 .mealkit-template에 남는다 (나중에 tools\upgrade_project.ps1이 고치지 않은 파일만 새 템플릿으로 바꾼다).
 param(
     [Parameter(Mandatory = $true)][string]$Name,
     [string]$Path = "D:\GameEngine\MealKit"
 )
 $ErrorActionPreference = "Stop"
+. "$PSScriptRoot\project_common.ps1"
 
 # 이름은 exe 이름과 CMake 타깃 이름이 된다
 if ($Name -notmatch '^[A-Za-z][A-Za-z0-9_]*$') {
     Write-Error "Name must start with a letter and use only letters, digits and '_' (it becomes the exe name)"
     exit 1
 }
-$engine = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
+$engine = $MealKitEngine
 $dest = Join-Path ([IO.Path]::GetFullPath($Path)) $Name
 if ($dest.StartsWith($engine + "\", [StringComparison]::OrdinalIgnoreCase)) {
     Write-Error "Create projects outside the engine folder ($engine)"
@@ -24,38 +26,18 @@ if ((Test-Path $dest) -and (Get-ChildItem $dest -Force | Select-Object -First 1)
     exit 1
 }
 
-$utf8 = New-Object System.Text.UTF8Encoding $false
-$tokens = @{
-    "@NAME@"           = $Name
-    "@MEALKIT_ROOT@"     = $engine
-    "@MEALKIT_ROOT_FWD@" = $engine.Replace("\", "/")
+# 1) 빌드 파일: templates/project 를 토큰을 바꿔 복사하고 해시를 남긴다
+$manifest = @{}
+foreach ($entry in (Get-RenderedTemplate $Name).GetEnumerator()) {
+    Write-TextFile (Join-Path $dest $entry.Key) $entry.Value
+    if ($entry.Key -ne "mealkit.project") { $manifest[$entry.Key] = Get-TextHash $entry.Value }
 }
+Write-TemplateManifest $dest $manifest
 
-function Write-Text([string]$file, [string]$text) {
-    New-Item -ItemType Directory -Force (Split-Path -Parent $file) | Out-Null
-    [IO.File]::WriteAllText($file, $text, $utf8)
-}
+# 2) 게임 코드: 예제 게임의 sim/ view/ app/ 을 source/ 로 복사 (namespace sandbox는 그대로 둔다)
+foreach ($entry in (Get-SampleSource $Name).GetEnumerator()) { Write-TextFile (Join-Path $dest $entry.Key) $entry.Value }
 
-# 1) 빌드 파일: templates/project 를 토큰을 바꿔 복사
-$template = Join-Path $engine "templates\project"
-Get-ChildItem $template -Recurse -File -Force | ForEach-Object {
-    $text = [IO.File]::ReadAllText($_.FullName, $utf8)
-    foreach ($k in $tokens.Keys) { $text = $text.Replace($k, $tokens[$k]) }
-    Write-Text (Join-Path $dest $_.FullName.Substring($template.Length + 1)) $text
-}
-
-# 2) 게임 코드: 예제 게임의 sim/ view/ app/ 을 source/ 로 복사. 창 제목과 도움말의 이름만 바꾼다 (namespace sandbox는 그대로 둔다)
-$sample = Join-Path $engine "samples\sandbox"
-foreach ($dir in "sim", "view", "app") {
-    $from = Join-Path $sample $dir
-    Get-ChildItem $from -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | ForEach-Object {
-        $text = [IO.File]::ReadAllText($_.FullName, $utf8)
-        $text = $text.Replace("MealKit Sandbox", $Name).Replace("sandbox.exe", "$Name.exe")
-        Write-Text (Join-Path $dest ("source\$dir\" + $_.FullName.Substring($from.Length + 1))) $text
-    }
-}
-
-# 3) 에셋: 씬과 모델 (자동 저장 파일 제외)
+# 3) 에셋: 씬, 모델, 튜닝 (자동 저장 파일 제외)
 $assets = Join-Path $engine "assets"
 Get-ChildItem $assets -Recurse -File | Where-Object { $_.Extension -ne ".autosave" } | ForEach-Object {
     $target = Join-Path $dest ("assets\" + $_.FullName.Substring($assets.Length + 1))
@@ -63,7 +45,7 @@ Get-ChildItem $assets -Recurse -File | Where-Object { $_.Extension -ne ".autosav
     Copy-Item $_.FullName $target
 }
 
-Write-Host "Created $dest" -ForegroundColor Green
+Write-Host "Created $dest (engine $(Get-MealKitVersion))" -ForegroundColor Green
 Write-Host "  engine : $engine"
 Write-Host "  build  : $dest\build.bat        (first build compiles the engine too, a few minutes)"
 Write-Host "  editor : $dest\editor.bat"

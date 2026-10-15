@@ -127,6 +127,17 @@ if (-not $Quick) {
         Run $log $editor "--project `"$root`" --build-game --frames 30" | Out-Null
         return (Has $log "Game code build finished") -and (Has $log "Game module '.*' loaded") -and -not (Has $log "Build failed")
     }
+    Invoke-Check "New project + upgrade" {
+        param($log)
+        $projects = Join-Path $env:TEMP "mealkit-check-projects" # 엔진 폴더 밖이어야 한다
+        Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
+        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\new_project.ps1" -Name CheckGame -Path $projects 2>&1
+        $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\upgrade_project.ps1" -Project "$projects\CheckGame" 2>&1
+        $output | Out-File -Encoding utf8 $log
+        $ok = (Test-Path "$projects\CheckGame\.mealkit-template") -and (($output -match "^Done: 0 change").Count -gt 0)
+        Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
+        return $ok
+    }
     Invoke-Check "Export build" {
         param($log)
         return (Build $log "Export") -and (Test-Path (Join-Path $root "export\sandbox\sandbox.exe"))

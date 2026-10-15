@@ -29,4 +29,6 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
   `World.cpp`의 `loadScene`에서 `scene::readObject<이름>(entity)`로 읽는다. 게임 코드를 다시 빌드하면 에디터 [추가] 메뉴에 나온다.
   include는 `"sim/World.h"`처럼 `source/` 기준으로 쓴다. 파일을 추가해도 `CMakeLists.txt`를 고치지 않는다.
 - 튜닝 값(속도, 쿨다운 같은 숫자)은 코드 상수 대신 `source/sim/Tuning.h`의 `MEALKIT_FIELD`로 선언하고 `world.tuning`으로 읽는다. 값은 `assets/game.tuning`, 에디터 [튜닝] 패널에서 고친다.
+- 엔진을 올린 뒤 에디터가 "프로젝트 업그레이드"를 물으면 받아들인다(또는 `@MEALKIT_ROOT@\tools\upgrade_project.ps1 -Project .`).
+  빌드 파일만 새로 바꾸고 직접 고친 파일은 `<파일>.new`로 남긴다. `.mealkit-template`은 지우지 않는다.
 - 씬 충돌 데이터, 모델 파일, 튜닝 값이 바뀌면 콘텐츠 해시가 바뀌어, 다른 데이터를 쓰는 피어는 접속이 거부된다.

@@ -4,3 +4,5 @@ export/
 *.png
 *.autosave
 mealkit_editor.ini
+.upgrade_backup/
+*.new
