@@ -54,6 +54,8 @@ struct Options {
     u32 autoStart = 0;
     u32 exitTick = 0;
     bool bot = false;
+    bool shadow = false;     // 그림자 시뮬레이션으로 결정론 검사
+    bool rewindTest = false; // 끝날 때 기록을 되감아 다시 돌려 보고 결과를 출력
     std::string capturePath;
     u32 captureTick = 0;
 };
@@ -80,6 +82,8 @@ void printUsage() {
         "  --auto-start <n>       host: start when n players are in the lobby\n"
         "  --exit-tick <t>        print the state hash after tick t and exit\n"
         "  --bot                  drive the local player with scripted input\n"
+        "  --shadow               run a shadow simulation and compare state hashes every tick\n"
+        "  --rewind-test          record inputs and snapshots, rewind and replay at the exit tick\n"
         "  --capture <png> <tick> save a screenshot after the given tick\n");
 }
 
@@ -123,6 +127,8 @@ bool parseArgs(int argc, char** argv, Options& o) {
         else if (a == "--auto-start" && next(v)) o.autoStart = static_cast<u32>(std::atoi(v));
         else if (a == "--exit-tick" && next(v)) o.exitTick = static_cast<u32>(std::atoi(v));
         else if (a == "--bot") o.bot = true;
+        else if (a == "--shadow") o.shadow = true;
+        else if (a == "--rewind-test") o.rewindTest = true;
         else if (a == "--capture" && i + 2 < argc) {
             o.capturePath = argv[++i];
             o.captureTick = static_cast<u32>(std::atoi(argv[++i]));
@@ -224,6 +230,8 @@ int main(int argc, char** argv) {
     gameOptions.captureTick = opt.captureTick;
     gameOptions.physicsThreads = opt.physicsThreads;
     gameOptions.tuningPath = opt.tuningPath;
+    gameOptions.shadow = opt.shadow;
+    gameOptions.record = opt.rewindTest;
 
     FrameLimiter limiter;
     limiter.setTargetFps(opt.vsync ? 0.0 : opt.fpsCap);
@@ -292,8 +300,26 @@ int main(int argc, char** argv) {
         if (game.finished() && exitDeadline == 0.0) {
             std::printf("FINAL tick=%u hash=%016llx desync=%d\n", game.nextTick() - 1,
                         static_cast<unsigned long long>(game.stateHash()), session.desynced() ? 1 : 0);
-            std::fflush(stdout);
             exitCode = session.desynced() ? 2 : 0;
+            if (game::SimDebug* debug = game.debug(); debug && (opt.shadow || opt.rewindTest)) {
+                if (opt.shadow) {
+                    const game::ShadowStatus& shadow = debug->shadow();
+                    std::printf("SHADOW %s tick=%u\n", shadow.desynced ? "DESYNC" : "ok", shadow.tick);
+                    if (shadow.desynced) exitCode = 5;
+                }
+                if (opt.rewindTest) { // 기록 범위 전체를 조금씩 되감아 다시 돌리고, 현재로 돌아와 해시가 같은지 본다
+                    const u64 liveHash = game.stateHash();
+                    debug->setPaused(true);
+                    const game::Timeline t = debug->timeline();
+                    for (u32 tick = t.first; tick < t.live; tick += 37) debug->seek(tick);
+                    debug->setPaused(false);
+                    const bool ok = debug->replayError().empty() && game.stateHash() == liveHash;
+                    std::printf("REWIND %s ticks=%u..%u memory=%.1fMB %s\n", ok ? "ok" : "FAIL", t.first, t.live,
+                                static_cast<f64>(t.memoryBytes) / (1024.0 * 1024.0), debug->replayError().c_str());
+                    if (!ok) exitCode = 4;
+                }
+            }
+            std::fflush(stdout);
             exitDeadline = now + 1.0; // 상대가 마지막 틱을 받을 시간을 준 뒤 종료
         }
 

@@ -59,6 +59,8 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/game/GameData.h
     src/mealkit/game/GameData.cpp
     src/mealkit/game/WorldSnapshot.h
+    src/mealkit/game/SimDebug.h
+    src/mealkit/game/Simulation.h
     src/mealkit/sim/Pool.h
     src/mealkit/sim/TickEvents.h
     src/mealkit/sim/TickTimer.h

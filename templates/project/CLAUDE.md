@@ -24,6 +24,7 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
   `sim/`에서 매치 중 생기고 사라지는 객체는 `mealkit::sim::Pool<T>`, "N틱 뒤"는 `TickTimer`, 화면에 알릴 일은 `world.events`(`TickEvents`)로 한다.
   화면 쪽은 엔진 서비스를 `mealkit::game::GameContext&`로 받는다 (`docs/CODING_MODEL.md`).
 - 사람(`PlayerSlot`)과 몸(`Pawn`)은 나뉘고 `Controller`가 잇는다(플레이어 또는 AI). 리스폰·관전·탑승·AI는 Pawn을 새로 만들거나 `possess`/`unpossess`로 바꿔 구현한다 (`source/sim/Pawns.cpp`).
+- `GameSession`은 엔진의 `game::Simulation<World>`로 틱을 돌린다(그림자 시뮬레이션, 일시정지·되감기가 여기서 나온다). 틱 루프를 직접 짜지 않는다.
 - 에디터에 놓을 새 물체 종류는 `source/sim/Objects.h`에 `MEALKIT_OBJECT(이름) { MEALKIT_FIELD(타입, 필드, 기본값, "표시 이름"); };`로 선언하고,
   `World.cpp`의 `loadScene`에서 `scene::readObject<이름>(entity)`로 읽는다. 게임 코드를 다시 빌드하면 에디터 [추가] 메뉴에 나온다.
   include는 `"sim/World.h"`처럼 `source/` 기준으로 쓴다. 파일을 추가해도 `CMakeLists.txt`를 고치지 않는다.

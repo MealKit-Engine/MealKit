@@ -5,6 +5,8 @@
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Random.h"
+#include "mealkit/game/Simulation.h"
+#include "mealkit/net/Lockstep.h"
 #include "mealkit/core/Reflect.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/platform/Paths.h"
@@ -328,6 +330,135 @@ TEST_CASE(scene_hierarchy) {
     TEST_CHECK(loaded.entities.size() == 3 && loaded.entities[0].parent == 0 && loaded.entities[2].parent == 2);
     TEST_CHECK(loaded.contentHash() == [&] { s.entities[0].parent = 0; return s.contentHash(); }());
     removeFile(path);
+}
+
+// ---------------------------------------------------------------- Simulation<World> (그림자 시뮬레이션, 되감기)
+
+MEALKIT_STRUCT(FakeState) {
+    MEALKIT_FIELD(u32, tick, 0, "틱");
+    MEALKIT_FIELD(u32, sum, 0, "입력 합");
+    MEALKIT_FIELD(physics::BodyId, ball, physics::kInvalidBody, "공");
+};
+
+int g_globalCounter = 0; // 일부러 만든 전역 상태 (그림자 시뮬레이션이 잡아야 한다)
+
+struct FakeEvent {
+    u32 tick = 0;
+};
+
+struct FakeWorld {
+    FakeState state;
+    physics::PhysicsWorld physics;
+    sim::TickEvents<FakeEvent, 4> events;
+    bool useGlobal = false;  // 전역 상태를 섞는다 → 결정론 위반
+    u32 undeclared = 0;      // 선언하지 않은 상태 → 되감기 검증이 잡아야 한다
+    bool useUndeclared = false;
+
+    void reset(u32 threads) {
+        physics.init(256, threads);
+        physics.setGravity({0.0f, -10.0f, 0.0f});
+        physics::BodyDesc ground;
+        ground.motion = physics::Motion::Static;
+        physics.createBox({10.0f, 0.5f, 10.0f}, ground);
+        physics::BodyDesc d;
+        d.position = {0.0f, 5.0f, 0.0f};
+        state = FakeState{};
+        state.ball = physics.createSphere(0.5f, d);
+    }
+    void step(const net::TickInputs& in) {
+        events.clear();
+        state.sum += in.players[0].bytes[0];
+        if (useGlobal) state.sum += static_cast<u32>(g_globalCounter++);
+        if (useUndeclared) state.sum += undeclared++;
+        if (state.tick % 20 == 0) physics.addLinearVelocity(state.ball, {0.5f, 6.0f, 0.0f});
+        physics.step(1.0f / 30.0f, 1);
+        events.push({state.tick});
+        ++state.tick;
+    }
+    u64 hash() const {
+        Hasher h;
+        reflect::hashStruct(reflect::typeOf<FakeState>(), &state, h);
+        physics.hashState(h);
+        return h.value;
+    }
+};
+
+// 오프라인 세션으로 ticks틱을 돌린다
+void runFake(game::Simulation<FakeWorld>& sim, net::LockstepSession& session, u32 ticks) {
+    auto sample = [](u32 tick) {
+        net::PlayerInput pi;
+        pi.bytes[0] = static_cast<u8>(tick * 7 + 3);
+        return pi;
+    };
+    u32 events = 0;
+    const u32 before = sim.nextTick();
+    auto onTick = [&](const FakeWorld& w) { events += w.events.size(); };
+    for (u32 i = 0; i < ticks * 4 && sim.nextTick() < ticks; ++i) sim.update(session, 1.0 / 30.0, sample, onTick);
+    TEST_CHECK(events == sim.nextTick() - before); // 틱마다 이벤트가 화면 쪽으로 넘어간다
+}
+
+TEST_CASE(simulation_shadow_and_rewind) {
+    { // 정상: 그림자 시뮬레이션이 조용하고, 되감아 다시 돌린 결과가 기록과 같다
+        net::LockstepSession session;
+        session.startOffline(1, 0);
+        game::PlayOptions options;
+        options.shadow = true;
+        options.record = true;
+        game::Simulation<FakeWorld> sim;
+        sim.start(options, 1.0f / 30.0f, [](FakeWorld& w, u32 threads) { w.reset(threads); });
+        runFake(sim, session, 400);
+        TEST_CHECK(sim.nextTick() == 400 && !sim.shadow().desynced);
+        const u64 liveHash = sim.world().hash();
+        const u32 liveSum = sim.world().state.sum;
+
+        sim.setPaused(true);
+        const game::Timeline t = sim.timeline();
+        TEST_CHECK(t.recording && t.first == 300 - 2 * 150 && t.live == 400); // 0, 150, 300틱 스냅샷
+        TEST_CHECK(sim.seek(37) && sim.world().state.tick == 37 && sim.timeline().viewingPast);
+        TEST_CHECK(sim.seek(333) && sim.world().state.tick == 333);
+        sim.stepOnce();
+        TEST_CHECK(sim.world().state.tick == 334);
+        TEST_CHECK(sim.replayError().empty());
+        sim.setPaused(false); // 현재로 돌아온다
+        TEST_CHECK(sim.world().hash() == liveHash && sim.world().state.sum == liveSum && !sim.timeline().viewingPast);
+
+        sim.setPaused(true); // 현재 틱에서 한 틱 진행
+        sim.stepOnce();
+        runFake(sim, session, 401);
+        TEST_CHECK(sim.nextTick() == 401);
+        sim.setPaused(false);
+        runFake(sim, session, 420);
+        TEST_CHECK(sim.nextTick() == 420 && !sim.shadow().desynced);
+    }
+    { // 전역 상태 → 그림자 시뮬레이션이 첫 틱에 잡고 멈춘다
+        net::LockstepSession session;
+        session.startOffline(1, 0);
+        game::PlayOptions options;
+        options.shadow = true;
+        game::Simulation<FakeWorld> sim;
+        sim.start(options, 1.0f / 30.0f, [](FakeWorld& w, u32 threads) {
+            w.reset(threads);
+            w.useGlobal = true;
+        });
+        runFake(sim, session, 10);
+        TEST_CHECK(sim.shadow().desynced && sim.shadow().tick == 0 && sim.timeline().paused);
+        TEST_CHECK(!sim.shadow().diff.empty() && sim.shadow().diff[0].rfind("sum:", 0) == 0);
+    }
+    { // 선언하지 않은 상태 → 되감기 검증이 잡는다
+        net::LockstepSession session;
+        session.startOffline(1, 0);
+        game::PlayOptions options;
+        options.record = true;
+        game::Simulation<FakeWorld> sim;
+        sim.start(options, 1.0f / 30.0f, [](FakeWorld& w, u32 threads) {
+            w.reset(threads);
+            w.useUndeclared = true;
+        });
+        runFake(sim, session, 60);
+        sim.setPaused(true);
+        sim.seek(30);
+        TEST_CHECK(!sim.replayError().empty());
+    }
 }
 
 } // namespace
