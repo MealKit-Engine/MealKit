@@ -7,7 +7,8 @@
 - **반드시 지킬 것**: 3D, 멀티플레이.
 - 게임보다 엔진이 가볍고 빠른 것이 우선. 엔진 위의 게임은 바뀔 수 있다.
 - Windows + DX12만 지원한다. 그래픽 API 추상화 계층(RHI)은 만들지 않는다.
-- 외부 라이브러리는 꼭 필요한 것만, 버전을 고정해서 `third_party/`에 넣는다 (아래 표).
+- 엔진은 결정론 시뮬레이션, 락스텝 네트워크, 렌더러, 에디터만 만들고 나머지는 완성된 외부 것을 가져다 쓴다. 제작 도구(Blender, Penpot, Effekseer, VS Code)는 자유롭게 쓰고,
+  게임에 들어가는 라이브러리는 버전을 고정해 `third_party/`에 넣는다(아래 표). 시뮬레이션에 닿는 라이브러리는 결정론을 검증한 것만 쓴다.
 - 한 문제에 답은 하나. 전역 접근, 오브젝트 구성, 풀링, 비동기 같은 설계 질문의 답은 [docs/CODING_MODEL.md](docs/CODING_MODEL.md)에 정해 두고 그것만 쓴다.
 
 ## 엔진 폴더와 게임 프로젝트 폴더
@@ -105,7 +106,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 - 충돌 상자에 붙인 모델은 **모델 정점의 볼록 껍질**로 충돌한다 (오목한 부분은 메워진다).
 - 샘플 모델(나무, 바위, 고리)은 `python tools/make_sample_models.py`로 다시 만들 수 있다.
 
-## 현재 상태 (v0.3)
+## 현재 상태 (v0.4)
 
 | 모듈 | 내용 |
 |---|---|
@@ -114,7 +115,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 | Render | DX12 포워드 렌더러: 메시별 인스턴싱(드로우 콜 = 메시 종류 수), 업로드 링 버퍼, 빌드 시점 셰이더 컴파일(DXC), 정점 색, 16/32비트 인덱스, PNG 스크린샷, Tracy GPU 시간 |
 | Physics | Jolt Physics 래퍼: 상자/구/캡슐/볼록 껍질, 광선, 상태 해시. 결정론 빌드 |
 | Asset | glTF 불러오기(cgltf) + 최적화·LOD(meshoptimizer) + 모델 캐시 |
-| Net | 결정론적 락스텝(호스트 중계, 입력만 전송, 디싱크 감지). 전송 계층: UDP 또는 Steam 릴레이. 빌드·씬·모델이 다르면 접속 거부 |
+| Net | 호스트-클라이언트(방장이 플레이어이자 중계자, 전용 서버 없음) 결정론 입력 락스텝: 틱당 입력 8바이트만 전송, 상태 해시로 디싱크 감지, 최대 8명. 전송: UDP(중복 전송, TCP 안 씀) 또는 Steam 릴레이. 빌드·씬·모델·튜닝이 다르면 접속 거부. 맞는 장르와 한계는 `docs/ROADMAP.md` "네트워크 방식" |
 | Scene | 물체(상자/모델, 충돌/장식/스폰)와 환경. 사람이 읽을 수 있는 `.scene` 텍스트 |
 | Editor | 범용 에디터 `MealKitEditor` (Dear ImGui + ImGuizmo): 프로젝트 관리자, 게임 DLL 핫 리로드, 도킹 패널, 씬 트리, 인스펙터, 기즈모, 클릭 선택, 되돌리기, 모델 선택, 플레이 모드, 게임 코드·출시 빌드 |
 
@@ -274,11 +275,11 @@ VERSION                      엔진 버전 (mealkit.project의 engineVersion=과
 
 ## 다음 단계
 
-자세한 계획과 순서는 [docs/ROADMAP.md](docs/ROADMAP.md).
+자세한 계획과 순서는 [docs/ROADMAP.md](docs/ROADMAP.md), 끝낸 것의 상세는 [docs/CHANGELOG.md](docs/CHANGELOG.md). 다음은 1단계(v0.5, 게임이 되게 하는 최소 기능)다.
 
-1. Steam 전송/로비를 실제 Steam 클라이언트로 검증 (SDK 컴파일은 확인됨)
-2. 그림자(CSM), 동적 해상도, 텍스처
-3. Job System으로 렌더링 준비 병렬화 (물리는 Jolt 스레드 풀 사용 중)
-4. 하이트맵 지형과 LOD
-5. 입력 지연 자동 조절, 중간 참가(Jolt 상태 저장/복원), 리플레이 저장
-6. 프로젝트 이름에 맞춰 게임 코드 namespace(`sandbox`) 바꾸기, 에디터에서 새 프로젝트 만들기
+1. 데이터와 코드 분리: 프로젝트 설정 → 화면용 튜닝 → 예제 데이터 정리 → 정의 데이터 표
+2. 오디오(XAudio2) → 이벤트 → 연출 표
+3. 입력 액션 매핑 → 게임패드 → 디버그 UI(ImGui) → 로컬라이제이션
+4. 게임 UI(Penpot → `.ui` 런타임)
+5. 설정 화면, 세이브, 매치 시작 데이터(로드아웃), 기본 화면 흐름
+6. 네트워크 흉내, Steam 실검증, 입력 지연 자동 조절
