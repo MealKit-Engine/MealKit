@@ -1,4 +1,4 @@
-// Aster forward shading.
+// MealKit forward shading.
 // 인스턴스 데이터(위치/회전/스케일/색)를 StructuredBuffer로 받아 정점 셰이더에서 변환한다.
 // CPU는 행렬을 만들지 않고 48바이트 인스턴스만 쓴다. 조명은 하프 램버트 태양광 + 반구 환경광 + 지수 안개.
 

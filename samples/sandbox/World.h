@@ -1,10 +1,10 @@
 #pragma once
 
-#include "aster/asset/ModelCache.h"
-#include "aster/core/Math.h"
-#include "aster/net/Lockstep.h"
-#include "aster/physics/PhysicsWorld.h"
-#include "aster/scene/Scene.h"
+#include "mealkit/asset/ModelCache.h"
+#include "mealkit/core/Math.h"
+#include "mealkit/net/Lockstep.h"
+#include "mealkit/physics/PhysicsWorld.h"
+#include "mealkit/scene/Scene.h"
 
 #include <vector>
 
@@ -13,13 +13,13 @@
 // 물리 바디는 항상 같은 순서로 만들고, 힘도 같은 순서로 준다.
 namespace sandbox {
 
-using aster::f32;
-using aster::i8;
-using aster::u32;
-using aster::u64;
-using aster::u8;
-using aster::Quat;
-using aster::Vec3;
+using mealkit::f32;
+using mealkit::i8;
+using mealkit::u32;
+using mealkit::u64;
+using mealkit::u8;
+using mealkit::Quat;
+using mealkit::Vec3;
 
 inline constexpr f32 kTickRate = 30.0f;
 inline constexpr f32 kTickDt = 1.0f / kTickRate;
@@ -38,7 +38,7 @@ struct GameInput {
     u8 buttons = 0;
     u8 reserved[5] = {};
 };
-static_assert(sizeof(GameInput) == aster::net::kInputBytes);
+static_assert(sizeof(GameInput) == mealkit::net::kInputBytes);
 
 struct Player {
     Vec3 position;
@@ -58,7 +58,7 @@ struct Body {
 struct WorldState {
     u32 tick = 0;
     u32 playerCount = 0;
-    Player players[aster::net::kMaxPlayers];
+    Player players[mealkit::net::kMaxPlayers];
     std::vector<Body> bodies;
 };
 
@@ -70,9 +70,9 @@ public:
 
     // physicsThreads = 0 이면 코어 수에 맞춘다 (결과는 스레드 수와 무관하다).
     // 모델이 있는 충돌 물체는 모델 정점의 볼록 껍질로 충돌한다.
-    void reset(u64 seed, u32 playerCount, u32 bodyCount, const aster::scene::Scene& scene, aster::asset::ModelCache& models,
+    void reset(u64 seed, u32 playerCount, u32 bodyCount, const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models,
                u32 physicsThreads = 0);
-    void step(const aster::net::TickInputs& inputs);
+    void step(const mealkit::net::TickInputs& inputs);
     u64 hash() const;
     const WorldState& state() const { return m_state; }
     u32 activeBodies() const { return m_physics.activeBodyCount(); }
@@ -83,9 +83,9 @@ private:
     Vec3 spawnPosition(u32 player) const;
 
     WorldState m_state;
-    aster::physics::PhysicsWorld m_physics;
-    std::vector<aster::physics::BodyId> m_bodyIds;
-    aster::physics::BodyId m_playerIds[aster::net::kMaxPlayers] = {};
+    mealkit::physics::PhysicsWorld m_physics;
+    std::vector<mealkit::physics::BodyId> m_bodyIds;
+    mealkit::physics::BodyId m_playerIds[mealkit::net::kMaxPlayers] = {};
     std::vector<Vec3> m_spawns;
 };
 

@@ -2,12 +2,12 @@
 
 #include "World.h"
 
-#include "aster/asset/ModelCache.h"
-#include "aster/game/GameInstance.h"
-#include "aster/net/Lockstep.h"
-#include "aster/render/DrawList.h"
-#include "aster/render/Renderer.h"
-#include "aster/scene/Scene.h"
+#include "mealkit/asset/ModelCache.h"
+#include "mealkit/game/GameInstance.h"
+#include "mealkit/net/Lockstep.h"
+#include "mealkit/render/DrawList.h"
+#include "mealkit/render/Renderer.h"
+#include "mealkit/scene/Scene.h"
 
 #include <string>
 #include <vector>
@@ -16,47 +16,47 @@
 // 출시용 게임(main.cpp)은 이 클래스를 직접 쓰고, 범용 에디터는 게임 DLL(GameModule.cpp)을 통해 쓴다.
 namespace sandbox {
 
-class GameSession final : public aster::game::GameInstance {
+class GameSession final : public mealkit::game::GameInstance {
 public:
     GameSession() = default;
     GameSession(const GameSession&) = delete;
     GameSession& operator=(const GameSession&) = delete;
 
-    void start(const aster::scene::Scene& scene, const aster::net::LockstepSession& session,
-               const aster::game::PlayOptions& options, aster::asset::ModelCache& models) override;
+    void start(const mealkit::scene::Scene& scene, const mealkit::net::LockstepSession& session,
+               const mealkit::game::PlayOptions& options, mealkit::asset::ModelCache& models) override;
     bool started() const override { return m_started; }
-    void update(aster::f64 dt, aster::net::LockstepSession& session, aster::Window& window, bool keyboardAllowed,
+    void update(mealkit::f64 dt, mealkit::net::LockstepSession& session, mealkit::Window& window, bool keyboardAllowed,
                 bool mouseAllowed) override;
-    void buildFrame(aster::f64 now, u8 localPlayer, aster::render::Viewport viewport, aster::render::FrameParams& frame,
-                    aster::render::DrawList& out) override;
+    void buildFrame(mealkit::f64 now, u8 localPlayer, mealkit::render::Viewport viewport, mealkit::render::FrameParams& frame,
+                    mealkit::render::DrawList& out) override;
 
     u32 nextTick() const override { return m_nextTick; }
     u64 stateHash() const override { return m_world.hash(); }
     u32 activeBodies() const override { return m_world.activeBodies(); }
     bool finished() const override { return m_finished; }
     bool captureDue() override;
-    aster::f64 takeSimMsPerTick() override;
+    mealkit::f64 takeSimMsPerTick() override;
 
 private:
     World m_world;
     WorldState m_previous; // 렌더 보간용 직전 틱
-    aster::scene::Scene m_scene;
-    aster::asset::ModelCache* m_models = nullptr;
-    aster::game::PlayOptions m_options;
+    mealkit::scene::Scene m_scene;
+    mealkit::asset::ModelCache* m_models = nullptr;
+    mealkit::game::PlayOptions m_options;
     bool m_started = false;
     bool m_finished = false;
     bool m_captureDone = false;
     bool m_captureDue = false;
     u32 m_nextTick = 0;
-    aster::f64 m_accumulator = 0.0;
+    mealkit::f64 m_accumulator = 0.0;
     bool m_pushLatch = false;
     bool m_jumpLatch = false;
     bool m_orbiting = false;
     f32 m_cameraYaw = 0.8f;
     f32 m_cameraPitch = 0.55f;
     f32 m_cameraDistance = 18.0f;
-    f32 m_facing[aster::net::kMaxPlayers] = {};
-    aster::f64 m_simSeconds = 0.0;
+    f32 m_facing[mealkit::net::kMaxPlayers] = {};
+    mealkit::f64 m_simSeconds = 0.0;
     u32 m_simTicks = 0;
 };
 

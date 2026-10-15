@@ -1,9 +1,9 @@
 #include "World.h"
 
-#include "aster/core/Hash.h"
-#include "aster/core/Profile.h"
-#include "aster/core/Random.h"
-#include "aster/render/Renderer.h"
+#include "mealkit/core/Hash.h"
+#include "mealkit/core/Profile.h"
+#include "mealkit/core/Random.h"
+#include "mealkit/render/Renderer.h"
 
 #include <algorithm>
 #include <cmath>
@@ -13,9 +13,9 @@
 namespace sandbox {
 namespace {
 
-using aster::physics::BodyDesc;
-using aster::physics::Motion;
-using aster::scene::EntityKind;
+using mealkit::physics::BodyDesc;
+using mealkit::physics::Motion;
+using mealkit::scene::EntityKind;
 
 constexpr Vec3 kGravity{0.0f, -20.0f, 0.0f};
 constexpr f32 kPlayerSpeed = 7.0f;
@@ -25,34 +25,34 @@ constexpr u32 kPushCooldownTicks = 15;
 constexpr f32 kBodyDensity = 200.0f; // kg/m³: 플레이어(80kg)가 밀 수 있을 만큼 가볍게
 
 // 씬에 스폰 지점이 없을 때 쓰는 기본 위치 (삼각함수 대신 고정 테이블)
-constexpr Vec3 kDefaultSpawns[aster::net::kMaxPlayers] = {
+constexpr Vec3 kDefaultSpawns[mealkit::net::kMaxPlayers] = {
     {-6, kPlayerHalfHeight, -6}, {6, kPlayerHalfHeight, 6},  {6, kPlayerHalfHeight, -6}, {-6, kPlayerHalfHeight, 6},
     {0, kPlayerHalfHeight, -9},  {0, kPlayerHalfHeight, 9},  {-9, kPlayerHalfHeight, 0}, {9, kPlayerHalfHeight, 0},
 };
 
 constexpr u32 kPalette[] = {
-    aster::render::rgba(232, 98, 82),  aster::render::rgba(245, 176, 65), aster::render::rgba(92, 172, 238),
-    aster::render::rgba(120, 200, 120), aster::render::rgba(190, 120, 220), aster::render::rgba(236, 236, 230),
+    mealkit::render::rgba(232, 98, 82),  mealkit::render::rgba(245, 176, 65), mealkit::render::rgba(92, 172, 238),
+    mealkit::render::rgba(120, 200, 120), mealkit::render::rgba(190, 120, 220), mealkit::render::rgba(236, 236, 230),
 };
 
 } // namespace
 
-void World::reset(u64 seed, u32 playerCount, u32 bodyCount, const aster::scene::Scene& scene,
-                  aster::asset::ModelCache& models, u32 physicsThreads) {
+void World::reset(u64 seed, u32 playerCount, u32 bodyCount, const mealkit::scene::Scene& scene,
+                  mealkit::asset::ModelCache& models, u32 physicsThreads) {
     m_physics.init(16384, physicsThreads);
     m_physics.setGravity(kGravity);
     m_bodyIds.clear();
     m_spawns.clear();
 
     // 1. 씬의 충돌 상자 (정적)
-    for (const aster::scene::Entity& e : scene.entities) {
+    for (const mealkit::scene::Entity& e : scene.entities) {
         if (e.kind == EntityKind::Solid) {
             BodyDesc d;
             d.motion = Motion::Static;
             d.position = e.position;
             d.rotation = e.rotation;
             d.friction = 0.8f;
-            const aster::asset::Model* model = e.model.empty() ? nullptr : models.get(e.model);
+            const mealkit::asset::Model* model = e.model.empty() ? nullptr : models.get(e.model);
             if (model) {
                 std::vector<Vec3> points;
                 points.reserve(model->hullPoints.size());
@@ -83,7 +83,7 @@ void World::reset(u64 seed, u32 playerCount, u32 bodyCount, const aster::scene::
     }
 
     // 3. 흩어진 상자들
-    aster::Pcg32 rng(seed);
+    mealkit::Pcg32 rng(seed);
     m_state.bodies.resize(bodyCount);
     m_bodyIds.reserve(bodyCount);
     for (Body& b : m_state.bodies) {
@@ -103,24 +103,24 @@ void World::reset(u64 seed, u32 playerCount, u32 bodyCount, const aster::scene::
 }
 
 Vec3 World::spawnPosition(u32 player) const {
-    if (m_spawns.empty()) return kDefaultSpawns[player % aster::net::kMaxPlayers];
+    if (m_spawns.empty()) return kDefaultSpawns[player % mealkit::net::kMaxPlayers];
     const u32 n = static_cast<u32>(m_spawns.size());
     const f32 offset = static_cast<f32>(player / n) * 1.2f; // 스폰 지점보다 사람이 많으면 옆으로 비켜 선다
     return m_spawns[player % n] + Vec3{offset, 0.0f, 0.0f};
 }
 
-void World::step(const aster::net::TickInputs& inputs) {
-    ASTER_ZONE("World::step");
+void World::step(const mealkit::net::TickInputs& inputs) {
+    MEALKIT_ZONE("World::step");
 
     // 입력 → 플레이어 속도 (플레이어 번호 순서대로)
     for (u32 i = 0; i < m_state.playerCount; ++i) {
         GameInput in;
         std::memcpy(&in, inputs.players[i].bytes, sizeof(in));
         Player& p = m_state.players[i];
-        const aster::physics::BodyId id = m_playerIds[i];
+        const mealkit::physics::BodyId id = m_playerIds[i];
 
         Vec3 wish{static_cast<f32>(in.moveX) / 127.0f, 0.0f, static_cast<f32>(in.moveZ) / 127.0f};
-        const f32 wishLen2 = aster::lengthSq(wish);
+        const f32 wishLen2 = mealkit::lengthSq(wish);
         if (wishLen2 > 1.0f) wish = wish / std::sqrt(wishLen2);
 
         Vec3 v = m_physics.linearVelocity(id);
@@ -147,7 +147,7 @@ void World::step(const aster::net::TickInputs& inputs) {
             m_physics.setLinearVelocity(m_playerIds[i], {});
         }
     }
-    for (aster::physics::BodyId id : m_bodyIds) {
+    for (mealkit::physics::BodyId id : m_bodyIds) {
         const Vec3 p = m_physics.position(id);
         if (p.y < kKillPlaneY) {
             m_physics.setTransform(id, {std::clamp(p.x, -40.0f, 40.0f), 30.0f, std::clamp(p.z, -40.0f, 40.0f)}, {});
@@ -163,7 +163,7 @@ void World::step(const aster::net::TickInputs& inputs) {
 void World::push(const Vec3& center) {
     for (size_t i = 0; i < m_bodyIds.size(); ++i) {
         const Vec3 d = m_state.bodies[i].position - center;
-        const f32 dist2 = aster::lengthSq(d);
+        const f32 dist2 = mealkit::lengthSq(d);
         if (dist2 >= kPushRadius * kPushRadius) continue;
         const f32 dist = std::sqrt(dist2);
         const Vec3 dir = dist > 1e-4f ? d / dist : Vec3{0, 1, 0};
@@ -176,10 +176,10 @@ void World::push(const Vec3& center) {
 void World::syncState() {
     for (u32 i = 0; i < m_state.playerCount; ++i) {
         Player& p = m_state.players[i];
-        const aster::physics::BodyId id = m_playerIds[i];
+        const mealkit::physics::BodyId id = m_playerIds[i];
         p.position = m_physics.position(id);
         p.velocity = m_physics.linearVelocity(id);
-        aster::physics::RayHit hit;
+        mealkit::physics::RayHit hit;
         p.grounded = m_physics.castRay(p.position, {0.0f, -(kPlayerHalfHeight + 0.12f), 0.0f}, hit, id) ? 1u : 0u;
     }
     for (size_t i = 0; i < m_bodyIds.size(); ++i) {
@@ -190,7 +190,7 @@ void World::syncState() {
 }
 
 u64 World::hash() const {
-    aster::Hasher h;
+    mealkit::Hasher h;
     h.add(m_state.tick);
     for (u32 i = 0; i < m_state.playerCount; ++i) {
         h.add(m_state.players[i].pushCooldown);

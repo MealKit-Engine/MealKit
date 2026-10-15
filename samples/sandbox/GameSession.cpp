@@ -1,14 +1,14 @@
 #include "GameSession.h"
 
-#include "aster/core/Clock.h"
-#include "aster/core/Profile.h"
-#include "aster/platform/Window.h"
+#include "mealkit/core/Clock.h"
+#include "mealkit/core/Profile.h"
+#include "mealkit/platform/Window.h"
 
 #include <algorithm>
 #include <cmath>
 #include <cstring>
 
-using namespace aster;
+using namespace mealkit;
 
 namespace sandbox {
 namespace {
@@ -79,7 +79,7 @@ void GameSession::update(f64 dt, net::LockstepSession& session, Window& window, 
     m_jumpLatch |= keyboardAllowed && input.keyPressed(key::Space);
 
     if (!m_started || m_finished) return;
-    ASTER_ZONE("Simulation");
+    MEALKIT_ZONE("Simulation");
 
     // 고정 30Hz, 확정된 틱만 실행
     m_accumulator += dt;

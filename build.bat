@@ -1,5 +1,5 @@
 @echo off
-rem Aster engine repository build: engine + sample game (samples\sandbox).
+rem MealKit engine repository build: engine + sample game (samples\sandbox).
 rem Game projects have their own build.bat (tools\new_project.ps1).
 rem   build.bat            Release
 rem   build.bat Debug      Debug (D3D12 debug layer on)

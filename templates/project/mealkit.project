@@ -1,0 +1,4 @@
+# MealKit project (key=value)
+name=@NAME@
+engine=@MEALKIT_ROOT@
+scene=scenes/arena.scene

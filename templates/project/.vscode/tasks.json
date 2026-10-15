@@ -53,7 +53,7 @@
             "label": "Multiplayer Determinism Test",
             "type": "shell",
             "command": "powershell",
-            "args": ["-ExecutionPolicy", "Bypass", "-File", "@ASTER_ROOT_FWD@/tools/mp_test.ps1", "-Clients", "3", "-Ticks", "900",
+            "args": ["-ExecutionPolicy", "Bypass", "-File", "@MEALKIT_ROOT_FWD@/tools/mp_test.ps1", "-Clients", "3", "-Ticks", "900",
                      "-Exe", "${workspaceFolder}\\build\\Release\\bin\\@NAME@.exe"],
             "dependsOn": "Build Release",
             "problemMatcher": []

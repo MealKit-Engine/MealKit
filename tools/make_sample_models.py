@@ -1,8 +1,8 @@
-"""Aster 샘플 모델 생성기: 표준 라이브러리만으로 glTF 2.0 바이너리(.glb)를 만든다.
+"""MealKit 샘플 모델 생성기: 표준 라이브러리만으로 glTF 2.0 바이너리(.glb)를 만든다.
 
     python tools/make_sample_models.py            -> assets/models/{tree,rock,ring}.glb
 
-glTF 규칙(오른손 좌표계, y 위, 앞면 = 반시계)으로 저장한다. Aster가 불러올 때 왼손 좌표계로 바꾼다.
+glTF 규칙(오른손 좌표계, y 위, 앞면 = 반시계)으로 저장한다. MealKit이 불러올 때 왼손 좌표계로 바꾼다.
 """
 
 import json
@@ -90,7 +90,7 @@ def write_glb(path, name, parts):
     while len(blob) % 4:
         blob.append(0)
     gltf = {
-        "asset": {"version": "2.0", "generator": "Aster make_sample_models.py"},
+        "asset": {"version": "2.0", "generator": "MealKit make_sample_models.py"},
         "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": name}],
         "meshes": [{"name": name, "primitives": primitives}], "materials": materials,
         "buffers": [{"byteLength": len(blob)}], "bufferViews": views, "accessors": accessors,

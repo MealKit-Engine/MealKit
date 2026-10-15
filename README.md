@@ -1,4 +1,4 @@
-# Aster
+# MealKit
 
 사무용 PC(Intel 내장 그래픽)에서도 가볍고 빠르게 돌아가는 **DirectX 12 전용 3D 멀티플레이 게임 엔진**.
 
@@ -8,6 +8,7 @@
 - 게임보다 엔진이 가볍고 빠른 것이 우선. 엔진 위의 게임은 바뀔 수 있다.
 - Windows + DX12만 지원한다. 그래픽 API 추상화 계층(RHI)은 만들지 않는다.
 - 외부 라이브러리는 꼭 필요한 것만, 버전을 고정해서 `third_party/`에 넣는다 (아래 표).
+- 한 문제에 답은 하나. 전역 접근, 오브젝트 구성, 풀링, 비동기 같은 설계 질문의 답은 [docs/CODING_MODEL.md](docs/CODING_MODEL.md)에 정해 두고 그것만 쓴다.
 
 ## 엔진 폴더와 게임 프로젝트 폴더
 
@@ -15,37 +16,37 @@
 
 | 폴더 | 무엇 | 여기서 하는 일 |
 |---|---|---|
-| `D:\Aster` (이 저장소) | 엔진(`engine/`), 범용 에디터 `AsterEditor.exe`, 서드파티, 빌드 공통 설정(`cmake/`), 도구, 예제 게임 `samples/sandbox` | 엔진·에디터 개발, 결정론 테스트 |
-| `D:\GameEngine\Aster\<게임>` | `aster.project`, 게임 코드(`source/`), 에셋(`assets/`), 빌드(`build/`), **출시본(`export/<게임>/`)** | 게임 만들기 |
+| `D:\MealKit` (이 저장소) | 엔진(`engine/`), 범용 에디터 `MealKitEditor.exe`, 서드파티, 빌드 공통 설정(`cmake/`), 도구, 예제 게임 `samples/sandbox` | 엔진·에디터 개발, 결정론 테스트 |
+| `D:\GameEngine\MealKit\<게임>` | `mealkit.project`, 게임 코드(`source/`), 에셋(`assets/`), 빌드(`build/`), **출시본(`export/<게임>/`)** | 게임 만들기 |
 
 빌드 결과는 두 갈래다.
 
 | 빌드 | 결과 | 쓰는 곳 |
 |---|---|---|
-| `build.bat Editor` | 엔진: `aster.dll` + `AsterEditor.exe` / 프로젝트: `<게임>_game.dll`(게임 코드만, 수 초) | 에디터. 동적 CRT, 최적화 + 디버그 정보 |
+| `build.bat Editor` | 엔진: `mealkit.dll` + `MealKitEditor.exe` / 프로젝트: `<게임>_game.dll`(게임 코드만, 수 초) | 에디터. 동적 CRT, 최적화 + 디버그 정보 |
 | `build.bat` (Release) | `<게임>.exe` 하나 (엔진 정적 링크, 정적 CRT) | 출시, 결정론 테스트 |
 
 - 에디터는 게임 DLL의 **복사본**을 불러오므로, 에디터를 켜 둔 채로 게임 코드를 다시 빌드할 수 있다. 새 DLL이 생기면 편집 모드에서 **자동으로 바꿔 끼운다(핫 리로드)**.
-- 게임 DLL이 없거나 엔진(`aster.dll`)보다 오래되었으면 에디터가 프로젝트를 열 때 게임 코드를 먼저 빌드한다.
-- 엔진과 게임 코드의 경계는 `aster::game::GameInstance`(`engine/src/aster/game/GameInstance.h`). 게임은 이것을 구현하고, `ASTER_GAME_MODULE(이름, 클래스)`로 에디터용 진입점을 내보낸다. 약속이 바뀌면 `kApiVersion`을 올린다(다른 번호의 DLL은 불러오지 않는다).
+- 게임 DLL이 없거나 엔진(`mealkit.dll`)보다 오래되었으면 에디터가 프로젝트를 열 때 게임 코드를 먼저 빌드한다.
+- 엔진과 게임 코드의 경계는 `mealkit::game::GameInstance`(`engine/src/mealkit/game/GameInstance.h`). 게임은 이것을 구현하고, `MEALKIT_GAME_MODULE(이름, 클래스)`로 에디터용 진입점을 내보낸다. 약속이 바뀌면 `kApiVersion`을 올린다(다른 번호의 DLL은 불러오지 않는다).
 - 출시 exe는 게임 클래스를 직접 쓰므로 DLL 경계 비용이 없다.
 
-엔진 저장소 자신도 예제 게임 프로젝트다(최상위 `aster.project`, 코드는 `samples/sandbox`, 에셋은 `assets/`). 새 프로젝트의 템플릿이자 엔진 결정론 테스트(`tools\mp_test.ps1`)의 대상이다.
+엔진 저장소 자신도 예제 게임 프로젝트다(최상위 `mealkit.project`, 코드는 `samples/sandbox`, 에셋은 `assets/`). 새 프로젝트의 템플릿이자 엔진 결정론 테스트(`tools\mp_test.ps1`)의 대상이다.
 
 ### 프로젝트 열기, 새 프로젝트
 
-- **프로젝트 관리자**: `build\Editor\bin\AsterEditor.exe`를 그냥 실행하면 뜬다. 최근 프로젝트(더블클릭으로 열기), 프로젝트 폴더 열기, 새 프로젝트 만들기.
-- 프로젝트 폴더의 `editor.bat` = `AsterEditor.exe --project <그 폴더>`.
+- **프로젝트 관리자**: `build\Editor\bin\MealKitEditor.exe`를 그냥 실행하면 뜬다. 최근 프로젝트(더블클릭으로 열기), 프로젝트 폴더 열기, 새 프로젝트 만들기.
+- 프로젝트 폴더의 `editor.bat` = `MealKitEditor.exe --project <그 폴더>`.
 - 명령줄로 새 프로젝트:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame          # → D:\GameEngine\Aster\MyGame
+powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame          # → D:\GameEngine\MealKit\MyGame
 powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Path E:\Games
 ```
 
-예제 게임의 코드와 `assets/`를 복사하고 `templates/project`의 파일(`aster.project`, `CMakeLists.txt`, `build.bat`, `editor.bat`, `.vscode/`, `README.md`, `CLAUDE.md`)을 채운다.
-엔진 위치는 프로젝트 `aster.project`의 `engine=`에 있고, 실제 빌드는 엔진의 `tools\build_project.bat`이 한다.
-프로젝트 `CMakeLists.txt`는 `cmake/Aster.cmake`를 include하고 `aster_add_game(...)` 한 번으로 게임 exe·게임 DLL·출시 타깃을 만든다.
+예제 게임의 코드와 `assets/`를 복사하고 `templates/project`의 파일(`mealkit.project`, `CMakeLists.txt`, `build.bat`, `editor.bat`, `.vscode/`, `README.md`, `CLAUDE.md`)을 채운다.
+엔진 위치는 프로젝트 `mealkit.project`의 `engine=`에 있고, 실제 빌드는 엔진의 `tools\build_project.bat`이 한다.
+프로젝트 `CMakeLists.txt`는 `cmake/MealKit.cmake`를 include하고 `mealkit_add_game(...)` 한 번으로 게임 exe·게임 DLL·출시 타깃을 만든다.
 
 ### 출시 빌드 (export)
 
@@ -66,7 +67,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 | 맵 배치 (상자, 모델, 스폰 지점, 조명·안개) | 에디터 → `Ctrl+S` 로 `assets/scenes/*.scene` 저장 |
 | 게임 규칙 (이동, 점프, 밀치기, 물리) | VS Code → 프로젝트의 `source/World.cpp` (엔진 예제는 `samples/sandbox/World.cpp`) |
 | 카메라, 조작, 화면에 그리는 것 | VS Code → 프로젝트의 `source/GameSession.cpp` |
-| 엔진·에디터 기능 추가 | VS Code → 엔진 폴더의 `engine/src/aster/...` → `build.bat Editor` (에디터를 닫고) |
+| 엔진·에디터 기능 추가 | VS Code → 엔진 폴더의 `engine/src/mealkit/...` → `build.bat Editor` (에디터를 닫고) |
 | 출시용 게임 만들기 | 에디터 → 빌드 → 출시 빌드 (`Ctrl+B`) → `export/<게임>/` |
 | 3D 모델 만들기 | Blender → glTF(.glb)로 `assets/models/`에 내보내기 |
 
@@ -78,7 +79,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 
 1. **씬 편집**: 뷰포트에서 물체를 클릭하거나 씬 트리에서 고른 뒤, 기즈모를 끌거나 인스펙터에 값을 넣는다.
 2. **▶ 플레이 (F5)**: 지금 편집 중인 씬으로 바로 게임을 실행한다. `Esc`를 누르면 편집으로 돌아온다(씬은 바뀌지 않음). 게임 코드를 불러오기 전에는 비활성.
-3. **Ctrl+S**: 저장. 게임과 멀티플레이는 프로젝트의 `assets/scenes/arena.scene`(`aster.project`의 `scene=`)을 쓴다.
+3. **Ctrl+S**: 저장. 게임과 멀티플레이는 프로젝트의 `assets/scenes/arena.scene`(`mealkit.project`의 `scene=`)을 쓴다.
 4. **Ctrl+R**: 게임 코드 빌드 (핫 리로드). **Ctrl+B**: 출시 빌드 (`export/<게임>/`). 빌드 메뉴에서 출시·프로젝트 폴더를 열 수 있다.
 
 | 조작 | 기능 |
@@ -115,7 +116,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 | Asset | glTF 불러오기(cgltf) + 최적화·LOD(meshoptimizer) + 모델 캐시 |
 | Net | 결정론적 락스텝(호스트 중계, 입력만 전송, 디싱크 감지). 전송 계층: UDP 또는 Steam 릴레이. 빌드·씬·모델이 다르면 접속 거부 |
 | Scene | 물체(상자/모델, 충돌/장식/스폰)와 환경. 사람이 읽을 수 있는 `.scene` 텍스트 |
-| Editor | 범용 에디터 `AsterEditor` (Dear ImGui + ImGuizmo): 프로젝트 관리자, 게임 DLL 핫 리로드, 도킹 패널, 씬 트리, 인스펙터, 기즈모, 클릭 선택, 되돌리기, 모델 선택, 플레이 모드, 게임 코드·출시 빌드 |
+| Editor | 범용 에디터 `MealKitEditor` (Dear ImGui + ImGuizmo): 프로젝트 관리자, 게임 DLL 핫 리로드, 도킹 패널, 씬 트리, 인스펙터, 기즈모, 클릭 선택, 되돌리기, 모델 선택, 플레이 모드, 게임 코드·출시 빌드 |
 
 측정값 (Intel Core Ultra 5 125U 내장 그래픽, 1280×720, 수직동기 끔, Release, 상자 2,000개 + 모델 9개):
 
@@ -124,7 +125,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 | 프레임 | 약 3,500 fps (0.28 ms), 드로우 콜 4회 |
 | 시뮬레이션 (Jolt, 틱당) | 떨어지는 중 약 2.5 ms → 쌓여서 잠든 뒤 약 0.9 ms |
 | 4인 네트워크 (상자 8,000개) | 호스트 송신 합계 약 5 KB/s, 물체 수와 무관 |
-| 실행 파일 | 출시 게임 약 1.4 MB (정적 CRT, 재배포 패키지 불필요). 에디터: `AsterEditor.exe` 1.8 MB + `aster.dll` 2.7 MB, 게임 DLL 약 0.1 MB |
+| 실행 파일 | 출시 게임 약 1.4 MB (정적 CRT, 재배포 패키지 불필요). 에디터: `MealKitEditor.exe` 1.8 MB + `mealkit.dll` 2.7 MB, 게임 DLL 약 0.1 MB |
 
 ## 요구사항
 
@@ -135,7 +136,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 ## 빌드
 
 ```bat
-build.bat Editor     :: 범용 에디터: build\Editor\bin\AsterEditor.exe + aster.dll + sandbox_game.dll
+build.bat Editor     :: 범용 에디터: build\Editor\bin\MealKitEditor.exe + mealkit.dll + sandbox_game.dll
 build.bat            :: Release: build\Release\bin\sandbox.exe (출시용 게임, 엔진 정적 링크)
 build.bat Debug      :: Debug (D3D12 디버그 레이어 자동 활성화)
 build.bat Profile    :: Release + Tracy 프로파일링
@@ -143,7 +144,7 @@ build.bat Export     :: 출시 폴더 export\sandbox\
 ```
 
 게임 프로젝트에도 같은 인자를 받는 자기 `build.bat`이 있다 (빌드 폴더는 프로젝트 안의 `build\`). 프로젝트의 `build.bat Editor`는 게임 DLL만 만들고, 엔진 에디터 빌드가 오래되었으면 그것부터 빌드한다.
-엔진(`aster.dll`)을 다시 빌드할 때는 에디터를 닫는다(실행 중이면 파일이 잠겨 링크가 실패한다). 게임 DLL은 에디터가 켜져 있어도 된다.
+엔진(`mealkit.dll`)을 다시 빌드할 때는 에디터를 닫는다(실행 중이면 파일이 잠겨 링크가 실패한다). 게임 DLL은 에디터가 켜져 있어도 된다.
 
 ## 게임 실행
 
@@ -170,11 +171,11 @@ Steamworks SDK는 Valve 약관상 저장소에 넣지 않았다. 직접 받아�
 2. 압축을 풀어 `sdk` 폴더째로 `third_party/steamworks/sdk`에 둔다. 아래 두 파일이 있어야 한다.
    - `third_party/steamworks/sdk/public/steam/steam_api.h`
    - `third_party/steamworks/sdk/redistributable_bin/win64/steam_api64.lib`
-3. `build.bat`을 다시 실행한다. 빌드 로그에 `Steamworks SDK found`가 보이면 켜진 것이다. `steam_api64.dll`과 `steam_appid.txt`는 자동으로 실행 파일 옆에 놓인다. 앱 ID는 `aster_add_game(... STEAM_APP_ID <id>)` (기본 480).
+3. `build.bat`을 다시 실행한다. 빌드 로그에 `Steamworks SDK found`가 보이면 켜진 것이다. `steam_api64.dll`과 `steam_appid.txt`는 자동으로 실행 파일 옆에 놓인다. 앱 ID는 `mealkit_add_game(... STEAM_APP_ID <id>)` (기본 480).
 4. Steam 클라이언트를 켠 상태에서 `sandbox.exe --steam` → 로비가 만들어지고 친구 초대 창이 뜬다(`I`로 다시 열기). 친구가 초대를 수락하면 게임이 `+connect_lobby`로 실행되어 자동으로 들어온다.
 
 - 개발 중에는 Valve의 테스트 앱 ID **480(Spacewar)** 을 쓴다. 출시할 때는 프로젝트 `CMakeLists.txt`의 `STEAM_APP_ID`를 Steam에서 받은 내 앱 ID로 바꾼다. 480이 아니면 출시 폴더에 `steam_appid.txt`를 넣지 않는다(Steam이 실행해 준다).
-- Steam 전송 코드(`engine/src/aster/platform/Steam.cpp`)는 SDK v1.65로 **컴파일·링크까지 확인했다.** Steam 클라이언트를 켜고 실제 로비·릴레이로 접속하는 것은 아직 검증하지 못했다.
+- Steam 전송 코드(`engine/src/mealkit/platform/Steam.cpp`)는 SDK v1.65로 **컴파일·링크까지 확인했다.** Steam 클라이언트를 켜고 실제 로비·릴레이로 접속하는 것은 아직 검증하지 못했다.
 - `third_party/steamworks/`는 `.gitignore`에 들어 있다.
 
 ## 프로파일링 (Tracy)
@@ -183,7 +184,7 @@ Steamworks SDK는 Valve 약관상 저장소에 넣지 않았다. 직접 받아�
 2. Tracy 프로파일러 앱(v0.14.1, https://github.com/wolfpld/tracy/releases)을 켜고 `127.0.0.1`에 연결한다.
 3. 프레임별 CPU 구간(`Simulation`, `Physics step`, `Network`, `Render`, `Editor UI`)과 **GPU 프레임 시간**이 보인다.
 
-- 일반 빌드에서는 `ASTER_ZONE("이름")` 마커가 아무 코드도 만들지 않는다. 측정하고 싶은 함수에 마음껏 넣어도 된다.
+- 일반 빌드에서는 `MEALKIT_ZONE("이름")` 마커가 아무 코드도 만들지 않는다. 측정하고 싶은 함수에 마음껏 넣어도 된다.
 - 프로파일 빌드는 프로파일러가 붙었을 때만 수집하고(`TRACY_ON_DEMAND`), 127.0.0.1에서만 접속을 받는다.
 
 ## 테스트
@@ -215,25 +216,25 @@ powershell -ExecutionPolicy Bypass -File tools\mp_test.ps1 -Clients 3 -Ticks 180
 ```
 engine/
   shaders/Forward.hlsl       인스턴스 변환 + 정점 색 + 하프 램버트 + 반구 환경광 + 안개 + 선택 강조
-  src/aster/core/            Types, Log, Clock, Math, Random, Hash, Profile
-  src/aster/platform/        Window, Input, Paths, Process, Steam (+ SDK 없을 때의 SteamStub)
-  src/aster/render/          Renderer, Mesh, DrawList
-  src/aster/physics/         PhysicsWorld (Jolt)
-  src/aster/asset/           ModelCache (cgltf + meshoptimizer)
-  src/aster/net/             Socket, Transport, Lockstep
-  src/aster/scene/           Scene (.scene 읽기/쓰기)
-  src/aster/game/            GameInstance (엔진·에디터와 게임 코드의 경계, ASTER_GAME_MODULE)
-  src/aster/editor/          AsterEditor: EditorMain, ProjectManager, Project, GameModuleHost(DLL 핫 리로드), Editor, ImGuiLayer
+  src/mealkit/core/            Types, Log, Clock, Math, Random, Hash, Profile
+  src/mealkit/platform/        Window, Input, Paths, Process, Steam (+ SDK 없을 때의 SteamStub)
+  src/mealkit/render/          Renderer, Mesh, DrawList
+  src/mealkit/physics/         PhysicsWorld (Jolt)
+  src/mealkit/asset/           ModelCache (cgltf + meshoptimizer)
+  src/mealkit/net/             Socket, Transport, Lockstep
+  src/mealkit/scene/           Scene (.scene 읽기/쓰기)
+  src/mealkit/game/            GameInstance (엔진·에디터와 게임 코드의 경계, MEALKIT_GAME_MODULE)
+  src/mealkit/editor/          MealKitEditor: EditorMain, ProjectManager, Project, GameModuleHost(DLL 핫 리로드), Editor, ImGuiLayer
 samples/sandbox/
   World                      결정론 시뮬레이션 (게임 규칙, Jolt 물리)
   GameSession                한 판 진행: 틱 실행, 입력, 카메라, 그리기 (GameInstance 구현, 출시 exe와 에디터가 공유)
   main.cpp / GameModule.cpp  출시 게임 exe / 에디터용 게임 DLL 진입점
-aster.project                엔진 저장소를 예제 게임 프로젝트로 열 때 쓰는 프로젝트 파일
+mealkit.project                엔진 저장소를 예제 게임 프로젝트로 열 때 쓰는 프로젝트 파일
 assets/scenes, assets/models 씬과 모델
 third_party/                 외부 라이브러리 (VERSIONS.txt)
-cmake/Aster.cmake            빌드 공통 설정 + aster_add_game() (엔진 저장소와 게임 프로젝트가 같이 쓴다)
-cmake/AsterExport.cmake      출시 폴더 만들기 (game_export 타깃)
-cmake/FixExportsDef.cmake    aster.dll 내보내기 목록에서 MSVC CRT 약한 별칭 줄 제거 (Editor 빌드)
+cmake/MealKit.cmake            빌드 공통 설정 + mealkit_add_game() (엔진 저장소와 게임 프로젝트가 같이 쓴다)
+cmake/MealKitExport.cmake      출시 폴더 만들기 (game_export 타깃)
+cmake/FixExportsDef.cmake    mealkit.dll 내보내기 목록에서 MSVC CRT 약한 별칭 줄 제거 (Editor 빌드)
 templates/project/           새 게임 프로젝트의 빌드 파일 템플릿
 tools/                       build_project.bat (공통 빌드), new_project.ps1 (새 프로젝트), mp_test.ps1 (멀티플레이 테스트), make_sample_models.py
 .vscode/                     빌드 작업, 디버그 실행 구성

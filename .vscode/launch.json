@@ -7,7 +7,7 @@
             "name": "Editor",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Editor/bin/AsterEditor.exe",
+            "program": "${workspaceFolder}/build/Editor/bin/MealKitEditor.exe",
             "args": ["--project", "${workspaceFolder}"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
@@ -18,7 +18,7 @@
             "name": "Editor (project manager)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/build/Editor/bin/AsterEditor.exe",
+            "program": "${workspaceFolder}/build/Editor/bin/MealKitEditor.exe",
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
             "preLaunchTask": "Build Editor"

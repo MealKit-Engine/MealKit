@@ -1,4 +1,4 @@
-Aster uses the following third-party software. Their licenses require these notices to be distributed with the game.
+MealKit uses the following third-party software. Their licenses require these notices to be distributed with the game.
 Steamworks SDK (when used) is covered by the Steamworks SDK Access Agreement and is not reproduced here.
 
 ==============================================================================

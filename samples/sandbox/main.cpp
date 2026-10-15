@@ -1,4 +1,4 @@
-// Aster Sandbox: 결정론적 락스텝 멀티플레이 샘플 (게임 빌드, 에디터 없음).
+// MealKit Sandbox: 결정론적 락스텝 멀티플레이 샘플 (게임 빌드, 에디터 없음).
 //
 //   sandbox.exe                         혼자 플레이
 //   sandbox.exe --host [port]           방 만들기 (로비에서 Enter로 시작)
@@ -9,17 +9,17 @@
 
 #include "GameSession.h"
 
-#include "aster/asset/ModelCache.h"
-#include "aster/core/Clock.h"
-#include "aster/core/Log.h"
-#include "aster/core/Profile.h"
-#include "aster/net/Lockstep.h"
-#include "aster/platform/Paths.h"
-#include "aster/platform/Steam.h"
-#include "aster/platform/Window.h"
-#include "aster/render/DrawList.h"
-#include "aster/render/Renderer.h"
-#include "aster/scene/Scene.h"
+#include "mealkit/asset/ModelCache.h"
+#include "mealkit/core/Clock.h"
+#include "mealkit/core/Log.h"
+#include "mealkit/core/Profile.h"
+#include "mealkit/net/Lockstep.h"
+#include "mealkit/platform/Paths.h"
+#include "mealkit/platform/Steam.h"
+#include "mealkit/platform/Window.h"
+#include "mealkit/render/DrawList.h"
+#include "mealkit/render/Renderer.h"
+#include "mealkit/scene/Scene.h"
 
 #include <algorithm>
 #include <cstdio>
@@ -28,7 +28,7 @@
 #include <string>
 #include <vector>
 
-using namespace aster;
+using namespace mealkit;
 
 namespace {
 
@@ -58,7 +58,7 @@ struct Options {
 
 void printUsage() {
     std::printf(
-        "Aster Sandbox\n"
+        "MealKit Sandbox\n"
         "  --host [port]          host a match (default port 27015)\n"
         "  --join <addr[:port]>   join a host\n"
         "  --steam                host a Steam friends-only lobby (invite with I or Shift+Tab)\n"
@@ -128,7 +128,7 @@ bool parseArgs(int argc, char** argv, Options& o) {
             return false;
         }
     }
-#if defined(ASTER_DEBUG)
+#if defined(MEALKIT_DEBUG)
     o.debugLayer = true;
 #endif
     return true;
@@ -160,19 +160,19 @@ int main(int argc, char** argv) {
     const std::string scenePath = opt.scenePath.empty() ? findAsset("assets/scenes/arena.scene") : opt.scenePath;
     if (!scenePath.empty()) {
         std::string error;
-        if (!scene::load(scene, scenePath, &error)) ASTER_FATAL("Cannot load scene %s: %s", scenePath.c_str(), error.c_str());
-        ASTER_INFO("Scene: %s (%zu entities)", scenePath.c_str(), scene.entities.size());
+        if (!scene::load(scene, scenePath, &error)) MEALKIT_FATAL("Cannot load scene %s: %s", scenePath.c_str(), error.c_str());
+        MEALKIT_INFO("Scene: %s (%zu entities)", scenePath.c_str(), scene.entities.size());
     } else {
         scene = scene::makeDefault();
-        ASTER_INFO("Scene file not found - using the built-in arena");
+        MEALKIT_INFO("Scene file not found - using the built-in arena");
     }
 
     Window window;
-    if (!window.create({"Aster Sandbox", opt.width, opt.height})) return 1;
+    if (!window.create({"MealKit Sandbox", opt.width, opt.height})) return 1;
 
     render::Renderer renderer;
     if (!renderer.init({window.nativeHandle(), window.width(), window.height(), opt.vsync, opt.debugLayer}))
-        ASTER_FATAL("Renderer initialization failed. A Direct3D 12 GPU with Shader Model 6.0 is required.");
+        MEALKIT_FATAL("Renderer initialization failed. A Direct3D 12 GPU with Shader Model 6.0 is required.");
     asset::ModelCache models;
     models.setRenderer(&renderer);
 
@@ -186,14 +186,14 @@ int main(int argc, char** argv) {
         break;
     case Options::Mode::Host:
         if (!session.host(opt.port, opt.maxPlayers, opt.inputDelay, opt.loopbackOnly))
-            ASTER_FATAL("Could not host on port %u", opt.port);
+            MEALKIT_FATAL("Could not host on port %u", opt.port);
         break;
     case Options::Mode::Join: {
         net::Address address;
         if (!net::startup() || !net::resolveAddress(opt.joinAddress.c_str(), 27015, address))
-            ASTER_FATAL("Could not resolve '%s'", opt.joinAddress.c_str());
+            MEALKIT_FATAL("Could not resolve '%s'", opt.joinAddress.c_str());
         net::cleanup();
-        if (!session.join(address)) ASTER_FATAL("Could not open a UDP socket");
+        if (!session.join(address)) MEALKIT_FATAL("Could not open a UDP socket");
         break;
     }
     case Options::Mode::SteamHost:
@@ -205,13 +205,13 @@ int main(int argc, char** argv) {
     const bool useSteam = opt.mode == Options::Mode::SteamHost || opt.mode == Options::Mode::SteamJoin;
     steam::Lobby lobby;
     if (useSteam) {
-        if (!steam::init()) ASTER_FATAL("Steam is not available. Run the Steam client, and build with the Steamworks SDK (see README).");
+        if (!steam::init()) MEALKIT_FATAL("Steam is not available. Run the Steam client, and build with the Steamworks SDK (see README).");
         if (opt.mode == Options::Mode::SteamHost) lobby.create(opt.maxPlayers);
         else lobby.join(opt.steamLobby);
     }
 
     sandbox::GameSession game;
-    aster::game::PlayOptions gameOptions;
+    mealkit::game::PlayOptions gameOptions;
     gameOptions.bot = opt.bot;
     gameOptions.exitTick = opt.exitTick;
     gameOptions.capture = !opt.capturePath.empty();
@@ -242,7 +242,7 @@ int main(int argc, char** argv) {
 
         if (useSteam) {
             steam::runCallbacks();
-            if (lobby.state() == steam::LobbyState::Failed) ASTER_FATAL("Steam lobby failed (see log)");
+            if (lobby.state() == steam::LobbyState::Failed) MEALKIT_FATAL("Steam lobby failed (see log)");
             if (session.state() == net::SessionState::Idle && lobby.state() == steam::LobbyState::InLobby) {
                 if (lobby.isOwner()) {
                     session.hostWith(steam::createTransport(), opt.maxPlayers, opt.inputDelay);
@@ -254,7 +254,7 @@ int main(int argc, char** argv) {
                 }
             }
             if (const u64 invited = lobby.takeJoinRequest())
-                ASTER_INFO("Steam invite to lobby %llu received - restart the game from the invite to join",
+                MEALKIT_INFO("Steam invite to lobby %llu received - restart the game from the invite to join",
                            static_cast<unsigned long long>(invited));
             if (input.keyPressed('I')) lobby.inviteFriends();
         }
@@ -266,14 +266,14 @@ int main(int argc, char** argv) {
                 session.startMatch(seed, opt.bodies);
         }
         if (session.state() == net::SessionState::Ended && automated && exitDeadline == 0.0) {
-            ASTER_ERROR("Session ended before the exit tick: %s", session.endReason());
+            MEALKIT_ERROR("Session ended before the exit tick: %s", session.endReason());
             exitCode = 3;
             break;
         }
 
         if (!game.started() && session.state() == net::SessionState::Running) {
             game.start(scene, session, gameOptions, models);
-            ASTER_INFO("World ready: %u bodies, %u player(s), you are player %u", session.matchData(),
+            MEALKIT_INFO("World ready: %u bodies, %u player(s), you are player %u", session.matchData(),
                        session.playerCount(), session.localPlayer());
         }
 
@@ -288,7 +288,7 @@ int main(int argc, char** argv) {
         }
 
         if (!window.minimized()) {
-            ASTER_ZONE("Render");
+            MEALKIT_ZONE("Render");
             render::FrameParams frame;
             drawList.clear();
             const render::Viewport full{0.0f, 0.0f, static_cast<f32>(window.width()), static_cast<f32>(window.height())};
@@ -300,7 +300,7 @@ int main(int argc, char** argv) {
         }
 
         limiter.wait();
-        ASTER_FRAME_MARK();
+        MEALKIT_FRAME_MARK();
 
         // ---- 창 제목에 상태 표시 (4Hz) ----
         frameTimeSum += dt;
@@ -313,19 +313,19 @@ int main(int argc, char** argv) {
             const net::SessionStats& st = session.stats();
             const net::SessionState state = session.state();
             if (useSteam && state == net::SessionState::Idle) {
-                snprintf(title, sizeof(title), "Aster Sandbox | Steam lobby: %s",
+                snprintf(title, sizeof(title), "MealKit Sandbox | Steam lobby: %s",
                          lobby.state() == steam::LobbyState::Creating ? "creating..." : "joining...");
             } else if (state == net::SessionState::Lobby && session.isHost()) {
-                snprintf(title, sizeof(title), "Aster Sandbox | LOBBY %u/%u players - %sEnter: start",
+                snprintf(title, sizeof(title), "MealKit Sandbox | LOBBY %u/%u players - %sEnter: start",
                          session.lobbyPlayerCount(), opt.maxPlayers, useSteam ? "I: invite friends, " : "");
             } else if (state == net::SessionState::Lobby || state == net::SessionState::Connecting) {
-                snprintf(title, sizeof(title), "Aster Sandbox | %s - waiting for host (%u in lobby)", stateName(state),
+                snprintf(title, sizeof(title), "MealKit Sandbox | %s - waiting for host (%u in lobby)", stateName(state),
                          session.lobbyPlayerCount());
             } else if (state == net::SessionState::Ended) {
-                snprintf(title, sizeof(title), "Aster Sandbox | ENDED: %s", session.endReason());
+                snprintf(title, sizeof(title), "MealKit Sandbox | ENDED: %s", session.endReason());
             } else {
                 snprintf(title, sizeof(title),
-                         "Aster Sandbox | %.0f fps %.2f ms | sim %.2f ms/tick | tick %u | P%u of %u | rtt %.0f ms | "
+                         "MealKit Sandbox | %.0f fps %.2f ms | sim %.2f ms/tick | tick %u | P%u of %u | rtt %.0f ms | "
                          "net %.1f/%.1f KB/s | %u draws %u inst | %s%s",
                          1000.0 / avgMs, avgMs, simMs, game.nextTick(), session.localPlayer() + 1, session.playerCount(),
                          st.rttMs, st.sentBytesPerSec / 1024.0, st.recvBytesPerSec / 1024.0, renderer.stats().drawCalls,
@@ -333,7 +333,7 @@ int main(int argc, char** argv) {
                          renderer.vsync() ? " | vsync" : "");
             }
             window.setTitle(title);
-            if (automated && (perfLogCounter++ % 8) == 7) ASTER_INFO("perf: %s", title + 15);
+            if (automated && (perfLogCounter++ % 8) == 7) MEALKIT_INFO("perf: %s", title + 15);
             titleTimer = frameTimeSum = 0.0;
             frameCount = 0;
         }

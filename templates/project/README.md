@@ -1,13 +1,13 @@
 # @NAME@
 
-[Aster 엔진](@ASTER_ROOT_FWD@/README.md)으로 만드는 게임 프로젝트.
-엔진과 에디터는 `@ASTER_ROOT@`에 있고, 이 폴더에는 **게임 코드, 에셋, 빌드 결과**만 있다.
+[MealKit 엔진](@MEALKIT_ROOT_FWD@/README.md)으로 만드는 게임 프로젝트.
+엔진과 에디터는 `@MEALKIT_ROOT@`에 있고, 이 폴더에는 **게임 코드, 에셋, 빌드 결과**만 있다.
 
 ## 폴더
 
 | 폴더/파일 | 무엇 |
 |---|---|
-| `aster.project` | 프로젝트 이름, 엔진 위치(`engine=`), 처음 여는 씬 |
+| `mealkit.project` | 프로젝트 이름, 엔진 위치(`engine=`), 처음 여는 씬 |
 | `source/` | 게임 코드. `World`(결정론 게임 규칙), `GameSession`(카메라·조작·그리기), `main.cpp`(출시용 exe), `GameModule.cpp`(에디터용 DLL 진입점) |
 | `assets/scenes/`, `assets/models/` | 씬(`.scene`)과 모델(`.glb`). 에디터가 여기에 저장한다 |
 | `build/Editor/` | 에디터가 불러오는 게임 코드 `@NAME@_game.dll` |
@@ -16,7 +16,7 @@
 
 ## 작업 흐름
 
-1. `editor.bat`으로 에디터를 연다 (엔진의 `AsterEditor.exe`가 이 프로젝트를 연다). 처음에는 게임 코드를 빌드하느라 잠깐 기다린다.
+1. `editor.bat`으로 에디터를 연다 (엔진의 `MealKitEditor.exe`가 이 프로젝트를 연다). 처음에는 게임 코드를 빌드하느라 잠깐 기다린다.
    엔진 에디터를 그냥 실행하면 **프로젝트 관리자**가 떠서 최근 프로젝트를 고를 수 있다.
 2. VS Code로 이 폴더를 열고 **에디터를 켜 둔 채로** 게임 코드를 고친다.
 3. `Ctrl+Shift+B`(게임 코드 빌드) → 에디터가 새 DLL을 감지해 **자동으로 바꿔 끼운다**(핫 리로드). 에디터에서 `Ctrl+R`을 눌러도 된다.
@@ -31,4 +31,4 @@
 - `source/World.*`는 락스텝 결정론 코드다. 엔진 README의 "결정론 규칙"을 따른다 (CRT 삼각함수 금지, `Pcg32`만, 순회 순서 고정, 새 상태는 `hash()`에).
 - 멀티플레이는 모든 플레이어가 **같은 exe, 같은 씬, 같은 모델 파일**이어야 접속된다. 출시 폴더째로 나눠 준다.
 - Steam 앱 ID는 `CMakeLists.txt`의 `STEAM_APP_ID` (기본 480 = Valve 테스트 앱). 내 앱 ID로 바꾸면 출시 폴더에 `steam_appid.txt`가 들어가지 않는다(Steam이 실행해 준다).
-- 엔진을 고치는 일은 엔진 폴더(`@ASTER_ROOT@`)에서 한다. 엔진이 바뀌면 에디터가 게임 코드를 다시 빌드한다.
+- 엔진을 고치는 일은 엔진 폴더(`@MEALKIT_ROOT@`)에서 한다. 엔진이 바뀌면 에디터가 게임 코드를 다시 빌드한다.

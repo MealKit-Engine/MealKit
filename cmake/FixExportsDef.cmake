@@ -1,4 +1,4 @@
-# aster.dll의 WINDOWS_EXPORT_ALL_SYMBOLS가 만든 exports.def에서 잘못된 줄을 지운다 (PRE_LINK, cmake -P).
+# mealkit.dll의 WINDOWS_EXPORT_ALL_SYMBOLS가 만든 exports.def에서 잘못된 줄을 지운다 (PRE_LINK, cmake -P).
 # MSVC CRT의 약한 별칭 기호(_Avx2WmemEnabledWeakValue 등)가 "==" 같은 빈 별칭 줄로 나와 링크가 실패한다.
 # 입력: DEF_FILE
 if(NOT EXISTS "${DEF_FILE}")

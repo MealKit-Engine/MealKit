@@ -1,10 +1,10 @@
 # 새 게임 프로젝트 만들기: 엔진 밖의 폴더에 게임 코드 + 에셋 + 빌드 파일을 만든다.
 # 게임 코드와 에셋은 예제 게임(samples/sandbox, assets/)에서 복사하고, 빌드 파일은 templates/project를 채워 만든다.
-#   powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame [-Path D:\GameEngine\Aster]
+#   powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame [-Path D:\GameEngine\MealKit]
 # 결과: <Path>\<Name>\ (build.bat, editor.bat, source\, assets\). 엔진은 이 폴더(스크립트의 상위 폴더)를 가리킨다.
 param(
     [Parameter(Mandatory = $true)][string]$Name,
-    [string]$Path = "D:\GameEngine\Aster"
+    [string]$Path = "D:\GameEngine\MealKit"
 )
 $ErrorActionPreference = "Stop"
 
@@ -27,8 +27,8 @@ if ((Test-Path $dest) -and (Get-ChildItem $dest -Force | Select-Object -First 1)
 $utf8 = New-Object System.Text.UTF8Encoding $false
 $tokens = @{
     "@NAME@"           = $Name
-    "@ASTER_ROOT@"     = $engine
-    "@ASTER_ROOT_FWD@" = $engine.Replace("\", "/")
+    "@MEALKIT_ROOT@"     = $engine
+    "@MEALKIT_ROOT_FWD@" = $engine.Replace("\", "/")
 }
 
 function Write-Text([string]$file, [string]$text) {
@@ -48,7 +48,7 @@ Get-ChildItem $template -Recurse -File -Force | ForEach-Object {
 $sample = Join-Path $engine "samples\sandbox"
 Get-ChildItem $sample -File | Where-Object { $_.Extension -in ".h", ".cpp" } | ForEach-Object {
     $text = [IO.File]::ReadAllText($_.FullName, $utf8)
-    $text = $text.Replace("Aster Sandbox", $Name).Replace("sandbox.exe", "$Name.exe")
+    $text = $text.Replace("MealKit Sandbox", $Name).Replace("sandbox.exe", "$Name.exe")
     Write-Text (Join-Path $dest "source\$($_.Name)") $text
 }
 

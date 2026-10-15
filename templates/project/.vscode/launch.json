@@ -7,7 +7,7 @@
             "name": "Editor (debug game code)",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "@ASTER_ROOT_FWD@/build/Editor/bin/AsterEditor.exe",
+            "program": "@MEALKIT_ROOT_FWD@/build/Editor/bin/MealKitEditor.exe",
             "args": ["--project", "${workspaceFolder}"],
             "cwd": "${workspaceFolder}",
             "console": "integratedTerminal",
