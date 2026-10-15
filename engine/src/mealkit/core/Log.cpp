@@ -51,4 +51,9 @@ void fatal(const char* fmt, ...) {
 
 void setDialogs(bool enabled) { g_dialogs = enabled; }
 
+void assertFailed(const char* condition, const char* file, int line) {
+    write(Level::Error, "Assertion failed: %s (%s:%d)", condition, file, line);
+    if (IsDebuggerPresent()) __debugbreak();
+}
+
 } // namespace mealkit::log

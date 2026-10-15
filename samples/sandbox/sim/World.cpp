@@ -43,19 +43,21 @@ void loadScene(World& world, const mealkit::scene::Scene& scene, mealkit::asset:
 
 } // namespace
 
-void World::reset(u64 seed, u32 playerCount, u32 propCount, const mealkit::scene::Scene& scene,
+void World::reset(u64 seed, u32 playerCount, u32 propCount, u32 propCapacity, const mealkit::scene::Scene& scene,
                   mealkit::asset::ModelCache& models, u32 physicsThreads) {
     physics.init(16384, physicsThreads);
     physics.setGravity(kGravity);
     spawns.clear();
-    propBodies.clear();
     state = WorldState{};
     state.playerCount = playerCount;
+    state.props.init(propCapacity);
+    events.clear();
 
     // 바디 생성 순서 고정: 씬 → 플레이어 → 상자
     loadScene(*this, scene, models);
     spawnPlayers(*this);
     spawnProps(*this, seed, propCount);
+    state.props.endTick(); // 처음 만든 상자도 0틱부터 순회에 나온다
     sensePlayers(*this);
     senseProps(*this);
 }
@@ -63,6 +65,7 @@ void World::reset(u64 seed, u32 playerCount, u32 propCount, const mealkit::scene
 void World::step(const mealkit::net::TickInputs& tickInputs) {
     MEALKIT_ZONE("World::step");
     for (u32 i = 0; i < state.playerCount; ++i) std::memcpy(&inputs[i], tickInputs.players[i].bytes, sizeof(GameInput));
+    events.clear();
 
     movePlayers(*this);
     physics.step(kTickDt, 2); // 30Hz 틱을 물리 2단계로 나눠 안정성을 높인다
@@ -70,6 +73,8 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
     recoverFallenProps(*this);
     sensePlayers(*this);
     senseProps(*this);
+    // 이번 틱에 지운 상자의 바디를 슬롯 순서로 지운다
+    state.props.endTick([this](Prop& prop) { physics.destroy(prop.body); });
     ++state.tick;
 }
 
@@ -77,8 +82,13 @@ u64 World::hash() const {
     mealkit::Hasher h;
     h.add(state.tick);
     for (u32 i = 0; i < state.playerCount; ++i) {
-        h.add(state.players[i].pushCooldown);
+        h.add(state.players[i].pushReady.readyTick);
         h.add(state.players[i].grounded);
+    }
+    state.props.hashState(h);
+    for (auto [id, prop] : state.props) { // 위치·회전은 물리 상태에 이미 들어 있다
+        h.add(prop.body);
+        h.add(prop.colorIndex);
     }
     physics.hashState(h);
     return h.value;

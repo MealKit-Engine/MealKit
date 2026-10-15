@@ -1,6 +1,5 @@
 #include "view/Draw.h"
 
-#include <algorithm>
 #include <cmath>
 #include <iterator>
 
@@ -43,10 +42,9 @@ void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3&
 
 void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, u8 localPlayer, f64 now, render::MeshId box,
                WorldView& view, render::DrawList& out) {
-    const size_t propCount = std::min(previous.props.size(), current.props.size());
-    for (size_t i = 0; i < propCount; ++i) {
-        const Prop& a = previous.props[i];
-        const Prop& b = current.props[i];
+    for (auto [id, b] : current.props) {
+        const Prop* before = previous.props.get(id); // 이번 틱에 생긴 상자는 직전 상태가 없다
+        const Prop& a = before ? *before : b;
         out.add(box, {lerp(a.position, b.position, alpha), kPropColors[b.colorIndex % kPropColorCount],
                       nlerp(a.rotation, b.rotation, alpha), b.halfExtents * 2.0f, 0});
     }

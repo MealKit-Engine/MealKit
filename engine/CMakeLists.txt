@@ -51,7 +51,11 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/core/Random.h
     src/mealkit/core/Hash.h
     src/mealkit/core/Profile.h
+    src/mealkit/game/GameContext.h
     src/mealkit/game/GameInstance.h
+    src/mealkit/sim/Pool.h
+    src/mealkit/sim/TickEvents.h
+    src/mealkit/sim/TickTimer.h
     src/mealkit/physics/PhysicsWorld.h
     src/mealkit/physics/PhysicsWorld.cpp
     src/mealkit/platform/Input.h
@@ -103,6 +107,10 @@ target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf)
 target_compile_definitions(mealkit PUBLIC
     NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE
     $<$<CONFIG:Debug>:MEALKIT_DEBUG=1>)
+# MEALKIT_ASSERT는 Editor 빌드(에디터 + 게임 DLL)에서도 켠다. PUBLIC이라 MealKitTargets.cmake로 게임 DLL에도 넘어간다.
+if(MEALKIT_BUILD_KIND STREQUAL "Editor")
+    target_compile_definitions(mealkit PUBLIC MEALKIT_ASSERTS=1)
+endif()
 
 # /fp:precise 고정: 시뮬레이션 결정론을 위해 /fp:fast, /fp:contract, /arch:AVX2 를 쓰지 않는다.
 target_compile_options(mealkit PUBLIC /W4 /permissive- /utf-8 /Zc:__cplusplus /GR- /fp:precise)

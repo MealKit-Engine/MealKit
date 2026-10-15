@@ -250,18 +250,19 @@ constexpr const char* kMsgMath =
     "or compute the angle in view/ and send it as quantized input";
 constexpr const char* kMsgRandom = "use mealkit::Pcg32 seeded from the match seed (core/Random.h)";
 constexpr const char* kMsgTime =
-    "real time differs between peers. Use the tick number (world.state.tick) and u32 readyTick timers";
+    "real time differs between peers. Use the tick number (world.state.tick) and mealkit::sim::TickTimer (mealkit/sim/TickTimer.h)";
 constexpr const char* kMsgAlloc =
-    "no heap objects. Use fixed arrays or containers sized in World::reset() (Pool<T> is coming)";
+    "no heap objects. Use mealkit::sim::Pool<T> (mealkit/sim/Pool.h) for objects created during a match, "
+    "or fixed arrays sized in World::reset()";
 constexpr const char* kMsgVirtual =
     "no inheritance or virtual Update. Use flat arrays with a kind enum and free system functions called from World::step()";
 constexpr const char* kMsgAsync =
-    "completion order differs between peers and cannot be hashed. Use u32 readyTick timers and enum class state machines";
+    "completion order differs between peers and cannot be hashed. Use mealkit::sim::TickTimer and enum class state machines";
 constexpr const char* kMsgUnordered = "iteration order is not deterministic. Look up by id or use a sorted array";
 constexpr const char* kMsgGlobal =
     "global mutable state breaks the shadow simulation and hot reload. Keep state in World, or make it constexpr";
 constexpr const char* kMsgViewHeader =
-    "the simulation must not read rendering, platform, input, editor or view state. Read World only; report to the screen with tick events";
+    "the simulation must not read rendering, platform, input, editor or view state. Read World only; report to the screen with tick events (mealkit::sim::TickEvents)";
 constexpr const char* kMsgUsingStd = "write std:: explicitly so the check can see what is used";
 
 enum class Qual {

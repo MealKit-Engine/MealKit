@@ -221,6 +221,7 @@ int main(int argc, char** argv) {
     FrameLimiter limiter;
     limiter.setTargetFps(opt.vsync ? 0.0 : opt.fpsCap);
 
+    game::GameContext ctx{window, renderer, models, session};
     render::DrawList drawList;
     f64 lastTime = nowSeconds();
     f64 titleTimer = 0.0, frameTimeSum = 0.0;
@@ -272,12 +273,14 @@ int main(int argc, char** argv) {
         }
 
         if (!game.started() && session.state() == net::SessionState::Running) {
-            game.start(scene, session, gameOptions, models);
+            game.start(ctx, scene, gameOptions);
             MEALKIT_INFO("World ready: %u bodies, %u player(s), you are player %u", session.matchData(),
                        session.playerCount(), session.localPlayer());
         }
 
-        game.update(dt, session, window, window.focused(), window.focused());
+        ctx.viewport = {0.0f, 0.0f, static_cast<f32>(window.width()), static_cast<f32>(window.height())};
+        ctx.keyboardAllowed = ctx.mouseAllowed = window.focused();
+        game.update(ctx, dt);
         if (game.captureDue()) renderer.requestCapture(opt.capturePath.c_str());
         if (game.finished() && exitDeadline == 0.0) {
             std::printf("FINAL tick=%u hash=%016llx desync=%d\n", game.nextTick() - 1,
@@ -291,8 +294,7 @@ int main(int argc, char** argv) {
             MEALKIT_ZONE("Render");
             render::FrameParams frame;
             drawList.clear();
-            const render::Viewport full{0.0f, 0.0f, static_cast<f32>(window.width()), static_cast<f32>(window.height())};
-            game.buildFrame(now, session.localPlayer(), full, frame, drawList);
+            game.buildFrame(ctx, now, frame, drawList);
             if (renderer.beginFrame(frame)) {
                 drawList.submit(renderer);
                 renderer.endFrame();

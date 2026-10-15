@@ -58,11 +58,10 @@ void movePlayers(World& world) {
         if (p.grounded && (in.buttons & kButtonJump) && v.y < 1.0f) v.y = kJumpSpeed;
         world.physics.setLinearVelocity(id, v);
 
-        if (p.pushCooldown > 0) {
-            --p.pushCooldown;
-        } else if (in.buttons & kButtonPush) {
-            p.pushCooldown = kPushCooldownTicks;
+        if ((in.buttons & kButtonPush) && p.pushReady.ready(world.state.tick)) {
+            p.pushReady.start(world.state.tick, kPushCooldownTicks);
             pushProps(world, p.position);
+            world.events.push({EventKind::Push, static_cast<u8>(i), p.position});
         }
     }
 }

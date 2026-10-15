@@ -11,12 +11,13 @@ using namespace mealkit;
 
 namespace sandbox {
 
-void GameSession::start(const scene::Scene& scene, const net::LockstepSession& session, const game::PlayOptions& options,
-                        asset::ModelCache& models) {
+void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const game::PlayOptions& options) {
+    const net::LockstepSession& session = ctx.session;
     m_scene = scene;
     m_options = options;
-    m_models = &models;
-    m_world.reset(session.seed(), session.playerCount(), session.matchData(), m_scene, models, options.physicsThreads);
+    // 상자는 매치 중에 늘지 않으므로 Pool 용량 = 상자 수
+    const u32 propCount = session.matchData();
+    m_world.reset(session.seed(), session.playerCount(), propCount, propCount, m_scene, ctx.models, options.physicsThreads);
     m_previous = m_world.state;
     m_started = true;
     m_finished = false;
@@ -24,6 +25,7 @@ void GameSession::start(const scene::Scene& scene, const net::LockstepSession& s
     m_nextTick = 0;
     m_accumulator = 0.0;
     m_input.clearLatches();
+    m_effects = {};
 }
 
 bool GameSession::captureDue() {
@@ -39,10 +41,14 @@ f64 GameSession::takeSimMsPerTick() {
     return ms;
 }
 
-void GameSession::update(f64 dt, net::LockstepSession& session, Window& window, bool keyboardAllowed, bool mouseAllowed) {
-    Input& input = window.input();
-    m_camera.control(window, mouseAllowed);
+void GameSession::update(game::GameContext& ctx, f64 dt) {
+    net::LockstepSession& session = ctx.session;
+    Input& input = ctx.window.input();
+    const bool keyboardAllowed = ctx.keyboardAllowed, mouseAllowed = ctx.mouseAllowed;
+    m_camera.control(ctx.window, mouseAllowed);
     m_input.poll(input, keyboardAllowed, mouseAllowed);
+    m_viewTime += dt;
+    m_effects.prune(m_viewTime);
 
     if (!m_started || m_finished) return;
     MEALKIT_ZONE("Simulation");
@@ -55,6 +61,8 @@ void GameSession::update(f64 dt, net::LockstepSession& session, Window& window, 
         m_previous = m_world.state;
         m_world.step(session.inputs(m_nextTick));
         session.tickExecuted(m_nextTick, m_world.hash());
+        // 틱 이벤트는 다음 step()에서 지워지므로 틱마다 바로 화면 쪽으로 옮긴다
+        for (const GameEvent& e : m_world.events) m_effects.onEvent(e, m_viewTime);
 
         const GameInput gi = m_options.bot ? botInput(m_nextTick, session.localPlayer())
                                            : m_input.sample(input, m_camera, keyboardAllowed, mouseAllowed);
@@ -80,21 +88,21 @@ void GameSession::update(f64 dt, net::LockstepSession& session, Window& window, 
     m_accumulator = std::min(m_accumulator, static_cast<f64>(kTickDt) * 8.0);
 }
 
-void GameSession::buildFrame(f64 now, u8 localPlayer, render::Viewport viewport, render::FrameParams& frame,
-                             render::DrawList& out) {
-    if (!m_models) return;
+void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParams& frame, render::DrawList& out) {
+    const u8 localPlayer = ctx.session.localPlayer();
     const f32 alpha = m_started ? std::clamp(static_cast<f32>(m_accumulator / kTickDt), 0.0f, 1.0f) : 1.0f;
     const WorldState& current = m_world.state;
 
     Vec3 focus{0.0f, 1.0f, 0.0f};
     if (m_started && localPlayer < current.playerCount)
         focus = lerp(m_previous.players[localPlayer].position, current.players[localPlayer].position, alpha) + Vec3{0, 0.8f, 0};
-    m_camera.apply(focus, viewport, frame);
+    m_camera.apply(focus, ctx.viewport, frame);
     applyEnvironment(m_scene.environment, frame);
 
-    drawScene(m_scene, *m_models, frame.cameraPos, out);
+    drawScene(m_scene, ctx.models, frame.cameraPos, out);
     if (!m_started) return;
-    drawWorld(m_previous, current, alpha, localPlayer, now, m_models->boxMesh(), m_view, out);
+    drawWorld(m_previous, current, alpha, localPlayer, now, ctx.models.boxMesh(), m_view, out);
+    m_effects.draw(m_viewTime, ctx.models.boxMesh(), out);
 }
 
 } // namespace sandbox

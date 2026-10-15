@@ -3,6 +3,7 @@
 #include "sim/World.h"
 #include "view/Camera.h"
 #include "view/Draw.h"
+#include "view/Effects.h"
 #include "view/LocalInput.h"
 
 #include "mealkit/asset/ModelCache.h"
@@ -25,12 +26,11 @@ public:
     GameSession(const GameSession&) = delete;
     GameSession& operator=(const GameSession&) = delete;
 
-    void start(const mealkit::scene::Scene& scene, const mealkit::net::LockstepSession& session,
-               const mealkit::game::PlayOptions& options, mealkit::asset::ModelCache& models) override;
+    void start(mealkit::game::GameContext& ctx, const mealkit::scene::Scene& scene,
+               const mealkit::game::PlayOptions& options) override;
     bool started() const override { return m_started; }
-    void update(mealkit::f64 dt, mealkit::net::LockstepSession& session, mealkit::Window& window, bool keyboardAllowed,
-                bool mouseAllowed) override;
-    void buildFrame(mealkit::f64 now, u8 localPlayer, mealkit::render::Viewport viewport, mealkit::render::FrameParams& frame,
+    void update(mealkit::game::GameContext& ctx, mealkit::f64 dt) override;
+    void buildFrame(mealkit::game::GameContext& ctx, mealkit::f64 now, mealkit::render::FrameParams& frame,
                     mealkit::render::DrawList& out) override;
 
     u32 nextTick() const override { return m_nextTick; }
@@ -44,7 +44,6 @@ private:
     World m_world;
     WorldState m_previous; // 렌더 보간용 직전 틱
     mealkit::scene::Scene m_scene;
-    mealkit::asset::ModelCache* m_models = nullptr;
     mealkit::game::PlayOptions m_options;
     bool m_started = false;
     bool m_finished = false;
@@ -55,6 +54,8 @@ private:
     OrbitCamera m_camera;
     LocalInput m_input;
     WorldView m_view;
+    Effects m_effects;           // 틱 이벤트 → 화면 효과
+    mealkit::f64 m_viewTime = 0.0; // 화면 효과용 시계 (update의 dt 합)
     mealkit::f64 m_simSeconds = 0.0;
     u32 m_simTicks = 0;
 };

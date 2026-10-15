@@ -28,7 +28,7 @@
 
 - 에디터는 게임 DLL의 **복사본**을 불러오므로, 에디터를 켜 둔 채로 게임 코드를 다시 빌드할 수 있다. 새 DLL이 생기면 편집 모드에서 **자동으로 바꿔 끼운다(핫 리로드)**.
 - 게임 DLL이 없거나 엔진(`mealkit.dll`)보다 오래되었으면 에디터가 프로젝트를 열 때 게임 코드를 먼저 빌드한다.
-- 엔진과 게임 코드의 경계는 `mealkit::game::GameInstance`(`engine/src/mealkit/game/GameInstance.h`). 게임은 이것을 구현하고, `MEALKIT_GAME_MODULE(이름, 클래스)`로 에디터용 진입점을 내보낸다. 약속이 바뀌면 `kApiVersion`을 올린다(다른 번호의 DLL은 불러오지 않는다).
+- 엔진과 게임 코드의 경계는 `mealkit::game::GameInstance`(`engine/src/mealkit/game/GameInstance.h`). 게임은 이것을 구현하고(엔진 서비스는 `GameContext&`로 받는다), `MEALKIT_GAME_MODULE(이름, 클래스)`로 에디터용 진입점을 내보낸다. 약속이 바뀌면 `kApiVersion`을 올린다(다른 번호의 DLL은 불러오지 않는다).
 - 출시 exe는 게임 클래스를 직접 쓰므로 DLL 경계 비용이 없다.
 
 엔진 저장소 자신도 예제 게임 프로젝트다(최상위 `mealkit.project`, 코드는 `samples/sandbox`, 에셋은 `assets/`). 새 프로젝트의 템플릿이자 엔진 결정론 테스트(`tools\mp_test.ps1`)의 대상이다.
@@ -223,12 +223,13 @@ engine/
   src/mealkit/asset/           ModelCache (cgltf + meshoptimizer)
   src/mealkit/net/             Socket, Transport, Lockstep
   src/mealkit/scene/           Scene (.scene 읽기/쓰기)
-  src/mealkit/game/            GameInstance (엔진·에디터와 게임 코드의 경계, MEALKIT_GAME_MODULE)
+  src/mealkit/game/            GameInstance, GameContext (엔진·에디터와 게임 코드의 경계, MEALKIT_GAME_MODULE)
+  src/mealkit/sim/             Pool<T>, TickTimer, TickEvents (게임 sim/이 쓰는 결정론 도구)
   src/mealkit/editor/          MealKitEditor: EditorMain, ProjectManager, Project, GameModuleHost(DLL 핫 리로드), Editor, ImGuiLayer
   tools/SimCheck.cpp         게임 sim/ 폴더의 결정론 규칙 검사 (빌드 때 mealkit_add_game이 실행)
 samples/sandbox/             예제 게임 = 새 프로젝트 템플릿 (프로젝트에서는 source/ 아래)
   sim/                       결정론 시뮬레이션: World(상태, step 순서, hash), Systems.h, Players, Props
-  view/                      Camera, LocalInput(조작 → GameInput), Draw (sim/ 상태는 읽기만)
+  view/                      Camera, LocalInput(조작 → GameInput), Draw, Effects(틱 이벤트 → 화면 효과) (sim/ 상태는 읽기만)
   app/                       GameSession(한 판 진행, GameInstance 구현), main.cpp(출시 exe), GameModule.cpp(에디터 DLL 진입점)
 mealkit.project                엔진 저장소를 예제 게임 프로젝트로 열 때 쓰는 프로젝트 파일
 assets/scenes, assets/models 씬과 모델
