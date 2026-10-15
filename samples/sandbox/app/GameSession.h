@@ -58,6 +58,7 @@ private:
     OrbitCamera m_camera;
     LocalInput m_input;
     WorldView m_view;
+    Vec3 m_focus{0.0f, 1.0f, 0.0f}; // 카메라가 따라가는 점 (내 Pawn이 없으면 마지막 위치)
     Effects m_effects;           // 틱 이벤트 → 화면 효과
     mealkit::f64 m_viewTime = 0.0; // 화면 효과용 시계 (update의 dt 합)
     mealkit::f64 m_simSeconds = 0.0;

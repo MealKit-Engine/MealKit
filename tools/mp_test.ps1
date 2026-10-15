@@ -1,7 +1,7 @@
 # 멀티플레이 결정론 테스트: 같은 PC에서 호스트 1 + 클라이언트 N 을 봇 입력으로 돌리고
 # 모두 같은 틱에서 같은 상태 해시를 내는지 확인한다.
 # 클라이언트 i는 물리 스레드 i개를 쓴다 (호스트는 자동) → 스레드 수가 달라도 결과가 같은지도 확인된다.
-#   powershell -ExecutionPolicy Bypass -File tools\mp_test.ps1 [-Clients 1] [-Ticks 900] [-Config Release]
+#   powershell -ExecutionPolicy Bypass -File tools\mp_test.ps1 [-Clients 1] [-Ticks 900] [-Config Release] [-Scene <file>] [-Tuning <file>]
 # 게임 프로젝트의 실행 파일을 시험하려면 -Exe <프로젝트>\build\Release\bin\<이름>.exe
 param(
     [int]$Clients = 1,
@@ -9,7 +9,9 @@ param(
     [int]$Bodies = 2000,
     [int]$Port = 27115,
     [string]$Config = "Release",
-    [string]$Exe = ""
+    [string]$Exe = "",
+    [string]$Scene = "",
+    [string]$Tuning = ""
 )
 
 if ($Exe -eq "") {
@@ -24,6 +26,8 @@ New-Item -ItemType Directory -Force $logDir | Out-Null
 
 $players = $Clients + 1
 $common = "--bot --vsync 0 --fps 120 --size 640 360 --exit-tick $Ticks"
+if ($Scene -ne "") { $common += " --scene `"$((Resolve-Path $Scene).Path)`"" }
+if ($Tuning -ne "") { $common += " --tuning `"$((Resolve-Path $Tuning).Path)`"" }
 $procs = @()
 $procs += Start-Process -FilePath $exe -PassThru -NoNewWindow `
     -ArgumentList "--host $Port --local --players $players --auto-start $players --bodies $Bodies --seed 12345 $common" `

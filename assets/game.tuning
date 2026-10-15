@@ -10,3 +10,7 @@ pushSpeed 18
 pushLift 7
 pushSpin 8
 propDensity 200
+respawnTicks 45
+aiPawns 2
+aiThinkTicks 40
+aiSpeedScale 0.699999988

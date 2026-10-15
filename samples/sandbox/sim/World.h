@@ -2,6 +2,7 @@
 
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/core/Math.h"
+#include "mealkit/core/Random.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/scene/Scene.h"
@@ -49,11 +50,43 @@ struct GameInput {
 };
 static_assert(sizeof(GameInput) == mealkit::net::kInputBytes);
 
-MEALKIT_STRUCT(Player) {
+// ---------------------------------------------------------------- 플레이어와 캐릭터 (docs/ROADMAP.md "플레이어와 캐릭터 분리")
+// PlayerSlot: 접속한 사람. 매치 동안 남는다 (점수 등).
+// Pawn: 월드 안의 몸. 떨어지면 사라지고, 리스폰하면 새로 생긴다.
+// Controller: 슬롯(사람) 또는 AI를 Pawn에 잇는다. possess/unpossess로만 바꾼다 (sim/Pawns.cpp).
+using mealkit::sim::Id;
+using mealkit::sim::TickTimer;
+struct Controller;
+struct Pawn;
+
+enum class PawnKind : u8 { Runner }; // 지금은 회전이 잠긴 물리 캡슐 하나
+enum class ControllerKind : u8 { None, Player, AI };
+
+MEALKIT_STRUCT(Pawn) {
+    MEALKIT_FIELD(PawnKind, kind, PawnKind::Runner, "종류");
+    MEALKIT_FIELD(Id<Controller>, owner, {}, "조종하는 컨트롤러");
     MEALKIT_FIELD(Vec3, position, {}, "위치");
     MEALKIT_FIELD(Vec3, velocity, {}, "속도");
-    MEALKIT_FIELD(mealkit::sim::TickTimer, pushReady, {}, "다음 밀치기");
     MEALKIT_FIELD(u32, grounded, 0, "땅에 닿음"); // 발밑에 무언가 있는가
+    MEALKIT_FIELD(TickTimer, pushReady, {}, "다음 밀치기");
+    MEALKIT_FIELD(mealkit::physics::BodyId, body, mealkit::physics::kInvalidBody, "물리 바디");
+};
+
+MEALKIT_STRUCT(Controller) {
+    MEALKIT_FIELD(ControllerKind, kind, ControllerKind::None, "종류");
+    MEALKIT_FIELD(u32, slot, 0, "플레이어 슬롯"); // kind == Player
+    MEALKIT_FIELD(u32, spawnIndex, 0, "스폰 번호");
+    MEALKIT_FIELD(Id<Pawn>, pawn, {}, "빙의한 Pawn"); // 없으면 리스폰 대기(관전)
+    MEALKIT_FIELD(TickTimer, respawn, {}, "리스폰");
+    MEALKIT_FIELD(Vec3, aiTarget, {}, "AI 목표 지점");
+    MEALKIT_FIELD(TickTimer, aiThink, {}, "AI 다음 판단");
+};
+
+MEALKIT_STRUCT(PlayerSlot) {
+    MEALKIT_FIELD(bool, connected, false, "접속");
+    MEALKIT_FIELD(u32, team, 0, "팀");
+    MEALKIT_FIELD(u32, falls, 0, "떨어진 횟수");
+    MEALKIT_FIELD(Id<Controller>, controller, {}, "컨트롤러");
 };
 
 // 흩어진 상자
@@ -75,11 +108,12 @@ MEALKIT_STRUCT(Pad) {
 };
 
 // 시뮬레이션 → 화면 알림 (소리·효과용). sim/은 쓰기만 하고 읽지 않는다.
-enum class EventKind : u8 { Push, Bounce };
+enum class EventKind : u8 { Push, Bounce, Spawn, Fall };
+inline constexpr u8 kNoPlayer = 0xFF;
 
 struct GameEvent {
     EventKind kind = EventKind::Push;
-    u8 player = 0;
+    u8 player = kNoPlayer; // 플레이어 슬롯 (AI면 kNoPlayer)
     Vec3 position;
     f32 radius = 0.0f; // 효과 크기 (밀치기 범위 등)
 };
@@ -90,7 +124,10 @@ inline constexpr u32 kMaxEventsPerTick = 64;
 MEALKIT_STRUCT(WorldState) {
     MEALKIT_FIELD(u32, tick, 0, "틱");
     MEALKIT_FIELD(u32, playerCount, 0, "플레이어 수");
-    MEALKIT_ARRAY(Player, mealkit::net::kMaxPlayers, players, "플레이어");
+    MEALKIT_ARRAY(PlayerSlot, mealkit::net::kMaxPlayers, slots, "플레이어 슬롯");
+    MEALKIT_FIELD(mealkit::sim::Pool<Controller>, controllers, {}, "컨트롤러");
+    MEALKIT_FIELD(mealkit::sim::Pool<Pawn>, pawns, {}, "Pawn");
+    MEALKIT_FIELD(mealkit::Pcg32, aiRng, {}, "AI 난수");
     MEALKIT_FIELD(mealkit::sim::Pool<Prop>, props, {}, "상자");
     MEALKIT_FIELD(mealkit::sim::Pool<Pad>, pads, {}, "점프대");
 };
@@ -120,10 +157,15 @@ struct World {
     WorldState state;
     GameInput inputs[mealkit::net::kMaxPlayers] = {}; // 이번 틱 입력 (step 시작 때 채운다)
     mealkit::physics::PhysicsWorld physics;
-    mealkit::physics::BodyId playerBodies[mealkit::net::kMaxPlayers] = {};
 
     // 이번 틱의 화면 알림 (step 시작 때 비운다, 해시에 넣지 않는다)
     mealkit::sim::TickEvents<GameEvent, kMaxEventsPerTick> events;
 };
+
+// 화면 쪽에서도 쓰는 조회 (읽기만 한다)
+// 플레이어 슬롯이 지금 조종하는 Pawn (리스폰 대기 중이면 nullptr)
+const Pawn* playerPawn(const WorldState& state, u32 slot);
+// Pawn을 조종하는 플레이어 슬롯 (AI나 빈 컨트롤러면 kNoPlayer)
+u8 pawnPlayer(const WorldState& state, const Pawn& pawn);
 
 } // namespace sandbox

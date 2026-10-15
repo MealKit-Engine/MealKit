@@ -20,6 +20,10 @@ MEALKIT_STRUCT(Tuning) {
     MEALKIT_FIELD(mealkit::f32, pushLift, 7.0f, "밀치기 위로 속도 (m/s)");
     MEALKIT_FIELD(mealkit::f32, pushSpin, 8.0f, "밀치기 회전 (rad/s)");
     MEALKIT_FIELD(mealkit::f32, propDensity, 200.0f, "상자 밀도 (kg/m³)");
+    MEALKIT_FIELD(mealkit::u32, respawnTicks, 45, "리스폰 대기 (틱)");
+    MEALKIT_FIELD(mealkit::u32, aiPawns, 2, "AI 캐릭터 수");
+    MEALKIT_FIELD(mealkit::u32, aiThinkTicks, 40, "AI 판단 간격 (틱)");
+    MEALKIT_FIELD(mealkit::f32, aiSpeedScale, 0.7f, "AI 이동 속도 비율");
 };
 
 } // namespace sandbox

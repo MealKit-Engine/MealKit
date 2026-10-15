@@ -228,7 +228,7 @@ engine/
   src/mealkit/editor/          MealKitEditor: EditorMain, ProjectManager, Project, GameModuleHost(DLL 핫 리로드), Editor, ImGuiLayer
   tools/SimCheck.cpp         게임 sim/ 폴더의 결정론 규칙 검사 (빌드 때 mealkit_add_game이 실행)
 samples/sandbox/             예제 게임 = 새 프로젝트 템플릿 (프로젝트에서는 source/ 아래)
-  sim/                       결정론 시뮬레이션: World(상태, step 순서, hash), Systems.h, Players, Props
+  sim/                       결정론 시뮬레이션: World(상태, step 순서, hash), Systems.h, Pawns(슬롯·컨트롤러·Pawn·AI), Props, Objects, Tuning
   view/                      Camera, LocalInput(조작 → GameInput), Draw, Effects(틱 이벤트 → 화면 효과) (sim/ 상태는 읽기만)
   app/                       GameSession(한 판 진행, GameInstance 구현), main.cpp(출시 exe), GameModule.cpp(에디터 DLL 진입점)
 mealkit.project                엔진 저장소를 예제 게임 프로젝트로 열 때 쓰는 프로젝트 파일

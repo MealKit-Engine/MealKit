@@ -48,15 +48,20 @@ void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha,
         out.add(box, {lerp(a.position, b.position, alpha), kPropColors[b.colorIndex % kPropColorCount],
                       nlerp(a.rotation, b.rotation, alpha), b.halfExtents * 2.0f, 0});
     }
-    for (u32 p = 0; p < current.playerCount; ++p) {
-        const Player& a = previous.players[p];
-        const Player& b = current.players[p];
+    view.facing.resize(current.pawns.capacity(), 0.0f);
+    for (auto [id, b] : current.pawns) {
+        const Pawn* before = previous.pawns.get(id); // 이번 틱에 생긴 Pawn은 직전 상태가 없다
+        const Pawn& a = before ? *before : b;
         const Vec3 pos = lerp(a.position, b.position, alpha);
-        if (b.velocity.x * b.velocity.x + b.velocity.z * b.velocity.z > 0.25f) view.facing[p] = std::atan2(b.velocity.x, b.velocity.z);
-        const Quat facing = quatFromAxisAngle({0, 1, 0}, view.facing[p]);
-        out.add(box, {pos, kPlayerColors[p], facing, {0.8f, kPlayerHalfHeight * 2, 0.8f}, 0});
+        f32& yaw = view.facing[id.slot];
+        if (!before) yaw = 0.0f;
+        if (b.velocity.x * b.velocity.x + b.velocity.z * b.velocity.z > 0.25f) yaw = std::atan2(b.velocity.x, b.velocity.z);
+        const Quat facing = quatFromAxisAngle({0, 1, 0}, yaw);
+        const u8 player = pawnPlayer(current, b);
+        const u32 color = player != kNoPlayer ? kPlayerColors[player % net::kMaxPlayers] : render::rgba(150, 150, 160);
+        out.add(box, {pos, color, facing, {0.8f, kPlayerHalfHeight * 2, 0.8f}, 0});
         out.add(box, {pos + rotate(facing, Vec3{0, 0.45f, 0.4f}), render::rgba(30, 30, 36), facing, {0.5f, 0.18f, 0.12f}, 0});
-        if (p == localPlayer) { // 내 캐릭터 표시
+        if (player == localPlayer) { // 내 캐릭터 표시
             const Quat spin = quatFromAxisAngle({0, 1, 0}, static_cast<f32>(now) * 3.0f);
             out.add(box, {pos + Vec3{0, 1.6f, 0}, render::rgba(255, 230, 80), spin, {0.3f, 0.3f, 0.3f}, 0});
         }

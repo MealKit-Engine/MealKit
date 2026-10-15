@@ -62,16 +62,24 @@ void World::reset(u64 seed, u32 playerCount, u32 propCount, u32 propCapacity, co
     spawns.clear();
     state = WorldState{};
     state.playerCount = playerCount;
+    const u32 controllers = playerCount + tuning.aiPawns;
+    state.controllers.init(controllers);
+    state.pawns.init(controllers * 2); // 리스폰 대기 0틱이면 지우는 Pawn과 새 Pawn이 한 틱에 같이 있다
     state.props.init(propCapacity);
+    state.aiRng = mealkit::Pcg32(seed ^ 0x9E3779B97F4A7C15ull, 7);
     events.clear();
 
-    // 바디 생성 순서 고정: 씬 → 플레이어 → 상자
+    // 바디 생성 순서 고정: 씬 → Pawn → 상자
     loadScene(*this, scene, models);
-    spawnPlayers(*this);
+    createControllers(*this);
+    state.controllers.endTick();
+    respawnPawns(*this); // 리스폰 대기가 0인 컨트롤러 = 전부: 첫 Pawn
+    state.pawns.endTick();
     spawnProps(*this, seed, propCount);
     state.props.endTick(); // 처음 만든 상자도 0틱부터 순회에 나온다
-    sensePlayers(*this);
+    sensePawns(*this);
     senseProps(*this);
+    events.clear(); // 시작 때 만든 Pawn의 스폰 이벤트는 보내지 않는다
 }
 
 void World::setTuning(const Tuning& value) {
@@ -84,14 +92,17 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
     for (u32 i = 0; i < state.playerCount; ++i) std::memcpy(&inputs[i], tickInputs.players[i].bytes, sizeof(GameInput));
     events.clear();
 
-    movePlayers(*this);
+    respawnPawns(*this);
+    controlPawns(*this);
     usePads(*this);
     physics.step(kTickDt, 2); // 30Hz 틱을 물리 2단계로 나눠 안정성을 높인다
-    respawnFallenPlayers(*this);
+    removeFallenPawns(*this);
     recoverFallenProps(*this);
-    sensePlayers(*this);
+    sensePawns(*this);
     senseProps(*this);
-    // 이번 틱에 지운 상자의 바디를 슬롯 순서로 지운다
+    // 틱 끝: 이번 틱에 지운 객체의 바디를 슬롯 순서로 지우고, 이번 틱에 만든 객체를 다음 틱부터 순회에 넣는다
+    state.controllers.endTick();
+    state.pawns.endTick([this](Pawn& pawn) { physics.destroy(pawn.body); });
     state.props.endTick([this](Prop& prop) { physics.destroy(prop.body); });
     ++state.tick;
 }

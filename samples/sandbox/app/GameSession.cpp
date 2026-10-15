@@ -97,10 +97,16 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     const f32 alpha = m_started ? std::clamp(static_cast<f32>(m_accumulator / kTickDt), 0.0f, 1.0f) : 1.0f;
     const WorldState& current = m_world.state;
 
-    Vec3 focus{0.0f, 1.0f, 0.0f};
-    if (m_started && localPlayer < current.playerCount)
-        focus = lerp(m_previous.players[localPlayer].position, current.players[localPlayer].position, alpha) + Vec3{0, 0.8f, 0};
-    m_camera.apply(focus, ctx.viewport, frame);
+    // 카메라는 내가 빙의한 Pawn을 따라간다. 리스폰을 기다리는 동안은 마지막 자리에 머문다 (관전).
+    if (m_started && localPlayer < current.playerCount) {
+        const Controller* c = current.controllers.get(current.slots[localPlayer].controller);
+        const Pawn* pawn = c ? current.pawns.get(c->pawn) : nullptr;
+        if (pawn) {
+            const Pawn* before = m_previous.pawns.get(c->pawn);
+            m_focus = lerp(before ? before->position : pawn->position, pawn->position, alpha) + Vec3{0, 0.8f, 0};
+        }
+    }
+    m_camera.apply(m_focus, ctx.viewport, frame);
     applyEnvironment(m_scene.environment, frame);
 
     drawScene(m_scene, ctx.models, frame.cameraPos, out);
