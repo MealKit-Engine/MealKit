@@ -2,6 +2,7 @@
 
 #include "mealkit/core/Clock.h"
 #include "mealkit/core/Profile.h"
+#include "mealkit/game/GameData.h"
 #include "mealkit/platform/Window.h"
 
 #include <algorithm>
@@ -15,9 +16,12 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     const net::LockstepSession& session = ctx.session;
     m_scene = scene;
     m_options = options;
+    Tuning tuning;
+    game::loadTuning(reflect::typeOf<Tuning>(), &tuning, options.tuningPath);
     // 상자는 매치 중에 늘지 않으므로 Pool 용량 = 상자 수
     const u32 propCount = session.matchData();
-    m_world.reset(session.seed(), session.playerCount(), propCount, propCount, m_scene, ctx.models, options.physicsThreads);
+    m_world.reset(session.seed(), session.playerCount(), propCount, propCount, tuning, m_scene, ctx.models,
+                  options.physicsThreads);
     m_previous = m_world.state;
     m_started = true;
     m_finished = false;

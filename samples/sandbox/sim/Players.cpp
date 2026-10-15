@@ -7,10 +7,6 @@
 namespace sandbox {
 namespace {
 
-constexpr f32 kPlayerSpeed = 7.0f;
-constexpr f32 kJumpSpeed = 8.0f;
-constexpr u32 kPushCooldownTicks = 15;
-
 // 씬에 스폰 지점이 없을 때 쓰는 기본 위치 (삼각함수 대신 고정 테이블)
 constexpr Vec3 kDefaultSpawns[mealkit::net::kMaxPlayers] = {
     {-6, kPlayerHalfHeight, -6}, {6, kPlayerHalfHeight, 6},  {6, kPlayerHalfHeight, -6}, {-6, kPlayerHalfHeight, 6},
@@ -51,17 +47,18 @@ void movePlayers(World& world) {
         const f32 wishLen2 = mealkit::lengthSq(wish);
         if (wishLen2 > 1.0f) wish = wish / std::sqrt(wishLen2);
 
+        const Tuning& t = world.tuning;
         Vec3 v = world.physics.linearVelocity(id);
-        const f32 accel = std::min(1.0f, (p.grounded ? 12.0f : 3.0f) * kTickDt);
-        v.x += (wish.x * kPlayerSpeed - v.x) * accel;
-        v.z += (wish.z * kPlayerSpeed - v.z) * accel;
-        if (p.grounded && (in.buttons & kButtonJump) && v.y < 1.0f) v.y = kJumpSpeed;
+        const f32 accel = std::min(1.0f, (p.grounded ? t.groundAccel : t.airAccel) * kTickDt);
+        v.x += (wish.x * t.playerSpeed - v.x) * accel;
+        v.z += (wish.z * t.playerSpeed - v.z) * accel;
+        if (p.grounded && (in.buttons & kButtonJump) && v.y < 1.0f) v.y = t.jumpSpeed;
         world.physics.setLinearVelocity(id, v);
 
         if ((in.buttons & kButtonPush) && p.pushReady.ready(world.state.tick)) {
-            p.pushReady.start(world.state.tick, kPushCooldownTicks);
+            p.pushReady.start(world.state.tick, t.pushCooldownTicks);
             pushProps(world, p.position);
-            world.events.push({EventKind::Push, static_cast<u8>(i), p.position});
+            world.events.push({EventKind::Push, static_cast<u8>(i), p.position, t.pushRadius});
         }
     }
 }
@@ -83,7 +80,7 @@ void usePads(World& world) {
             v.y = pad.power;
             world.physics.setLinearVelocity(body, v);
             pad.ready.start(tick, pad.cooldownTicks);
-            world.events.push({EventKind::Bounce, static_cast<u8>(i), {pad.center.x, top, pad.center.z}});
+            world.events.push({EventKind::Bounce, static_cast<u8>(i), {pad.center.x, top, pad.center.z}, 2.0f});
             break;
         }
     }

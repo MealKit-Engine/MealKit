@@ -14,8 +14,6 @@ using mealkit::physics::BodyDesc;
 using mealkit::physics::Motion;
 namespace scene = mealkit::scene;
 
-constexpr Vec3 kGravity{0.0f, -20.0f, 0.0f};
-
 // 씬의 충돌 상자(정적), 스폰 지점, 점프대
 void loadScene(World& world, const scene::Scene& scene, mealkit::asset::ModelCache& models) {
     u32 padCount = 0;
@@ -56,10 +54,11 @@ void loadScene(World& world, const scene::Scene& scene, mealkit::asset::ModelCac
 
 } // namespace
 
-void World::reset(u64 seed, u32 playerCount, u32 propCount, u32 propCapacity, const mealkit::scene::Scene& scene,
-                  mealkit::asset::ModelCache& models, u32 physicsThreads) {
+void World::reset(u64 seed, u32 playerCount, u32 propCount, u32 propCapacity, const Tuning& tuningValue,
+                  const scene::Scene& scene, mealkit::asset::ModelCache& models, u32 physicsThreads) {
     physics.init(16384, physicsThreads);
-    physics.setGravity(kGravity);
+    tuning = tuningValue;
+    physics.setGravity(tuning.gravity);
     spawns.clear();
     state = WorldState{};
     state.playerCount = playerCount;
@@ -73,6 +72,11 @@ void World::reset(u64 seed, u32 playerCount, u32 propCount, u32 propCapacity, co
     state.props.endTick(); // 처음 만든 상자도 0틱부터 순회에 나온다
     sensePlayers(*this);
     senseProps(*this);
+}
+
+void World::setTuning(const Tuning& value) {
+    tuning = value;
+    physics.setGravity(tuning.gravity);
 }
 
 void World::step(const mealkit::net::TickInputs& tickInputs) {

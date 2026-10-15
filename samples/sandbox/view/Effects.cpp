@@ -15,8 +15,8 @@ constexpr u32 kShockwaveSegments = 16;
 
 void Effects::onEvent(const GameEvent& event, f64 now) {
     switch (event.kind) {
-    case EventKind::Push: shockwaves.push_back({event.position - Vec3{0.0f, kPlayerHalfHeight - 0.05f, 0.0f}, now, kPushRadius}); break;
-    case EventKind::Bounce: shockwaves.push_back({event.position + Vec3{0.0f, 0.05f, 0.0f}, now, 2.0f}); break;
+    case EventKind::Push: shockwaves.push_back({event.position - Vec3{0.0f, kPlayerHalfHeight - 0.05f, 0.0f}, now, event.radius}); break;
+    case EventKind::Bounce: shockwaves.push_back({event.position + Vec3{0.0f, 0.05f, 0.0f}, now, event.radius}); break;
     }
 }
 

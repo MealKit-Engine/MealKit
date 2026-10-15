@@ -1,0 +1,12 @@
+# MealKit tuning (sandbox::Tuning). 에디터 [튜닝] 패널에서 고친다.
+playerSpeed 7
+groundAccel 12
+airAccel 3
+jumpSpeed 8
+gravity 0 -20 0
+pushCooldownTicks 15
+pushRadius 7
+pushSpeed 18
+pushLift 7
+pushSpin 8
+propDensity 200

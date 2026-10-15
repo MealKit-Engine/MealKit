@@ -22,6 +22,8 @@ namespace sandbox {
 
 class GameSession final : public mealkit::game::GameInstance {
 public:
+    using TuningType = Tuning; // 에디터 [튜닝] 패널 (MEALKIT_GAME_MODULE이 읽는다)
+
     GameSession() = default;
     GameSession(const GameSession&) = delete;
     GameSession& operator=(const GameSession&) = delete;
@@ -39,6 +41,7 @@ public:
     bool finished() const override { return m_finished; }
     bool captureDue() override;
     mealkit::f64 takeSimMsPerTick() override;
+    void setTuning(const void* tuning) override { m_world.setTuning(*static_cast<const Tuning*>(tuning)); }
 
 private:
     World m_world;

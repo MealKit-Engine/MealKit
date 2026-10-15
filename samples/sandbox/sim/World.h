@@ -9,6 +9,7 @@
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
 #include "sim/Objects.h"
+#include "sim/Tuning.h"
 
 #include <vector>
 
@@ -31,7 +32,6 @@ inline constexpr f32 kTickDt = 1.0f / kTickRate;
 inline constexpr f32 kKillPlaneY = -30.0f;
 inline constexpr f32 kPlayerHalfHeight = 0.9f; // 캡슐 전체 높이 1.8m
 inline constexpr f32 kPlayerRadius = 0.45f;
-inline constexpr f32 kPushRadius = 7.0f; // 밀치기 범위 (화면 효과도 같은 값을 쓴다)
 inline constexpr u32 kPropColorCount = 6; // 색 자체는 화면 쪽(view/Draw.cpp)이 정한다
 
 inline constexpr u8 kButtonJump = 1;
@@ -79,6 +79,7 @@ struct GameEvent {
     EventKind kind = EventKind::Push;
     u8 player = 0;
     Vec3 position;
+    f32 radius = 0.0f; // 효과 크기 (밀치기 범위 등)
 };
 inline constexpr u32 kMaxEventsPerTick = 64;
 
@@ -100,14 +101,17 @@ struct World {
     // physicsThreads = 0 이면 코어 수에 맞춘다 (결과는 스레드 수와 무관하다).
     // 모델이 있는 충돌 물체는 모델 정점의 볼록 껍질로 충돌한다.
     // propCapacity: 상자 Pool 용량 (propCount 이상). 매치 중에는 바뀌지 않는다.
-    void reset(u64 seed, u32 playerCount, u32 propCount, u32 propCapacity, const mealkit::scene::Scene& scene,
-               mealkit::asset::ModelCache& models, u32 physicsThreads = 0);
+    void reset(u64 seed, u32 playerCount, u32 propCount, u32 propCapacity, const Tuning& tuning,
+               const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, u32 physicsThreads = 0);
+    // 매치 도중 튜닝을 바꾼다 (에디터 혼자 플레이 전용: 멀티플레이에서는 피어마다 달라지면 디싱크)
+    void setTuning(const Tuning& value);
     void step(const mealkit::net::TickInputs& inputs);
     u64 hash() const;
     u32 activeBodies() const { return physics.activeBodyCount(); }
 
     // 매치 시작 때 정해지는 데이터
     std::vector<Vec3> spawns;
+    Tuning tuning;
 
     // 상태
     WorldState state;

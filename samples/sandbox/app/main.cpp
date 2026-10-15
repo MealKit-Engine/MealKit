@@ -13,6 +13,7 @@
 #include "mealkit/core/Clock.h"
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Profile.h"
+#include "mealkit/game/GameData.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/platform/Paths.h"
 #include "mealkit/platform/Steam.h"
@@ -38,6 +39,7 @@ struct Options {
     u16 port = 27015;
     std::string joinAddress;
     std::string scenePath;
+    std::string tuningPath;
     u32 maxPlayers = 4;
     u32 bodies = 2000;
     u32 inputDelay = 3;
@@ -64,6 +66,7 @@ void printUsage() {
         "  --steam                host a Steam friends-only lobby (invite with I or Shift+Tab)\n"
         "  --steam-join <lobby>   join a Steam lobby by id (invites from Steam join automatically)\n"
         "  --scene <file>         scene to play (default assets/scenes/arena.scene)\n"
+        "  --tuning <file>        tuning values (default assets/game.tuning)\n"
         "  --players <n>          max players when hosting (default 4, max 8)\n"
         "  --bodies <n>           physics bodies (default 2000, set by host)\n"
         "  --delay <ticks>        input delay in 33ms ticks (default 3)\n"
@@ -104,6 +107,7 @@ bool parseArgs(int argc, char** argv, Options& o) {
             o.mode = Options::Mode::SteamJoin;
             o.steamLobby = std::strtoull(v, nullptr, 10);
         } else if (a == "--scene" && next(v)) o.scenePath = v;
+        else if (a == "--tuning" && next(v)) o.tuningPath = v;
         else if (a == "--players" && next(v)) o.maxPlayers = static_cast<u32>(std::atoi(v));
         else if (a == "--bodies" && next(v)) o.bodies = static_cast<u32>(std::atoi(v));
         else if (a == "--delay" && next(v)) o.inputDelay = static_cast<u32>(std::atoi(v));
@@ -177,8 +181,10 @@ int main(int argc, char** argv) {
     models.setRenderer(&renderer);
 
     net::LockstepSession session;
-    // 실행 파일 + 씬 + 모델 파일이 모두 같아야 접속할 수 있다
-    session.setContentHash(scene.contentHash(&reflect::moduleObjectTypes()) ^ models.hashModels(scene));
+    // 실행 파일 + 씬 + 모델 파일 + 튜닝이 모두 같아야 접속할 수 있다
+    sandbox::Tuning tuning;
+    game::loadTuning(reflect::typeOf<sandbox::Tuning>(), &tuning, opt.tuningPath);
+    session.setContentHash(game::contentHash(scene, models, &reflect::moduleObjectTypes(), &reflect::typeOf<sandbox::Tuning>(), &tuning));
     const u64 seed = opt.seed ? opt.seed : static_cast<u64>(std::time(nullptr));
     switch (opt.mode) {
     case Options::Mode::Offline:
@@ -217,6 +223,7 @@ int main(int argc, char** argv) {
     gameOptions.capture = !opt.capturePath.empty();
     gameOptions.captureTick = opt.captureTick;
     gameOptions.physicsThreads = opt.physicsThreads;
+    gameOptions.tuningPath = opt.tuningPath;
 
     FrameLimiter limiter;
     limiter.setTargetFps(opt.vsync ? 0.0 : opt.fpsCap);

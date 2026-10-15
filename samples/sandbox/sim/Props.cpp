@@ -9,7 +9,6 @@
 namespace sandbox {
 namespace {
 
-constexpr f32 kPropDensity = 200.0f; // kg/m³: 플레이어(80kg)가 밀 수 있을 만큼 가볍게
 
 } // namespace
 
@@ -26,23 +25,24 @@ void spawnProps(World& world, u64 seed, u32 count) {
         d.position = b.position;
         d.friction = 0.6f;
         d.restitution = 0.15f;
-        d.mass = std::max(5.0f, kPropDensity * 8.0f * b.halfExtents.x * b.halfExtents.y * b.halfExtents.z);
+        d.mass = std::max(5.0f, world.tuning.propDensity * 8.0f * b.halfExtents.x * b.halfExtents.y * b.halfExtents.z);
         b.body = world.physics.createBox(b.halfExtents, d);
         world.state.props.create(b);
     }
 }
 
 void pushProps(World& world, const Vec3& center) {
+    const Tuning& t = world.tuning;
     for (auto [id, prop] : world.state.props) {
         const Vec3 d = prop.position - center;
         const f32 dist2 = mealkit::lengthSq(d);
-        if (dist2 >= kPushRadius * kPushRadius) continue;
+        if (dist2 >= t.pushRadius * t.pushRadius) continue;
         const f32 dist = std::sqrt(dist2);
         const Vec3 dir = dist > 1e-4f ? d / dist : Vec3{0, 1, 0};
-        const f32 strength = 1.0f - dist / kPushRadius;
-        world.physics.addLinearVelocity(prop.body, dir * (18.0f * strength) + Vec3{0.0f, 7.0f * strength, 0.0f});
+        const f32 strength = 1.0f - dist / t.pushRadius;
+        world.physics.addLinearVelocity(prop.body, dir * (t.pushSpeed * strength) + Vec3{0.0f, t.pushLift * strength, 0.0f});
         world.physics.setAngularVelocity(prop.body,
-                                         world.physics.angularVelocity(prop.body) + Vec3{dir.z, 0.0f, -dir.x} * (8.0f * strength));
+                                         world.physics.angularVelocity(prop.body) + Vec3{dir.z, 0.0f, -dir.x} * (t.pushSpin * strength));
     }
 }
 
