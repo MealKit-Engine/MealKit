@@ -14,7 +14,7 @@ namespace sandbox {
 
 void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const game::PlayOptions& options) {
     const net::LockstepSession& session = ctx.session;
-    m_scene = scene;
+    m_scene = scene::flattened(scene); // 부모·자식 계층을 월드 좌표로 펼친다 (시뮬레이션과 그리기는 평평한 목록만 본다)
     m_options = options;
     Tuning tuning;
     game::loadTuning(reflect::typeOf<Tuning>(), &tuning, options.tuningPath);

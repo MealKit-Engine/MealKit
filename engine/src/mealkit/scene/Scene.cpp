@@ -122,6 +122,8 @@ u64 Scene::contentHash(const TypeList* gameTypes) const {
     for (const Entity& e : entities) {
         const reflect::TypeInfo* type = findType(e.type, gameTypes);
         if (type && (type->flags & reflect::kObjectCosmetic)) continue;
+        h.add(e.id);
+        h.add(e.parent);
         h.bytes(e.type.data(), e.type.size() + 1);
         h.add(e.position);
         h.add(e.rotation);
@@ -155,6 +157,7 @@ bool save(const Scene& scene, const std::string& path) {
     fprintf(f, "fog %.9g %.9g %.9g %.9g\n", env.fogColor.x, env.fogColor.y, env.fogColor.z, env.fogDensity);
     for (const Entity& e : scene.entities) {
         fprintf(f, "\nentity\nid %u\nname %s\nkind %s\n", e.id, e.name.c_str(), e.type.c_str());
+        if (e.parent) fprintf(f, "parent %u\n", e.parent);
         writeVec3(f, "position", e.position);
         fprintf(f, "rotation %.9g %.9g %.9g %.9g\n", e.rotation.x, e.rotation.y, e.rotation.z, e.rotation.w);
         writeVec3(f, "scale", e.scale);
@@ -209,6 +212,7 @@ bool load(Scene& out, const std::string& path, std::string* error) {
             inEntity = false;
         } else if (inEntity) {
             if (std::strcmp(key, "id") == 0) e.id = static_cast<u32>(std::strtoul(rest, nullptr, 10));
+            else if (std::strcmp(key, "parent") == 0) e.parent = static_cast<u32>(std::strtoul(rest, nullptr, 10));
             else if (std::strcmp(key, "name") == 0) e.name = rest;
             else if (std::strcmp(key, "kind") == 0) {
                 ok = validTypeName(rest);
@@ -260,8 +264,96 @@ bool load(Scene& out, const std::string& path, std::string* error) {
     for (Entity& ent : scene.entities)
         if (ent.id == 0) ent.id = ++maxId;
     scene.nextId = maxId + 1;
+    // 없는 부모나 순환은 최상위로 (손으로 고친 파일 대비)
+    for (Entity& ent : scene.entities) {
+        if (!ent.parent) continue;
+        bool bad = !scene.find(ent.parent);
+        for (u32 p = ent.parent, depth = 0; !bad && p; ++depth) {
+            const Entity* parent = scene.find(p);
+            if (!parent || p == ent.id || depth > scene.entities.size()) bad = true;
+            else p = parent->parent;
+        }
+        if (bad) {
+            MEALKIT_WARN("%s: entity %u has an invalid parent %u - moved to the top level", path.c_str(), ent.id, ent.parent);
+            ent.parent = 0;
+        }
+    }
     out = std::move(scene);
     return true;
+}
+
+Transform localTransform(const Entity& e) { return {e.position, e.rotation, e.scale}; }
+
+namespace {
+
+Transform combine(const Transform& parent, const Transform& local) {
+    const Vec3 scaled{local.position.x * parent.scale.x, local.position.y * parent.scale.y, local.position.z * parent.scale.z};
+    return {parent.position + rotate(parent.rotation, scaled), normalize(parent.rotation * local.rotation),
+            {parent.scale.x * local.scale.x, parent.scale.y * local.scale.y, parent.scale.z * local.scale.z}};
+}
+
+Quat conjugate(Quat q) { return {-q.x, -q.y, -q.z, q.w}; }
+
+f32 safeDiv(f32 a, f32 b) { return b > 1e-6f || b < -1e-6f ? a / b : a; }
+
+} // namespace
+
+Transform worldTransform(const Scene& scene, const Entity& e) {
+    Transform t = localTransform(e);
+    u32 parentId = e.parent;
+    for (size_t depth = 0; parentId && depth <= scene.entities.size(); ++depth) {
+        const Entity* parent = scene.find(parentId);
+        if (!parent) break;
+        t = combine(localTransform(*parent), t);
+        parentId = parent->parent;
+    }
+    return t;
+}
+
+void setWorldTransform(const Scene& scene, Entity& e, const Transform& world) {
+    const Entity* parent = e.parent ? scene.find(e.parent) : nullptr;
+    if (!parent) {
+        e.position = world.position;
+        e.rotation = world.rotation;
+        e.scale = world.scale;
+        return;
+    }
+    const Transform p = worldTransform(scene, *parent);
+    const Quat inv = conjugate(p.rotation);
+    const Vec3 rel = rotate(inv, world.position - p.position);
+    e.position = {safeDiv(rel.x, p.scale.x), safeDiv(rel.y, p.scale.y), safeDiv(rel.z, p.scale.z)};
+    e.rotation = normalize(inv * world.rotation);
+    e.scale = {safeDiv(world.scale.x, p.scale.x), safeDiv(world.scale.y, p.scale.y), safeDiv(world.scale.z, p.scale.z)};
+}
+
+bool isDescendant(const Scene& scene, u32 id, u32 ancestor) {
+    for (size_t depth = 0; id && depth <= scene.entities.size(); ++depth) {
+        if (id == ancestor) return true;
+        const Entity* e = scene.find(id);
+        if (!e) return false;
+        id = e->parent;
+    }
+    return false;
+}
+
+std::vector<u32> subtree(const Scene& scene, u32 id) {
+    std::vector<u32> ids;
+    for (const Entity& e : scene.entities)
+        if (isDescendant(scene, e.id, id)) ids.push_back(e.id);
+    return ids;
+}
+
+Scene flattened(const Scene& scene) {
+    Scene out = scene;
+    for (size_t i = 0; i < scene.entities.size(); ++i) {
+        const Transform world = worldTransform(scene, scene.entities[i]);
+        Entity& e = out.entities[i];
+        e.position = world.position;
+        e.rotation = world.rotation;
+        e.scale = world.scale;
+        e.parent = 0;
+    }
+    return out;
 }
 
 Scene makeDefault() {

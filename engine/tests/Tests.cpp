@@ -7,6 +7,8 @@
 #include "mealkit/core/Random.h"
 #include "mealkit/core/Reflect.h"
 #include "mealkit/physics/PhysicsWorld.h"
+#include "mealkit/platform/Paths.h"
+#include "mealkit/scene/Scene.h"
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
@@ -287,6 +289,45 @@ TEST_CASE(physics_snapshot) {
     TEST_CHECK(bodies[3] == newBody); // 다시 만든 바디의 id도 같다
     TEST_CHECK(w.bodyCount() == 61);
     std::printf("  physics snapshot: %zu bytes for 61 bodies\n", snap.byteSize());
+}
+
+bool near(Vec3 a, Vec3 b) { return std::fabs(a.x - b.x) < 1e-4f && std::fabs(a.y - b.y) < 1e-4f && std::fabs(a.z - b.z) < 1e-4f; }
+
+TEST_CASE(scene_hierarchy) {
+    scene::Scene s;
+    s.entities.reserve(8); // add()가 돌려준 참조를 계속 쓴다
+    scene::Entity& parent = s.add(scene::kTypeSolid, "parent");
+    parent.position = {10.0f, 0.0f, 0.0f};
+    parent.rotation = detYawQuat(kDetHalfPi); // +x → -z ... 아래에서 계산으로 확인
+    parent.scale = {2.0f, 2.0f, 2.0f};
+    scene::Entity& child = s.add(scene::kTypeSolid, "child");
+    child.parent = parent.id;
+    child.position = {1.0f, 0.0f, 0.0f};
+    scene::Entity& grandchild = s.add(scene::kTypeSpawn, "grandchild");
+    grandchild.parent = child.id;
+    grandchild.position = {0.0f, 1.0f, 0.0f};
+
+    const Vec3 expected = Vec3{10.0f, 0.0f, 0.0f} + rotate(s.entities[0].rotation, Vec3{2.0f, 0.0f, 0.0f});
+    const scene::Transform cw = scene::worldTransform(s, s.entities[1]);
+    TEST_CHECK(near(cw.position, expected) && near(cw.scale, {2.0f, 2.0f, 2.0f}));
+    TEST_CHECK(near(scene::worldTransform(s, s.entities[2]).position, expected + Vec3{0.0f, 2.0f, 0.0f}));
+
+    scene::setWorldTransform(s, s.entities[1], {{0.0f, 4.0f, 0.0f}, {}, {1.0f, 1.0f, 1.0f}});
+    TEST_CHECK(near(scene::worldTransform(s, s.entities[1]).position, {0.0f, 4.0f, 0.0f}));
+
+    TEST_CHECK(scene::isDescendant(s, 3, 1) && !scene::isDescendant(s, 1, 3) && scene::subtree(s, 2).size() == 2);
+    const scene::Scene flat = scene::flattened(s);
+    TEST_CHECK(flat.entities[2].parent == 0 && near(flat.entities[2].position, scene::worldTransform(s, s.entities[2]).position));
+
+    // 저장 → 불러오기: 부모 유지, 잘못된 부모는 최상위로
+    s.entities[0].parent = 99;
+    const std::string path = executableDirectory() + "\\test_hierarchy.scene";
+    TEST_CHECK(scene::save(s, path));
+    scene::Scene loaded;
+    TEST_CHECK(scene::load(loaded, path));
+    TEST_CHECK(loaded.entities.size() == 3 && loaded.entities[0].parent == 0 && loaded.entities[2].parent == 2);
+    TEST_CHECK(loaded.contentHash() == [&] { s.entities[0].parent = 0; return s.contentHash(); }());
+    removeFile(path);
 }
 
 } // namespace

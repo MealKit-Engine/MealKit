@@ -24,6 +24,7 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes();
 
 struct Entity {
     u32 id = 0;
+    u32 parent = 0; // 부모 물체 id (0 = 최상위). 위치·회전·크기는 부모 기준이다
     std::string name;
     std::string type = kTypeSolid;
     Vec3 position;
@@ -66,6 +67,27 @@ struct Scene {
     // gameTypes: 게임이 선언한 종류 (없으면 게임 종류의 모든 필드를 넣는다).
     u64 contentHash(const TypeList* gameTypes = nullptr) const;
 };
+
+// ---------------------------------------------------------------- 계층 (부모·자식)
+// 에디터에서만 트리로 다룬다. 게임은 불러올 때 flattened()로 월드 좌표로 펼쳐 평평한 배열로 쓴다 (속도·결정론 유지).
+// 크기는 축별로 곱한다 (회전된 부모의 비균등 크기에서 생기는 찌그러짐은 버린다).
+
+struct Transform {
+    Vec3 position;
+    Quat rotation;
+    Vec3 scale{1.0f, 1.0f, 1.0f};
+};
+
+Transform localTransform(const Entity& e);
+Transform worldTransform(const Scene& scene, const Entity& e);
+// 월드 변환을 주면 부모 기준 값으로 바꿔 넣는다
+void setWorldTransform(const Scene& scene, Entity& e, const Transform& world);
+// id가 ancestor의 자손인가 (자기 자신 포함)
+bool isDescendant(const Scene& scene, u32 id, u32 ancestor);
+// id와 그 자손들의 id (entities 순서)
+std::vector<u32> subtree(const Scene& scene, u32 id);
+// 모든 물체를 월드 좌표로 펼친 사본 (parent = 0, 순서 그대로). 게임이 매치를 시작할 때 쓴다.
+Scene flattened(const Scene& scene);
 
 // 종류 이름으로 설명을 찾는다 (기본 종류 → gameTypes 순서). 없으면 nullptr.
 const reflect::TypeInfo* findType(const std::string& name, const TypeList* gameTypes);
