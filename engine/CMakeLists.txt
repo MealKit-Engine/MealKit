@@ -48,6 +48,7 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/core/Clock.h
     src/mealkit/core/Clock.cpp
     src/mealkit/core/Math.h
+    src/mealkit/core/DetMath.h
     src/mealkit/core/Random.h
     src/mealkit/core/Hash.h
     src/mealkit/core/Profile.h
@@ -121,6 +122,12 @@ target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid ws2_32 windowscodecs ole3
 add_executable(mealkit_simcheck tools/SimCheck.cpp)
 target_compile_options(mealkit_simcheck PRIVATE /W4 /permissive- /utf-8)
 set_target_properties(mealkit_simcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tools)
+
+# --- 엔진 단위 테스트: 엔진 저장소 빌드에만 (tools\check.ps1이 Release와 Editor 빌드에서 돌린다) ---
+if(MEALKIT_IS_ENGINE)
+    add_executable(mealkit_tests tests/Tests.cpp tests/TestRegistry.h)
+    target_link_libraries(mealkit_tests PRIVATE mealkit)
+endif()
 
 # --- Steamworks (선택): SDK를 third_party/steamworks/sdk 에 풀면 자동으로 켜진다 ---
 set(MEALKIT_STEAMWORKS_SDK ${MEALKIT_THIRD_PARTY}/steamworks/sdk)

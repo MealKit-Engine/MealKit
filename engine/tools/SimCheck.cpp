@@ -246,8 +246,8 @@ private:
 // ---------------------------------------------------------------- 규칙 메시지
 
 constexpr const char* kMsgMath =
-    "CRT math is not bit-identical across CPUs and compilers. Use +, -, *, / and std::sqrt only, "
-    "or compute the angle in view/ and send it as quantized input";
+    "CRT math is not bit-identical across CPUs and compilers. Use mealkit::detSin/detCos/detAtan2/detQuatFromAxisAngle "
+    "(mealkit/core/DetMath.h), or compute the angle in view/ and send it as quantized input";
 constexpr const char* kMsgRandom = "use mealkit::Pcg32 seeded from the match seed (core/Random.h)";
 constexpr const char* kMsgTime =
     "real time differs between peers. Use the tick number (world.state.tick) and mealkit::sim::TickTimer (mealkit/sim/TickTimer.h)";

@@ -256,7 +256,7 @@ tools/                       build_project.bat (공통 빌드), new_project.ps1 
 (CRT 수학 함수, 실제 시간, `rand`, `new`/`delete`, `virtual`, 코루틴·스레드, `unordered_map`, 가변 전역·`static` 변수, 렌더러·플랫폼·`view/`·`app/` 헤더)을 어기면
 `파일(줄,열): error SIMnnn`과 대신 쓸 것을 출력하고 빌드를 멈춘다.
 
-- 사칙연산과 `sqrt`만 쓴다. `sin/cos/atan2/pow/exp` 같은 CRT 함수는 CPU에 따라 다른 경로(FMA)를 탈 수 있다. 방향이 필요하면 입력 단계에서 계산해 양자화해서 보낸다.
+- 사칙연산과 `sqrt`만 쓴다. `sin/cos/atan2/pow/exp` 같은 CRT 함수는 CPU에 따라 다른 경로(FMA)를 탈 수 있다. 각도 계산은 `mealkit/core/DetMath.h`의 `detSin`/`detCos`/`detAtan2`/`detQuatFromAxisAngle`을 쓰거나, 입력 단계에서 계산해 양자화해서 보낸다.
 - 컴파일 옵션은 `/fp:precise`로 고정한다. `/fp:fast`, `/fp:contract`, `/arch:AVX2`는 쓰지 않는다.
 - 난수는 `Pcg32`(시드 기반)만 쓴다.
 - 물리 바디는 모든 피어에서 같은 순서로 만들고 지우고, 힘도 같은 순서로 준다.
