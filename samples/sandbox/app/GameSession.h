@@ -1,5 +1,6 @@
 #pragma once
 
+#include "app/ProjectSettings.h"
 #include "sim/World.h"
 #include "view/Camera.h"
 #include "view/Draw.h"
@@ -23,7 +24,8 @@ namespace sandbox {
 
 class GameSession final : public mealkit::game::GameInstance {
 public:
-    using TuningType = Tuning; // 에디터 [튜닝] 패널 (MEALKIT_GAME_MODULE이 읽는다)
+    using TuningType = Tuning;                   // 에디터 [튜닝] 패널 (MEALKIT_GAME_MODULE이 읽는다)
+    using ProjectSettingsType = ProjectSettings; // 에디터 [프로젝트 설정] 창의 게임 항목
 
     GameSession() = default;
     GameSession(const GameSession&) = delete;

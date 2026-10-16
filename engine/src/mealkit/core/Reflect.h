@@ -23,7 +23,8 @@
 //       MEALKIT_FIELD(f32, power, 12.0f, "점프 힘");
 //   };
 //
-// 필드 타입: bool, 정수·enum, f32, Vec3, Quat, Pool의 Id, 다른 MEALKIT_STRUCT, MEALKIT_ARRAY, sim::Pool<T>.
+// 필드 타입: bool, 정수·enum, f32, Vec3, Quat, Pool의 Id, std::string, 다른 MEALKIT_STRUCT, MEALKIT_ARRAY, sim::Pool<T>.
+// std::string은 설정·튜닝·씬 필드용이다. 시뮬레이션 상태(WorldState, Pool 항목)에는 넣지 않는다(game::Simulation이 검사한다).
 // 기본값에 쉼표가 들어가면 괄호로 감싼다: MEALKIT_FIELD(Vec3, dir, (Vec3{0, 1, 0}), "방향").
 // 필드 순서가 곧 저장·해시 순서다. 선언 사이에 __COUNTER__를 쓰는 다른 매크로를 넣지 않는다.
 namespace mealkit::reflect {
@@ -41,10 +42,12 @@ enum class Kind : u8 {
     Struct,    // MEALKIT_STRUCT
     Array,     // MEALKIT_ARRAY
     Container, // sim::Pool<T>
+    String,    // std::string (텍스트 파일에서는 줄 끝까지, 앞뒤 공백 없음)
 };
 
 enum FieldFlags : u32 {
-    kFieldView = 1u << 0, // 보이기만 하는 값: 콘텐츠 해시에서 뺀다 (MEALKIT_VIEW_FIELD)
+    kFieldView = 1u << 0,     // 보이기만 하는 값: 콘텐츠 해시에서 뺀다 (MEALKIT_VIEW_FIELD)
+    kFieldReadOnly = 1u << 1, // 에디터에서 고치지 않는 값 (도구가 쓴다): 위젯 대신 값만 보여 준다
 };
 
 enum TypeFlags : u32 {
@@ -204,6 +207,7 @@ struct FieldSlot {};
 
 template <class C, class V>
 struct FieldDecl {
+    using Value = V;
     V C::* member;
     const char* name;
     const char* label;
@@ -257,6 +261,8 @@ ValueInfo makeValue() {
         v.kind = Kind::Vec3;
     } else if constexpr (std::is_same_v<V, Quat>) {
         v.kind = Kind::Quat;
+    } else if constexpr (std::is_same_v<V, std::string>) {
+        v.kind = Kind::String;
     } else if constexpr (requires { V::kReflectId; }) {
         v.kind = Kind::Id;
     } else if constexpr (IsStdArray<V>::value) {
@@ -309,6 +315,22 @@ template <class T>
 const TypeInfo& typeOf() {
     static const TypeInfo info = makeType<T>();
     return info;
+}
+
+// V(또는 그 안의 구조체·배열)에 std::string 필드가 있는가. 시뮬레이션 상태는 복사·해시가 바이트 단위라 문자열을 넣지 않는다.
+template <class V>
+constexpr bool hasStringField() {
+    if constexpr (std::is_same_v<V, std::string>) {
+        return true;
+    } else if constexpr (IsStdArray<V>::value) {
+        return hasStringField<typename V::value_type>();
+    } else if constexpr (isReflected<V>) {
+        bool found = false;
+        forEachField<V>([&](auto decl) { found = found || hasStringField<typename decltype(decl)::Value>(); });
+        return found;
+    } else {
+        return false; // Pool 항목은 Pool이 trivially copyable을 검사한다
+    }
 }
 
 // 타입을 아는 쪽(게임 코드)에서 쓰는 편의 함수
@@ -364,6 +386,11 @@ bool registerObjectType() {
 #define MEALKIT_VIEW_FIELD(Type, name, def, label)                                                                     \
     Type name = def;                                                                                                   \
     MEALKIT_DETAIL_DECL(name, label, ::mealkit::reflect::kFieldView)
+
+// 플래그를 직접 주는 필드 (reflect::kFieldView | reflect::kFieldReadOnly 등)
+#define MEALKIT_FIELD_FLAGS(Type, name, def, label, flags)                                                             \
+    Type name = def;                                                                                                   \
+    MEALKIT_DETAIL_DECL(name, label, static_cast<::mealkit::u32>(flags))
 
 #define MEALKIT_ARRAY(Type, count, name, label)                                                                        \
     ::std::array<Type, count> name{};                                                                                  \

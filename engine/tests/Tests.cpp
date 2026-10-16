@@ -5,6 +5,7 @@
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Random.h"
+#include "mealkit/game/ProjectSettings.h"
 #include "mealkit/game/Simulation.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/core/Reflect.h"
@@ -239,6 +240,78 @@ TEST_CASE(reflect) {
     TEST_CHECK(registered);
     reflect::Instance inst(reflect::typeOf<TestPad>());
     TEST_CHECK(static_cast<const TestPad*>(inst.data())->power == 12.0f);
+}
+
+MEALKIT_STRUCT(Named) {
+    MEALKIT_FIELD(std::string, title, "기본 이름", "이름");
+    MEALKIT_FIELD(u32, count, 3, "개수");
+};
+
+MEALKIT_STRUCT(HoldsNamed) {
+    MEALKIT_ARRAY(Named, 2, items, "목록");
+};
+
+static_assert(reflect::hasStringField<Named>() && reflect::hasStringField<HoldsNamed>());
+static_assert(!reflect::hasStringField<Inner>() && !reflect::hasStringField<Outer>());
+
+TEST_CASE(reflect_string) {
+    const reflect::TypeInfo& t = reflect::typeOf<Named>();
+    TEST_CHECK(t.fields[0].value->kind == reflect::Kind::String);
+    Named a;
+    TEST_CHECK(reflect::setFromText(t, &a, "title", "D:\\My Games\\x y") && a.title == "D:\\My Games\\x y");
+    reflect::TextFields text;
+    reflect::toText(t, &a, text);
+    TEST_CHECK(text[0].first == "title" && text[0].second == a.title);
+    Named b;
+    TEST_CHECK(reflect::hashOf(a) != reflect::hashOf(b));
+    reflect::fromText(t, &b, text);
+    TEST_CHECK(b.title == a.title && reflect::hashOf(a) == reflect::hashOf(b));
+    // 길이도 해시에 들어간다 ("ab"+"c" 와 "a"+"bc"가 같지 않게)
+    HoldsNamed x, y;
+    x.items[0].title = "ab";
+    x.items[1].title = "c";
+    y.items[0].title = "a";
+    y.items[1].title = "bc";
+    TEST_CHECK(reflect::hashOf(x) != reflect::hashOf(y));
+    std::vector<std::string> diff;
+    reflect::diffStruct(reflect::typeOf<HoldsNamed>(), &x, &y, diff);
+    TEST_CHECK(diff.size() == 2);
+
+    reflect::ByteWriter w;
+    reflect::saveStruct(t, &a, w);
+    Named c;
+    reflect::ByteReader r(w.data().data(), w.data().size());
+    TEST_CHECK(reflect::loadStruct(t, &c, r) && r.atEnd() && c.title == a.title);
+}
+
+TEST_CASE(project_file) {
+    const std::string path = executableDirectory() + "\\test.project";
+    // 예전 형식(키=값)과 새 형식(경로 값)이 섞여 있어도 읽는다
+    TEST_CHECK(writeTextFile(path, "# header line\r\nname=Old\r\nengine = D:\\My Engine\r\n"
+                                   "scene scenes/b.scene\r\ngame.port 99\r\nfutureKey 1 2\r\n"));
+    game::ProjectFile p;
+    TEST_CHECK(game::loadProjectFile(path, p));
+    TEST_CHECK(p.settings.name == "Old" && p.settings.engine == "D:\\My Engine" && p.settings.scene == "scenes/b.scene");
+    TEST_CHECK(p.gameFields.size() == 1 && p.gameFields[0].first == "port" && p.gameFields[0].second == "99");
+    TEST_CHECK(p.unknownFields.size() == 1 && p.unknownFields[0].second == "1 2");
+    TEST_CHECK(p.header == "# header line\n");
+    TEST_CHECK(game::startSceneAsset(p.settings) == "assets/scenes/b.scene");
+
+    // 저장하면 새 형식, 다시 읽으면 같은 값
+    TEST_CHECK(game::saveProjectFile(path, p));
+    std::string saved;
+    TEST_CHECK(readTextFile(path, saved) && saved.find("engine D:\\My Engine\n") != std::string::npos &&
+               saved.find("game.port 99\n") != std::string::npos);
+    game::ProjectFile q;
+    TEST_CHECK(game::loadProjectFile(path, q));
+    TEST_CHECK(q.settings.name == "Old" && q.settings.engine == p.settings.engine && q.gameFields == p.gameFields &&
+               q.unknownFields == p.unknownFields && q.header == p.header);
+    removeFile(path);
+
+    // 엔진 항목은 모두 해시 제외: 해시 대상만 콘텐츠 해시에 들어간다
+    game::ProjectSettings other = q.settings;
+    other.engine = "E:\\elsewhere";
+    TEST_CHECK(reflect::hashOf(q.settings, reflect::kFieldView) == reflect::hashOf(other, reflect::kFieldView));
 }
 
 // 같은 조작을 하면서 매 틱 해시를 남긴다. 30틱째에 바디 하나를 지우고 새 바디를 만든다 (복원이 바디 목록 변화도 되돌리는지)

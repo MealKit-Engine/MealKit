@@ -16,6 +16,7 @@ function Get-TemplateTokens([string]$name) {
         "@MEALKIT_ROOT@"     = $MealKitEngine
         "@MEALKIT_ROOT_FWD@" = $MealKitEngine.Replace("\", "/")
         "@ENGINE_VERSION@"   = (Get-MealKitVersion)
+        "@CREATED@"          = (Get-Date -Format "yyyy-MM-dd") # mealkit.project에만 쓴다 (해시하지 않는 파일)
     }
 }
 
@@ -61,11 +62,15 @@ function Write-TemplateManifest([string]$project, [hashtable]$map) {
     Write-TextFile (Join-Path $project $MealKitManifestName) (($lines -join "`r`n") + "`r`n")
 }
 
-# mealkit.project 읽기 (key=value)
+# mealkit.project 한 줄: "경로 값" 또는 예전 형식 "키=값" (mealkit/game/ProjectSettings.cpp와 같은 규칙)
+$MealKitProjectLine = '^\s*([A-Za-z_][A-Za-z0-9_.\[\]]*)(?:\s*=\s*|\s+|$)(.*?)\s*$'
+
+# mealkit.project 읽기 (경로 → 값)
 function Read-ProjectFile([string]$project) {
     $values = [ordered]@{}
     foreach ($line in [IO.File]::ReadAllLines((Join-Path $project "mealkit.project"), $MealKitUtf8)) {
-        if ($line -match '^\s*([A-Za-z]+)\s*=\s*(.*?)\s*$') { $values[$Matches[1]] = $Matches[2] }
+        if ($line -match '^\s*#') { continue }
+        if ($line -match $MealKitProjectLine) { $values[$Matches[1]] = $Matches[2] }
     }
     return $values
 }

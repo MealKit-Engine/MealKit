@@ -3,6 +3,61 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.2 — 1단계 진행 중 (2026-10-16)
+
+### [x] 고도식 프로젝트 관리자 + 에디터 한국어/영어 (완료 2026-10-16)
+- **프로젝트 관리자** (`editor/ProjectManager.cpp`, 고도 프로젝트 관리자를 따름): 위 막대 [만들기](새 프로젝트 창) · [가져오기](폴더를 목록에 더함) · 검색(이름·경로) · 언어 고르기.
+  목록 줄마다 즐겨찾기 별(맨 위로 정렬, 그다음 최근에 고친 순), 게임 아이콘(눌러서 그림 고르기), 게임 이름(눌러서 고치기), 폴더 경로(눌러서 고치기), 오른쪽에 흐리게 개발 시작일·마지막 수정일.
+  더블클릭으로 열기, 오른쪽 클릭 메뉴(열기, 탐색기에서 보기, 아이콘 바꾸기, 목록에서 제거). 창 제목 "MealKit Engine - 프로젝트 매니저". `editor.bat`을 인자 없이 실행하면 뜬다(`editor.bat sample`은 예제 프로젝트).
+- **이름 바꾸기 = exe 이름 바꾸기**: 확인 창 뒤 `tools\rename_project.ps1`을 창 없이 실행한다. `mealkit.project`의 `name` 줄(원래 형식), 템플릿 파일
+  (고치지 않았으면 새 이름으로 다시 채우고 `.mealkit-template` 해시도 새로, 고쳤으면 옛 이름만 바꾸고 "check it" 표시), `source\`의 문자열·주석 안 이름(코드 식별자는 그대로)을 바꾸고 `build\`를 지운다.
+  `export\<옛 이름>`은 남긴다.
+- **폴더 옮기기**: 확인 창 뒤 `build\`(절대 경로가 들어 있다)를 지우고 같은 드라이브면 이름 바꾸기, 아니면 복사 후 지우기. 목록·즐겨찾기 경로를 바꾼다. 옮기기 전에 시작일을 `mealkit.project`에 적는다(폴더 생성 시각이 바뀔 수 있어서).
+  엔진 저장소의 예제 프로젝트는 이름·폴더를 바꿀 수 없다.
+- **아이콘**: 프로젝트 설정 `icon`(기본 `icon.png`, 프로젝트 폴더 기준). 관리자에서 그림(PNG·JPEG·BMP·ICO 등)을 고르면 256px 이하 PNG로 복사한다. 없으면 밀키트 아이콘(`MealKitEditor.exe`의 RCDATA 2번).
+  그림 읽기·쓰기는 WIC(`editor/Image.cpp`), 화면에는 ImGui 사용자 텍스처(`ImGuiLayer::createTexture`/`releaseTexture`). 정사각형이 아니면 가운데를 잘라 보인다.
+- **날짜**: 프로젝트 설정 `created`(읽기 전용, `new_project.ps1`이 `@CREATED@`로 적는다. 없으면 폴더 생성 시각). 수정일은 `build`·`export`·`third_party`·점으로 시작하는 폴더를 뺀 가장 최근 파일 시각.
+- **사용자 파일** (`%LOCALAPPDATA%\MealKit`): `recent_projects.txt`(최대 100개), `favorite_projects.txt`, `editor_settings.txt`(`language ko`). BOM이 붙어 있어도 읽는다.
+- **에디터 글자 번역** (`editor/Strings.h`): 코드에는 영어 원문을 `tr()`/`trl()`/`trf()`로 쓰고 한국어는 `engine/res/strings/ko.txt`(247줄). 기본 언어 한국어, 번역이 없으면 영어.
+  `trl()`은 `번역###원문`이라 언어를 바꿔도 도킹·팝업 ID가 같다(기존 `###Hierarchy` 같은 ID는 그대로라 레이아웃 파일도 이어진다).
+  엔진이 선언한 필드 설명·씬 기본 종류 이름은 영어로 바꾸고 `trData()`로 번역한다. 게임이 선언한 글자는 게임의 언어 그대로. 되감기 오류 메시지(`Simulation.h`)는 영어.
+  `tools\check_strings.ps1`(check.ps1 항목)이 빠진 번역·안 쓰는 줄·printf 형식 차이·에디터 코드의 한글 문자열을 찾는다.
+- **글꼴**: Segoe UI(영문) + 맑은 고딕(한글) + Segoe Fluent Icons/MDL2 Assets(아이콘 글자 `editor::icon::`)를 합친다. 맑은 고딕만 쓸 때 역슬래시가 ₩로 보이던 것이 고쳐졌다.
+- **템플릿**: `mealkit.project`에 `created` 줄. 템플릿이 바뀌어 엔진 버전 0.4.1 → 0.4.2.
+- **검증**: 관리자·에디터 화면을 한국어/영어로 캡처해 확인. 임시 프로젝트로 `rename_project.ps1`을 두 번 돌리고 게임 DLL(`<새 이름>_game.dll`)이 빌드되는 것을 확인. `check.ps1` 통과.
+  관리자 안에서 클릭으로 하는 이름 고치기·폴더 옮기기·아이콘 고르기는 직접 눌러 보지 않았다.
+- **남은 것**: 게임 exe 아이콘(`icon.png` → 출시 빌드 때 `.ico` 리소스). 다른 언어 추가는 `kLanguages`와 `<언어>.txt`만 더하면 된다.
+
+### 에디터 창 모양 (2026-10-16)
+- **제목 표시줄**: `WindowDesc::captionColor`(0xRRGGBB)를 주면 DWM 어두운 제목 표시줄(Windows 10 20H1+)과 제목 표시줄 색(Windows 11)을 켠다.
+  에디터·프로젝트 관리자·참가 창은 `editor::kEditorCaptionColor`(ImGui 메뉴 막대 색)를 쓴다. 게임 창은 기본값(시스템 색) 그대로.
+- **아이콘**: `Window`가 exe의 아이콘 리소스 1번을 창 아이콘으로 쓴다(없으면 Windows 기본). `MealKitEditor.exe`에 `engine/res/MealKitEditor.rc`/`.ico`를 넣었다.
+  아이콘은 `python tools/make_editor_icon.py`(Pillow)로 다시 만든다. 게임 exe 아이콘은 아직 없다(프로젝트가 리소스 1번을 넣으면 그대로 쓰인다).
+
+## v0.4.1 — 1단계 진행 중 (2026-10-16)
+
+### [x] 프로젝트 설정 (`mealkit.project`를 필드 선언으로) (완료 2026-10-16)
+- **구현됨**: 엔진의 `MEALKIT_STRUCT(game::ProjectSettings)`(`mealkit/game/ProjectSettings.h`: `name`, `engine`, `engineVersion`, `scene`)와
+  `game::ProjectFile`(설정 + `game.*` 줄 + 모르는 줄 + 머리 주석). `mealkit.project`는 `.tuning`과 같은 "경로 값" 줄로 쓰고, 예전 "키=값" 줄도 읽는다.
+  모르는 키는 경고하고 저장할 때 그대로 다시 쓴다(새 엔진이 쓴 항목을 잃지 않는다).
+- **게임 항목**: 게임이 `GameClass::ProjectSettingsType`(MEALKIT_STRUCT)을 선언하면 `MEALKIT_GAME_MODULE`이 `GameModule::projectSettingsType`으로 넘긴다(없어도 된다).
+  `kApiVersion` 6 → 7. 파일에서는 `game.` 접두사. 에디터는 게임 DLL을 바꿔 끼울 때 튜닝처럼 값을 텍스트로 보존한다.
+  예제(sandbox)는 `app/ProjectSettings.h`에 `defaultPort`(27015), `defaultMaxPlayers`(4)를 옮겼다(전에는 `main.cpp` 상수).
+- **문자열 필드**: 필드 선언에 `std::string`(`reflect::Kind::String`)을 더했다. 텍스트는 줄 끝까지(앞뒤 공백 없음), 해시는 길이 + 바이트, 스냅샷 저장·복원, 차이 보고, 에디터 입력 칸.
+  시뮬레이션 상태에는 넣을 수 없다: `game::Simulation`이 `reflect::hasStringField<State>()`로 컴파일 때 막는다.
+  `kFieldReadOnly` 플래그와 `MEALKIT_FIELD_FLAGS`를 더했다(에디터가 회색으로 보여 주고 고치지 않는다: 이름·엔진 폴더·엔진 버전은 도구가 관리).
+- **에디터**: [파일] > [프로젝트 설정...] 창(엔진 항목 + 게임 항목, 저장·되돌리기, "지금 씬을 시작 씬으로"). `Ctrl+S`와 출시 빌드 전에 함께 저장한다.
+  창 제목에 "(프로젝트 설정 *)". 업그레이드가 끝나면 도구가 고친 `engine`·`engineVersion`만 다시 읽는다. 자동 테스트용 `--project-settings`.
+- **게임 실행 파일**: `game::loadGameProject()`가 실행 파일 폴더(출시본)나 그 위(개발 중)의 `mealkit.project`를 찾아 읽는다. 시작 씬이 `main.cpp`와 파일 두 곳에 있던 것이 파일 하나로 줄었다.
+  출시 빌드(`MealKitExport.cmake`)가 `mealkit.project`를 exe 옆에 넣는다(개발 PC 경로가 든 `engine`·`engineVersion` 줄은 뺀다).
+- **콘텐츠 해시**: `game::contentHash`가 엔진·게임 프로젝트 설정을 `kFieldView`를 빼고 넣는다. 엔진 공통 항목은 지금 모두 해시 제외(틱레이트 같은 시뮬레이션 항목이 생기면 해시 대상으로 선언한다).
+  에디터 여러 명 플레이는 디스크에 저장된 값으로 해시를 만든다(참가 창과 같은 값).
+- **도구·템플릿**: 템플릿 `mealkit.project`가 새 형식. `build.bat`·`editor.bat`은 `delims== `로 두 형식을 다 읽는다. `project_common.ps1`도 두 형식을 읽고,
+  `upgrade_project.ps1`은 `engine`·`engineVersion` 줄을 **원래 형식 그대로** 고친다(고친 `build.bat`이 예전 형식만 읽을 수 있어서). 템플릿이 바뀌어 엔진 버전 0.4.0 → 0.4.1.
+- **검증**: 단위 테스트 `reflect_string`, `project_file`(두 형식 섞인 파일 읽기, 저장 후 다시 읽기, 해시 제외). `check.ps1` 통과, `mp_test` PASS.
+- **남은 것**: 씬 목록(문자열 목록 필드가 필요하다. 씬 여러 개 다루기·팩 파일 때). 이름 바꾸기(CMake 타깃·exe 이름이 따라 바뀌어야 해서 지금은 읽기 전용).
+  예전 형식 `mealkit.project`를 에디터가 저장하면 새 형식이 되므로, `build.bat`을 직접 고쳐 업그레이드가 `.new`로 남긴 프로젝트는 그 `build.bat`의 `delims`를 고쳐야 한다.
+
 ## v0.4 — 0단계: 개발자 경험 (2026-10-15)
 
 기능을 더 쌓기 전에 툴부터 편하게 만든다. 툴이 불편한 채로 기능을 쌓으면 나중에 그 기능들을 다시 고쳐야 한다.

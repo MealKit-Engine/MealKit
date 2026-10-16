@@ -59,6 +59,8 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/game/GameInstance.h
     src/mealkit/game/GameData.h
     src/mealkit/game/GameData.cpp
+    src/mealkit/game/ProjectSettings.h
+    src/mealkit/game/ProjectSettings.cpp
     src/mealkit/game/WorldSnapshot.h
     src/mealkit/game/SimDebug.h
     src/mealkit/game/Simulation.h
@@ -125,7 +127,7 @@ endif()
 # /fp:precise 고정: 시뮬레이션 결정론을 위해 /fp:fast, /fp:contract, /arch:AVX2 를 쓰지 않는다.
 target_compile_options(mealkit PUBLIC /W4 /permissive- /utf-8 /Zc:__cplusplus /GR- /fp:precise)
 
-target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid ws2_32 windowscodecs ole32 uuid shell32 mealkit_tracy PRIVATE Jolt mealkit_meshopt)
+target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid ws2_32 windowscodecs ole32 uuid shell32 dwmapi mealkit_tracy PRIVATE Jolt mealkit_meshopt)
 
 # --- SimCheck: 게임 sim/ 폴더의 결정론 규칙 검사 (빌드 도구, mealkit_add_game이 게임 코드보다 먼저 실행한다) ---
 add_executable(mealkit_simcheck tools/SimCheck.cpp)
@@ -189,11 +191,15 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/FieldEditor.h
         src/mealkit/editor/FieldEditor.cpp
         src/mealkit/editor/PlaySession.h
-        src/mealkit/editor/PlaySession.cpp)
+        src/mealkit/editor/PlaySession.cpp
+        src/mealkit/editor/Strings.h
+        src/mealkit/editor/Strings.cpp
+        src/mealkit/editor/Image.h
+        src/mealkit/editor/Image.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit mealkit_imgui comdlg32)
     target_compile_definitions(mealkit_editor PUBLIC MEALKIT_EDITOR=1)
 
-    add_executable(MealKitEditor src/mealkit/editor/EditorMain.cpp)
+    add_executable(MealKitEditor src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)
     target_link_libraries(MealKitEditor PRIVATE mealkit_editor)
     # 프로젝트 관리자의 새 프로젝트 만들기가 쓰는 엔진 폴더 (에디터는 배포하지 않는다)
     target_compile_definitions(MealKitEditor PRIVATE MEALKIT_ENGINE_DIR="${MEALKIT_ENGINE_DIR}")

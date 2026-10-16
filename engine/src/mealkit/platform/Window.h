@@ -7,10 +7,14 @@
 
 namespace mealkit {
 
+constexpr u32 kDefaultCaptionColor = 0xFFFFFFFFu;
+
 struct WindowDesc {
     const char* title = "MealKit";
     u32 width = 1280; // 클라이언트 영역 크기(물리 픽셀)
     u32 height = 720;
+    // 제목 표시줄 색(0xRRGGBB). 지정하면 어두운 제목 표시줄(흰 글자·버튼)을 켜고, Windows 11에서는 이 색으로 칠한다
+    u32 captionColor = kDefaultCaptionColor;
 };
 
 // 다른 모듈(에디터 UI 등)이 창 메시지를 먼저 받아 보는 훅. 0이 아닌 값을 반환하면 그 메시지는 처리 완료로 본다.

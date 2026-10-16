@@ -97,6 +97,7 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
         store(data, Quat{f[0], f[1], f[2], f[3]});
         return true;
     }
+    case Kind::String: *static_cast<std::string*>(data) = text; return true;
     case Kind::Id: {
         unsigned slot = 0, generation = 0;
         if (sscanf_s(s, "%u %u", &slot, &generation) != 2) return false;
@@ -197,6 +198,10 @@ void diffValue(const ValueInfo& v, const void* a, const void* b, const std::stri
         }
         break;
     }
+    case Kind::String:
+        if (*static_cast<const std::string*>(a) != *static_cast<const std::string*>(b))
+            out.push_back(path + ": " + formatScalar(v, a) + " -> " + formatScalar(v, b));
+        break;
     default:
         if (std::memcmp(a, b, v.size) != 0)
             out.push_back(path + ": " + formatScalar(v, a) + " -> " + formatScalar(v, b));
@@ -211,6 +216,12 @@ void saveValue(const ValueInfo& v, const void* data, ByteWriter& w) {
         for (u32 i = 0; i < v.count; ++i) saveValue(*v.element, at(data, i * v.element->size), w);
         break;
     case Kind::Container: v.ops->save(data, w); break;
+    case Kind::String: {
+        const std::string& text = *static_cast<const std::string*>(data);
+        w.value(static_cast<u32>(text.size()));
+        w.bytes(text.data(), text.size());
+        break;
+    }
     default: w.bytes(data, v.size); break;
     }
 }
@@ -223,6 +234,13 @@ bool loadValue(const ValueInfo& v, void* data, ByteReader& r) {
             if (!loadValue(*v.element, at(data, i * v.element->size), r)) return false;
         return true;
     case Kind::Container: return v.ops->load(data, r);
+    case Kind::String: {
+        u32 size = 0;
+        if (!r.value(size)) return false;
+        std::string& text = *static_cast<std::string*>(data);
+        text.resize(size);
+        return r.bytes(text.data(), size);
+    }
     default: return r.bytes(data, v.size);
     }
 }
@@ -246,6 +264,12 @@ void hashValue(const ValueInfo& v, const void* data, Hasher& h, u32 skipFlags) {
         const u32 capacity = v.ops->capacity(data);
         for (u32 slot = 0; slot < capacity; ++slot)
             if (v.ops->live(data, slot)) hashValue(*v.element, v.ops->item(data, slot), h, skipFlags);
+        break;
+    }
+    case Kind::String: {
+        const std::string& text = *static_cast<const std::string*>(data);
+        h.add(static_cast<u64>(text.size()));
+        h.bytes(text.data(), text.size());
         break;
     }
     default: h.bytes(data, v.size); break; // 스칼라·Vec3·Quat·Id는 패딩이 없다
@@ -286,6 +310,7 @@ std::string formatScalar(const ValueInfo& v, const void* data) {
         snprintf(text, sizeof(text), "%.9g %.9g %.9g %.9g", q.x, q.y, q.z, q.w);
         break;
     }
+    case Kind::String: return *static_cast<const std::string*>(data);
     case Kind::Id: {
         u32 ids[2];
         std::memcpy(ids, data, sizeof(ids));

@@ -36,8 +36,9 @@
 
 ### 프로젝트 열기, 새 프로젝트
 
-- **프로젝트 관리자**: `build\Editor\bin\MealKitEditor.exe`를 그냥 실행하면 뜬다. 최근 프로젝트(더블클릭으로 열기), 프로젝트 폴더 열기, 새 프로젝트 만들기.
-- 프로젝트 폴더의 `editor.bat` = `MealKitEditor.exe --project <그 폴더>`.
+- **프로젝트 관리자**: 엔진 폴더의 `editor.bat`(에디터가 없으면 먼저 빌드한다)이나 `build\Editor\bin\MealKitEditor.exe`를 그냥 실행하면 뜬다(고도 프로젝트 관리자와 비슷하다).
+  [만들기]·[가져오기]·검색·언어(한국어/English). 목록에서 별(즐겨찾기), 아이콘·이름(= exe 이름, `tools\rename_project.ps1`)·폴더 경로(폴더 옮기기)를 눌러 고치고, 더블클릭으로 연다.
+- 프로젝트 폴더의 `editor.bat` = `MealKitEditor.exe --project <그 폴더>`. 엔진 저장소의 예제 프로젝트는 `editor.bat sample [씬]`.
 - 명령줄로 새 프로젝트:
 
 ```powershell
@@ -46,7 +47,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 ```
 
 예제 게임의 코드와 `assets/`를 복사하고 `templates/project`의 파일(`mealkit.project`, `CMakeLists.txt`, `build.bat`, `editor.bat`, `.vscode/`, `README.md`, `CLAUDE.md`)을 채운다.
-엔진 위치는 프로젝트 `mealkit.project`의 `engine=`에 있고, 실제 빌드는 엔진의 `tools\build_project.bat`이 한다.
+엔진 위치는 프로젝트 `mealkit.project`의 `engine` 줄에 있고, 실제 빌드는 엔진의 `tools\build_project.bat`이 한다.
 프로젝트 `CMakeLists.txt`는 `cmake/MealKit.cmake`를 include하고 `mealkit_add_game(...)` 한 번으로 게임 exe·게임 DLL·출시 타깃을 만든다.
 
 ### 출시 빌드 (export)
@@ -80,7 +81,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 
 1. **씬 편집**: 뷰포트에서 물체를 클릭하거나 씬 트리에서 고른 뒤, 기즈모를 끌거나 인스펙터에 값을 넣는다.
 2. **▶ 플레이 (F5)**: 지금 편집 중인 씬으로 바로 게임을 실행한다. `Esc`를 누르면 편집으로 돌아온다(씬은 바뀌지 않음). 게임 코드를 불러오기 전에는 비활성.
-3. **Ctrl+S**: 저장. 게임과 멀티플레이는 프로젝트의 `assets/scenes/arena.scene`(`mealkit.project`의 `scene=`)을 쓴다.
+3. **Ctrl+S**: 저장. 게임과 멀티플레이는 프로젝트의 `assets/scenes/arena.scene`(`mealkit.project`의 `scene`, 에디터 [파일] > [프로젝트 설정])을 쓴다.
 4. **Ctrl+R**: 게임 코드 빌드 (핫 리로드). **Ctrl+B**: 출시 빌드 (`export/<게임>/`). 빌드 메뉴에서 출시·프로젝트 폴더를 열 수 있다.
 
 | 조작 | 기능 |
@@ -241,7 +242,7 @@ cmake/FixExportsDef.cmake    mealkit.dll 내보내기 목록에서 MSVC CRT 약�
 templates/project/           새 게임 프로젝트의 빌드 파일 템플릿
 tools/                       build_project.bat (공통 빌드), new_project.ps1 (새 프로젝트), upgrade_project.ps1 (프로젝트를 새 엔진 템플릿으로),
                              check.ps1 (전체 검증), mp_test.ps1 (멀티플레이 테스트), make_sample_models.py
-VERSION                      엔진 버전 (mealkit.project의 engineVersion=과 비교)
+VERSION                      엔진 버전 (mealkit.project의 engineVersion과 비교)
 .vscode/                     빌드 작업, 디버그 실행 구성
 ```
 

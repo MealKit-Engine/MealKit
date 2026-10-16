@@ -69,10 +69,10 @@ void writeVec3(FILE* f, const char* key, Vec3 v) { fprintf(f, "%s %.9g %.9g %.9g
 } // namespace
 
 const std::vector<const reflect::TypeInfo*>& builtinTypes() {
-    static const reflect::TypeInfo solid = makeBuiltin(kTypeSolid, "충돌 상자", 0);
+    static const reflect::TypeInfo solid = makeBuiltin(kTypeSolid, "Solid box", 0);
     static const reflect::TypeInfo decoration =
-        makeBuiltin(kTypeDecoration, "장식 (충돌 없음)", reflect::kObjectCosmetic);
-    static const reflect::TypeInfo spawn = makeBuiltin(kTypeSpawn, "스폰 지점", reflect::kObjectMarker);
+        makeBuiltin(kTypeDecoration, "Decoration (no collision)", reflect::kObjectCosmetic);
+    static const reflect::TypeInfo spawn = makeBuiltin(kTypeSpawn, "Spawn point", reflect::kObjectMarker);
     static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn};
     return list;
 }

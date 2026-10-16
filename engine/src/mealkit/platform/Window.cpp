@@ -5,6 +5,8 @@
 #include <string>
 #include <windows.h>
 
+#include <dwmapi.h>
+
 namespace mealkit {
 namespace {
 
@@ -47,7 +49,12 @@ bool Window::create(const WindowDesc& desc) {
     wc.lpfnWndProc = windowProc;
     wc.hInstance = instance;
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+    // exe의 아이콘 리소스 1번 (없으면 Windows 기본 아이콘)
+    wc.hIcon = static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(1), IMAGE_ICON, GetSystemMetrics(SM_CXICON),
+                                             GetSystemMetrics(SM_CYICON), 0));
+    wc.hIconSm = static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(1), IMAGE_ICON,
+                                               GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), 0));
+    if (!wc.hIcon) wc.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
     wc.lpszClassName = kClassName;
     if (!RegisterClassExW(&wc) && GetLastError() != ERROR_CLASS_ALREADY_EXISTS) {
         MEALKIT_ERROR("RegisterClassExW failed (%lu)", GetLastError());
@@ -65,6 +72,15 @@ bool Window::create(const WindowDesc& desc) {
         return false;
     }
     m_hwnd = hwnd;
+
+    if (desc.captionColor != kDefaultCaptionColor) {
+        // 어두운 제목 표시줄(Windows 10 20H1+) + 제목 표시줄 색(Windows 11). 지원하지 않는 Windows에서는 조용히 무시된다
+        const BOOL dark = TRUE;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
+        const u32 rgb = desc.captionColor;
+        const COLORREF caption = RGB((rgb >> 16) & 0xFF, (rgb >> 8) & 0xFF, rgb & 0xFF);
+        DwmSetWindowAttribute(hwnd, DWMWA_CAPTION_COLOR, &caption, sizeof(caption));
+    }
 
     RECT client;
     GetClientRect(hwnd, &client);

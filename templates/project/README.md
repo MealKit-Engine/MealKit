@@ -7,7 +7,7 @@
 
 | 폴더/파일 | 무엇 |
 |---|---|
-| `mealkit.project` | 프로젝트 이름, 엔진 위치(`engine=`), 처음 여는 씬 |
+| `mealkit.project` | 프로젝트 설정: 이름, 엔진 위치(`engine`), 시작 씬(`scene`), 게임 항목(`game.*`). 에디터 [파일] > [프로젝트 설정]에서 고친다 |
 | `source/` | 게임 코드. `sim/`(결정론 게임 규칙, 빌드 때 SimCheck 검사), `view/`(카메라·조작·그리기), `app/`(`GameSession` 한 판 진행, `main.cpp` 출시용 exe, `GameModule.cpp` 에디터용 DLL 진입점) |
 | `assets/scenes/`, `assets/models/` | 씬(`.scene`)과 모델(`.glb`). 에디터가 여기에 저장한다 |
 | `build/Editor/` | 에디터가 불러오는 게임 코드 `@NAME@_game.dll` |

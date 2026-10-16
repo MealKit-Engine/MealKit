@@ -5,6 +5,8 @@
 //   sandbox.exe --join 127.0.0.1[:port] 참가
 //   sandbox.exe --scene my.scene        다른 씬으로 플레이 (모든 플레이어가 같은 파일이어야 한다)
 //
+// 시작 씬·기본 포트·기본 인원은 mealkit.project (에디터 [프로젝트 설정])에서 읽는다.
+//
 // 조작: WASD 이동, Space 점프, 왼쪽 클릭 밀치기, 오른쪽 드래그 카메라, 휠 줌, V 수직동기, F12 스크린샷, Esc 종료
 
 #include "app/GameSession.h"
@@ -14,6 +16,7 @@
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Profile.h"
 #include "mealkit/game/GameData.h"
+#include "mealkit/game/ProjectSettings.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/platform/Paths.h"
 #include "mealkit/platform/Steam.h"
@@ -36,11 +39,11 @@ namespace {
 struct Options {
     enum class Mode { Offline, Host, Join, SteamHost, SteamJoin } mode = Mode::Offline;
     u64 steamLobby = 0;
-    u16 port = 27015;
+    u16 port = 0; // 0 = 프로젝트 설정 game.defaultPort
     std::string joinAddress;
     std::string scenePath;
     std::string tuningPath;
-    u32 maxPlayers = 4;
+    u32 maxPlayers = 0; // 0 = 프로젝트 설정 game.defaultMaxPlayers
     u32 bodies = 2000;
     u32 inputDelay = 3;
     u64 seed = 0;
@@ -62,13 +65,13 @@ struct Options {
 
 void printUsage() {
     std::printf("MealKit Sandbox\n"
-                "  --host [port]          host a match (default port 27015)\n"
+                "  --host [port]          host a match (default: game.defaultPort in mealkit.project)\n"
                 "  --join <addr[:port]>   join a host\n"
                 "  --steam                host a Steam friends-only lobby (invite with I or Shift+Tab)\n"
                 "  --steam-join <lobby>   join a Steam lobby by id (invites from Steam join automatically)\n"
-                "  --scene <file>         scene to play (default assets/scenes/arena.scene)\n"
+                "  --scene <file>         scene to play (default: scene in mealkit.project)\n"
                 "  --tuning <file>        tuning values (default assets/game.tuning)\n"
-                "  --players <n>          max players when hosting (default 4, max 8)\n"
+                "  --players <n>          max players when hosting (default: game.defaultMaxPlayers, max 8)\n"
                 "  --bodies <n>           physics bodies (default 2000, set by host)\n"
                 "  --delay <ticks>        input delay in 33ms ticks (default 3)\n"
                 "  --seed <n>             world seed\n"
@@ -165,8 +168,16 @@ int main(int argc, char** argv) {
     const bool automated = opt.exitTick > 0;
     if (automated) log::setDialogs(false);
 
+    // 프로젝트 설정: 출시본은 exe 옆, 개발 중에는 프로젝트 폴더의 mealkit.project
+    game::ProjectFile project;
+    sandbox::ProjectSettings gameProject;
+    game::loadGameProject(project, &reflect::typeOf<sandbox::ProjectSettings>(), &gameProject);
+    if (opt.port == 0) opt.port = gameProject.defaultPort;
+    if (opt.maxPlayers == 0) opt.maxPlayers = gameProject.defaultMaxPlayers;
+
     scene::Scene scene;
-    const std::string scenePath = opt.scenePath.empty() ? findAsset("assets/scenes/arena.scene") : opt.scenePath;
+    const std::string scenePath =
+        opt.scenePath.empty() ? findAsset(game::startSceneAsset(project.settings)) : opt.scenePath;
     if (!scenePath.empty()) {
         std::string error;
         if (!scene::load(scene, scenePath, &error))
@@ -187,11 +198,13 @@ int main(int argc, char** argv) {
     models.setRenderer(&renderer);
 
     net::LockstepSession session;
-    // 실행 파일 + 씬 + 모델 파일 + 튜닝이 모두 같아야 접속할 수 있다
+    // 실행 파일 + 씬 + 모델 파일 + 튜닝 + 프로젝트 설정(해시 대상 항목)이 모두 같아야 접속할 수 있다
     sandbox::Tuning tuning;
     game::loadTuning(reflect::typeOf<sandbox::Tuning>(), &tuning, opt.tuningPath);
-    session.setContentHash(
-        game::contentHash(scene, models, &reflect::moduleObjectTypes(), &reflect::typeOf<sandbox::Tuning>(), &tuning));
+    session.setContentHash(game::contentHash(scene, models, &reflect::moduleObjectTypes(),
+                                             &reflect::typeOf<sandbox::Tuning>(), &tuning,
+                                             {&reflect::typeOf<game::ProjectSettings>(), &project.settings},
+                                             {&reflect::typeOf<sandbox::ProjectSettings>(), &gameProject}));
     const u64 seed = opt.seed ? opt.seed : static_cast<u64>(std::time(nullptr));
     switch (opt.mode) {
     case Options::Mode::Offline: session.startOffline(seed, opt.bodies); break;
@@ -201,7 +214,7 @@ int main(int argc, char** argv) {
         break;
     case Options::Mode::Join: {
         net::Address address;
-        if (!net::startup() || !net::resolveAddress(opt.joinAddress.c_str(), 27015, address))
+        if (!net::startup() || !net::resolveAddress(opt.joinAddress.c_str(), opt.port, address))
             MEALKIT_FATAL("Could not resolve '%s'", opt.joinAddress.c_str());
         net::cleanup();
         if (!session.join(address)) MEALKIT_FATAL("Could not open a UDP socket");

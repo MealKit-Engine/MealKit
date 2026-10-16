@@ -9,8 +9,8 @@ namespace mealkit {
 // 시뮬레이션용 난수는 반드시 이것을 쓰고, 연출용 난수와 섞지 않는다.
 // 필드 선언이라 WorldState에 넣으면 난수 상태도 해시·스냅샷에 들어간다: MEALKIT_FIELD(Pcg32, rng, (Pcg32{seed}), "난수")
 MEALKIT_STRUCT(Pcg32) {
-    MEALKIT_FIELD(u64, state, 0, "상태");
-    MEALKIT_FIELD(u64, inc, 1, "수열");
+    MEALKIT_FIELD(u64, state, 0, "State");
+    MEALKIT_FIELD(u64, inc, 1, "Sequence");
 
     Pcg32() : Pcg32(0x853c49e6748fea9bull) {}
     explicit Pcg32(u64 seed, u64 sequence = 0xda3e39cb94b95bdbull) {

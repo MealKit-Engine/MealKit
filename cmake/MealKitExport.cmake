@@ -1,6 +1,6 @@
 # 출시 폴더 만들기 (game_export 타깃이 cmake -P로 실행한다).
-# 입력: GAME_EXE, ASSETS_DIR, OUT_DIR, STEAM_DLL(없으면 빈 값), STEAM_APP_ID, NOTICES
-foreach(var GAME_EXE ASSETS_DIR OUT_DIR NOTICES)
+# 입력: GAME_EXE, ASSETS_DIR, PROJECT_FILE, OUT_DIR, STEAM_DLL(없으면 빈 값), STEAM_APP_ID, NOTICES
+foreach(var GAME_EXE ASSETS_DIR PROJECT_FILE OUT_DIR NOTICES)
     if(NOT ${var})
         message(FATAL_ERROR "MealKitExport: ${var} is not set")
     endif()
@@ -18,6 +18,20 @@ else()
     message(WARNING "MealKitExport: no assets folder at ${ASSETS_DIR}")
 endif()
 file(COPY "${NOTICES}" DESTINATION "${OUT_DIR}")
+
+# 프로젝트 설정 (게임이 시작 씬 등을 읽는다). 개발 PC 경로가 든 engine·engineVersion 줄은 뺀다.
+if(EXISTS "${PROJECT_FILE}")
+    file(STRINGS "${PROJECT_FILE}" project_lines ENCODING UTF-8)
+    set(project_text "")
+    foreach(line IN LISTS project_lines)
+        if(NOT line MATCHES "^[ \t]*(engine|engineVersion)([ \t=]|$)")
+            string(APPEND project_text "${line}\n")
+        endif()
+    endforeach()
+    file(WRITE "${OUT_DIR}/mealkit.project" "${project_text}")
+else()
+    message(WARNING "MealKitExport: no project file at ${PROJECT_FILE} - the game uses the default project settings")
+endif()
 
 if(STEAM_DLL)
     file(COPY "${STEAM_DLL}" DESTINATION "${OUT_DIR}")

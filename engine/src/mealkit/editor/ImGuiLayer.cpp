@@ -5,8 +5,10 @@
 #include "mealkit/platform/Window.h"
 #include "mealkit/render/Renderer.h"
 
+#include <cstring>
 #include <d3d12.h>
 #include <imgui.h>
+#include <imgui_internal.h> // RegisterUserTexture
 #include <imgui_impl_dx12.h>
 #include <imgui_impl_win32.h>
 #include <windows.h>
@@ -90,10 +92,26 @@ bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::str
     const float scale = ImGui_ImplWin32_GetDpiScaleForHwnd(hwnd);
     applyStyle(scale);
 
-    // 한국어 UI: 맑은 고딕. 1.92부터 글리프는 필요할 때 만들어지므로 전체 한글 범위를 미리 굽지 않는다.
-    const char* fontPath = "C:\\Windows\\Fonts\\malgun.ttf";
-    if (fileExists(fontPath)) io.Fonts->AddFontFromFileTTF(fontPath, 16.0f);
-    else io.Fonts->AddFontDefault();
+    // 영문은 Segoe UI, 한글은 맑은 고딕을 합친다 (맑은 고딕만 쓰면 역슬래시가 ₩로 보인다).
+    // 1.92부터 글리프는 필요할 때 만들어지므로 전체 한글 범위를 미리 굽지 않는다.
+    bool haveFont = false;
+    for (const char* fontPath : {"C:\\Windows\\Fonts\\segoeui.ttf", "C:\\Windows\\Fonts\\malgun.ttf"}) {
+        if (!fileExists(fontPath)) continue;
+        ImFontConfig config;
+        config.MergeMode = haveFont;
+        io.Fonts->AddFontFromFileTTF(fontPath, 16.0f, &config);
+        haveFont = true;
+    }
+    if (!haveFont) io.Fonts->AddFontDefault();
+    // 아이콘 글자(icon::): Windows 11은 Segoe Fluent Icons, 10은 Segoe MDL2 Assets. 코드 포인트가 같다
+    for (const char* iconPath : {"C:\\Windows\\Fonts\\SegoeIcons.ttf", "C:\\Windows\\Fonts\\segmdl2.ttf"}) {
+        if (!fileExists(iconPath)) continue;
+        ImFontConfig merge;
+        merge.MergeMode = true;
+        merge.GlyphOffset = ImVec2(0.0f, 3.0f); // 아이콘 글꼴은 기준선이 높아 한글 줄 가운데로 내린다
+        io.Fonts->AddFontFromFileTTF(iconPath, 16.0f, &merge);
+        break;
+    }
 
     if (!ImGui_ImplWin32_Init(hwnd)) return false;
     window.setMessageHook(messageHook, nullptr);
@@ -131,8 +149,13 @@ bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::str
 void ImGuiLayer::shutdown() {
     if (!m_initialized) return;
     m_renderer->waitIdle();
-    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplDX12_Shutdown(); // 사용자 텍스처의 GPU 자원도 지운다
     ImGui_ImplWin32_Shutdown();
+    for (ImTextureData* tex : m_textures) {
+        ImGui::UnregisterUserTexture(tex);
+        IM_DELETE(tex);
+    }
+    m_textures.clear();
     ImGui::DestroyContext();
     if (m_window) m_window->setMessageHook(nullptr, nullptr);
     if (m_srvHeap) static_cast<ID3D12DescriptorHeap*>(m_srvHeap)->Release();
@@ -140,7 +163,30 @@ void ImGuiLayer::shutdown() {
     m_initialized = false;
 }
 
+ImTextureData* ImGuiLayer::createTexture(const u8* rgba, u32 width, u32 height) {
+    auto* tex = IM_NEW(ImTextureData)();
+    tex->Create(ImTextureFormat_RGBA32, static_cast<int>(width), static_cast<int>(height));
+    std::memcpy(tex->GetPixels(), rgba, static_cast<size_t>(width) * height * 4);
+    ImGui::RegisterUserTexture(tex);
+    m_textures.push_back(tex);
+    return tex;
+}
+
+void ImGuiLayer::releaseTexture(ImTextureData* texture) {
+    if (texture) texture->WantDestroyNextFrame = true; // 백엔드가 GPU 사용이 끝난 뒤 Destroyed로 바꾼다 (newFrame에서 지움)
+}
+
 void ImGuiLayer::newFrame() {
+    for (size_t i = 0; i < m_textures.size();) {
+        ImTextureData* tex = m_textures[i];
+        if (tex->WantDestroyNextFrame && tex->Status == ImTextureStatus_Destroyed) {
+            ImGui::UnregisterUserTexture(tex);
+            IM_DELETE(tex);
+            m_textures.erase(m_textures.begin() + static_cast<std::ptrdiff_t>(i));
+        } else {
+            ++i;
+        }
+    }
     ImGui_ImplDX12_NewFrame();
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();

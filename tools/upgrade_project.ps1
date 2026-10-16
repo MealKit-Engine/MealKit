@@ -5,7 +5,7 @@
 #   source/와 assets/는 건드리지 않는다 (-Source를 줄 때만 예외).
 # - 사용자가 고치지 않은 파일(.mealkit-template의 해시와 같음)은 새 템플릿으로 바꾼다. 고친 파일은 덮어쓰지 않고
 #   새 내용을 <파일>.new로 남겨 차이를 보여 준다. -Force면 고친 파일도 바꾼다.
-# - mealkit.project는 engine=과 engineVersion=만 고친다 (이름·시작 씬은 그대로).
+# - mealkit.project는 engine과 engineVersion 줄만 고친다 (이름·시작 씬·게임 항목은 그대로, 줄 형식도 그대로).
 # - 바꾸기 전 파일은 .upgrade_backup\<시각>\에 남긴다.
 # - -Source: source/ 게임 코드를 엔진 예제 코드(samples/sandbox)로 바꾼다. 템플릿 코드를 고치지 않은 프로젝트를 새 엔진 구조로
 #   옮길 때 쓴다. 예제에 없는 source/sim·view·app 파일은 지운다(백업). assets/에는 없는 파일만 더한다(덮어쓰지 않음).
@@ -24,7 +24,7 @@ if ($Project -ieq $MealKitEngine) { Write-Error "This is the engine repository i
 
 $info = Read-ProjectFile $Project
 $name = $info["name"]
-if (-not $name) { Write-Error "mealkit.project has no name="; exit 1 }
+if (-not $name) { Write-Error "mealkit.project has no name"; exit 1 }
 $version = Get-MealKitVersion
 $fromVersion = if ($info.Contains("engineVersion")) { $info["engineVersion"] } else { "(none)" }
 Write-Host "Upgrading '$name' ($Project): engine $fromVersion -> $version$(if ($DryRun) { '  [dry run]' })"
@@ -54,18 +54,23 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
     $target = Join-Path $Project $rel
 
     if ($rel -eq "mealkit.project") {
-        # 사용자 값(name, scene 등)은 두고 엔진 경로와 버전만 바꾼다
+        # 사용자 값(name, scene, game.* 등)은 두고 엔진 경로와 버전만 바꾼다.
+        # 예전 "키=값" 줄은 그 형식 그대로 둔다 (고친 build.bat이 예전 형식만 읽을 수 있다).
         $current = [IO.File]::ReadAllText($target, $MealKitUtf8)
         $lines = [Collections.Generic.List[string]]::new()
-        $seenEngine = $false; $seenVersion = $false
+        $seenEngine = $false; $seenVersion = $false; $separator = " "
         foreach ($line in ($current -split "`r?`n")) {
-            if ($line -match '^\s*engine\s*=') { $lines.Add("engine=$MealKitEngine"); $seenEngine = $true }
-            elseif ($line -match '^\s*engineVersion\s*=') { $lines.Add("engineVersion=$version"); $seenVersion = $true }
+            if ($line -match '^\s*(engine|engineVersion)(\s*=\s*|\s+|$)') {
+                $sep = if ($Matches[2] -match '=') { "=" } else { " " }
+                $separator = $sep
+                if ($Matches[1] -eq "engine") { $lines.Add("engine$sep$MealKitEngine"); $seenEngine = $true }
+                else { $lines.Add("engineVersion$sep$version"); $seenVersion = $true }
+            }
             else { $lines.Add($line) }
         }
         while ($lines.Count -gt 0 -and $lines[$lines.Count - 1] -eq "") { $lines.RemoveAt($lines.Count - 1) }
-        if (-not $seenEngine) { $lines.Add("engine=$MealKitEngine") }
-        if (-not $seenVersion) { $lines.Add("engineVersion=$version") }
+        if (-not $seenEngine) { $lines.Add("engine$separator$MealKitEngine") }
+        if (-not $seenVersion) { $lines.Add("engineVersion$separator$version") }
         $merged = ($lines -join "`r`n") + "`r`n"
         if ($merged.Replace("`r`n", "`n") -ne $current.Replace("`r`n", "`n")) {
             Report "updated" $rel Green

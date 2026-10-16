@@ -295,9 +295,9 @@ entity
 id 26
 name Jump Pad
 kind JumpPad
-position 0 0.05 -14
+position 0 0.0500000007 -14
 rotation 0 0 0 1
-scale 3 0.1 3
+scale 3 0.100000001 3
 color FF3CC8F0
 flags 0
 field power 14

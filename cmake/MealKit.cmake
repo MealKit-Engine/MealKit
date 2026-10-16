@@ -18,7 +18,7 @@ if(NOT MSVC)
 endif()
 
 get_filename_component(MEALKIT_ENGINE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
-# 엔진 버전 (저장소 루트 VERSION). 프로젝트의 mealkit.project engineVersion=과 비교한다.
+# 엔진 버전 (저장소 루트 VERSION). 프로젝트의 mealkit.project engineVersion과 비교한다.
 file(STRINGS "${MEALKIT_ENGINE_DIR}/VERSION" MEALKIT_VERSION LIMIT_COUNT 1)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${MEALKIT_ENGINE_DIR}/VERSION")
 get_filename_component(mealkit_source_dir "${CMAKE_SOURCE_DIR}" ABSOLUTE)
@@ -200,6 +200,7 @@ function(mealkit_add_game name)
         COMMAND ${CMAKE_COMMAND}
             -DGAME_EXE=$<TARGET_FILE:${name}>
             -DASSETS_DIR=${project_dir}/assets
+            -DPROJECT_FILE=${project_dir}/mealkit.project
             -DOUT_DIR=${project_dir}/export/${name}
             -DSTEAM_DLL=${MEALKIT_STEAM_DLL}
             -DSTEAM_APP_ID=${ARG_STEAM_APP_ID}
