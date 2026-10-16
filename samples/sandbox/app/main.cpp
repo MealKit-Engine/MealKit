@@ -230,7 +230,7 @@ int main(int argc, char** argv) {
     if (useSteam) {
         if (!steam::init())
             MEALKIT_FATAL(
-                "Steam is not available. Run the Steam client, and build with the Steamworks SDK (see README).");
+                "Steam is not available. Run the Steam client, and build with the Steamworks SDK (see docs/GUIDE.md).");
         if (opt.mode == Options::Mode::SteamHost) lobby.create(opt.maxPlayers);
         else lobby.join(opt.steamLobby);
     }

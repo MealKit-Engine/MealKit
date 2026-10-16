@@ -3,6 +3,13 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.3 — 1단계 진행 중 (2026-10-16)
+
+### README 줄이기 (2026-10-16)
+- **README**: 영어로 한 줄 소개 + 특징 5개 + 문서 링크 + 라이선스만 남겼다. 사용 설명은 나중에 별도 문서 프로젝트(고도의 godot-docs처럼)로 다시 쓴다.
+- **`docs/GUIDE.md`**: 예전 README 전체를 그대로 옮긴 임시 문서(한국어). README를 가리키던 곳(CLAUDE.md, ROADMAP, SimCheck 주석·메시지, SteamStub·sandbox 로그, `.gitignore`, `CMakeLists.txt`, 템플릿 README)을 이 문서로 바꿨다.
+- **템플릿**: `templates/project/README.md`의 결정론 규칙 링크가 바뀌어 엔진 버전 0.4.2 → 0.4.3.
+
 ## v0.4.2 — 1단계 진행 중 (2026-10-16)
 
 ### [x] 고도식 프로젝트 관리자 + 에디터 한국어/영어 (완료 2026-10-16)

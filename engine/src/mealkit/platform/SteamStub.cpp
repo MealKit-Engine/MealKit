@@ -10,7 +10,7 @@ namespace mealkit::steam {
 
 bool compiledIn() { return false; }
 bool init() {
-    MEALKIT_WARN("Steam: this build has no Steamworks SDK (see README: Steamworks)");
+    MEALKIT_WARN("Steam: this build has no Steamworks SDK (see docs/GUIDE.md: Steamworks)");
     return false;
 }
 void shutdown() {}

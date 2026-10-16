@@ -5,7 +5,7 @@
 // 주석, 문자열, 전처리 줄(#include 제외)은 빼고 토큰 단위로 검사한다. 걸리면 MSVC 형식
 // "파일(줄,열): error SIMnnn: ..."으로 대신 쓸 것을 알려 주고 실패한다(VS Code $msCompile이 잡는다).
 // 문제가 없으면 stamp 파일을 써서 다음 빌드에서는 소스가 바뀔 때만 다시 검사한다.
-// 규칙의 근거: docs/CODING_MODEL.md "강제하는 방법", README "결정론 규칙".
+// 규칙의 근거: docs/CODING_MODEL.md "강제하는 방법", docs/GUIDE.md "결정론 규칙".
 // 출력은 로그와 같이 영어로 쓴다.
 
 #include <algorithm>
@@ -696,8 +696,8 @@ int main(int argc, char** argv) {
         errors += checker.run(Lexer(src).run());
     }
     if (errors) {
-        std::printf("SimCheck: %d problem(s) in sim/ code. Rules: docs/CODING_MODEL.md (engine), README \"Determinism "
-                    "rules\".\n",
+        std::printf("SimCheck: %d problem(s) in sim/ code. Rules: docs/CODING_MODEL.md (engine), docs/GUIDE.md "
+                    "(determinism rules).\n",
                     errors);
         std::fflush(stdout);
         return 1;
