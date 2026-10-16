@@ -283,7 +283,7 @@ VERSION                      엔진 버전 (mealkit.project의 engineVersion과 
 
 1. 위험 확인: 최소 사양(11세대) 실기 측정, 다른 PC 사이 결정론, Steam 실검증
 2. 플랫폼 계층(`mealkit/platform/`): 오디오·입력이 OS API를 고르기 전에
-   이어서 온라인 서비스 계층(Steam 백엔드부터, 크로스플레이는 3단계 EOS), 헤드리스 시뮬레이션, CI 빌드 매트릭스(GitHub Actions, MSVC·clang-cl 결정론 비교), 저장소 공개 범위 결정(라이선스는 MIT로 정함)
+   이어서 온라인 서비스 계층(Steam 백엔드부터, 크로스플레이는 3단계 EOS), 헤드리스 시뮬레이션, CI 빌드 매트릭스(GitHub Actions: Windows MSVC·clang-cl, Linux x64·macOS ARM64 헤드리스 빌드의 틱별 해시 비교), 저장소 공개 범위 결정(라이선스는 MIT로 정함)
 3. 데이터와 코드 분리: ~~프로젝트 설정~~ → 화면용 튜닝(+ 시간 값은 초) → 프로젝트 폴더 구조 강제 → 예제 데이터 정리 → 정의 데이터 표
 4. 그다음 순서 (각 항목은 기준 샘플에서 실제로 써야 끝난다):
    - 오디오 → 이벤트 → 연출 표
