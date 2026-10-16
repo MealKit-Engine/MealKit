@@ -1,12 +1,14 @@
 # MealKit
 
-사무용 PC(Intel 내장 그래픽)에서도 가볍고 빠르게 돌아가는 **DirectX 12 전용 3D 멀티플레이 게임 엔진**.
+사무용 PC(Intel 내장 그래픽)에서도 가볍고 빠르게 돌아가는 **3D 멀티플레이 게임 엔진**. 지금은 Windows + DirectX 12, 다른 플랫폼은 [로드맵](docs/ROADMAP.md) 5단계.
 
 ## 원칙
 
 - **반드시 지킬 것**: 3D, 멀티플레이.
 - 게임보다 엔진이 가볍고 빠른 것이 우선. 엔진 위의 게임은 바뀔 수 있다.
-- Windows + DX12만 지원한다. 그래픽 API 추상화 계층(RHI)은 만들지 않는다.
+- 여러 플랫폼을 지원하되 DX12가 기준이다. OS API는 플랫폼 계층(`mealkit/platform/`), 그래픽 API는 엔진이 만드는 얇은 RHI(`mealkit/rhi/`) 뒤에서만 쓰고, 다른 API에 맞추려고 기능을 낮추지 않는다.
+- 목표: PC·모바일·웹·콘솔 출시, Windows·macOS·Linux 에디터, 모든 플랫폼 사이 크로스플레이(로드맵 5단계). 시뮬레이션 코드에는 플랫폼 분기를 두지 않는다. 2D 게임은 지원하지 않는다.
+- 이 저장소에서는 게임을 만들지 않는다. 엔진 기능은 `samples/`의 기준 샘플에서 실제로 써서 검증한다.
 - 엔진은 결정론 시뮬레이션, 락스텝 네트워크, 렌더러, 에디터만 만들고 나머지는 완성된 외부 것을 가져다 쓴다. 제작 도구(Blender, Penpot, Effekseer, VS Code)는 자유롭게 쓰고,
   게임에 들어가는 라이브러리는 버전을 고정해 `third_party/`에 넣는다(아래 표). 시뮬레이션에 닿는 라이브러리는 결정론을 검증한 것만 쓴다.
 - 한 문제에 답은 하나. 전역 접근, 오브젝트 구성, 풀링, 비동기 같은 설계 질문의 답은 [docs/CODING_MODEL.md](docs/CODING_MODEL.md)에 정해 두고 그것만 쓴다.
@@ -38,6 +40,7 @@
 
 - **프로젝트 관리자**: 엔진 폴더의 `editor.bat`(에디터가 없으면 먼저 빌드한다)이나 `build\Editor\bin\MealKitEditor.exe`를 그냥 실행하면 뜬다(고도 프로젝트 관리자와 비슷하다).
   [만들기]·[가져오기]·검색·언어(한국어/English). 목록에서 별(즐겨찾기), 아이콘·이름(= exe 이름, `tools\rename_project.ps1`)·폴더 경로(폴더 옮기기)를 눌러 고치고, 더블클릭으로 연다.
+  고른 아이콘(`icon.png`, 프로젝트 설정 `icon`)은 출시 빌드 때 게임 exe 아이콘이 된다(없으면 밀키트 아이콘).
 - 프로젝트 폴더의 `editor.bat` = `MealKitEditor.exe --project <그 폴더>`. 엔진 저장소의 예제 프로젝트는 `editor.bat sample [씬]`.
 - 명령줄로 새 프로젝트:
 
@@ -261,7 +264,7 @@ VERSION                      엔진 버전 (mealkit.project의 engineVersion과 
 `파일(줄,열): error SIMnnn`과 대신 쓸 것을 출력하고 빌드를 멈춘다.
 
 - 사칙연산과 `sqrt`만 쓴다. `sin/cos/atan2/pow/exp` 같은 CRT 함수는 CPU에 따라 다른 경로(FMA)를 탈 수 있다. 각도 계산은 `mealkit/core/DetMath.h`의 `detSin`/`detCos`/`detAtan2`/`detQuatFromAxisAngle`을 쓰거나, 입력 단계에서 계산해 양자화해서 보낸다.
-- 컴파일 옵션은 `/fp:precise`로 고정한다. `/fp:fast`, `/fp:contract`, `/arch:AVX2`는 쓰지 않는다.
+- 컴파일 옵션은 `/fp:precise`로 고정한다. `/fp:fast`, `/fp:contract`, `/arch:AVX2`는 쓰지 않는다. Clang·GCC(다른 플랫폼)는 `-ffp-contract=off`이고 `-ffast-math`를 쓰지 않는다.
 - 난수는 `Pcg32`(시드 기반)만 쓴다.
 - 물리 바디는 모든 피어에서 같은 순서로 만들고 지우고, 힘도 같은 순서로 준다.
 - 순회 순서를 고정한다. 해시맵을 순회하지 않고, 포인터 주소에 의존하지 않는다.
@@ -278,9 +281,18 @@ VERSION                      엔진 버전 (mealkit.project의 engineVersion과 
 
 자세한 계획과 순서는 [docs/ROADMAP.md](docs/ROADMAP.md), 끝낸 것의 상세는 [docs/CHANGELOG.md](docs/CHANGELOG.md). 다음은 1단계(v0.5, 게임이 되게 하는 최소 기능)다.
 
-1. 데이터와 코드 분리: 프로젝트 설정 → 화면용 튜닝 → 예제 데이터 정리 → 정의 데이터 표
-2. 오디오(XAudio2) → 이벤트 → 연출 표
-3. 입력 액션 매핑 → 게임패드 → 디버그 UI(ImGui) → 로컬라이제이션
-4. 게임 UI(Penpot → `.ui` 런타임)
-5. 설정 화면, 세이브, 매치 시작 데이터(로드아웃), 기본 화면 흐름
-6. 네트워크 흉내, Steam 실검증, 입력 지연 자동 조절
+1. 위험 확인: 최소 사양(11세대) 실기 측정, 다른 PC 사이 결정론, Steam 실검증
+2. 플랫폼 계층(`mealkit/platform/`): 오디오·입력이 OS API를 고르기 전에
+   이어서 온라인 서비스 계층(Steam 백엔드부터, 크로스플레이는 3단계 EOS), 헤드리스 시뮬레이션, CI 빌드 매트릭스(GitHub Actions, MSVC·clang-cl 결정론 비교), 저장소 공개 범위 결정(라이선스는 MIT로 정함)
+3. 데이터와 코드 분리: ~~프로젝트 설정~~ → 화면용 튜닝(+ 시간 값은 초) → 프로젝트 폴더 구조 강제 → 예제 데이터 정리 → 정의 데이터 표
+4. 그다음 순서 (각 항목은 기준 샘플에서 실제로 써야 끝난다):
+   - 오디오 → 이벤트 → 연출 표
+   - 입력 액션 매핑 → 게임패드 → 확정 명령 채널 → 디버그 UI(ImGui) → 로컬라이제이션
+   - 게임 UI(`.ui` 런타임 + 미리보기. Penpot 플러그인은 디자이너가 생길 때)
+   - 설정 화면, 세이브, 매치 시작 데이터(로드아웃), 기본 화면 흐름
+   - 네트워크 흉내, 입력 지연 자동 조절, 내 캐릭터 겉모습 예측, 틱레이트 설정, 버전 표시·접속 거부 이유
+
+## 라이선스
+
+MealKit 엔진은 [MIT 라이선스](LICENSE)다. 엔진이 쓰는 외부 라이브러리의 라이선스는 [THIRD_PARTY_NOTICES.txt](THIRD_PARTY_NOTICES.txt)와 위 표에 있다.
+이 엔진으로 만든 게임의 출시본에는 MealKit의 저작권 고지와 라이선스 문구를 함께 넣는다.
