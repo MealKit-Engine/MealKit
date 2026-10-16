@@ -26,13 +26,18 @@
 - **템플릿**: `mealkit.project`에 `created` 줄. 템플릿이 바뀌어 엔진 버전 0.4.1 → 0.4.2.
 - **검증**: 관리자·에디터 화면을 한국어/영어로 캡처해 확인. 임시 프로젝트로 `rename_project.ps1`을 두 번 돌리고 게임 DLL(`<새 이름>_game.dll`)이 빌드되는 것을 확인. `check.ps1` 통과.
   관리자 안에서 클릭으로 하는 이름 고치기·폴더 옮기기·아이콘 고르기는 직접 눌러 보지 않았다.
-- **남은 것**: 게임 exe 아이콘(`icon.png` → 출시 빌드 때 `.ico` 리소스). 다른 언어 추가는 `kLanguages`와 `<언어>.txt`만 더하면 된다.
+- **게임 exe 아이콘**: `mealkit_add_game()`(`cmake/MealKit.cmake`)이 구성 때 `mealkit.project`의 `icon`(빈 값이면 `icon.png`, 프로젝트 폴더 기준, 절대 경로도 됨)을 읽고,
+  빌드 때 `cmake/MakeIcon.ps1`(PowerShell + System.Drawing, 외부 도구 없음)이 16·20·24·32·40·48·64·128·256px PNG 항목의 `.ico`로 바꿔 `<이름>_icon.rc`로 아이콘 리소스 1번에 넣는다.
+  정사각형이 아니면 비율을 지켜 가운데에 놓는다. 그림이 없으면 엔진 기본 아이콘(`engine/res/MealKitEditor.ico`). Release·Debug·Profile·Export 모두 같고 Editor 빌드(게임 DLL)는 해당 없다.
+  `mealkit.project`는 구성 의존, 그림 파일은 `CONFIGURE_DEPENDS` GLOB으로 지켜봐서 그림을 새로 고르거나 지워도 `build.bat`만 다시 하면 된다. exe가 약 33 KB 커진다(sandbox 1.58 → 1.62 MB).
+  템플릿은 그대로라 엔진 버전은 0.4.2 그대로. 검증: sandbox(기본 아이콘·임시 `icon.png`)와 새 프로젝트(`icon art\logo.png`)의 Release·Export exe에서 셸 아이콘을 꺼내 확인.
+- **남은 것**: 다른 언어 추가는 `kLanguages`와 `<언어>.txt`만 더하면 된다.
 
 ### 에디터 창 모양 (2026-10-16)
 - **제목 표시줄**: `WindowDesc::captionColor`(0xRRGGBB)를 주면 DWM 어두운 제목 표시줄(Windows 10 20H1+)과 제목 표시줄 색(Windows 11)을 켠다.
   에디터·프로젝트 관리자·참가 창은 `editor::kEditorCaptionColor`(ImGui 메뉴 막대 색)를 쓴다. 게임 창은 기본값(시스템 색) 그대로.
 - **아이콘**: `Window`가 exe의 아이콘 리소스 1번을 창 아이콘으로 쓴다(없으면 Windows 기본). `MealKitEditor.exe`에 `engine/res/MealKitEditor.rc`/`.ico`를 넣었다.
-  아이콘은 `python tools/make_editor_icon.py`(Pillow)로 다시 만든다. 게임 exe 아이콘은 아직 없다(프로젝트가 리소스 1번을 넣으면 그대로 쓰인다).
+  아이콘은 `python tools/make_editor_icon.py`(Pillow)로 다시 만든다. 게임 exe 아이콘은 v0.4.2 프로젝트 관리자 항목에서 넣었다.
 
 ## v0.4.1 — 1단계 진행 중 (2026-10-16)
 

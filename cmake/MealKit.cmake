@@ -181,8 +181,45 @@ function(mealkit_add_game name)
         return()
     endif()
 
+    # 실행 파일 아이콘: mealkit.project의 icon(빈 값이면 icon.png, 프로젝트 폴더 기준) → 여러 크기 .ico → 아이콘 리소스 1번.
+    # Window가 그것을 창 아이콘으로 쓴다. 그림이 없으면 엔진 기본 아이콘(밀키트)을 넣는다.
+    set(icon_image "icon.png")
+    set(project_file "${project_dir}/mealkit.project")
+    if(EXISTS "${project_file}")
+        set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${project_file}")
+        file(STRINGS "${project_file}" icon_lines REGEX "^[ \t]*icon([ \t=]|$)" ENCODING UTF-8)
+        foreach(line IN LISTS icon_lines)
+            string(REGEX REPLACE "^[ \t]*icon[ \t]*=?[ \t]*" "" line "${line}")
+            string(STRIP "${line}" line)
+            if(line)
+                set(icon_image "${line}")
+            endif()
+        endforeach()
+    endif()
+    file(TO_CMAKE_PATH "${icon_image}" icon_image)
+    get_filename_component(icon_image "${icon_image}" ABSOLUTE BASE_DIR "${project_dir}")
+    # 그림이 나중에 생기거나 지워져도 다시 구성되도록 GLOB으로 지켜본다
+    file(GLOB icon_found CONFIGURE_DEPENDS "${icon_image}")
+    set(icon_rc "${CMAKE_CURRENT_BINARY_DIR}/${name}_icon.rc")
+    if(icon_found)
+        set(icon_file "${CMAKE_CURRENT_BINARY_DIR}/${name}.ico")
+        add_custom_command(OUTPUT "${icon_file}"
+            COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/cmake/MakeIcon.ps1"
+                -Image "${icon_image}" -Out "${icon_file}"
+            DEPENDS "${icon_image}" "${MEALKIT_ENGINE_DIR}/cmake/MakeIcon.ps1"
+            COMMENT "Game icon ${name}: ${icon_image}"
+            VERBATIM)
+    else()
+        set(icon_file "${MEALKIT_ENGINE_DIR}/engine/res/MealKitEditor.ico")
+    endif()
+    file(CONFIGURE OUTPUT "${icon_rc}" CONTENT "#pragma code_page(65001)\n1 ICON \"${icon_file}\"\n" @ONLY)
+    set_source_files_properties("${icon_rc}" PROPERTIES OBJECT_DEPENDS "${icon_file}")
+
     # 출시용 게임: 에디터와 ImGui가 들어가지 않는다.
-    add_executable(${name} ${ARG_GAME_MAIN} ${game_sources})
+    add_executable(${name} ${ARG_GAME_MAIN} ${game_sources} "${icon_rc}")
+    if(icon_found)
+        target_sources(${name} PRIVATE "${icon_file}")
+    endif()
     target_link_libraries(${name} PRIVATE mealkit)
     target_include_directories(${name} PRIVATE ${source_dir})
     target_compile_definitions(${name} PRIVATE MEALKIT_GAME_NAME="${name}")
