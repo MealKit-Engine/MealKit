@@ -320,6 +320,30 @@ TEST_CASE(reflect_ticks_and_color) {
     TEST_CHECK(!reflect::setFromText(t, &a, "tint", "#12345G"));
 }
 
+MEALKIT_ENUM(TestShape, u8, Box, Ball, Capsule);
+
+MEALKIT_STRUCT(WithEnum) {
+    MEALKIT_FIELD(TestShape, shape, TestShape::Ball, "모양");
+    MEALKIT_FIELD(u8, plain, 3, "그냥 수");
+};
+
+TEST_CASE(reflect_enum) {
+    const reflect::TypeInfo& t = reflect::typeOf<WithEnum>();
+    TEST_CHECK(t.fields[0].value->enumNames.size() == 3 && t.fields[0].value->enumNames[2] == "Capsule");
+    TEST_CHECK(t.fields[1].value->enumNames.empty());
+    TEST_CHECK(reflect::enumName(TestShape::Capsule) == "Capsule");
+    WithEnum a;
+    reflect::TextFields text;
+    reflect::toText(t, &a, text);
+    TEST_CHECK(text[0].second == "Ball" && text[1].second == "3"); // 파일에는 이름
+    TEST_CHECK(reflect::setFromText(t, &a, "shape", "Capsule") && a.shape == TestShape::Capsule);
+    TEST_CHECK(reflect::setFromText(t, &a, "shape", "0") && a.shape == TestShape::Box); // 예전 숫자도 읽는다
+    TEST_CHECK(!reflect::setFromText(t, &a, "shape", "Cone"));
+    WithEnum b;
+    b.shape = TestShape::Box;
+    TEST_CHECK(reflect::hashOf(a) == reflect::hashOf(b)); // 해시는 정수 그대로
+}
+
 MEALKIT_STRUCT(TestKind) {
     MEALKIT_FIELD(f32, weight, 1.0f, "무게");
     MEALKIT_FIELD(std::string, title, "", "이름");

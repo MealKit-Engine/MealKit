@@ -59,14 +59,14 @@ void movePawn(World& world, Pawn& p, const Intent& intent, u8 player) {
     v.z += (wish.z * t.playerSpeed - v.z) * accel;
     if (p.grounded && intent.jump && v.y < t.jumpMaxRise) {
         v.y = t.jumpSpeed;
-        world.events.push({EventKind::Jump, player, p.position, 0.0f});
+        world.events.push(makeEvent(EventKind::Jump, player, p.position, 0.0f));
     }
     world.physics.setLinearVelocity(p.body, v);
 
     if (intent.push && p.pushReady.ready(world.state.tick)) {
         p.pushReady.start(world.state.tick, t.pushCooldown);
         pushProps(world, p.position);
-        world.events.push({EventKind::Push, player, p.position, t.pushRadius});
+        world.events.push(makeEvent(EventKind::Push, player, p.position, t.pushRadius));
     }
 }
 
@@ -152,8 +152,8 @@ void respawnPawns(World& world) {
         const Vec3 at = spawnPosition(world, c.spawnIndex);
         const Id<Pawn> pawn = spawnPawn(world, at);
         possess(world, id, pawn);
-        world.events.push(
-            {EventKind::Spawn, c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer, at, 0.0f});
+        const u8 player = c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer;
+        world.events.push(makeEvent(EventKind::Spawn, player, at, 0.0f));
     }
 }
 
@@ -184,7 +184,7 @@ void usePads(World& world) {
             v.y = pad.power;
             world.physics.setLinearVelocity(p.body, v);
             pad.ready.start(tick, pad.cooldownTicks);
-            world.events.push({EventKind::Bounce, pawnPlayer(s, p), {pad.center.x, top, pad.center.z}, 0.0f});
+            world.events.push(makeEvent(EventKind::Bounce, pawnPlayer(s, p), {pad.center.x, top, pad.center.z}, 0.0f));
             break;
         }
     }
@@ -201,7 +201,7 @@ void removeFallenPawns(World& world) {
             unpossess(world, p.owner);
         }
         if (player != kNoPlayer) ++s.slots[player].falls;
-        world.events.push({EventKind::Fall, player, p.position, 0.0f});
+        world.events.push(makeEvent(EventKind::Fall, player, p.position, 0.0f));
         s.pawns.destroy(pawnId); // 바디는 틱 끝에 지운다 (World::step)
     }
 }

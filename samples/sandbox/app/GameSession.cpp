@@ -1,6 +1,7 @@
 #include "app/GameSession.h"
 #include "app/Headless.h"
 
+#include "mealkit/feedback/Feedback.h"
 #include "mealkit/game/GameData.h"
 #include "mealkit/platform/Window.h"
 
@@ -38,7 +39,8 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     m_camera.control(ctx.window, mouseAllowed, look.camera);
     m_input.poll(input, keyboardAllowed, mouseAllowed);
-    m_viewTime += dt;
+    const bool hitStop = ctx.feedback.hitStop(); // 화면만 멈춘다: 화면 시계·효과·카메라 초점 (시뮬레이션은 계속)
+    if (!hitStop) m_viewTime += dt;
     m_effects.prune(m_viewTime, look.shockwave);
 
     // 확정된 틱마다: 로컬 입력을 만들어 보내고, 틱 이벤트를 화면 효과로 옮긴다
@@ -53,7 +55,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     auto onTick = [&](const World& world) {
         for (const GameEvent& e : world.events) {
             m_effects.onEvent(e, m_viewTime, look.shockwave, world.tuning.pawnHalfHeight);
-            playEventSound(ctx.audio, e);
+            ctx.feedback.trigger(e, session.localPlayer()); // 소리·흔들림·번쩍임·화면 정지는 연출 표가 정한다
         }
     };
     m_sim.update(session, dt, sample, onTick);
@@ -62,26 +64,35 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
 void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParams& frame, render::DrawList& out) {
     const u8 localPlayer = ctx.session.localPlayer();
     const bool started = m_sim.started();
-    const f32 alpha = m_sim.alpha();
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
+    // 화면 정지가 시작되면 그 순간의 그림을 붙잡아 두고, 끝나면 지금 상태로 돌아온다
+    const bool hitStop = started && ctx.feedback.hitStop();
+    if (hitStop && !m_frozen) {
+        m_frozenPrevious = m_sim.previous();
+        m_frozenCurrent = m_sim.world().state;
+        m_frozenAlpha = m_sim.alpha();
+    }
+    m_frozen = hitStop;
+    const WorldState& previous = m_frozen ? m_frozenPrevious : m_sim.previous();
+    const WorldState& current = m_frozen ? m_frozenCurrent : m_sim.world().state;
+    const f32 alpha = m_frozen ? m_frozenAlpha : m_sim.alpha();
 
     // 카메라는 내가 빙의한 Pawn을 따라간다. 리스폰을 기다리는 동안은 마지막 자리에 머문다 (관전).
-    if (started && localPlayer < m_sim.world().state.playerCount) {
-        const WorldState& current = m_sim.world().state;
+    if (started && localPlayer < current.playerCount) {
         const Controller* c = current.controllers.get(current.slots[localPlayer].controller);
         const Pawn* pawn = c ? current.pawns.get(c->pawn) : nullptr;
         if (pawn) {
-            const Pawn* before = m_sim.previous().pawns.get(c->pawn);
+            const Pawn* before = previous.pawns.get(c->pawn);
             m_focus = lerp(before ? before->position : pawn->position, pawn->position, alpha) +
                       Vec3{0, look.camera.focusHeight, 0};
         }
     }
-    m_camera.apply(m_focus, ctx.viewport, look.camera, frame);
+    m_camera.apply(m_focus + ctx.feedback.cameraShake(m_focus), ctx.viewport, look.camera, frame); // 흔들림은 연출 표
     applyEnvironment(m_scene.environment, frame);
 
     drawScene(m_scene, ctx.models, frame.cameraPos, out);
     if (!started) return;
-    drawWorld(m_sim.previous(), m_sim.world().state, alpha, localPlayer, now, look, ctx.models.boxMesh(), m_view, out);
+    drawWorld(previous, current, alpha, localPlayer, now, look, ctx.models.boxMesh(), m_view, out);
     m_effects.draw(m_viewTime, look.shockwave, ctx.models.boxMesh(), out);
 }
 

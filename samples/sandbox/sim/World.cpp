@@ -142,7 +142,7 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
     usePads(*this);
     physics.step(kTickDt, 2); // 30Hz 틱을 물리 2단계로 나눠 안정성을 높인다
     for (const mealkit::physics::ContactEvent& c : physics.contacts()) // 센 것부터 (스레드 수와 무관한 순서)
-        events.push({EventKind::Impact, kNoPlayer, c.point, c.speed});
+        events.push(makeEvent(EventKind::Impact, kNoPlayer, c.point, c.speed));
     removeFallenPawns(*this);
     recoverFallenProps(*this);
     sensePawns(*this);

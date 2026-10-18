@@ -1,0 +1,46 @@
+# MealKit table (Reaction). Edit it in the editor's [Feedback] panel.
+
+row Push
+sound push
+shake 0.12
+shakeSeconds 0.2
+shakeRange 14
+
+row Push.local
+players local
+shake 0.18
+shakeSeconds 0.18
+flash 0.06
+flashSeconds 0.08
+hitStop 0.05
+
+row Bounce
+sound bounce
+shake 0.08
+shakeRange 10
+
+row Spawn
+sound spawn
+
+row Fall
+sound fall
+
+row Fall.local
+players local
+positionFrom
+flash 0.35
+flashSeconds 0.35
+flashColor #E04030
+
+row Jump
+sound jump
+
+row Impact
+strengthFrom value
+strengthFull 15
+sound hit
+soundParam speed
+shake 0.1
+shakeSeconds 0.15
+shakeFrequency 22
+shakeRange 8

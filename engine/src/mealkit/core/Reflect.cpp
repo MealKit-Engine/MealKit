@@ -3,6 +3,7 @@
 #include "mealkit/core/Log.h"
 #include "mealkit/platform/Paths.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -79,8 +80,12 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
         else return false;
         return true;
     case Kind::Int: {
-        const long long x = std::strtoll(s, &end, 10);
-        if (end == s || *end) return false;
+        long long x = std::strtoll(s, &end, 10);
+        if (end == s || *end) {
+            const auto it = std::find(v.enumNames.begin(), v.enumNames.end(), text); // MEALKIT_ENUM 이름
+            if (it == v.enumNames.end()) return false;
+            x = it - v.enumNames.begin();
+        }
         switch (v.size) {
         case 1: store(data, static_cast<i8>(x)); break;
         case 2: store(data, static_cast<i16>(x)); break;
@@ -90,8 +95,12 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
         return true;
     }
     case Kind::UInt: {
-        const unsigned long long x = std::strtoull(s, &end, 10);
-        if (end == s || *end) return false;
+        unsigned long long x = std::strtoull(s, &end, 10);
+        if (end == s || *end) {
+            const auto it = std::find(v.enumNames.begin(), v.enumNames.end(), text); // MEALKIT_ENUM 이름
+            if (it == v.enumNames.end()) return false;
+            x = static_cast<unsigned long long>(it - v.enumNames.begin());
+        }
         switch (v.size) {
         case 1: store(data, static_cast<u8>(x)); break;
         case 2: store(data, static_cast<u16>(x)); break;
@@ -368,10 +377,18 @@ std::string formatScalar(const ValueInfo& v, const void* data) {
     char text[96] = {};
     switch (v.kind) {
     case Kind::Bool: return *static_cast<const bool*>(data) ? "true" : "false";
-    case Kind::Int: snprintf(text, sizeof(text), "%lld", static_cast<long long>(readInt(data, v.size))); break;
-    case Kind::UInt:
-        snprintf(text, sizeof(text), "%llu", static_cast<unsigned long long>(readUInt(data, v.size)));
+    case Kind::Int: {
+        const long long x = readInt(data, v.size);
+        if (x >= 0 && static_cast<size_t>(x) < v.enumNames.size()) return v.enumNames[static_cast<size_t>(x)];
+        snprintf(text, sizeof(text), "%lld", x);
         break;
+    }
+    case Kind::UInt: {
+        const unsigned long long x = readUInt(data, v.size);
+        if (x < v.enumNames.size()) return v.enumNames[static_cast<size_t>(x)];
+        snprintf(text, sizeof(text), "%llu", x);
+        break;
+    }
     case Kind::Float: snprintf(text, sizeof(text), "%.9g", *static_cast<const f32*>(data)); break;
     case Kind::Vec3: {
         const Vec3& p = *static_cast<const Vec3*>(data);
@@ -405,6 +422,23 @@ std::string formatScalar(const ValueInfo& v, const void* data) {
 }
 
 void toText(const TypeInfo& type, const void* data, TextFields& out) { toTextStruct(type, data, "", out); }
+
+std::vector<std::string> splitEnumNames(const char* text) {
+    std::vector<std::string> names;
+    std::string current;
+    for (const char* p = text;; ++p) {
+        if (*p == ',' || *p == '\0') {
+            const size_t a = current.find_first_not_of(" \t\n\r");
+            const size_t b = current.find_last_not_of(" \t\n\r");
+            names.push_back(a == std::string::npos ? std::string() : current.substr(a, b - a + 1));
+            current.clear();
+            if (!*p) break;
+        } else {
+            current += *p;
+        }
+    }
+    return names;
+}
 
 RowRefView rowRefOf(void* data) {
     auto* r = static_cast<RowRef<int>*>(data); // 행 타입과 무관하게 배치가 같다 (id, index)

@@ -20,6 +20,7 @@ cbuffer FrameConstants : register(b0)
     float4 skyColor;
     float4 groundColor;
     float4 fogColor;    // a = 안개 밀도
+    float4 screenTint;  // 화면 번쩍임 (rgb 선형 색, a = 세기): 연출 표의 flash
 };
 
 StructuredBuffer<Instance> instances : register(t0);
@@ -88,5 +89,5 @@ float4 PSMain(VSOutput input) : SV_Target
 
     float dist = distance(input.worldPos, cameraPos.xyz);
     float fog = exp(-dist * fogColor.a);
-    return float4(lerp(fogColor.rgb, color, fog), 1.0);
+    return float4(lerp(lerp(fogColor.rgb, color, fog), screenTint.rgb, screenTint.a), 1.0);
 }

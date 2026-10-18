@@ -264,6 +264,28 @@ When full (oldest, quietest, none) = 넘칠 때 (oldest, quietest, none)
 Cooldown (s) = 쿨다운 (초)
 Sound voices mixed at once = 동시에 섞는 소리 목소리 수
 
+# ---- 연출 ([연출] 패널, 연출 표의 열)
+Feedback = 연출
+Event type appears when the game code is loaded (EventType). = 게임 코드를 불러오면 이벤트 종류가 나옵니다 (EventType).
+Event fields: %s = 이벤트 필드: %s
+Saved automatically; a playing game picks the change up at once. = 자동으로 저장되고, 플레이 중인 게임에 바로 반영됩니다.
+Add Reaction = 연출 추가
+suffix for more rows = 행을 더할 때 붙일 이름
+Whose events (any, local, others) = 누구의 이벤트 (any, local, others)
+Strength from event field (empty is full) = 세기를 읽을 이벤트 필드 (비우면 최대)
+Field value at full strength = 최대 세기의 필드 값
+Position from event field (empty is everywhere) = 위치를 읽을 이벤트 필드 (비우면 위치 없음)
+Sound event = 소리 이벤트
+Sound parameter set to the strength field = 세기 필드 값을 넣을 소리 파라미터
+Camera shake at full strength (m) = 최대 세기의 화면 흔들림 (m)
+Shake time (s) = 흔들림 시간 (초)
+Shake frequency (Hz) = 흔들림 빠르기 (Hz)
+Shake fades out at this distance (m, 0 is everywhere) = 이 거리에서 흔들림이 사라짐 (m, 0이면 어디서나)
+Screen flash at full strength (0 to 1) = 최대 세기의 화면 번쩍임 (0~1)
+Flash time (s) = 번쩍임 시간 (초)
+Flash color = 번쩍임 색
+Hit stop: view freezes (s) = 화면 정지 (초, 화면만)
+
 # ---- 빌드·업그레이드
 Project Upgrade = 프로젝트 업그레이드
 This project's build files were made from the engine %s template (engine is now %s). = 이 프로젝트의 빌드 파일은 엔진 %s 템플릿으로 만들어졌습니다 (지금 엔진 %s).

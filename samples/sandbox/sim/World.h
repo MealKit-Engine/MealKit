@@ -105,16 +105,26 @@ MEALKIT_STRUCT(Pad) {
     MEALKIT_FIELD(mealkit::sim::TickTimer, ready, {}, "다음 사용");
 };
 
-// 시뮬레이션 → 화면 알림 (소리·효과용). sim/은 쓰기만 하고 읽지 않는다.
-enum class EventKind : u8 { Push, Bounce, Spawn, Fall, Jump, Impact };
+// 시뮬레이션 → 화면 알림 (소리·효과·흔들림). sim/은 쓰기만 하고 읽지 않는다.
+// 필드 선언이라 에디터 [연출] 패널이 종류 이름과 필드를 보여 주고, 연출 표(assets/feedback.table)가 종류 이름으로 연출을 고른다.
+MEALKIT_ENUM(EventKind, u8, Push, Bounce, Spawn, Fall, Jump, Impact);
 inline constexpr u8 kNoPlayer = 0xFF;
 
-struct GameEvent {
-    EventKind kind = EventKind::Push;
-    u8 player = kNoPlayer; // 플레이어 슬롯 (AI면 kNoPlayer)
-    Vec3 position;
-    f32 value = 0.0f; // 밀치기: 범위(m), 충돌: 다가오던 속도(m/s). 효과 모양은 화면용 튜닝이 정한다
+MEALKIT_STRUCT(GameEvent) {
+    MEALKIT_FIELD(EventKind, kind, EventKind::Push, "종류");
+    MEALKIT_FIELD(u8, player, kNoPlayer, "플레이어 슬롯 (AI면 255)");
+    MEALKIT_FIELD(Vec3, position, {}, "위치");
+    MEALKIT_FIELD(f32, value, 0.0f, "밀치기: 범위 (m), 충돌: 다가오던 속도 (m/s)");
 };
+
+inline GameEvent makeEvent(EventKind kind, u8 player, Vec3 position, f32 value) {
+    GameEvent e;
+    e.kind = kind;
+    e.player = player;
+    e.position = position;
+    e.value = value;
+    return e;
+}
 inline constexpr u32 kMaxEventsPerTick = 64;
 
 // 시뮬레이션 상태 전체 (물리 바디의 실제 상태는 PhysicsWorld 안에 있고, 위치·회전은 매 틱 여기로 옮겨 담는다).

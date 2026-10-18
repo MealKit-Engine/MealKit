@@ -107,6 +107,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/audio/Audio.cpp
     src/mealkit/audio/MiniaudioConfig.h
     src/mealkit/audio/MiniaudioImpl.cpp
+    src/mealkit/feedback/Feedback.h
+    src/mealkit/feedback/Feedback.cpp
     src/mealkit/render/Renderer.cpp
     shaders/Forward.hlsl
     ${MEALKIT_SHADER_HEADERS})
@@ -284,6 +286,8 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/TablesPanel.cpp
         src/mealkit/editor/SoundPanel.h
         src/mealkit/editor/SoundPanel.cpp
+        src/mealkit/editor/FeedbackPanel.h
+        src/mealkit/editor/FeedbackPanel.cpp
         src/mealkit/editor/Strings.h
         src/mealkit/editor/Strings.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit mealkit_imgui)

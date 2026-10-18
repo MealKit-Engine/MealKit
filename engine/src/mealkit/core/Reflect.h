@@ -28,6 +28,7 @@
 // MEALKIT_ARRAY, sim::Pool<T>.
 // std::string은 설정·튜닝·씬 필드용이다. 시뮬레이션 상태(WorldState, Pool 항목)에는 넣지 않는다(game::Simulation이 검사한다).
 // 기본값에 쉼표가 들어가면 괄호로 감싼다: MEALKIT_FIELD(Vec3, dir, (Vec3{0, 1, 0}), "방향").
+// 이름이 파일·에디터에 보이는 enum은 MEALKIT_ENUM(EventKind, u8, Push, Bounce, Spawn)으로 선언한다 (값은 0부터 차례로, 직접 값을 주지 않는다).
 // 필드 순서가 곧 저장·해시 순서다. 선언 사이에 __COUNTER__를 쓰는 다른 매크로를 넣지 않는다.
 namespace mealkit {
 
@@ -165,6 +166,7 @@ struct ContainerOps {
 struct ValueInfo {
     Kind kind = Kind::Bool;
     u32 size = 0;
+    std::vector<std::string> enumNames; // MEALKIT_ENUM: 값 0, 1, 2 ...의 이름 (파일·에디터는 이름, 해시·메모리는 정수)
     const TypeInfo* type = nullptr;     // Struct, RowRef(가리키는 표의 행 타입)
     const ValueInfo* element = nullptr; // Array, Container
     u32 count = 0;                      // Array
@@ -304,8 +306,12 @@ const TypeInfo& typeOf();
 template <class V>
 const ValueInfo& valueOf();
 
+// "Push, Bounce, Spawn" → {"Push", "Bounce", "Spawn"} (MEALKIT_ENUM)
+std::vector<std::string> splitEnumNames(const char* text);
+
 template <class>
 inline constexpr bool kAlwaysFalse = false;
+
 
 template <class V>
 ValueInfo makeValue() {
@@ -315,6 +321,8 @@ ValueInfo makeValue() {
         v.kind = Kind::Bool;
     } else if constexpr (std::is_enum_v<V>) {
         v.kind = std::is_signed_v<std::underlying_type_t<V>> ? Kind::Int : Kind::UInt;
+        if constexpr (requires { mealkitEnumText(static_cast<V*>(nullptr)); })
+            v.enumNames = splitEnumNames(mealkitEnumText(static_cast<V*>(nullptr)));
     } else if constexpr (std::is_integral_v<V>) {
         v.kind = std::is_signed_v<V> ? Kind::Int : Kind::UInt;
     } else if constexpr (std::is_same_v<V, f32>) {
@@ -384,6 +392,15 @@ template <class T>
 const TypeInfo& typeOf() {
     static const TypeInfo info = makeType<T>();
     return info;
+}
+
+// MEALKIT_ENUM 값의 이름 (이름이 없는 값이면 빈 문자열)
+template <class E>
+const std::string& enumName(E value) {
+    static const std::string none;
+    const std::vector<std::string>& names = valueOf<E>().enumNames;
+    const auto i = static_cast<size_t>(value);
+    return i < names.size() ? names[i] : none;
 }
 
 // V(또는 그 안의 구조체·배열)에 std::string 필드가 있는가. 시뮬레이션 상태는 복사·해시가 바이트 단위라 문자열을 넣지 않는다.
@@ -488,6 +505,11 @@ bool registerObjectType() {
 // 정의 데이터 표: MEALKIT_TABLE(PropKind, "tables/props.table", 0) — 행 타입은 MEALKIT_STRUCT, flags는 reflect::TableFlags
 #define MEALKIT_TABLE(Row, path, flags)                                                                                \
     inline const bool mealkitTableRegistered_##Row = ::mealkit::reflect::registerTable<Row>(path, flags)
+
+// 이름이 있는 enum: MEALKIT_ENUM(EventKind, u8, Push, Bounce) — 값은 0부터 차례로. 파일과 에디터에는 이름으로 보인다.
+#define MEALKIT_ENUM(Name, Underlying, ...)                                                                            \
+    enum class Name : Underlying { __VA_ARGS__ };                                                                      \
+    [[maybe_unused]] constexpr const char* mealkitEnumText(Name*) { return #__VA_ARGS__; }
 
 #define MEALKIT_ARRAY(Type, count, name, label)                                                                        \
     ::std::array<Type, count> name{};                                                                                  \

@@ -6,10 +6,10 @@
 #include "view/Draw.h"
 #include "view/Effects.h"
 #include "view/LocalInput.h"
-#include "view/Sounds.h"
 #include "view/ViewTuning.h"
 
 #include "mealkit/asset/ModelCache.h"
+#include "mealkit/audio/Audio.h"
 #include "mealkit/game/GameInstance.h"
 #include "mealkit/game/Simulation.h"
 #include "mealkit/net/Lockstep.h"
@@ -29,6 +29,7 @@ public:
     using TuningType = Tuning;                   // 에디터 [튜닝] 패널 (MEALKIT_GAME_MODULE이 읽는다)
     using ProjectSettingsType = ProjectSettings; // 에디터 [프로젝트 설정] 창의 게임 항목
     using ViewTuningType = ViewTuning;           // 화면용 튜닝 (assets/view.tuning, [튜닝] 패널 "화면" 탭)
+    using EventType = GameEvent;                 // 틱 이벤트 ([연출] 패널, assets/feedback.table)
 
     GameSession() = default;
     GameSession(const GameSession&) = delete;
@@ -65,6 +66,10 @@ private:
     Effects m_effects;              // 틱 이벤트 → 화면 효과
     mealkit::f64 m_viewTime = 0.0;  // 화면 효과용 시계 (update의 dt 합)
     mealkit::audio::Handle m_music; // 배경음 (매치 동안)
+    // 화면 정지(히트 스톱) 동안 그리는 상태: 시작한 순간의 두 틱 상태와 보간 비율 (시뮬레이션은 계속 돈다)
+    bool m_frozen = false;
+    WorldState m_frozenPrevious, m_frozenCurrent;
+    f32 m_frozenAlpha = 1.0f;
 };
 
 } // namespace sandbox

@@ -15,6 +15,7 @@
 
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/audio/Audio.h"
+#include "mealkit/feedback/Feedback.h"
 #include "mealkit/core/Clock.h"
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Profile.h"
@@ -310,11 +311,12 @@ int main(int argc, char** argv) {
     // 소리: 기본 출력 장치 (없으면 소리 없이 돈다). 창이 포커스를 잃으면 음소거 (설정 항목에서 끌 수 있게 된다)
     audio::Engine audio;
     audio.init({project.settings.audioVoices, opt.mute});
+    feedback::Player feedback(audio); // assets/feedback.table: 틱 이벤트 → 소리·흔들림·번쩍임·화면 정지
 
     game::LiveTuning viewTuning; // assets/view.tuning: 파일이 바뀌면 다시 읽는다 (에디터에서 저장하면 바로 보인다)
     viewTuning.open(reflect::typeOf<sandbox::ViewTuning>());
 
-    game::GameContext ctx{window, renderer, models, session, audio};
+    game::GameContext ctx{window, renderer, models, session, audio, feedback};
     render::DrawList drawList;
     f64 lastTime = nowSeconds();
     f64 titleTimer = 0.0, frameTimeSum = 0.0;
@@ -376,6 +378,7 @@ int main(int argc, char** argv) {
         game.update(ctx, dt);
         audio.setMuted(opt.mute || !window.focused());
         audio.update(dt);
+        feedback.update(dt);
         if (game.captureDue()) renderer.requestCapture(opt.capturePath.c_str());
         if (game.finished() && exitDeadline == 0.0) {
             std::printf("FINAL tick=%u hash=%016llx desync=%d\n", game.nextTick() - 1,
@@ -409,6 +412,7 @@ int main(int argc, char** argv) {
             drawList.clear();
             game.buildFrame(ctx, now, frame, drawList);
             audio.setListener(frame.cameraPos, frame.cameraForward);
+            feedback.screenTint(frame.tintColor, frame.tintAmount);
             if (renderer.beginFrame(frame)) {
                 drawList.submit(renderer);
                 renderer.endFrame();
