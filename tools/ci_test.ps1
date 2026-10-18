@@ -71,7 +71,13 @@ if (-not $NoHeadless) {
         $failed += "mp_test -Headless"
         # 실패하면 각 피어의 출력을 남긴다 (mp_test 로그 폴더: <build>/mp_test)
         $mpLogs = Join-Path (Split-Path -Parent (Split-Path -Parent $Bin)) "mp_test"
-        if (Test-Path $mpLogs) { Copy-Item (Join-Path $mpLogs "*") $Out -ErrorAction SilentlyContinue }
+        if (Test-Path $mpLogs) {
+            Copy-Item (Join-Path $mpLogs "*") $Out -ErrorAction SilentlyContinue
+            foreach ($f in Get-ChildItem $mpLogs -File | Sort-Object Name) {
+                Write-Host "----- $($f.Name) (last 15 lines)"
+                Get-Content $f.FullName -Tail 15 | ForEach-Object { Write-Host "  $_" }
+            }
+        }
     }
 }
 

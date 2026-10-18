@@ -99,9 +99,13 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
     }
     case Kind::String: *static_cast<std::string*>(data) = text; return true;
     case Kind::Id: {
-        unsigned slot = 0, generation = 0;
-        if (sscanf_s(s, "%u %u", &slot, &generation) != 2) return false;
-        const u32 ids[2] = {slot, generation};
+        // "<slot> <generation>" (sscanf_s는 MSVC 전용, sscanf는 MSVC가 C4996 경고)
+        const unsigned long slot = std::strtoul(s, &end, 10);
+        if (end == s) return false;
+        const char* rest = end;
+        const unsigned long generation = std::strtoul(rest, &end, 10);
+        if (end == rest) return false;
+        const u32 ids[2] = {static_cast<u32>(slot), static_cast<u32>(generation)};
         std::memcpy(data, ids, sizeof(ids));
         return true;
     }

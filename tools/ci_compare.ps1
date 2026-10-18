@@ -4,7 +4,8 @@
 # GitHub Actions에서는 결과 표를 작업 요약($GITHUB_STEP_SUMMARY)에도 쓴다.
 param(
     [Parameter(Mandatory = $true)][string]$Dir,
-    [string]$Reference = "windows-msvc"
+    [string]$Reference = "windows-msvc",
+    [string[]]$Expect = @() # 있어야 하는 빌드 이름 (빌드가 실패해 결과가 없으면 비교도 실패)
 )
 $ErrorActionPreference = "Stop"
 $builds = @(Get-ChildItem -Path $Dir -Directory | Sort-Object Name)
@@ -37,6 +38,12 @@ if ($refLogs.Count -eq 0) { Write-Host "Reference build has no replay hash logs"
 
 $rows = @()
 $failed = $false
+foreach ($e in $Expect) {
+    if (-not ($builds | Where-Object { $_.Name -eq $e })) {
+        $rows += [pscustomobject]@{ Build = $e; Bits = "missing"; Replay = "**no results (build or test failed)**" }
+        $failed = $true
+    }
+}
 foreach ($b in $builds) {
     $bits = Read-Bits $b
     $bitsText = if (-not $bits) { "missing" } elseif ($bits -eq $refBits) { "same" } else { "**$bits**" }

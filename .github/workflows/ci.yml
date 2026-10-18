@@ -85,7 +85,7 @@ jobs:
           cmake -S . -B build/Headless -G Ninja -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
       - name: Build (sandbox_headless, mealkit_tests)
-        run: cmake --build build/Headless --target sandbox_headless mealkit_tests
+        run: cmake --build build/Headless --target sandbox_headless mealkit_tests -- -k 0 # 오류를 한 번에 모두 본다
       - name: Test
         shell: pwsh
         run: tools/ci_test.ps1 -Bin build/Headless/bin -Name ${{ matrix.name }} -Out ci-out/${{ matrix.name }}
@@ -108,4 +108,6 @@ jobs:
           path: ci-results
       - name: detmath-bits and replay tick hashes
         shell: pwsh
-        run: tools/ci_compare.ps1 -Dir ci-results -Reference windows-msvc
+        run: >
+          tools/ci_compare.ps1 -Dir ci-results -Reference windows-msvc
+          -Expect windows-msvc,windows-clang-cl,windows-msvc-editor,linux-x64-clang,macos-arm64-clang
