@@ -117,7 +117,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 | 모듈 | 내용 |
 |---|---|
 | Core | 로그, 고해상도 시계, 프레임 제한기, 수학(Vec3/Quat/Mat4, reversed-Z), 결정론 수학(DetMath), PCG32 난수, FNV 해시, 필드 선언(`MEALKIT_FIELD`), Tracy 마커 |
-| Platform | OS 호출을 모은 층(`platform/win32/`, 헤드리스용 `platform/posix/` 최소 구현 — 아직 컴파일 안 해 봄): Win32 창, Per-Monitor DPI, Raw Input, 경로·사용자 데이터 폴더, 자식 프로세스·DLL·파일 대화상자(에디터), 그림(WIC). `tools\check_platform.ps1`이 층 밖의 OS 호출을 막는다 |
+| Platform | OS 호출을 모은 층(`platform/win32/`, 헤드리스용 `platform/posix/` 최소 구현, CI의 Linux·macOS 헤드리스 빌드가 컴파일한다): Win32 창, Per-Monitor DPI, Raw Input, 경로·사용자 데이터 폴더, 자식 프로세스·DLL·파일 대화상자(에디터), 그림(WIC). `tools\check_platform.ps1`이 층 밖의 OS 호출을 막는다 |
 | Online | `online::Service`: 계정, 친구 로비, 초대, 플랫폼 릴레이 전송. 백엔드는 빌드 때 하나(Steam: SDK가 있는 게임 빌드, 없음: 그 밖과 Editor 빌드) |
 | Render | DX12 포워드 렌더러: 메시별 인스턴싱(드로우 콜 = 메시 종류 수), 업로드 링 버퍼, 빌드 시점 셰이더 컴파일(DXC), 정점 색, 16/32비트 인덱스, PNG 스크린샷, Tracy GPU 시간 |
 | Physics | Jolt Physics 래퍼: 상자/구/캡슐/볼록 껍질, 광선, 상태 해시. 결정론 빌드 |
@@ -184,7 +184,7 @@ sandbox_headless.exe --help
 ```
 
 - 창·렌더러·오디오를 만들지 않고 `World`만 돌린다. 입력은 항상 봇 입력이고, 혼자면 쉬지 않고 돈다(900틱 약 1~2초).
-- `sandbox_headless.exe`는 `sim/` + `app/Headless.cpp`만 엔진 코어(`mealkit_core`, 렌더러·창 없음)와 링크한 실행 파일이다. Linux(x64)·macOS(ARM64)의 Clang에서는 이것만 빌드한다(CI 항목에서 처음 컴파일한다). 출시 exe의 `--headless`도 같은 코드다.
+- `sandbox_headless.exe`는 `sim/` + `app/Headless.cpp`만 엔진 코어(`mealkit_core`, 렌더러·창 없음)와 링크한 실행 파일이다. Linux(x64)·macOS(ARM64)의 Clang에서는 이것만 빌드한다(아래 "CI"). 출시 exe의 `--headless`도 같은 코드다.
 - `--hash-log`: 틱마다 `<틱> <해시>` 한 줄. 창 있는 게임(`sandbox.exe --bot --hash-log`)과도 같은 파일이 나온다.
 - `--record-inputs`(창 있는 게임에도 있다): 확정된 입력과 틱별 해시를 파일로. `--replay-inputs`는 네트워크 없이 그것을 다시 돌려 `REPLAY ok` 또는 처음 갈라진 틱을 출력한다.
   빌드·컴파일러·OS 사이 비교는 봇을 따로 돌리지 않고 **같은 기록 파일**을 각 빌드에서 재생한다 (예: `build\ClangCL\bin\sandbox_headless.exe --replay-inputs match.rec`).
@@ -234,6 +234,26 @@ MSVC 빌드 호스트에 clang-cl 빌드 클라이언트를 붙여 **컴파일�
 
 `-Headless`를 붙이면 모든 피어가 창 없이(`--headless`) 돈다. 입력이 허락하는 만큼 빨리 돌아 900틱이 약 5초다(창 모드는 약 30초).
 
+### CI (GitHub Actions)
+
+`.github/workflows/ci.yml`이 푸시·PR마다 돈다. 결과 표는 Actions 실행의 요약(Summary)에 나온다.
+
+| 빌드 | 러너 | 만드는 것 |
+|---|---|---|
+| `windows-msvc` (기준) | windows-2022 | `build.bat` (Release) + `check_strings`·`check_platform` |
+| `windows-clang-cl` | windows-2022 | `build.bat ClangCL` |
+| `windows-msvc-editor` | windows-2022 | `build.bat Editor` (단위 테스트만) |
+| `linux-x64-clang` | ubuntu-24.04 | 헤드리스: `sandbox_headless`, `mealkit_tests` |
+| `macos-arm64-clang` | macos-15 (Apple Silicon) | 헤드리스: `sandbox_headless`, `mealkit_tests` |
+
+- 빌드마다 `tools/ci_test.ps1`: 단위 테스트(`detmath-bits`), 저장소의 고정 입력 기록 `samples/*/replays/*.rec`를 `--replay-inputs --hash-log`로 재생(`REPLAY ok`), 헤드리스 `mp_test`(1+3, 900틱).
+- 마지막 `compare` 작업의 `tools/ci_compare.ps1`이 모든 빌드의 `detmath-bits`와 틱별 해시 로그를 `windows-msvc`와 비교하고, 다르면 처음 갈라진 틱을 표에 보여 주고 실패한다.
+- 로컬에서 같은 것을 보려면 `powershell -ExecutionPolicy Bypass -File tools\ci_test.ps1 -Bin build\Release\bin -Name windows-msvc` 후 `tools\ci_compare.ps1 -Dir build\ci`.
+  Linux·macOS 헤드리스 빌드는 `cmake -S . -B build/Headless -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++` → `cmake --build build/Headless --target sandbox_headless mealkit_tests`.
+- **시뮬레이션 결과를 일부러 바꾸면**(물리·게임 규칙·튜닝·씬·봇 입력) 기록이 맞지 않아 CI와 `check.ps1`의 "Committed replays"가 실패한다.
+  `build.bat` 후 `powershell -ExecutionPolicy Bypass -File tools\record_replay.ps1`(헤드리스 4명, seed 7, 900틱)로 다시 만들어 같이 커밋한다. 의도하지 않았는데 실패하면 디싱크다.
+- `.rec`는 `.gitattributes`에서 바이너리라 줄 끝 변환을 받지 않는다. GPU가 없는 러너라 화면 캡처·그림자/되감기 검사는 로컬 `check.ps1`에만 있다. Steam·EOS SDK가 없어 "없음" 백엔드로 빌드된다.
+
 ## 외부 라이브러리
 
 | 라이브러리 | 버전 | 라이선스 | 쓰는 곳 | 이유 |
@@ -257,7 +277,7 @@ engine/
   src/mealkit/core/            Types, Log, Clock, Math, DetMath, Random, Hash, Reflect(필드 선언), Version, Profile
   src/mealkit/platform/        Window, Input, Paths, Process, System, DynamicLibrary, FileDialog, Image (헤더 + 공통 부분)
   src/mealkit/platform/win32/  OS를 부르는 Windows 구현 (Win32, Winsock, WIC, 대화상자)
-  src/mealkit/platform/posix/  헤드리스용 Linux·macOS 최소 구현 (시간, 파일, UDP, 로그. 아직 컴파일해 보지 않았다)
+  src/mealkit/platform/posix/  헤드리스용 Linux·macOS 최소 구현 (시간, 파일, UDP, 로그. CI가 빌드한다)
   src/mealkit/online/          Online (계정·로비·초대·릴레이): Steam 백엔드, SDK 없을 때의 None 백엔드
   src/mealkit/render/          Renderer, Mesh, DrawList
   src/mealkit/physics/         PhysicsWorld (Jolt)
@@ -320,7 +340,7 @@ VERSION                      엔진 버전 (mealkit.project의 engineVersion과 
 ## 다음 단계
 
 계획과 순서는 [docs/ROADMAP.md](ROADMAP.md)("추천 순서 요약"), 정한 것과 미룬 것은 [docs/DECISIONS.md](DECISIONS.md), 끝낸 것의 상세는 [docs/CHANGELOG.md](CHANGELOG.md).
-지금은 1단계(v0.5, 게임이 되게 하는 최소 기능) 중이고, 다음은 CI 빌드 매트릭스다.
+지금은 1단계(v0.5, 게임이 되게 하는 최소 기능) 중이고, 다음은 저장소 공개 범위 결정이다.
 
 ## 라이선스
 

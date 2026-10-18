@@ -5,6 +5,22 @@
 
 ## v0.4.3 — 1단계 진행 중 (2026-10-16)
 
+### [x] CI 빌드 매트릭스 (완료 2026-10-18)
+- **왜**: 플랫폼·컴파일러가 늘면 사람이 모든 조합을 빌드해 해시를 비교할 수 없다. 5단계 크로스플레이의 바탕(OS·CPU·컴파일러 사이 같은 틱 해시)을 첫날부터 매 커밋 확인한다.
+- **워크플로** (`.github/workflows/ci.yml`, 푸시·PR·수동): Windows(windows-2022) 3개 — `windows-msvc`(Release, 기준), `windows-clang-cl`(`build.bat ClangCL`), `windows-msvc-editor`(`build.bat Editor`, 단위 테스트만) — 는 로컬과 같은 `build.bat`을 그대로 부른다.
+  헤드리스 2개 — `linux-x64-clang`(ubuntu-24.04, apt clang + ninja), `macos-arm64-clang`(macos-15 Apple Silicon, Apple clang) — 는 `cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++` 후 `sandbox_headless`·`mealkit_tests`만 빌드한다(`MEALKIT_HEADLESS_ONLY`, SimCheck도 빌드 때 돈다).
+  `windows-msvc`는 `check_strings`·`check_platform`도 돈다. 빌드마다 결과 폴더를 아티팩트로 올리고, 마지막 `compare` 작업이 모아 비교한다. 같은 브랜치의 새 커밋은 이전 실행을 취소한다.
+- **빌드마다** `tools/ci_test.ps1`(Windows PowerShell 5.1·pwsh 7 둘 다): 단위 테스트와 `detmath-bits` 줄, 저장소의 고정 입력 기록(`samples/*/replays/*.rec`)을 `<샘플>_headless --replay-inputs --hash-log`로 재생(`REPLAY ok` = 기록에 든 MSVC 해시와 틱마다 같음),
+  헤드리스 `mp_test`(1+3, 900틱, 클라이언트마다 물리 스레드 수 다름). mp_test가 실패하면 피어별 출력도 아티팩트에 넣는다.
+- **비교** `tools/ci_compare.ps1`: 모든 빌드의 `detmath-bits`와 틱별 해시 로그를 `windows-msvc`와 비교해 Markdown 표를 작업 요약(`$GITHUB_STEP_SUMMARY`)에 쓰고, 다르면 처음 갈라진 줄(틱)을 보여 주며 실패한다.
+- **고정 입력 기록** `samples/sandbox/replays/arena_4p_seed7.rec`(36 KB): 헤드리스 호스트 1 + 클라이언트 3, seed 7, 상자 2000개, 901틱(0~900)의 확정 입력과 해시. 혼자보다 네 명이 서로 밀치는 쪽이 물리 접촉을 더 많이 거친다.
+  `tools/record_replay.ps1`이 만든다(다시 만들면 바이트까지 같은 파일이 나온다). 시뮬레이션 결과를 일부러 바꾸면 이것으로 다시 만들어 같이 커밋한다 — 로컬 `check.ps1`에 "Committed replays" 단계를 더해 푸시 전에 알 수 있게 했다.
+  `.gitattributes`에서 `.rec`(와 `.glb`·`.png`·`.ico`)를 바이너리로 두어 Windows 러너의 `core.autocrlf`가 바꾸지 않게 했다.
+- **로컬 검증**: Release·ClangCL·Editor 빌드에서 `ci_test.ps1`가 모두 PASS(`detmath-bits f67a477cb2496808`, 기록 재생 901틱 같음), `ci_compare.ps1`가 PASS, 해시 한 줄을 일부러 바꾸면 FAIL. `check.ps1 -Quick` 9개 통과.
+  **Linux·macOS 빌드와 GitHub 러너 위의 실행은 이 PC에서 확인할 수 없어 첫 CI 실행이 처음이다** — 비Windows CMake·`platform/posix/`가 처음 컴파일되므로 실패하면 그 실행에서 고친다.
+- **ROADMAP 방식과 다른 점·남은 것**: Windows on ARM은 넣지 않았다(ARM Windows 러너는 공개 저장소용이라 저장소 공개 범위 결정 뒤). ROADMAP의 `check_layout`은 아직 없는 검사라 빠졌고(배치 검사는 디자이너 항목), SimCheck는 각 빌드 안에서 돈다.
+  기록은 sandbox 하나뿐이다 — 샘플이 늘면(기준 샘플 규칙 항목) `samples/<샘플>/replays/`에 두면 `ci_test.ps1`이 자동으로 재생한다. 3단계 디싱크 진단 도구가 생기면 비교 실패 때 그것을 부른다.
+
 ### [x] 헤드리스 시뮬레이션 (완료 2026-10-18)
 - **왜**: CI가 GPU·창 없는 러너에서 컴파일러·OS·CPU 사이 틱별 해시를 매 커밋 비교하려면(5단계 크로스플레이의 바탕) 시뮬레이션만 도는 실행 파일이 먼저 있어야 한다.
 - **엔진 라이브러리 나누기** (`engine/CMakeLists.txt`): 코어(`mealkit_core`: core, game, sim, physics, scene, asset, net, `render/Mesh`, 플랫폼의 시간·파일·소켓·시스템)와 화면 쪽(창·입력·렌더러·온라인 서비스·에디터용 플랫폼 기능).

@@ -1,0 +1,111 @@
+# MealKit CI 빌드 매트릭스 (docs/ROADMAP.md 1단계 "CI 빌드 매트릭스", docs/GUIDE.md "CI").
+# 커밋마다 Windows MSVC(Release, Editor)·clang-cl과 Linux x64·macOS ARM64 Clang 헤드리스를 빌드하고,
+# 각 빌드에서 tools/ci_test.ps1(단위 테스트, 고정 입력 기록 재생, 헤드리스 mp_test)을 돌린 뒤
+# tools/ci_compare.ps1이 detmath-bits와 틱별 해시가 모든 빌드에서 같은지 본다. 하나라도 다르면 실패한다.
+# GPU가 없는 러너라 화면 캡처·그림자/되감기 검사는 로컬 tools/check.ps1에 남는다. Steam·EOS SDK가 없어 "없음" 백엔드로 빌드된다.
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows ${{ matrix.name }}
+    runs-on: windows-2022
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-msvc
+            config: Release
+            bin: build/Release/bin
+            checks: true
+          - name: windows-clang-cl
+            config: ClangCL
+            bin: build/ClangCL/bin
+          - name: windows-msvc-editor
+            config: Editor
+            bin: build/Editor/bin
+            no_headless: true
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (${{ matrix.config }})
+        shell: cmd
+        run: call build.bat ${{ matrix.config }}
+      - name: Test
+        shell: powershell
+        run: >
+          tools\ci_test.ps1 -Bin ${{ matrix.bin }} -Name ${{ matrix.name }} -Out ci-out/${{ matrix.name }}
+          ${{ matrix.no_headless && '-NoHeadless' || '' }}
+      - name: Editor strings (check_strings)
+        if: matrix.checks
+        shell: powershell
+        run: tools\check_strings.ps1
+      - name: Platform layer (check_platform)
+        if: matrix.checks
+        shell: powershell
+        run: tools\check_platform.ps1
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: ${{ matrix.name }}
+          path: ci-out/${{ matrix.name }}
+          if-no-files-found: ignore
+
+  headless:
+    name: Headless ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64-clang
+            os: ubuntu-24.04
+          - name: macos-arm64-clang
+            os: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install tools (Linux)
+        if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y ninja-build clang
+      - name: Install tools (macOS)
+        if: runner.os == 'macOS'
+        run: brew install ninja || true
+      - name: Configure
+        run: >
+          cmake -S . -B build/Headless -G Ninja -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
+      - name: Build (sandbox_headless, mealkit_tests)
+        run: cmake --build build/Headless --target sandbox_headless mealkit_tests
+      - name: Test
+        shell: pwsh
+        run: tools/ci_test.ps1 -Bin build/Headless/bin -Name ${{ matrix.name }} -Out ci-out/${{ matrix.name }}
+      - uses: actions/upload-artifact@v4
+        if: ${{ !cancelled() }}
+        with:
+          name: ${{ matrix.name }}
+          path: ci-out/${{ matrix.name }}
+          if-no-files-found: ignore
+
+  compare:
+    name: Compare hashes across builds
+    needs: [windows, headless]
+    if: ${{ !cancelled() }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: ci-results
+      - name: detmath-bits and replay tick hashes
+        shell: pwsh
+        run: tools/ci_compare.ps1 -Dir ci-results -Reference windows-msvc
