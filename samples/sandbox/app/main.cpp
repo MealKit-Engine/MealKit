@@ -274,7 +274,7 @@ int main(int argc, char** argv) {
     session.setAcceptOtherBuilds(opt.anyBuild);
     const u64 seed = opt.seed ? opt.seed : static_cast<u64>(std::time(nullptr));
     switch (opt.mode) {
-    case Options::Mode::Offline: session.startOffline(seed, opt.bodies); break;
+    case Options::Mode::Offline: break; // 아래에서 게임이 로드아웃을 정한 뒤 연다
     case Options::Mode::Host:
         if (!session.host(opt.port, opt.maxPlayers, opt.inputDelay, opt.loopbackOnly))
             MEALKIT_FATAL("Could not host on port %u", opt.port);
@@ -315,6 +315,11 @@ int main(int argc, char** argv) {
     gameOptions.record = opt.rewindTest;
     gameOptions.hashLogPath = opt.hashLogPath;
     gameOptions.recordInputsPath = opt.recordInputsPath;
+    const std::string userFolder = automated ? std::string() : game::userFolder(project.settings);
+    if (opt.mode == Options::Mode::Offline) {
+        game.lobby(session, gameOptions, userFolder); // 매치 시작 데이터 (로드아웃)
+        session.startOffline(seed, opt.bodies);
+    }
 
     FrameLimiter limiter;
     limiter.setTargetFps(opt.vsync ? 0.0 : opt.fpsCap);
@@ -360,7 +365,7 @@ int main(int argc, char** argv) {
     }
 
     game::GameContext ctx{window, renderer, models, session, audio, feedback, actions, strings, ui, playerSettings};
-    if (!automated) ctx.userFolder = game::userFolder(project.settings); // 세이브 (자동 실행은 저장하지 않는다)
+    ctx.userFolder = userFolder; // 세이브 (자동 실행은 저장하지 않는다)
 #if MEALKIT_DEBUG_UI
     // 디버그 UI (F1): 개발 빌드만 (출시 빌드 build.bat Export에는 ImGui가 없다). 처음 켤 때 만든다 (글꼴 읽기)
     debug::ImGuiLayer debugUi;
@@ -404,6 +409,8 @@ int main(int argc, char** argv) {
         }
 
         session.update(now);
+        if (!game.started() && session.state() != net::SessionState::Running && session.state() != net::SessionState::Ended)
+            game.lobby(session, gameOptions, ctx.userFolder); // 로비: 로드아웃을 정한다 (호스트가 시작할 때 확정)
 
         if (session.isHost() && session.state() == net::SessionState::Lobby) {
             if (input.keyPressed(key::Enter) || (opt.autoStart && session.lobbyPlayerCount() >= opt.autoStart))

@@ -6,6 +6,7 @@
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Random.h"
 #include "mealkit/game/InputRecord.h"
+#include "mealkit/game/Loadout.h"
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/game/Save.h"
 #include "mealkit/game/Simulation.h"
@@ -790,6 +791,10 @@ TEST_CASE(command_channel) {
         constexpr u16 kPort = 27931;
         net::LockstepSession host, client;
         TEST_CHECK(host.host(kPort, 2, 2, true));
+        TestCommand hostLoadout, clientLoadout; // 매치 시작 데이터: 로비에서 보내고 시작 패킷으로 확정
+        hostLoadout.value = 11;
+        clientLoadout.value = 22;
+        TEST_CHECK(game::setLoadout(host, hostLoadout) && game::setLoadout(client, clientLoadout));
         net::Address address;
         net::startup();
         TEST_CHECK(net::resolveAddress("127.0.0.1", kPort, address));
@@ -823,6 +828,27 @@ TEST_CASE(command_channel) {
             }
         }
         TEST_CHECK(next[0] == kTicks && next[1] == kTicks && !host.desynced());
+        for (net::LockstepSession* s : sessions) {
+            const game::MatchInfo match = game::matchInfo(*s);
+            TestCommand a, b;
+            TEST_CHECK(game::readLoadout(match, 0, a) && a.value == 11 && game::readLoadout(match, 1, b) && b.value == 22);
+            OtherCommand wrong;
+            TEST_CHECK(!game::readLoadout(match, 0, wrong)); // 타입이 다르면 읽지 않는다
+        }
+        { // 입력 기록 머리에 들어간다 (버전 3)
+            const std::string path = executableDirectory() + "/test_loadouts.rec";
+            {
+                game::InputRecordWriter w;
+                TEST_CHECK(w.open(path, game::matchInfo(host), 0));
+                w.write(host.inputs(0), 0);
+            }
+            game::InputRecording rec;
+            std::string error;
+            TestCommand b;
+            TEST_CHECK(game::loadInputRecording(path, rec, error) && rec.inputs.size() == 1 && game::readLoadout(rec.match, 1, b) &&
+                       b.value == 22);
+            removeFile(path);
+        }
         TEST_CHECK(logs[0].lines.size() == 3 && logs[0].lines == logs[1].lines);
         client.shutdown();
         host.shutdown();

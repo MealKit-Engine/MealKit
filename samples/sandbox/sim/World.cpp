@@ -92,11 +92,13 @@ void overridePropCount(std::vector<World::PropSpawn>& spawns, u32 total) {
 } // namespace
 
 void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuningValue,
-                  const mealkit::sim::Table<PropKind>& propKindTable, const scene::Scene& scene,
-                  mealkit::asset::ModelCache& models, u32 physicsThreads) {
+                  const mealkit::sim::Table<PropKind>& propKindTable, const mealkit::sim::Table<BodyKind>& bodyKindTable,
+                  const std::vector<u32>& playerBodies, const scene::Scene& scene, mealkit::asset::ModelCache& models,
+                  u32 physicsThreads) {
     physics.init(16384, physicsThreads);
     tuning = tuningValue;
     propKinds = propKindTable;
+    bodyKinds = bodyKindTable;
     physics.setContactEvents(tuning.impactSpeed, tuning.impactsPerTick); // 충돌 소리 (화면 알림)
     physics.setGravity(tuning.gravity);
     spawns.clear();
@@ -110,6 +112,8 @@ void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tun
     u32 propCount = 0;
     for (const PropSpawn& s : propSpawns) propCount += s.count;
     state.playerCount = playerCount;
+    for (u32 i = 0; i < playerCount; ++i) // 매치 시작 데이터: 없는 행이면 첫 행
+        state.slots[i].body = i < playerBodies.size() && playerBodies[i] < bodyKinds.size() ? playerBodies[i] : 0u;
     const u32 controllers = playerCount + tuning.aiPawns;
     state.controllers.init(controllers);
     state.pawns.init(controllers * 2); // 리스폰 대기 0틱이면 지우는 Pawn과 새 Pawn이 한 틱에 같이 있다

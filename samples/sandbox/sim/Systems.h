@@ -9,7 +9,8 @@ namespace sandbox {
 // Pawns.cpp
 Vec3 spawnPosition(const World& world, u32 index);
 void createControllers(World& world); // 매치 시작: 플레이어 슬롯마다 하나, 그다음 AI
-Id<Pawn> spawnPawn(World& world, const Vec3& position);
+Id<Pawn> spawnPawn(World& world, const Vec3& position, f32 massScale);
+const BodyKind* bodyOf(const World& world, u8 player); // 플레이어의 몸 종류 (AI나 표가 비면 nullptr)
 void possess(World& world, Id<Controller> controller, Id<Pawn> pawn);
 void unpossess(World& world, Id<Controller> controller);
 void respawnPawns(World& world);      // Pawn이 없고 리스폰 대기가 끝난 컨트롤러에 새 Pawn

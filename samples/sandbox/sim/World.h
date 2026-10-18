@@ -82,6 +82,7 @@ MEALKIT_STRUCT(Controller) {
 
 MEALKIT_STRUCT(PlayerSlot) {
     MEALKIT_FIELD(bool, connected, false, "접속");
+    MEALKIT_FIELD(u32, body, 0, "몸 종류 (bodies.table 행 번호, 매치 시작 데이터)");
     MEALKIT_FIELD(u32, team, 0, "팀");
     MEALKIT_FIELD(u32, falls, 0, "떨어진 횟수");
     MEALKIT_FIELD(Id<Controller>, controller, {}, "컨트롤러");
@@ -151,9 +152,11 @@ struct World {
     // 상자 수는 씬의 상자 생성 영역(PropSpawnArea.count)의 합. propOverride가 0이 아니면 그 수로 맞춘다(--bodies, 성능 측정).
     // Pool 용량은 매치 시작 때 정한다: 상자 = 상자 수, 컨트롤러 = 플레이어 + AI, Pawn = 컨트롤러 × 2.
     // propKinds: 상자 종류 표 (app/이 tables/props.table에서 읽어 넘긴다)
+    // playerBodies: 플레이어마다 bodies.table 행 번호 (로드아웃, 없으면 0)
     void reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuning,
-               const mealkit::sim::Table<PropKind>& propKinds, const mealkit::scene::Scene& scene,
-               mealkit::asset::ModelCache& models, u32 physicsThreads = 0);
+               const mealkit::sim::Table<PropKind>& propKinds, const mealkit::sim::Table<BodyKind>& bodyKinds,
+               const std::vector<u32>& playerBodies, const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models,
+               u32 physicsThreads = 0);
     // 매치 도중 튜닝을 바꾼다 (에디터 혼자 플레이 전용: 멀티플레이에서는 피어마다 달라지면 디싱크)
     void setTuning(const Tuning& value);
     void step(const mealkit::net::TickInputs& inputs);
@@ -171,6 +174,7 @@ struct World {
     Vec3 arenaMin, arenaMax; // 경기 영역 (MatchArea): 가로·세로 = AI·상자 범위, 바닥 = 낙사, 위 = 상자 다시 떨어뜨리기
     Tuning tuning;
     mealkit::sim::Table<PropKind> propKinds; // 상자 종류 (콘텐츠 해시에 들어가는 표)
+    mealkit::sim::Table<BodyKind> bodyKinds; // 캐릭터 몸 종류 (플레이어 슬롯의 body가 행 번호)
 
     // 상태
     WorldState state;

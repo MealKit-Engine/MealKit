@@ -7,6 +7,12 @@
 #include <cmath>
 
 namespace sandbox {
+
+const BodyKind* bodyOf(const World& world, u8 player) {
+    if (player >= world.state.playerCount || world.bodyKinds.size() == 0) return nullptr;
+    return &world.bodyKinds.rows[world.state.slots[player].body];
+}
+
 namespace {
 
 // 이번 틱에 Pawn이 하려는 것 (사람은 입력에서, AI는 판단에서)
@@ -49,14 +55,16 @@ Intent thinkAI(World& world, Controller& c, const Pawn& pawn) {
 
 void movePawn(World& world, Pawn& p, const Intent& intent, u8 player) {
     const Tuning& t = world.tuning;
+    const BodyKind* body = bodyOf(world, player);
+    const f32 speed = t.playerSpeed * (body ? body->speedScale : 1.0f); // 몸 종류 (로드아웃)
     Vec3 wish = intent.wish;
     const f32 wishLen2 = mealkit::lengthSq(wish);
     if (wishLen2 > 1.0f) wish = wish / std::sqrt(wishLen2);
 
     Vec3 v = world.physics.linearVelocity(p.body);
     const f32 accel = std::min(1.0f, (p.grounded ? t.groundAccel : t.airAccel) * kTickDt);
-    v.x += (wish.x * t.playerSpeed - v.x) * accel;
-    v.z += (wish.z * t.playerSpeed - v.z) * accel;
+    v.x += (wish.x * speed - v.x) * accel;
+    v.z += (wish.z * speed - v.z) * accel;
     if (p.grounded && intent.jump && v.y < t.jumpMaxRise) {
         v.y = t.jumpSpeed;
         world.events.push(makeEvent(EventKind::Jump, player, p.position, 0.0f));
@@ -112,14 +120,14 @@ void createControllers(World& world) {
 }
 
 // 회전이 잠긴 캡슐. 속도를 직접 정해 움직이고, 물리적으로 상자를 밀어낸다.
-Id<Pawn> spawnPawn(World& world, const Vec3& position) {
+Id<Pawn> spawnPawn(World& world, const Vec3& position, f32 massScale) {
     mealkit::physics::BodyDesc d;
     d.position = position;
     d.lockRotation = true;
     d.friction = 0.0f;
     d.restitution = 0.0f;
     d.linearDamping = 0.0f;
-    d.mass = world.tuning.pawnMass;
+    d.mass = world.tuning.pawnMass * massScale;
     d.allowSleep = false;
     Pawn p;
     p.position = position;
@@ -150,9 +158,10 @@ void respawnPawns(World& world) {
     for (auto [id, c] : s.controllers) {
         if (s.pawns.alive(c.pawn) || !c.respawn.ready(s.tick)) continue;
         const Vec3 at = spawnPosition(world, c.spawnIndex);
-        const Id<Pawn> pawn = spawnPawn(world, at);
-        possess(world, id, pawn);
         const u8 player = c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer;
+        const BodyKind* body = bodyOf(world, player);
+        const Id<Pawn> pawn = spawnPawn(world, at, body ? body->massScale : 1.0f);
+        possess(world, id, pawn);
         world.events.push(makeEvent(EventKind::Spawn, player, at, 0.0f));
     }
 }

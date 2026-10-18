@@ -56,6 +56,8 @@ public:
         return {&mealkit::reflect::typeOf<WorldState>(), &m_sim.world().state};
     }
     mealkit::game::SimDebug* debug() override { return &m_sim; }
+    void lobby(mealkit::net::LockstepSession& session, const mealkit::game::PlayOptions& options,
+               const std::string& userFolder) override;
     void debugUi(mealkit::game::GameContext& ctx) override;
 
 private:

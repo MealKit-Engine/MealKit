@@ -21,4 +21,11 @@ MEALKIT_STRUCT(PropKind) {
 };
 MEALKIT_TABLE(PropKind, "tables/props.table", 0); // 시뮬레이션 표: 콘텐츠 해시에 들어간다
 
+// 캐릭터 몸 종류: 플레이어마다 매치 시작 데이터(로드아웃)로 고른다. AI와 고르지 않은 플레이어는 첫 행
+MEALKIT_STRUCT(BodyKind) {
+    MEALKIT_FIELD(mealkit::f32, speedScale, 1.0f, "이동 속도 배율");
+    MEALKIT_FIELD(mealkit::f32, massScale, 1.0f, "질량 배율");
+};
+MEALKIT_TABLE(BodyKind, "tables/bodies.table", 0);
+
 } // namespace sandbox

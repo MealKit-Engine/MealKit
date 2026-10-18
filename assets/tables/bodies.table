@@ -1,0 +1,13 @@
+# MealKit table (BodyKind). Edit it in the editor's [Tables] panel or import a CSV there.
+
+row normal
+speedScale 1
+massScale 1
+
+row light
+speedScale 1.15
+massScale 0.75
+
+row heavy
+speedScale 0.85
+massScale 1.5

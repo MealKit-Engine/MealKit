@@ -3,7 +3,10 @@
 #include "sim/Commands.h"
 
 #include "mealkit/feedback/Feedback.h"
+#include "app/Loadout.h"
+
 #include "mealkit/game/GameData.h"
+#include "mealkit/game/Loadout.h"
 #include "mealkit/game/Save.h"
 #include "mealkit/sim/Commands.h"
 #include "mealkit/settings/Settings.h"
@@ -20,13 +23,28 @@ using namespace mealkit;
 
 namespace sandbox {
 
+// 매치 전: 로드아웃 (봇은 플레이어마다 다른 몸, 사람은 세이브에 남긴 몸). 화면 흐름 항목에서 로비 화면이 고르게 된다
+void GameSession::lobby(net::LockstepSession& session, const game::PlayOptions& options, const std::string& userFolder) {
+    if (options.bot) {
+        Headless::botLoadout(session.localPlayer(), session);
+        return;
+    }
+    if (!m_saveLoaded) {
+        game::readSave(m_save, userFolder, "progress", kSaveVersion);
+        m_saveLoaded = true;
+    }
+    Loadout l;
+    l.body = m_save.body;
+    game::setLoadout(session, l);
+}
+
 void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const game::PlayOptions& options) {
     const net::LockstepSession& session = ctx.session;
     m_scene = scene::flattened(scene); // 부모·자식 계층을 월드 좌표로 펼친다 (시뮬레이션과 그리기는 평평한 목록만 본다)
     m_options = options;
     Tuning tuning;
     game::loadTuning(reflect::typeOf<Tuning>(), &tuning, options.tuningPath);
-    const game::MatchInfo match{session.seed(), session.playerCount(), session.matchData()};
+    const game::MatchInfo match = game::matchInfo(session); // 시드, 인원, 매치 데이터, 플레이어별 로드아웃
     m_sim.start(options, kTickDt, [&](World& world, u32 physicsThreads) {
         Headless::startWorld(world, match, tuning, m_scene, ctx.models, physicsThreads); // 헤드리스와 같은 매치 시작
     });

@@ -1,7 +1,9 @@
 #include "app/Headless.h"
 
+#include "app/Loadout.h"
 #include "sim/Commands.h"
 
+#include "mealkit/game/Loadout.h"
 #include "mealkit/game/Tables.h"
 #include "mealkit/sim/Commands.h"
 
@@ -26,7 +28,15 @@ void Headless::startWorld(World& world, const game::MatchInfo& match, const Tuni
                           const scene::Scene& flatScene, asset::ModelCache& models, u32 physicsThreads) {
     sim::Table<PropKind> propKinds;
     game::loadTable(propKinds);
-    world.reset(match.seed, match.playerCount, match.matchData, tuning, propKinds, flatScene, models, physicsThreads);
+    sim::Table<BodyKind> bodyKinds;
+    game::loadTable(bodyKinds);
+    std::vector<u32> bodies(match.playerCount, 0u); // 매치 시작 데이터 (보내지 않은 플레이어는 첫 몸)
+    for (u32 p = 0; p < match.playerCount; ++p) {
+        Loadout l;
+        if (game::readLoadout(match, p, l)) bodies[p] = l.body;
+    }
+    world.reset(match.seed, match.playerCount, match.matchData, tuning, propKinds, bodyKinds, bodies, flatScene, models,
+                physicsThreads);
 }
 
 // 시뮬레이션 밖이라 삼각함수를 써도 된다 (결과 바이트만 입력으로 들어간다)
@@ -44,6 +54,12 @@ net::PlayerInput Headless::botInput(u32 tick, u8 player) {
 
 void Headless::botCommands(u32 tick, u8 player, net::LockstepSession& session) {
     if ((tick + player * 53u) % 300u == 150u) sim::sendCommand(session, DebugShockwave{});
+}
+
+void Headless::botLoadout(u8 player, net::LockstepSession& session) {
+    Loadout l;
+    l.body = player % 3u; // normal, light, heavy (bodies.table 순서)
+    game::setLoadout(session, l);
 }
 
 void Headless::defaults(game::HeadlessOptions& options, const ProjectSettings& project) {

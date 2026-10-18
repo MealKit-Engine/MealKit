@@ -3,6 +3,20 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.19 — 1단계 진행 중 (2026-10-19)
+
+### [x] 매치 시작 데이터 — 플레이어별 로드아웃 (완료 2026-10-19)
+- **왜**: 매치 시작 때 모두에게 보내는 값이 `seed`와 `matchData`(u32 하나)뿐이라, 각자 고른 캐릭터·장비를 매치에 가져갈 곳이 없었다.
+- **네트워크** (`net/Lockstep.*`): `setLocalLoadout(바이트)`(매치 전, `kMaxLoadoutBytes` 128 — 8명이 시작 패킷 하나에 들어가게, 로드맵의 256에서 줄였다). 클라이언트는 로비 신호(접속 요청, 1초마다·바뀌면 바로)에 실어 보내고, 호스트가 `startMatch` 때 자기 것과 모두의 것을 확정해 시작 패킷에 싣는다. 혼자 플레이도 같은 길. `loadout(플레이어)`.
+  시작 직전에 바꾼 값은 호스트가 받기 전이면 빠질 수 있다(로비 화면이 시작 전에 확정하게 한다 — 화면 흐름 항목).
+- **게임 쪽** (`mealkit/game/Loadout.h`): `game::setLoadout(session, 값)` / `game::readLoadout(match, 플레이어, 값)` — 값은 `MEALKIT_STRUCT`(memcpy, 문자열 없음, 앞 4바이트 타입 해시). `game::MatchInfo`에 `loadouts`, `game::matchInfo(session)`.
+  `GameInstance::lobby(session, options, userFolder)`(`kApiVersion` 19): 엔진(출시 exe, 에디터 플레이·참가 창)이 매치가 시작되기 전 매 프레임(혼자 플레이는 세션을 열기 직전) 부른다. 헤드리스 계약에 선택 함수 `botLoadout(player, session)`.
+- **입력 기록 버전 3**: 머리에 플레이어마다 로드아웃 → 재생·CI가 같은 매치를 다시 만든다. 버전 1·2도 읽는다.
+- **sandbox**: 정의 데이터 표 `tables/bodies.table`(`BodyKind`: normal·light·heavy, 이동 속도·질량 배율, 시뮬레이션 표라 콘텐츠 해시), 로드아웃 `Loadout{body}`(`app/Loadout.h`), 매치 시작이 `PlayerSlot::body`(상태 필드)에 복사하고 이동·Pawn 질량이 읽는다(AI는 첫 행). 사람은 세이브의 `body`, 봇은 플레이어마다 다른 몸.
+  상태 필드가 늘고 봇 몸이 달라져 고정 기록을 다시 만들었다(`arena_4p_seed7.rec`, 최종 해시 `ccfe93aa4c49525b`).
+- **결정론**: 로드아웃은 상태 필드로 복사되어 상태 해시·스냅샷에 들어간다. 잘못된 값(가지지 않은 아이템)은 막지 못한다(서버 검증은 보류 표). 없는 행 번호는 첫 행으로.
+- **검증**: `command_channel` 테스트에 UDP 루프백 로드아웃(양쪽이 같은 값, 다른 타입은 읽지 않음)과 기록 머리 왕복. `mp_test` 헤드리스 1+3 PASS.
+
 ## v0.4.18 — 1단계 진행 중 (2026-10-19)
 
 ### [x] 세이브 — 진행 데이터 (완료 2026-10-19)
