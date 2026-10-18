@@ -7,6 +7,7 @@
 #include "mealkit/core/Random.h"
 #include "mealkit/game/InputRecord.h"
 #include "mealkit/game/ProjectSettings.h"
+#include "mealkit/game/Save.h"
 #include "mealkit/game/Simulation.h"
 #include "mealkit/game/Tables.h"
 #include "mealkit/input/Actions.h"
@@ -537,6 +538,37 @@ TEST_CASE(input_record) {
     }
     TEST_CHECK(same);
     removeFile(path);
+}
+
+MEALKIT_STRUCT(TestSaveV1) {
+    MEALKIT_FIELD(u32, coins, 0, "코인");
+    MEALKIT_FIELD(u32, oldName, 0, "예전 이름");
+};
+
+MEALKIT_STRUCT(TestSaveV2) {
+    MEALKIT_FIELD(u32, coins, 0, "코인");
+    MEALKIT_FIELD(u32, gems, 0, "보석");      // 예전 oldName
+    MEALKIT_FIELD(f32, extra, 2.5f, "새 필드"); // 예전 파일에는 없다 → 기본값
+};
+
+TEST_CASE(save_files) {
+    const std::string folder = executableDirectory() + "/test_saves";
+    removeFile(game::savePath(folder, "progress"));
+    TestSaveV1 v1;
+    v1.coins = 12;
+    v1.oldName = 7;
+    TEST_CHECK(game::writeSave(v1, folder, "progress", 1));
+    TEST_CHECK(game::writeSave(v1, folder, "progress", 1) && fileExists(game::savePath(folder, "progress") + ".bak"));
+    TestSaveV2 v2;
+    const game::SaveInfo info = game::readSave(v2, folder, "progress", 2, [](u32 version, reflect::TextFields& fields) {
+        if (version < 2)
+            for (auto& f : fields)
+                if (f.first == "oldName") f.first = "gems"; // 이름이 바뀐 필드 옮기기
+    });
+    TEST_CHECK(info.found && info.version == 1 && v2.coins == 12 && v2.gems == 7 && v2.extra == 2.5f);
+    TestSaveV2 none;
+    TEST_CHECK(!game::readSave(none, folder, "missing", 2).found && none.coins == 0);
+    TEST_CHECK(!game::writeSave(v1, "", "progress", 1)); // 사용자 폴더가 없으면(자동 실행) 저장하지 않는다
 }
 
 TEST_CASE(strings_table) {

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "app/ProjectSettings.h"
+#include "app/SaveData.h"
 #include "sim/World.h"
 #include "view/Camera.h"
 #include "view/Draw.h"
@@ -72,6 +73,10 @@ private:
     // 게임 화면 UI (assets/ui): HUD와 캐릭터 위 이름표 (월드 위 UI)
     mealkit::u32 m_hud = 0, m_nameTag = 0;
     HudVm m_hudVm;
+    // 진행 데이터 (saves/progress.save): 매치 시작·떨어질 때·30초마다 저장
+    SaveData m_save;
+    bool m_saveLoaded = false;
+    mealkit::f64 m_saveTimer = 0.0;
     std::array<NameTagVm, mealkit::net::kMaxPlayers> m_tagVms; // drawAt이 그릴 때까지 살아 있어야 한다
     // 화면 정지(히트 스톱) 동안 그리는 상태: 시작한 순간의 두 틱 상태와 보간 비율 (시뮬레이션은 계속 돈다)
     bool m_frozen = false;

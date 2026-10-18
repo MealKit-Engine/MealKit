@@ -71,6 +71,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/game/InputRecord.cpp
     src/mealkit/game/ProjectSettings.h
     src/mealkit/game/ProjectSettings.cpp
+    src/mealkit/game/Save.h
+    src/mealkit/game/Save.cpp
     src/mealkit/game/WorldSnapshot.h
     src/mealkit/game/SimDebug.h
     src/mealkit/game/Simulation.h

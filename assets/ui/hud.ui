@@ -16,6 +16,11 @@ board hud 1920 1080
       fontSize 22
       color $textDim
     end
+    text record
+      key hud.record
+      fontSize 18
+      color $textDim
+    end
     frame rows
       size fill hug
       layout column

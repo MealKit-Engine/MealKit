@@ -69,3 +69,4 @@ action.push = 밀치기
 action.orbit = 카메라 돌리기 (누르는 동안)
 action.debug.shockwave = 디버그: 충격파
 action.menu.settings = 설정 열기
+hud.record = 기록: {totalFalls}번 떨어짐 · {playMinutes}분 플레이

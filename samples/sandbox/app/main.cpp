@@ -360,6 +360,7 @@ int main(int argc, char** argv) {
     }
 
     game::GameContext ctx{window, renderer, models, session, audio, feedback, actions, strings, ui, playerSettings};
+    if (!automated) ctx.userFolder = game::userFolder(project.settings); // 세이브 (자동 실행은 저장하지 않는다)
 #if MEALKIT_DEBUG_UI
     // 디버그 UI (F1): 개발 빌드만 (출시 빌드 build.bat Export에는 ImGui가 없다). 처음 켤 때 만든다 (글꼴 읽기)
     debug::ImGuiLayer debugUi;

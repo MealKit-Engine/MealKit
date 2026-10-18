@@ -69,3 +69,4 @@ action.push = Push
 action.orbit = Turn camera (hold)
 action.debug.shockwave = Debug: shockwave
 action.menu.settings = Open settings
+hud.record = Record: fell {totalFalls} times, played {playMinutes} min

@@ -23,6 +23,8 @@ MEALKIT_VIEWMODEL(HudVm) {
     MEALKIT_FIELD(mealkit::f32, time, 0.0f, "경기 시간 (초)");
     MEALKIT_FIELD(mealkit::f32, pushReady, 1.0f, "밀치기 준비 (0..1)");
     MEALKIT_FIELD(bool, alive, true, "내 캐릭터가 있다");
+    MEALKIT_FIELD(mealkit::u32, totalFalls, 0, "기록: 모든 매치에서 떨어진 횟수 (세이브)");
+    MEALKIT_FIELD(mealkit::u32, playMinutes, 0, "기록: 플레이 시간 (분, 세이브)");
     MEALKIT_LIST(PlayerRowVm, players, mealkit::net::kMaxPlayers, "플레이어");
 };
 

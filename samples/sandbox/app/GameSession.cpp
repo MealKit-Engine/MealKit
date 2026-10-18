@@ -4,6 +4,7 @@
 
 #include "mealkit/feedback/Feedback.h"
 #include "mealkit/game/GameData.h"
+#include "mealkit/game/Save.h"
 #include "mealkit/sim/Commands.h"
 #include "mealkit/settings/Settings.h"
 #include "mealkit/ui/Ui.h"
@@ -33,6 +34,12 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     m_effects = {};
     ctx.audio.stop(m_music);
     m_music = ctx.audio.play2D("music");
+    if (!m_saveLoaded) {
+        game::readSave(m_save, ctx.userFolder, "progress", kSaveVersion);
+        m_saveLoaded = true;
+    }
+    ++m_save.matchesStarted;
+    game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
     if (!ctx.ui.isOpen(m_hud)) m_hud = ctx.ui.open("ui/hud.ui");
     if (!ctx.ui.isOpen(m_nameTag)) m_nameTag = ctx.ui.openWorld("ui/nametag.ui");
     ctx.ui.bind(m_hud, m_hudVm);
@@ -68,15 +75,27 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
         return pi;
     };
     auto onTick = [&](const World& world) {
+        bool saveNow = false;
         for (const GameEvent& e : world.events) {
+            if (e.player == session.localPlayer() && e.kind == EventKind::Fall) ++m_save.falls, saveNow = true;
+            if (e.player == session.localPlayer() && e.kind == EventKind::Push) ++m_save.pushes;
             m_effects.onEvent(e, m_viewTime, look.shockwave, world.tuning.pawnHalfHeight);
             ctx.feedback.trigger(e, session.localPlayer()); // 소리·흔들림·번쩍임·화면 정지는 연출 표가 정한다
         }
+        if (saveNow) game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
     };
     m_sim.update(session, dt, sample, onTick);
 
     // 게임 화면 UI: 상태 → 뷰 모델, 버튼 액션 (시뮬레이션을 바꾸는 것은 확정 명령으로)
     if (m_sim.started()) fillHud(m_sim.world().state, m_sim.world().tuning, session.localPlayer(), look, m_hudVm);
+    m_save.playSeconds += static_cast<f32>(dt);
+    m_saveTimer += dt;
+    if (m_saveTimer >= 30.0) {
+        m_saveTimer = 0.0;
+        game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
+    }
+    m_hudVm.totalFalls = m_save.falls;
+    m_hudVm.playMinutes = static_cast<u32>(m_save.playSeconds / 60.0f);
     for (const ui::Action& a : ctx.ui.actions())
         if (a.name == "debug.shockwave") sim::sendCommand(session, DebugShockwave{});
 }
