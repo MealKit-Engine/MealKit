@@ -62,6 +62,7 @@
 | 2026-10-18 | **SDL3는 쓰지 않는다: 소리는 miniaudio 자체 백엔드, 게임패드는 플랫폼 계층(Windows XInput)** (2026-10-18 "SDL3 평가를 오디오·게임패드 항목으로"의 결론) | 출시 exe와 같은 조건으로 쟀다: SDL3 3.4.18 정적(영상 끔, 게임패드·HIDAPI·오디오만) +1866 KB, HIDAPI 없이 +1588 KB — 5 MB 예산의 3분의 1이 패드 지원이다. miniaudio는 +297 KB로 모든 대상 플랫폼 장치를 덮는다. 대신 PlayStation·Switch 패드는 바로 되지 않는다(XInput은 Xbox·호환 패드만). 필요해지면 Windows.Gaming.Input/RawInput을 플랫폼 계층에 더하고, 다른 플랫폼은 그 플랫폼 API로(5단계) |
 | 2026-10-18 | **예제 배경음은 WAV 스트리밍으로 시작** | 이 PC에 Ogg Vorbis 인코더가 없다(ffmpeg·oggenc 없음, 외부 패키지를 받지 않았다). 엔진은 Ogg Vorbis 디코딩(stb_vorbis)을 갖고 있으므로 `.ogg`가 생기면 표의 경로만 바꾼다. WAV 16초 모노 22 kHz는 700 KB로 에셋 크기 문제는 작다 |
 | 2026-10-18 | **디버그 UI(ImGui)는 개발 빌드와 에디터에만, 출시 빌드는 `build\Export`에서 따로** (ROADMAP 1단계 "디버그 UI") | 출시 exe와 개발 exe가 같은 `build\Release`였다. `MEALKIT_DEBUG_UI`를 끈 별도 빌드 폴더로 Export하면 ImGui 코드와 글자가 출시 파일에 전혀 남지 않는다(개발 exe 2583 KB, 출시 exe 2093 KB). 처음 Export는 엔진을 한 번 더 빌드한다. 에디터 빌드는 ImGui를 `mealkit.dll` 안에 넣어 게임 DLL과 컨텍스트 하나를 같이 쓴다(로드맵의 `SetCurrentContext` 넘기기 대신, DLL마다 ImGui 사본이 생기지 않는다) | - |
+| 2026-10-19 | **UI 글자 SDF는 stb_truetype 윤곽선으로 엔진이 직접 계산한다** (`ui::Atlas`) | `stbtt_GetGlyphSDF`는 3차 베지어(CFF `.otf`, 기본 글꼴 Pretendard)를 처리하지 않아 둥근 획이 사라진다. 윤곽선(`stbtt_GetGlyphShape`)의 곡선을 선분으로 펴고 픽셀마다 가장 가까운 거리와 감김 수로 부호를 정한다(40px 글자 하나 1 ms 안, 쓰는 글자만 처음 한 번). msdfgen 같은 라이브러리를 더하지 않는다 | - |
 
 ## 보류 / 넣지 않을 것
 

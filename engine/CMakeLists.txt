@@ -27,6 +27,8 @@ if(NOT MEALKIT_HEADLESS_ONLY)
 
     mealkit_shader(shaders/Forward.hlsl VSMain vs_6_0 g_ForwardVS)
     mealkit_shader(shaders/Forward.hlsl PSMain ps_6_0 g_ForwardPS)
+    mealkit_shader(shaders/Ui.hlsl VSMain vs_6_0 g_UiVS)
+    mealkit_shader(shaders/Ui.hlsl PSMain ps_6_0 g_UiPS)
 endif()
 
 # --- meshoptimizer (모델 최적화/LOD) ---
@@ -115,8 +117,16 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/audio/MiniaudioImpl.cpp
     src/mealkit/feedback/Feedback.h
     src/mealkit/feedback/Feedback.cpp
+    src/mealkit/ui/Atlas.h
+    src/mealkit/ui/Atlas.cpp
+    src/mealkit/ui/Document.h
+    src/mealkit/ui/Document.cpp
+    src/mealkit/ui/Ui.h
+    src/mealkit/ui/Ui.cpp
+    src/mealkit/ui/StbImpl.cpp
     src/mealkit/render/Renderer.cpp
     shaders/Forward.hlsl
+    shaders/Ui.hlsl
     ${MEALKIT_SHADER_HEADERS})
 
 # 플랫폼 계층 구현 (docs/CODING_MODEL.md "그래픽 API와 OS 기능"): OS API는 platform/<os>/ 안에서만 부른다.
@@ -159,7 +169,7 @@ else()
     endif()
 endif()
 if(NOT MEALKIT_HEADLESS_ONLY)
-    set_source_files_properties(shaders/Forward.hlsl PROPERTIES HEADER_FILE_ONLY ON)
+    set_source_files_properties(shaders/Forward.hlsl shaders/Ui.hlsl PROPERTIES HEADER_FILE_ONLY ON)
 endif()
 
 # mealkit.dll: 엔진 함수와 클래스를 모두 내보낸다 (__declspec 표시 없이). 게임 코드가 엔진 전역 변수에 직접 접근하지 않는 한 충분하다.
@@ -185,7 +195,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     # 소리: miniaudio + stb_vorbis (audio/Miniaudio.h). 외부 코드 구현 파일은 경고를 끈다
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/miniaudio ${MEALKIT_THIRD_PARTY}/stb)
     if(MSVC)
-        set_source_files_properties(src/mealkit/audio/MiniaudioImpl.cpp PROPERTIES COMPILE_OPTIONS "/W0")
+        set_source_files_properties(src/mealkit/audio/MiniaudioImpl.cpp src/mealkit/ui/StbImpl.cpp PROPERTIES COMPILE_OPTIONS "/W0")
     endif()
 endif()
 
@@ -243,6 +253,12 @@ endif()
 if(MEALKIT_IS_ENGINE)
     add_executable(mealkit_tests tests/Tests.cpp tests/TestRegistry.h)
     target_link_libraries(mealkit_tests PRIVATE ${mealkit_core_target})
+    if(NOT MEALKIT_HEADLESS_ONLY AND NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
+        target_link_libraries(mealkit_tests PRIVATE mealkit) # 게임 화면 UI 배치 시험 (창 없이)
+        target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1)
+    elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
+        target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1)
+    endif()
 endif()
 
 if(MEALKIT_HEADLESS_ONLY)
@@ -319,6 +335,8 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/SoundPanel.cpp
         src/mealkit/editor/FeedbackPanel.h
         src/mealkit/editor/FeedbackPanel.cpp
+        src/mealkit/editor/UiPanel.h
+        src/mealkit/editor/UiPanel.cpp
         src/mealkit/editor/Strings.h
         src/mealkit/editor/Strings.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit)

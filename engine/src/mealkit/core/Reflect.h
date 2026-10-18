@@ -464,6 +464,18 @@ bool registerObjectType() {
     return true;
 }
 
+// 이 모듈에 선언된 MEALKIT_VIEWMODEL 목록 (게임 화면 UI의 바인딩, 에디터 [UI] 미리보기). 게임 DLL은 MEALKIT_GAME_MODULE로 넘긴다.
+inline std::vector<const TypeInfo*>& moduleViewModels() {
+    static std::vector<const TypeInfo*> list;
+    return list;
+}
+
+template <class T>
+bool registerViewModel() {
+    moduleViewModels().push_back(&typeOf<T>());
+    return true;
+}
+
 } // namespace mealkit::reflect
 
 // ---------------------------------------------------------------- 매크로
@@ -480,6 +492,12 @@ bool registerObjectType() {
 #define MEALKIT_OBJECT(Name)                                                                                           \
     MEALKIT_DETAIL_STRUCT_HEAD(Name)                                                                                   \
     inline const bool mealkitObjectRegistered_##Name = ::mealkit::reflect::registerObjectType<Name>();                 \
+    struct Name : ::mealkit::reflect::Reflected<Name>
+
+// 게임 화면 UI의 뷰 모델 (mealkit/ui/Ui.h): 화면 쪽이 매 프레임 상태 → 뷰 모델을 채우고, .ui가 필드 이름으로 바인딩한다.
+#define MEALKIT_VIEWMODEL(Name)                                                                                        \
+    MEALKIT_DETAIL_STRUCT_HEAD(Name)                                                                                   \
+    inline const bool mealkitViewModelRegistered_##Name = ::mealkit::reflect::registerViewModel<Name>();               \
     struct Name : ::mealkit::reflect::Reflected<Name>
 
 #define MEALKIT_DETAIL_DECL(name, label, flags)                                                                        \
@@ -514,3 +532,8 @@ bool registerObjectType() {
 #define MEALKIT_ARRAY(Type, count, name, label)                                                                        \
     ::std::array<Type, count> name{};                                                                                  \
     MEALKIT_DETAIL_DECL(name, label, 0u)
+
+// 뷰 모델의 목록: 최대 count개 배열 name과 쓰는 개수 nameCount (.ui의 "list name"이 개수만큼 템플릿을 반복한다)
+#define MEALKIT_LIST(Type, name, count, label)                                                                         \
+    MEALKIT_FIELD(::mealkit::u32, name##Count, 0, label " (count)")                                                    \
+    MEALKIT_ARRAY(Type, count, name, label)

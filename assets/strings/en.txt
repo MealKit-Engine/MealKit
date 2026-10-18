@@ -10,3 +10,11 @@ title.lobbyHostSteam = Lobby {count}/{max} players - I: invite friends, Enter: s
 title.connecting = Connecting to the host...
 title.waiting = Waiting for the host to start ({count} in the lobby)
 title.ended = Ended: {reason}
+
+hud.players = Players
+hud.you = you
+hud.youTag = you
+hud.falls = fell {falls}
+hud.push = Push ready (left click)
+hud.shockwave = Shockwave (F8)
+hud.respawn = Respawning...

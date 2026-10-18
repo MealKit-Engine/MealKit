@@ -5,6 +5,7 @@
 #include "mealkit/feedback/Feedback.h"
 #include "mealkit/game/GameData.h"
 #include "mealkit/sim/Commands.h"
+#include "mealkit/ui/Ui.h"
 #include "mealkit/platform/Window.h"
 
 #if MEALKIT_DEBUG_UI
@@ -31,6 +32,9 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     m_effects = {};
     ctx.audio.stop(m_music);
     m_music = ctx.audio.play2D("music");
+    if (!ctx.ui.isOpen(m_hud)) m_hud = ctx.ui.open("ui/hud.ui");
+    if (!ctx.ui.isOpen(m_nameTag)) m_nameTag = ctx.ui.openWorld("ui/nametag.ui");
+    ctx.ui.bind(m_hud, m_hudVm);
 }
 
 void GameSession::setTuning(const void* tuning) {
@@ -68,6 +72,11 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
         }
     };
     m_sim.update(session, dt, sample, onTick);
+
+    // 게임 화면 UI: 상태 → 뷰 모델, 버튼 액션 (시뮬레이션을 바꾸는 것은 확정 명령으로)
+    if (m_sim.started()) fillHud(m_sim.world().state, m_sim.world().tuning, session.localPlayer(), look, m_hudVm);
+    for (const ui::Action& a : ctx.ui.actions())
+        if (a.name == "debug.shockwave") sim::sendCommand(session, DebugShockwave{});
 }
 
 void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParams& frame, render::DrawList& out) {
@@ -102,6 +111,19 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     drawScene(m_scene, ctx.models, frame.cameraPos, out);
     if (!started) return;
     drawWorld(previous, current, alpha, localPlayer, now, look, ctx.models.boxMesh(), m_view, out);
+    // 캐릭터 위 이름표 (월드 위 UI): 보간한 위치 위에
+    for (u32 slot = 0; slot < current.playerCount && slot < m_tagVms.size(); ++slot) {
+        const Pawn* pawn = playerPawn(current, slot);
+        if (!pawn) continue;
+        const Controller* c = current.controllers.get(current.slots[slot].controller);
+        const Pawn* before = c ? previous.pawns.get(c->pawn) : nullptr;
+        const Vec3 at = lerp(before ? before->position : pawn->position, pawn->position, alpha);
+        NameTagVm& tag = m_tagVms[slot];
+        tag.name = "P" + std::to_string(slot + 1);
+        tag.you = slot == localPlayer;
+        tag.color = look.playerColors[slot];
+        ctx.ui.drawAt(m_nameTag, at + Vec3{0.0f, look.nameTagHeight, 0.0f}, tag);
+    }
     m_effects.draw(m_viewTime, look.shockwave, ctx.models.boxMesh(), out);
 }
 

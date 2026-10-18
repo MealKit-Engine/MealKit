@@ -24,6 +24,7 @@
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/input/Actions.h"
 #include "mealkit/loc/Strings.h"
+#include "mealkit/ui/Ui.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/online/Online.h"
 #include "mealkit/platform/Gamepad.h"
@@ -330,7 +331,11 @@ int main(int argc, char** argv) {
     loc::Strings strings;
     strings.load(opt.language, project.settings.language);
 
-    game::GameContext ctx{window, renderer, models, session, audio, feedback, actions, strings};
+    // 게임 화면 UI: assets/ui/*.ui (게임이 열고 뷰 모델을 묶는다)
+    ui::System ui;
+    ui.init(&renderer, &strings);
+
+    game::GameContext ctx{window, renderer, models, session, audio, feedback, actions, strings, ui};
 #if MEALKIT_DEBUG_UI
     // 디버그 UI (F1): 개발 빌드만 (출시 빌드 build.bat Export에는 ImGui가 없다). 처음 켤 때 만든다 (글꼴 읽기)
     debug::ImGuiLayer debugUi;
@@ -408,6 +413,10 @@ int main(int argc, char** argv) {
         ctx.viewTuningData = viewTuning.view();
         pads.update(dt);
         strings.update(dt);
+        // UI가 먼저 마우스·포커스를 가져간다 (UI 위의 클릭은 게임이 받지 않는다). 키보드·게임패드 조작은 지난 프레임의 ui.* 액션
+        ui.update({&input, &actions, ctx.mouseAllowed, ctx.keyboardAllowed}, ctx.viewport, dt);
+        if (ui.wantsMouse()) ctx.mouseAllowed = false;
+        if (ui.wantsKeyboard()) ctx.keyboardAllowed = false;
         actions.update(input, window.focused() ? pads.first() : mealkit::input::PadState{}, ctx.keyboardAllowed,
                        ctx.mouseAllowed, dt);
         game.update(ctx, dt);
@@ -446,6 +455,7 @@ int main(int argc, char** argv) {
             render::FrameParams frame;
             drawList.clear();
             game.buildFrame(ctx, now, frame, drawList);
+            ui.setCamera(frame.viewProj); // 월드 위 UI: buildFrame이 drawAt으로 넣은 것을 이 카메라로 화면에 놓는다
             audio.setListener(frame.cameraPos, frame.cameraForward);
             feedback.screenTint(frame.tintColor, frame.tintAmount);
 #if MEALKIT_DEBUG_UI
@@ -463,6 +473,7 @@ int main(int argc, char** argv) {
 #endif
             const bool active = renderer.beginFrame(frame);
             if (active) drawList.submit(renderer);
+            if (active) ui.render(renderer); // 3D 다음, 디버그 UI 전
 #if MEALKIT_DEBUG_UI
             if (debugUiShown) debugUi.render(renderer, active);
 #endif

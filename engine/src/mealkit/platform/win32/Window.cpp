@@ -191,6 +191,10 @@ std::intptr_t Window::handleMessage(void* hwndPtr, u32 msg, std::uintptr_t wpara
             ReleaseCapture();
         return 0;
     }
+    case WM_MOUSEMOVE:
+        m_input.setMousePosition(static_cast<f32>(static_cast<i16>(LOWORD(lparam))),
+                                 static_cast<f32>(static_cast<i16>(HIWORD(lparam))));
+        return 0;
     case WM_MOUSEWHEEL:
         m_input.addWheel(static_cast<f32>(GET_WHEEL_DELTA_WPARAM(wparam)) / static_cast<f32>(WHEEL_DELTA));
         return 0;

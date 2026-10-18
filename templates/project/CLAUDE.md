@@ -42,6 +42,7 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
   `@MEALKIT_ROOT@\tools\check_layout.ps1 -Project .`이 검사하고, Export도 같은 검사로 실패한다.
 - 디버그 치트·매치 중 설정 변경처럼 시뮬레이션을 바꾸는 일은 화면 쪽에서 상태를 고치지 않고 확정 명령으로 보낸다: `source/sim/`에 명령 타입 `MEALKIT_STRUCT`(문자열 없음), 화면 쪽은 `mealkit::sim::sendCommand(ctx.session, 명령)`, `World::step()` 맨 앞에서 `mealkit::sim::forEachCommand`로 처리(`mealkit/sim/Commands.h`).
 - 개발용 화면(성능, 치트 버튼, 상태 보기)은 `GameSession::debugUi(ctx)` 안에서 `#if MEALKIT_DEBUG_UI`로 감싸 Dear ImGui로 그린다(게임 exe는 F1, 에디터는 플레이 중). 출시 빌드(`build.bat Export`)에는 없다. 게임 UI에는 쓰지 않는다.
+- 게임 화면(HUD·메뉴)은 `assets/ui/*.ui`에 쓰고(에디터 [보기] > [UI]에서 미리보기, 저장하면 바로 다시 읽는다), 게임 코드는 `source/view/`에 `MEALKIT_VIEWMODEL` 뷰 모델을 두고 `ctx.ui.open("ui/hud.ui")` → `ctx.ui.bind(화면, vm)` → 매 프레임 vm 채우기, 버튼은 `ctx.ui.actions()`. UI가 시뮬레이션을 바꿔야 하면 확정 명령으로 보낸다.
 - 플레이어에게 보이는 글자는 코드에 쓰지 않고 `assets/strings/ko.txt`(`키 = 문자열`, 언어마다 파일 하나)에 두고 `ctx.strings.get("키")`, 값이 들어가면 `ctx.strings.format("키", {{"이름", 값}})`. 표의 글자가 `assets/fonts`의 글꼴에 없으면 빌드가 멈춘다(STR001).
 - 조작은 키가 아니라 입력 액션으로 읽는다: `ctx.actions.axis2("move")`, `ctx.actions.pressed("jump")`. 액션과 키·마우스·게임패드 바인딩은 `assets/input.bindings`(에디터 [표] 패널)에 두고, 코드에서 키(`window.input()`)를 직접 보지 않는다.
 - 틱 이벤트(`world.events`, `GameEvent`의 종류는 `MEALKIT_ENUM`)에 붙는 소리·흔들림·번쩍임·화면 정지는 코드가 아니라 연출 표 `assets/feedback.table`(에디터 [연출] 패널)에 둔다. 게임 코드는 `ctx.feedback.trigger(e, localPlayer)`만 부른다.

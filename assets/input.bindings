@@ -41,3 +41,33 @@ rate 4
 row debug.shockwave
 label Debug: shockwave
 keys F8
+
+row ui.up
+label Menu up
+keys Up
+pad DPadUp
+
+row ui.down
+label Menu down
+keys Down
+pad DPadDown
+
+row ui.left
+label Menu left
+keys Left
+pad DPadLeft
+
+row ui.right
+label Menu right
+keys Right
+pad DPadRight
+
+row ui.confirm
+label Menu confirm
+keys Enter
+pad A
+
+row ui.back
+label Menu back
+keys Escape
+pad B

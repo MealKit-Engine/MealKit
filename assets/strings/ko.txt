@@ -10,3 +10,11 @@ title.lobbyHostSteam = 로비 {count}/{max}명 - I: 친구 초대, Enter: 시작
 title.connecting = 호스트에 연결하는 중...
 title.waiting = 호스트가 시작하기를 기다리는 중 (로비 {count}명)
 title.ended = 끝남: {reason}
+
+hud.players = 플레이어
+hud.you = 나
+hud.youTag = 나
+hud.falls = {falls}번 떨어짐
+hud.push = 밀치기 준비 (왼쪽 클릭)
+hud.shockwave = 충격파 (F8)
+hud.respawn = 다시 나타나는 중...

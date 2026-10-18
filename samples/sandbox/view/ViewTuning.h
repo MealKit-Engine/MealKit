@@ -66,6 +66,7 @@ MEALKIT_STRUCT(ViewTuning) {
                                 Color::rgb(250, 204, 21), Color::rgb(168, 85, 247), Color::rgb(236, 72, 153),
                                 Color::rgb(20, 184, 166), Color::rgb(249, 115, 22)}),
                   "플레이어 색");
+    MEALKIT_FIELD(f32, nameTagHeight, 2.1f, "이름표 높이 (캐릭터 발 위, m)");
     MEALKIT_FIELD(PropColors, propColors,
                   (PropColors{Color::rgb(232, 98, 82), Color::rgb(245, 176, 65), Color::rgb(92, 172, 238),
                               Color::rgb(120, 200, 120), Color::rgb(190, 120, 220), Color::rgb(236, 236, 230)}),

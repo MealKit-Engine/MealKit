@@ -1,0 +1,37 @@
+# MealKit UI (hand-written): name tag drawn over each character (world UI, ui.drawAt). View model: NameTagVm.
+board nametag 200 52
+  frame tag
+    pos 0 0
+    size 200 52
+    constraints leftright topbottom
+    layout row
+    justify center
+    align center
+    gap 8
+    frame pill
+      size hug hug
+      layout row
+      align center
+      gap 8
+      padding 6 14
+      fill #0A0D14A0
+      radius 20
+      frame swatch
+        size 14 14
+        radius 7
+        colorField color
+      end
+      text name
+        content {name}
+        fontSize 26
+        color $text
+      end
+      text you
+        key hud.youTag
+        fontSize 20
+        color $accent
+        visible you
+      end
+    end
+  end
+end

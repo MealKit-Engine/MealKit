@@ -23,6 +23,9 @@
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
+#if MEALKIT_TEST_UI
+#include "mealkit/ui/Ui.h"
+#endif
 
 #include "TestRegistry.h"
 
@@ -561,6 +564,90 @@ TEST_CASE(strings_table) {
                !loc::validStringKey("a b"));
     setProjectRoot(oldRoot);
 }
+
+#if MEALKIT_TEST_UI
+MEALKIT_STRUCT(TestRowVm) {
+    MEALKIT_FIELD(u32, value, 0, "값");
+};
+
+MEALKIT_VIEWMODEL(TestUiVm) {
+    MEALKIT_FIELD(bool, sound, false, "소리");
+    MEALKIT_FIELD(bool, showExtra, false, "더 보기");
+    MEALKIT_FIELD(f32, volume, 0.5f, "볼륨");
+    MEALKIT_LIST(TestRowVm, rows, 4, "줄");
+};
+
+TEST_CASE(ui_layout) {
+    const std::string oldRoot = projectRoot();
+    const std::string dir = executableDirectory() + "/test_ui";
+    createDirectories(dir + "/assets/ui");
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/theme.ui", "color panel #10203040\nnumber pad 20\n"));
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/menu.ui",
+                             "board menu 1000 500\n"
+                             "  navigation\n"
+                             "  frame bar\n"
+                             "    pos 0 0\n"
+                             "    size 1000 100\n"
+                             "    constraints leftright top\n"
+                             "    layout row\n"
+                             "    padding $pad\n"
+                             "    gap 10\n"
+                             "    align center\n"
+                             "    fill $panel\n"
+                             "    frame a\n      size 100 40\n    end\n"
+                             "    frame grow\n      size fill 20\n    end\n"
+                             "    frame b\n      size 50 60\n      toggle sound\n    end\n"
+                             "  end\n"
+                             "  frame corner\n    pos 900 450\n    size 100 50\n    constraints right bottom\n  end\n"
+                             "  frame middle\n    pos 450 225\n    size 100 50\n    constraints center center\n  end\n"
+                             "  frame list\n"
+                             "    pos 0 200\n    size 300 hug\n    layout column\n    gap 5\n    list rows\n"
+                             "    frame item\n      size 300 30\n    end\n"
+                             "    frame previewOnly\n      size 300 30\n    end\n"
+                             "  end\n"
+                             "  frame extra\n    pos 0 400\n    size 10 10\n    visible showExtra\n  end\n"
+                             "end\n"));
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/bad.ui", "board bad 100 100\n  frame x\n    size 10 nope\n  wobble\n  end\nend\n"));
+    setProjectRoot(dir);
+
+    ui::System sys;
+    sys.init(nullptr, nullptr);
+    TestUiVm vm;
+    vm.rowsCount = 3;
+    const ui::ScreenId menu = sys.open("ui/menu.ui");
+    sys.bind(menu, vm);
+    sys.layout({0, 0, 2000, 500}); // 보드 1000×500의 두 배 너비 → 배율 1, 보드가 가로로 늘어난다
+    auto box = [&](const char* name) {
+        for (const ui::NodeBox& b : sys.boxes(menu))
+            if (b.name == name) return b;
+        return ui::NodeBox{};
+    };
+    const ui::NodeBox bar = box("bar"), a = box("a"), grow = box("grow"), b = box("b");
+    TEST_CHECK(bar.w == 2000 && bar.h == 100);                  // leftright: 양쪽에 붙어 늘어난다
+    TEST_CHECK(a.x == 20 && a.y == 30 && a.w == 100);             // 여백 20, 가운데 정렬 (100 - 40) / 2
+    TEST_CHECK(grow.x == 130 && grow.w == 2000 - 40 - 100 - 50 - 20 && grow.y == 40); // 채우기 = 남는 자리
+    TEST_CHECK(b.x == 2000 - 20 - 50 && b.y == 20);
+    TEST_CHECK(box("corner").x == 1900 && box("corner").y == 450); // 오른쪽 아래에 붙는다
+    TEST_CHECK(box("middle").x == 950 && box("middle").y == 225);  // 가운데 기준
+    u32 items = 0;
+    for (const ui::NodeBox& n : sys.boxes(menu)) items += n.name == "item" ? 1u : 0u;
+    TEST_CHECK(items == 3 && box("list").h == 3 * 30 + 2 * 5 && box("previewOnly").name.empty()); // 목록은 개수만큼, 예시 자식은 빠진다
+    TEST_CHECK(!box("extra").visible);
+    vm.showExtra = true;
+    vm.rowsCount = 4;
+    sys.layout({0, 0, 2000, 500});
+    TEST_CHECK(box("extra").visible && box("list").h == 4 * 30 + 3 * 5);
+
+    TEST_CHECK(sys.press(menu, "b") && vm.sound); // 토글은 자기 필드에 쓰고 액션을 낸다
+    TEST_CHECK(sys.actions().size() == 1 && sys.actions()[0].name == "changed" && sys.actions()[0].field == "sound");
+    TEST_CHECK(sys.info(menu).errors.empty() && sys.info(menu).nodes == 1 + 4 + 2 + 1 + 4 + 1);
+
+    const ui::ScreenId bad = sys.open("ui/bad.ui");
+    const ui::ScreenInfo info = sys.info(bad);
+    TEST_CHECK(info.errors.size() == 2 && info.errors[0].find("(3)") != std::string::npos && info.errors[1].find("(4)") != std::string::npos);
+    setProjectRoot(oldRoot);
+}
+#endif
 
 MEALKIT_STRUCT(TestCommand) {
     MEALKIT_FIELD(u32, value, 0, "값");

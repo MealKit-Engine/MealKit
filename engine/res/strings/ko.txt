@@ -296,6 +296,24 @@ Gamepad (A, B, X, Y, LeftStick, RightStick, DPad, LeftTrigger ..., -name is nega
 Delta: amount per second from keys and sticks = 변화량: 키·스틱의 초당 양
 Stick and trigger dead zone (0 to 1) = 스틱·트리거 데드존 (0~1)
 
+# ---- 게임 화면 UI ([UI] 패널)
+UI = UI
+No .ui files in assets/ui. = assets/ui에 .ui 파일이 없습니다.
+Refresh = 새로 고침
+Screen preview = 화면 미리보기
+UI scale = UI 배율
+Language = 언어
+Show focus = 포커스 표시
+Preview values = 미리보기 값
+View model = 뷰 모델
+View models appear when the game code is loaded. = 게임 코드를 불러오면 뷰 모델이 나옵니다.
+Problems = 문제
+Exported from Penpot (do not edit by hand) = Penpot에서 내보냄 (손으로 고치지 않음)
+Hand-written = 손으로 쓴 파일
+Nodes: %u (budget %u) = 노드 %u개 (예산 %u)
+Over the node budget = 노드 예산을 넘었습니다
+No problems = 문제 없음
+
 # ---- 빌드·업그레이드
 Project Upgrade = 프로젝트 업그레이드
 This project's build files were made from the engine %s template (engine is now %s). = 이 프로젝트의 빌드 파일은 엔진 %s 템플릿으로 만들어졌습니다 (지금 엔진 %s).

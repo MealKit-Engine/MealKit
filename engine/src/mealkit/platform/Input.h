@@ -40,12 +40,17 @@ public:
     f32 mouseDeltaX() const { return m_dx; } // Raw Input: 가속 없는 픽셀 단위 이동량
     f32 mouseDeltaY() const { return m_dy; }
     f32 wheelDelta() const { return m_wheel; } // 노치 단위 (+ = 위로)
+    // 커서 위치 (창 안쪽 픽셀, 왼쪽 위가 0). 이번 프레임에 움직였는가
+    f32 mouseX() const { return m_x; }
+    f32 mouseY() const { return m_y; }
+    bool mouseMoved() const { return m_moved; }
 
     // --- Window 내부 사용 ---
     void beginFrame() {
         for (int i = 0; i < 256; ++i) m_prevKeys[i] = m_keys[i];
         for (int i = 0; i < 3; ++i) m_prevMouse[i] = m_mouse[i];
         m_dx = m_dy = m_wheel = 0.0f;
+        m_moved = false;
     }
     void setKey(u8 vk, bool down) { m_keys[vk] = down; }
     void setMouse(MouseButton b, bool down) { m_mouse[static_cast<u8>(b)] = down; }
@@ -54,6 +59,11 @@ public:
         m_dy += dy;
     }
     void addWheel(f32 notches) { m_wheel += notches; }
+    void setMousePosition(f32 x, f32 y) {
+        m_moved = m_moved || x != m_x || y != m_y;
+        m_x = x;
+        m_y = y;
+    }
     void clear() {
         for (bool& k : m_keys) k = false;
         for (bool& b : m_mouse) b = false;
@@ -65,6 +75,8 @@ private:
     bool m_mouse[3] = {};
     bool m_prevMouse[3] = {};
     f32 m_dx = 0.0f, m_dy = 0.0f, m_wheel = 0.0f;
+    f32 m_x = -1.0f, m_y = -1.0f;
+    bool m_moved = false;
 };
 
 } // namespace mealkit

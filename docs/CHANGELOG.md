@@ -3,6 +3,30 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.16 — 1단계 진행 중 (2026-10-19)
+
+### [x] 게임 화면 UI 1부: `.ui` 런타임 + 미리보기 패널 (완료 2026-10-19)
+- **왜**: 점수·로비 상태를 창 제목으로만 보여 줬다. 샘플의 HUD·메뉴·설정·화면 흐름을 만들 UI 런타임이 필요하다. 로드맵의 순서대로 Penpot 플러그인(2부)보다 런타임을 먼저 만들었고, 지금 화면은 `.ui`를 손으로 쓴다.
+- **`.ui` 형식** (`mealkit/ui/Document.*`, `assets/ui/*.ui`): 한 줄에 속성 하나, `board 이름 1920 1080`(뿌리, 기준 해상도의 논리 단위) / `frame` / `text` / `image` / `use 이름 컴포넌트.ui`(재사용, `set 자식 속성 값`으로 덮기)로 열고 `end`로 닫는다.
+  배치: `pos`, `size 숫자|hug|fill`, `min`/`max`, `margin`, `absolute`, `constraints left|right|leftright|center|scale top|...`, `rotation`, `opacity`, `hidden`, `clip`. Flex: `layout row|column [reverse] [wrap]`, `gap`, `padding`, `justify start|center|end|space-between|space-around|space-evenly`, `align`, `alignContent`, `alignSelf`.
+  그리기: `fill #RRGGBB[AA]|$토큰|linear …|radial …`, `stroke`, `radius`(모서리별), `shadow dx dy blur spread 색`(여러 개), 이미지 `src`·`slice`(9-slice)·`tint`. 글자: `key 문자열키` 또는 `content 글자`, `font`, `fontSize`, `color`, `letterSpacing`, `lineHeight`, `textAlign`, `verticalAlign`, `underline`, `strike`, `transform`, `wrap word|syllable|none`, `overflow ellipsis`, `maxLines`, `span 번호 속성…`(번호 태그 `<1>…</1>`의 스타일).
+  바인딩: 글자 안 `{필드}`·`{필드:n0|f1|time|pct}`, `visible [!]필드`, `disabled`, `widthRatio`(체력 막대), `colorField`. 위젯: `button 액션`, `toggle 필드`, `slider 필드 최소 최대 간격`, `select 필드 키1,키2`(글자 안 `{option}`), `scroll [horizontal]`, `list 필드`(첫 자식이 반복 템플릿, 나머지 자식은 예시). 상태: `on hover|pressed|focus|disabled|checked 속성…`, `transition 초`. 보드 줄: `navigation`(키보드·게임패드 포커스), `firstFocus`, `back 액션`, `focusUp/Down/Left/Right 이름`.
+  테마 `assets/ui/theme.ui`(`color 이름 #…`, `number 이름 값`, 색 토큰은 그릴 때·숫자 토큰은 읽을 때). 첫 줄이 `# MealKit UI exported from Penpot`이면 플러그인이 낸 파일로 표시한다(2부). 오류는 `파일(줄): …`.
+- **런타임** (`ui::System`, `mealkit/ui/Ui.*`, `GameContext::ui`, `kApiVersion` 16): `open`·`openWorld`(월드 위 템플릿)·`close`·`bind(화면, 뷰 모델)`·`actions()`·`drawAt(템플릿, 3D 위치, 뷰 모델)`. 엔진(출시 exe, 에디터 플레이, 참가 창)이 매 프레임 `update`(게임 update 전: 마우스·포커스, UI 위의 마우스·포커스된 위젯은 게임이 받지 않는다)와 `render`(3D 다음, 디버그 UI 전)를 부른다.
+  `.ui`를 읽으면 깊이 우선 노드 배열이 되고, 목록은 뷰 모델 개수만큼 펼친다(개수가 바뀌면 다시). 배율 = `min(가로/보드 가로, 세로/보드 세로) × UI 배율`, 뿌리는 화면 전체로 늘고 자식은 제약으로 붙는다. Flex는 CSS 규칙(채우기 = 남는 자리 나누기, 교차축 늘리기, 줄바꿈, 여러 줄 배분).
+  글자: 구간 경계를 넘어 한 번에 줄을 나눈다(한글·한자·가나는 음절 단위, `word`는 공백에서만), 커닝, 줄 높이·기준선은 CSS의 반 행간, 말줄임(줄 수 제한·고정 높이), 밑줄·취소선. 글꼴은 `assets/fonts`에서 파일 이름으로, 글꼴에 없는 글자는 다른 글꼴에서 찾는다.
+  조작: 마우스(올림·눌림·클릭, 슬라이더 끌기, 휠 스크롤), 입력 액션 `ui.up/down/left/right/confirm/back`(`navigation`이 있는 가장 위 화면만 — HUD가 이동 키를 가져가지 않게): 방향의 가장 가까운 위젯으로 포커스, 슬라이더·선택 상자는 좌우로 값, 마우스를 움직이면 포커스 표시를 숨긴다. 입력 위젯만 자기 뷰 모델 필드에 값을 쓰고 액션(지정 이름 또는 `changed`, 바뀐 필드)을 낸다.
+  파일(.ui·테마·글꼴·이미지)이 바뀌면 0.25초 안에 다시 읽는다. 진단: `info`(노드 수, 파일·바인딩 오류), `boxes`(노드별 상자 — 2부 배치 비교가 쓴다), `layout`(그리지 않고 배치만), `press`(시험용).
+- **그리기** (`shaders/Ui.hlsl`, `Renderer::drawUi`·`updateUiAtlas`): 사각형 인스턴스 112바이트 하나가 모서리별 둥근 사각형·단색·선형·원형 그라디언트·안쪽 테두리·흐린 그림자·회전·이미지·SDF 글자를 픽셀 셰이더 SDF로 그린다. 정점 버퍼 없이 화면 전체 UI가 드로우 콜 1회, 미리 곱한 알파, 감마 변환 없는 오버레이 뷰(색은 sRGB 그대로), 백버퍼 원래 해상도.
+  아틀라스 두 장(글자 R8, 이미지 RGBA8, 2048²)은 바뀐 영역만 프레임 업로드 링으로 올린다. 아틀라스는 SRV 표 두 칸(SM 6.0) — SM 6.6 bindless는 2단계 RHI에서.
+- **글꼴·이미지** (`ui::Atlas`): 쓰는 글자만 실행 중에 SDF로 굽는다(40 em픽셀, 여백 6). **SDF는 엔진이 직접 계산**: `stbtt_GetGlyphSDF`가 3차 곡선(CFF `.otf`, Pretendard)을 빼먹어 둥근 획(ㅇ, 0)이 사라져서, stb_truetype의 윤곽선을 선분으로 펴 거리·감김 수로 계산한다(`docs/DECISIONS.md` 2026-10-19). 이미지는 stb_image(PNG만). 아틀라스가 차면 비우고 다시 굽는다.
+- **뷰 모델** (`core/Reflect.h`): `MEALKIT_VIEWMODEL(이름)`(모듈 목록 `reflect::moduleViewModels()`, `GameModule::viewModels`), `MEALKIT_LIST(행 타입, 이름, 최대, 설명)` = 배열 + `이름Count`.
+- **에디터 [UI] 패널** (`editor/UiPanel.*`, [보기] > [UI], `--ui <파일>`): `assets/ui`의 화면 목록, 고른 화면을 편집 모드의 씬 뷰 위에 그린다. 해상도(16:9 1080p·720p, 21:9, 4:3, 세로) 비율로 맞춘 테두리, UI 배율, 언어 전환(글자 넘침), 포커스 표시, 게임 뷰 모델을 골라 가짜 값을 필드 위젯으로, 노드 수(예산 500), 파일·바인딩 오류 목록.
+- **sandbox**: HUD(`assets/ui/hud.ui`: 플레이어 목록 — 색·이름·"나"·떨어진 횟수, 경기 시간, 밀치기 준비 막대, [충격파] 버튼 → `debug.shockwave` 액션 → 확정 명령, 리스폰 안내)와 캐릭터 위 이름표(`nametag.ui`, 월드 위 UI), 테마, 문자열, 입력 바인딩 `ui.*`. 뷰 모델 `HudVm`·`NameTagVm`·`PlayerRowVm`(`view/Hud.*`), 화면용 튜닝 `nameTagHeight`.
+- **엔진**: `Input::mouseX/mouseY/mouseMoved`(커서 위치), 단위 테스트가 창 있는 빌드에서 UI 모듈을 링크한다(`MEALKIT_TEST_UI`).
+- **검증**: 단위 테스트 `ui_layout`(Flex 여백·간격·정렬·채우기, 제약 오른쪽·가운데·양쪽, 목록 개수·예시 자식 빼기, 보이기 바인딩, 토글이 필드에 쓰고 `changed`, 오류 줄 번호). 게임 캡처(1080p·720p)와 에디터 플레이·미리보기 캡처. 상태 해시 그대로.
+- **남은 것 (1부 안)**: Grid 레이아웃(`layout grid`는 아직 읽기 오류 — 2부 지원 범위와 같이), 글자 입력 위젯(IME), 회전은 노드 자신의 사각형만(자식·글자는 돌지 않음), 지금은 매 프레임 다시 배치한다(화면당 수십 µs — "바뀐 노드만"은 화면이 커지면), 게임패드 스틱으로 메뉴 이동(지금은 십자키), 버튼 안내 아이콘(마지막 기기). 2부는 ROADMAP의 다음 항목.
+
 ## v0.4.15 — 1단계 진행 중 (2026-10-18)
 
 ### [x] 로컬라이제이션 문자열 표 (완료 2026-10-18)

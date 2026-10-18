@@ -1,0 +1,130 @@
+# MealKit UI (hand-written): sandbox HUD. View model: HudVm (samples/sandbox/view/Hud.h). Text: assets/strings.
+board hud 1920 1080
+  frame scoreboard
+    pos 32 32
+    size 320 hug
+    layout column
+    padding 16 20
+    gap 8
+    fill $panel
+    stroke 1 $panelStroke
+    radius $radius
+    shadow 0 6 24 0 #00000066
+    text title
+      key hud.players
+      font Pretendard-Medium
+      fontSize 22
+      color $textDim
+    end
+    frame rows
+      size fill hug
+      layout column
+      gap 4
+      list players
+      frame row
+        size fill 40
+        layout row
+        align center
+        gap 12
+        padding 0 10
+        radius 8
+        frame swatch
+          size 16 16
+          radius 8
+          colorField color
+        end
+        text name
+          content {name}
+          fontSize 26
+          color $text
+        end
+        text you
+          key hud.you
+          fontSize 20
+          color $accent
+          visible you
+        end
+        frame spacer
+          size fill 1
+        end
+        text falls
+          key hud.falls
+          fontSize 22
+          color $textDim
+        end
+      end
+    end
+  end
+  frame timePanel
+    pos 840 24
+    size 240 hug
+    constraints center top
+    layout row
+    justify center
+    padding 8 16
+    fill $panel
+    radius $radius
+    text time
+      content {time:time}
+      fontSize 40
+      color $text
+    end
+  end
+  frame pushPanel
+    pos 720 952
+    size 480 hug
+    constraints center bottom
+    layout column
+    align center
+    gap 8
+    padding 10 20 14 20
+    fill $panel
+    radius $radius
+    text pushLabel
+      key hud.push
+      fontSize 20
+      color $textDim
+    end
+    frame pushBar
+      size fill 14
+      fill #FFFFFF22
+      radius 7
+      clip
+      frame pushFill
+        size fill fill
+        widthRatio pushReady
+        fill linear 0 0 1 0 #FF8A20 $accent
+        radius 7
+      end
+    end
+  end
+  frame shockwave
+    pos 1628 32
+    size 260 64
+    constraints right top
+    layout row
+    justify center
+    align center
+    fill $button
+    stroke 1 $panelStroke
+    radius $radius
+    button debug.shockwave
+    on hover fill $buttonHover
+    on pressed fill $buttonPressed
+    text label
+      key hud.shockwave
+      fontSize 24
+      color $text
+    end
+  end
+  text respawn
+    pos 460 500
+    size 1000 hug
+    constraints center center
+    visible !alive
+    key hud.respawn
+    fontSize 52
+    color $accent
+    textAlign center
+  end
+end

@@ -5,6 +5,7 @@
 #include "view/Camera.h"
 #include "view/Draw.h"
 #include "view/Effects.h"
+#include "view/Hud.h"
 #include "view/LocalInput.h"
 #include "view/ViewTuning.h"
 
@@ -17,6 +18,7 @@
 #include "mealkit/render/Renderer.h"
 #include "mealkit/scene/Scene.h"
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -67,6 +69,10 @@ private:
     Effects m_effects;              // 틱 이벤트 → 화면 효과
     mealkit::f64 m_viewTime = 0.0;  // 화면 효과용 시계 (update의 dt 합)
     mealkit::audio::Handle m_music; // 배경음 (매치 동안)
+    // 게임 화면 UI (assets/ui): HUD와 캐릭터 위 이름표 (월드 위 UI)
+    mealkit::u32 m_hud = 0, m_nameTag = 0;
+    HudVm m_hudVm;
+    std::array<NameTagVm, mealkit::net::kMaxPlayers> m_tagVms; // drawAt이 그릴 때까지 살아 있어야 한다
     // 화면 정지(히트 스톱) 동안 그리는 상태: 시작한 순간의 두 틱 상태와 보간 비율 (시뮬레이션은 계속 돈다)
     bool m_frozen = false;
     WorldState m_frozenPrevious, m_frozenCurrent;
