@@ -18,8 +18,8 @@
 #include "mealkit/game/GameData.h"
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/net/Lockstep.h"
+#include "mealkit/online/Online.h"
 #include "mealkit/platform/Paths.h"
-#include "mealkit/platform/Steam.h"
 #include "mealkit/platform/System.h"
 #include "mealkit/platform/Window.h"
 #include "mealkit/render/DrawList.h"
@@ -262,15 +262,15 @@ int main(int argc, char** argv) {
     case Options::Mode::SteamJoin: break; // 로비가 준비되면 아래 루프에서 세션을 연다
     }
 
-    // Steam: 로비를 만들거나 들어간 뒤, 방장의 Steam ID로 락스텝 세션을 연다 (Steam 릴레이 경유)
+    // 온라인 로비(Steam): 로비를 만들거나 들어간 뒤, 방장 주소로 락스텝 세션을 연다 (플랫폼 릴레이 경유)
     const bool useSteam = opt.mode == Options::Mode::SteamHost || opt.mode == Options::Mode::SteamJoin;
-    steam::Lobby lobby;
+    online::Service online;
     if (useSteam) {
-        if (!steam::init())
+        if (online::Service::backend() != online::Backend::Steam || !online.init())
             MEALKIT_FATAL(
                 "Steam is not available. Run the Steam client, and build with the Steamworks SDK (see docs/GUIDE.md).");
-        if (opt.mode == Options::Mode::SteamHost) lobby.create(opt.maxPlayers);
-        else lobby.join(opt.steamLobby);
+        if (opt.mode == Options::Mode::SteamHost) online.createLobby(opt.maxPlayers);
+        else online.joinLobby(opt.steamLobby);
     }
 
     sandbox::GameSession game;
@@ -308,22 +308,20 @@ int main(int argc, char** argv) {
         if (window.consumeResize()) renderer.resize(window.width(), window.height());
 
         if (useSteam) {
-            steam::runCallbacks();
-            if (lobby.state() == steam::LobbyState::Failed) MEALKIT_FATAL("Steam lobby failed (see log)");
-            if (session.state() == net::SessionState::Idle && lobby.state() == steam::LobbyState::InLobby) {
-                if (lobby.isOwner()) {
-                    session.hostWith(steam::createTransport(), opt.maxPlayers, opt.inputDelay);
-                    lobby.inviteFriends();
+            online.update();
+            if (online.lobbyState() == online::LobbyState::Failed) MEALKIT_FATAL("Online lobby failed (see log)");
+            if (session.state() == net::SessionState::Idle && online.lobbyState() == online::LobbyState::InLobby) {
+                if (online.isLobbyOwner()) {
+                    session.hostWith(online.createTransport(), opt.maxPlayers, opt.inputDelay);
+                    online.inviteFriends();
                 } else {
-                    net::Address hostAddress;
-                    hostAddress.steamId = lobby.ownerSteamId();
-                    session.joinWith(steam::createTransport(), hostAddress);
+                    session.joinWith(online.createTransport(), online.lobbyOwnerAddress());
                 }
             }
-            if (const u64 invited = lobby.takeJoinRequest())
-                MEALKIT_INFO("Steam invite to lobby %llu received - restart the game from the invite to join",
+            if (const u64 invited = online.takeJoinRequest())
+                MEALKIT_INFO("Invite to lobby %llu received - restart the game from the invite to join",
                              static_cast<unsigned long long>(invited));
-            if (input.keyPressed('I')) lobby.inviteFriends();
+            if (input.keyPressed('I')) online.inviteFriends();
         }
 
         session.update(now);
@@ -400,7 +398,7 @@ int main(int argc, char** argv) {
             const net::SessionState state = session.state();
             if (useSteam && state == net::SessionState::Idle) {
                 snprintf(title, sizeof(title), "MealKit Sandbox | Steam lobby: %s",
-                         lobby.state() == steam::LobbyState::Creating ? "creating..." : "joining...");
+                         online.lobbyState() == online::LobbyState::Creating ? "creating..." : "joining...");
             } else if (state == net::SessionState::Lobby && session.isHost()) {
                 snprintf(title, sizeof(title), "MealKit Sandbox | LOBBY %u/%u players - %sEnter: start",
                          session.lobbyPlayerCount(), opt.maxPlayers, useSteam ? "I: invite friends, " : "");
@@ -426,8 +424,7 @@ int main(int argc, char** argv) {
     }
 
     session.shutdown();
-    lobby.leave();
-    steam::shutdown();
+    online.shutdown();
     renderer.shutdown();
     return exitCode;
 }

@@ -186,7 +186,7 @@ Steamworks SDK는 Valve 약관상 저장소에 넣지 않았다. 직접 받아�
 4. Steam 클라이언트를 켠 상태에서 `sandbox.exe --steam` → 로비가 만들어지고 친구 초대 창이 뜬다(`I`로 다시 열기). 친구가 초대를 수락하면 게임이 `+connect_lobby`로 실행되어 자동으로 들어온다.
 
 - 개발 중에는 Valve의 테스트 앱 ID **480(Spacewar)** 을 쓴다. 출시할 때는 프로젝트 `CMakeLists.txt`의 `STEAM_APP_ID`를 Steam에서 받은 내 앱 ID로 바꾼다. 480이 아니면 출시 폴더에 `steam_appid.txt`를 넣지 않는다(Steam이 실행해 준다).
-- Steam 전송 코드(`engine/src/mealkit/platform/Steam.cpp`)는 SDK v1.65로 **컴파일·링크까지 확인했다.** Steam 클라이언트를 켜고 실제 로비·릴레이로 접속하는 것은 아직 검증하지 못했다.
+- Steam 백엔드(`engine/src/mealkit/online/OnlineSteam.cpp`, 게임은 `online::Service`만 쓴다)는 SDK v1.65로 **컴파일·링크까지 확인했다.** Steam 클라이언트를 켜고 실제 로비·릴레이로 접속하는 것은 아직 검증하지 못했다.
 - `third_party/steamworks/`는 `.gitignore`에 들어 있다.
 
 ## 프로파일링 (Tracy)
@@ -235,7 +235,8 @@ MSVC 빌드 호스트에 clang-cl 빌드 클라이언트를 붙여 **컴파일�
 engine/
   shaders/Forward.hlsl       인스턴스 변환 + 정점 색 + 하프 램버트 + 반구 환경광 + 안개 + 선택 강조
   src/mealkit/core/            Types, Log, Clock, Math, Random, Hash, Profile
-  src/mealkit/platform/        Window, Input, Paths, Process, Steam (+ SDK 없을 때의 SteamStub)
+  src/mealkit/platform/        Window, Input, Paths, Process, System
+  src/mealkit/online/          Online (계정·로비·초대·릴레이): Steam 백엔드, SDK 없을 때의 None 백엔드
   src/mealkit/render/          Renderer, Mesh, DrawList
   src/mealkit/physics/         PhysicsWorld (Jolt)
   src/mealkit/asset/           ModelCache (cgltf + meshoptimizer)

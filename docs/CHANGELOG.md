@@ -5,8 +5,40 @@
 
 ## v0.4.3 — 1단계 진행 중 (2026-10-16)
 
-### 위험 확인: 실기 없이 할 수 있는 부분 (2026-10-18)
-ROADMAP "최소 사양 실기 측정과 다른 PC 결정론" 중 코드로 할 수 있는 것. 실기 측정과 Intel·AMD PC 사이 시험은 남았다(항목은 `[ ]` 그대로).
+### [x] Steam 실검증 (완료 처리 2026-10-18, 미검증)
+**실제 Steam 접속 시험은 하지 않았고, 사용자 결정으로 문제없이 통과한 것으로 가정하고 항목을 닫았다.** Steam 백엔드는 여전히 컴파일·링크만 확인된 상태다. 측정값은 없다.
+- **가정하고 넘긴 것 (실제로 하면 결과를 여기에 적는다)**: 두 계정으로 `--steam` → 초대 → `+connect_lobby` 참가 → 900틱 이상 디싱크 없음, 끊김·재시도·NAT 로그, 릴레이 RTT(입력 지연 100 ms 가정과 맞는지),
+  Steam 오버레이가 DX12 스왑체인 위에 뜨는지, Steam Deck·Proton에서 그림·입력·결정론.
+- **가정이 틀리면**: 릴레이 RTT가 크면 입력 지연 자동 조절(1단계)을 당긴다. 접속 자체가 안 되면 `online/OnlineSteam.cpp`의 세션 수락·전송 옵션부터 본다.
+
+### [x] 온라인 서비스 계층 (`mealkit/online/`, Steam·없음 백엔드) (완료 2026-10-18)
+- **왜**: 로비·초대·릴레이가 `mealkit/platform/Steam.h`(`steam::`)에 직접 묶여 있었다. 크로스플레이(EOS)와 Steam이 없는 플랫폼을 더할 자리를 먼저 만든다.
+- **`online::Service`** (`mealkit/online/Online.h`): 계정(`localUserId`, `displayName`), 친구 전용 로비(`createLobby`/`joinLobby`/`leaveLobby`/`lobbyState`/`isLobbyOwner`/`lobbyMemberCount`),
+  초대(`inviteFriends`, `takeJoinRequest`), 방장 주소(`lobbyOwnerAddress()` → `net::Address`), 플랫폼 릴레이 전송(`createTransport()` → `net::Transport`).
+  전역 함수였던 `steam::init()` 등을 객체 하나로 모았다(main이 만들어 인자로 넘긴다, CODING_MODEL "엔진 기능에 어떻게 접근하나"). SDK가 프로세스 전역이라 프로세스당 하나.
+- **백엔드는 빌드 때 하나** (CODING_MODEL "그래픽 API와 OS 기능"과 같은 방식, 가상 함수 계층 없음): `OnlineSteam.cpp`(SDK가 있는 게임 빌드, `MEALKIT_STEAM=1`), `OnlineNone.cpp`(SDK가 없거나 Editor 빌드).
+  `Service::backend()`/`backendName()`으로 이 빌드의 백엔드를 안다. "없음"은 로비가 없고 접속은 지금처럼 `UdpTransport`(IP 직접)다.
+- **sandbox**: `--steam`·`--steam-join`·`+connect_lobby` 경로가 `online::Service`만 쓴다(옵션 이름은 그대로). Steam 코드는 옮기기만 했고 동작은 같다.
+- **지운 것**: `mealkit/platform/Steam.h`, `Steam.cpp`, `SteamStub.cpp`. 이것을 직접 쓰던 게임 코드는 `online::Service`로 바꿔야 한다(템플릿은 그대로라 엔진 버전은 0.4.3 그대로. 예제 코드를 쓰는 프로젝트는 `upgrade_project -Source`).
+- **이번에 넣지 않은 것**: 업적·통계·리더보드(4단계 "업적·리더보드·통계"), 클라우드 세이브(1단계 "세이브"), 백엔드 여럿 같이 켜기(Steam 친구 초대 + EOS 로비, 3단계 EOS). 계획한 기능 표:
+
+  | 기능 | Steam | EOS (3단계) | 콘솔 플랫폼 서비스 (5단계) |
+  |---|---|---|---|
+  | 계정 | Steam ID | Product User ID (EOS Connect로 Steam·콘솔·기기 ID 로그인, Epic 계정 불필요) | 플랫폼 계정 |
+  | 친구·초대 | Steam 오버레이 | 플랫폼 친구 + EOS 로비 초대 | 플랫폼 |
+  | 로비·P2P 릴레이 | Steam 로비·릴레이 (Steam끼리) | EOS 로비·P2P (**크로스플레이 매치는 항상 이것**) | EOS |
+  | 업적·통계·리더보드 | Steam | EOS | 플랫폼 (트로피 등) |
+  | 클라우드 세이브 | Auto-Cloud (설정만) | Player Data Storage | 플랫폼 세이브 |
+
+- **검증**: Release(Steam SDK 있음)·ClangCL·Editor(없음 백엔드) 빌드, `check.ps1` 통과(`mp_test` 포함). **실제 Steam 접속은 여전히 미검증**(위 "Steam 실검증"은 가정으로 닫았다).
+
+### [x] 최소 사양 실기 측정과 다른 PC 결정론 (완료 처리 2026-10-18, 실기 미검증)
+코드로 할 수 있는 부분만 실제로 했다. **아래 실기 시험은 하지 않았고, 사용자 결정으로 문제없이 통과한 것으로 가정하고 항목을 닫았다.** 측정값은 없다.
+- **가정하고 넘긴 것 (실제로 하면 결과를 여기에 적는다)**:
+  - 11세대(Xe-LP) 실기의 `sandbox.exe --system-info` 출력, Vulkan 버전·descriptor indexing(`vulkaninfo --summary`), `--bot` 프레임·틱 시간 → 성능 예산 표 "현재" 값은 여전히 Core Ultra 기준이다.
+  - Intel PC ↔ AMD PC UDP 900틱 이상 디싱크 없음(시작 로그 `CPU:` 줄, MSVC·clang-cl 섞기 `--any-build`). Windows on ARM.
+- **가정이 틀리면**: SM 6.6이 없으면 2단계 텍스처 방식(bindless)을 다시 정한다. CPU 사이 디싱크면 디싱크 진단 도구(3단계)를 당겨 원인을 찾고 고정소수점 보류를 다시 본다.
+  CI 빌드 매트릭스(1단계)가 생기면 OS·CPU 사이 해시 비교는 매 커밋 자동으로 확인된다.
 - **GPU 검사** (`render::queryGpu`, `render::gpuMinimumError`, `Renderer::gpu()`/`initError()`): 어댑터 이름, 사용자 모드 드라이버 버전(`CheckInterfaceSupport`, 장치 관리자와 같은 네 자리),
   vendor·device ID, 메모리, 기능 수준, 최고 셰이더 모델(런타임이 아는 것까지 6.9부터 내려가며 묻는다), 리소스 바인딩 티어, wave 폭, 메시 셰이더 티어(참고용), UMA.
   시작 로그 한 줄: `GPU: <이름> | driver <버전> | feature level 12_2 | SM 6.8 | binding tier 3 | unified (UMA) memory`.

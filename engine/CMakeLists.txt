@@ -78,7 +78,7 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/platform/Process.cpp
     src/mealkit/platform/System.h
     src/mealkit/platform/System.cpp
-    src/mealkit/platform/Steam.h
+    src/mealkit/online/Online.h
     src/mealkit/scene/Scene.h
     src/mealkit/scene/Scene.cpp
     src/mealkit/asset/ModelCache.h
@@ -149,7 +149,7 @@ set(MEALKIT_STEAMWORKS_SDK ${MEALKIT_THIRD_PARTY}/steamworks/sdk)
 # 에디터 빌드는 Steam을 쓰지 않는다 (여러 명 플레이 시험은 출시 exe로 한다)
 if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor" AND EXISTS ${MEALKIT_STEAMWORKS_SDK}/public/steam/steam_api.h AND EXISTS ${MEALKIT_STEAMWORKS_SDK}/redistributable_bin/win64/steam_api64.lib)
     message(STATUS "MealKit: Steamworks SDK found - Steam lobbies and relay networking enabled")
-    target_sources(mealkit PRIVATE src/mealkit/platform/Steam.cpp)
+    target_sources(mealkit PRIVATE src/mealkit/online/OnlineSteam.cpp)
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_STEAMWORKS_SDK}/public)
     target_link_libraries(mealkit PUBLIC ${MEALKIT_STEAMWORKS_SDK}/redistributable_bin/win64/steam_api64.lib)
     target_compile_definitions(mealkit PUBLIC MEALKIT_STEAM=1)
@@ -159,7 +159,7 @@ else()
     if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
         message(STATUS "MealKit: Steamworks SDK not found in third_party/steamworks/sdk - building without Steam")
     endif()
-    target_sources(mealkit PRIVATE src/mealkit/platform/SteamStub.cpp)
+    target_sources(mealkit PRIVATE src/mealkit/online/OnlineNone.cpp)
     set(MEALKIT_STEAM_DLL "" CACHE INTERNAL "")
 endif()
 
