@@ -79,6 +79,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/sim/Commands.h
     src/mealkit/input/Actions.h
     src/mealkit/input/Actions.cpp
+    src/mealkit/loc/Strings.h
+    src/mealkit/loc/Strings.cpp
     src/mealkit/physics/PhysicsWorld.h
     src/mealkit/physics/PhysicsWorld.cpp
     src/mealkit/platform/Paths.h
@@ -229,6 +231,14 @@ else()
 endif()
 set_target_properties(mealkit_simcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tools)
 
+# 문자열 표의 글자가 글꼴에 다 있는지 (게임 빌드 전에, mealkit_add_game). 창 있는 빌드만 (헤드리스는 글자를 그리지 않는다)
+if(NOT MEALKIT_HEADLESS_ONLY)
+    add_executable(mealkit_stringcheck tools/StringCheck.cpp)
+    target_include_directories(mealkit_stringcheck SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb)
+    target_compile_options(mealkit_stringcheck PRIVATE /W4 /permissive- /utf-8)
+    set_target_properties(mealkit_stringcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tools)
+endif()
+
 # --- 엔진 단위 테스트: 엔진 저장소 빌드에만 (tools\check.ps1이 Release와 Editor 빌드에서 돌린다). 화면 쪽 없이 코어만 쓴다 ---
 if(MEALKIT_IS_ENGINE)
     add_executable(mealkit_tests tests/Tests.cpp tests/TestRegistry.h)
@@ -320,5 +330,5 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     target_compile_definitions(MealKitEditor PRIVATE MEALKIT_ENGINE_DIR="${MEALKIT_ENGINE_DIR}")
 
     # 게임 프로젝트의 에디터 빌드가 include한다: mealkit.dll의 가져오기 라이브러리, 헤더 경로, 컴파일 옵션, SimCheck
-    export(TARGETS mealkit mealkit_tracy mealkit_simcheck FILE ${CMAKE_BINARY_DIR}/MealKitTargets.cmake)
+    export(TARGETS mealkit mealkit_tracy mealkit_simcheck mealkit_stringcheck FILE ${CMAKE_BINARY_DIR}/MealKitTargets.cmake)
 endif()

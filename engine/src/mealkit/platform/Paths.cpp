@@ -1,6 +1,7 @@
 // 파일·폴더 중 std::filesystem으로 되는 부분 (모든 플랫폼 공통). OS 호출은 win32/Paths.cpp, posix/Paths.cpp.
 #include "mealkit/platform/Paths.h"
 
+#include <algorithm>
 #include <filesystem>
 #include <system_error>
 
@@ -78,6 +79,18 @@ bool createDirectories(const std::string& path) {
 bool removeFile(const std::string& path) {
     std::error_code ec;
     return fs::remove(fromUtf8(path), ec);
+}
+
+std::vector<std::string> listFiles(const std::string& directory, const char* extension) {
+    std::vector<std::string> out;
+    std::error_code ec;
+    for (const auto& entry : fs::directory_iterator(fromUtf8(directory), ec)) {
+        if (!entry.is_regular_file(ec)) continue;
+        if (extension && *extension && entry.path().extension() != fs::path(extension)) continue;
+        out.push_back(toUtf8(entry.path().filename()));
+    }
+    std::sort(out.begin(), out.end());
+    return out;
 }
 
 } // namespace mealkit

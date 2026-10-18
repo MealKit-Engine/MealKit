@@ -263,6 +263,7 @@ Max instances at once = 동시 재생 상한
 When full (oldest, quietest, none) = 넘칠 때 (oldest, quietest, none)
 Cooldown (s) = 쿨다운 (초)
 Sound voices mixed at once = 동시에 섞는 소리 목소리 수
+Default language (assets/strings/<language>.txt) = 기본 언어 (assets/strings/<언어>.txt)
 
 # ---- 연출 ([연출] 패널, 연출 표의 열)
 Feedback = 연출

@@ -2,6 +2,7 @@
 
 #include <cstdio>
 #include <string>
+#include <vector>
 
 // 파일·폴더 (UTF-8 경로). 구현은 std::filesystem으로 되는 부분(platform/Paths.cpp)과
 // OS 호출이 필요한 부분(platform/win32/Paths.cpp, platform/posix/Paths.cpp)으로 나뉜다.
@@ -29,6 +30,8 @@ bool readTextFile(const std::string& path, std::string& out);
 bool writeTextFile(const std::string& path, const std::string& text);
 bool createDirectories(const std::string& path);
 bool removeFile(const std::string& path);
+// 폴더 안 파일 이름들 (하위 폴더 제외, 이름 순). extension(".txt")을 주면 그 확장자만
+std::vector<std::string> listFiles(const std::string& directory, const char* extension = nullptr);
 // UTF-8 경로로 fopen (mode는 "rb", "wb" 등). 실패하면 nullptr.
 FILE* openFile(const std::string& path, const char* mode);
 // 마지막 수정·만든 시각 (OS 단위, 비교와 formatFileTime용, 없으면 0)

@@ -23,6 +23,7 @@
 #include "mealkit/game/GameData.h"
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/input/Actions.h"
+#include "mealkit/loc/Strings.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/online/Online.h"
 #include "mealkit/platform/Gamepad.h"
@@ -79,6 +80,7 @@ struct Options {
     bool anyBuild = false;   // 호스트가 다른 빌드의 피어도 받는다 (컴파일러 비교 시험)
     bool mute = false;       // 소리 끄기 (자동 시험에서 여러 창을 띄울 때)
     bool debugUi = false;    // 디버그 UI(F1)를 켠 채로 시작 (개발 빌드)
+    std::string language;    // 게임 글자 언어 (비어 있으면 mealkit.project의 language)
     std::string hashLogPath;      // 틱별 해시 로그 (헤드리스와 비교)
     std::string recordInputsPath; // 확정된 입력 기록 (sandbox_headless --replay-inputs로 재생)
 };
@@ -111,6 +113,7 @@ void printUsage() {
                 "  --any-build            host: accept peers running a different build (compiler comparison tests)\n"
                 "  --mute                 start with sound off (automated tests)\n"
                 "  --debug-ui             start with the debug UI shown (F1, development builds)\n"
+                "  --lang <code>          language of the game text (assets/strings/<code>.txt, default: language in mealkit.project)\n"
                 "  --hash-log <file>      write \"<tick> <hash>\" for every tick\n"
                 "  --record-inputs <file> save confirmed inputs and hashes (replay: --headless --replay-inputs)\n"
                 "  --headless --help      run without a window (headless options)\n");
@@ -165,6 +168,7 @@ bool parseArgs(int argc, char** argv, Options& o) {
         else if (a == "--any-build") o.anyBuild = true;
         else if (a == "--mute") o.mute = true;
         else if (a == "--debug-ui") o.debugUi = true;
+        else if (a == "--lang" && i + 1 < argc) o.language = argv[++i];
         else if (a == "--hash-log" && next(v)) o.hashLogPath = v;
         else if (a == "--record-inputs" && next(v)) o.recordInputsPath = v;
         else if (a == "--help" || a == "-h") return false;
@@ -177,17 +181,6 @@ bool parseArgs(int argc, char** argv, Options& o) {
     o.debugLayer = true;
 #endif
     return true;
-}
-
-const char* stateName(net::SessionState s) {
-    switch (s) {
-    case net::SessionState::Idle: return "idle";
-    case net::SessionState::Connecting: return "connecting";
-    case net::SessionState::Lobby: return "lobby";
-    case net::SessionState::Running: return "running";
-    case net::SessionState::Ended: return "ended";
-    }
-    return "?";
 }
 
 // 최소 사양 실기 측정 결과를 CHANGELOG에 옮겨 적기 쉬운 모양으로 출력한다.
@@ -333,7 +326,11 @@ int main(int argc, char** argv) {
     actions.load();
     Gamepads pads; // XInput: 연결되지 않은 슬롯은 1초에 한 번만 본다
 
-    game::GameContext ctx{window, renderer, models, session, audio, feedback, actions};
+    // 게임 글자: assets/strings/<언어>.txt (없는 키는 기본 언어 표에서). 설정 화면이 생기면 플레이어가 고른 언어
+    loc::Strings strings;
+    strings.load(opt.language, project.settings.language);
+
+    game::GameContext ctx{window, renderer, models, session, audio, feedback, actions, strings};
 #if MEALKIT_DEBUG_UI
     // 디버그 UI (F1): 개발 빌드만 (출시 빌드 build.bat Export에는 ImGui가 없다). 처음 켤 때 만든다 (글꼴 읽기)
     debug::ImGuiLayer debugUi;
@@ -410,6 +407,7 @@ int main(int argc, char** argv) {
         viewTuning.poll(now);
         ctx.viewTuningData = viewTuning.view();
         pads.update(dt);
+        strings.update(dt);
         actions.update(input, window.focused() ? pads.first() : mealkit::input::PadState{}, ctx.keyboardAllowed,
                        ctx.mouseAllowed, dt);
         game.update(ctx, dt);
@@ -479,45 +477,51 @@ int main(int argc, char** argv) {
         ++frameCount;
         titleTimer += dt;
         if (titleTimer >= 0.25) {
-            char title[256];
+            // 플레이어에게 보이는 글자는 문자열 표(assets/strings), 성능 숫자는 개발용이라 영어 그대로
             const f64 avgMs = frameTimeSum / std::max(frameCount, 1u) * 1000.0;
             const f64 simMs = game.takeSimMsPerTick();
             const net::SessionStats& st = session.stats();
             const net::SessionState state = session.state();
+            const auto num = [](u32 v) { return std::to_string(v); };
+            std::string status;
+            bool running = false;
             if (useSteam && state == net::SessionState::Idle) {
-                snprintf(title, sizeof(title), "MealKit Sandbox | Steam lobby: %s",
-                         online.lobbyState() == online::LobbyState::Creating ? "creating..." : "joining...");
+                status = strings.get(online.lobbyState() == online::LobbyState::Creating ? "title.steamCreating"
+                                                                                         : "title.steamJoining");
             } else if (state == net::SessionState::Lobby && session.isHost()) {
-                snprintf(title, sizeof(title), "MealKit Sandbox | LOBBY %u/%u players - %sEnter: start",
-                         session.lobbyPlayerCount(), opt.maxPlayers, useSteam ? "I: invite friends, " : "");
+                status = strings.format(useSteam ? "title.lobbyHostSteam" : "title.lobbyHost",
+                                        {{"count", num(session.lobbyPlayerCount())}, {"max", num(opt.maxPlayers)}});
             } else if (state == net::SessionState::Lobby || state == net::SessionState::Connecting) {
-                snprintf(title, sizeof(title), "MealKit Sandbox | %s - waiting for host (%u in lobby)",
-                         stateName(state), session.lobbyPlayerCount());
+                status = strings.format(state == net::SessionState::Connecting ? "title.connecting" : "title.waiting",
+                                        {{"count", num(session.lobbyPlayerCount())}});
             } else if (state == net::SessionState::Ended) {
-                snprintf(title, sizeof(title), "MealKit Sandbox | ENDED: %s", session.endReason());
+                status = strings.format("title.ended", {{"reason", session.endReason()}});
             } else {
-                snprintf(title, sizeof(title),
-                         "MealKit Sandbox | %.0f fps %.2f ms | sim %.2f ms/tick | tick %u | P%u of %u | rtt %.0f ms | "
+                char perf[256];
+                snprintf(perf, sizeof(perf),
+                         "%.0f fps %.2f ms | sim %.2f ms/tick | tick %u | P%u of %u | rtt %.0f ms | "
                          "net %.1f/%.1f KB/s | %u draws %u inst | audio %u+%u voices %.2f ms | %s%s",
                          1000.0 / avgMs, avgMs, simMs, game.nextTick(), session.localPlayer() + 1,
                          session.playerCount(), st.rttMs, st.sentBytesPerSec / 1024.0, st.recvBytesPerSec / 1024.0,
                          renderer.stats().drawCalls, renderer.stats().instances, audio.stats().realVoices,
                          audio.stats().virtualVoices, audio.stats().updateMs, session.desynced() ? "DESYNC" : "in sync",
                          renderer.vsync() ? " | vsync" : "");
+                status = perf;
+                running = true;
             }
-            window.setTitle(title);
+            window.setTitle((strings.get("game.title") + " | " + status).c_str());
 #if MEALKIT_DEBUG_UI
-            perfText.clear(); // 창 제목의 " | " 항목을 한 줄씩
-            for (const char* p = title + 15; *p; ++p) {
-                if (p[0] == ' ' && p[1] == '|' && p[2] == ' ') {
-                    if (!perfText.empty()) perfText += '\n';
-                    p += 2;
+            perfText.clear(); // " | " 항목을 한 줄씩
+            for (size_t i = 0; i < status.size(); ++i) {
+                if (status.compare(i, 3, " | ") == 0) {
+                    perfText += '\n';
+                    i += 2;
                 } else {
-                    perfText += *p;
+                    perfText += status[i];
                 }
             }
 #endif
-            if (automated && (perfLogCounter++ % 8) == 7) MEALKIT_INFO("perf: %s", title + 15);
+            if (automated && running && (perfLogCounter++ % 8) == 7) MEALKIT_INFO("perf: %s", status.c_str());
             titleTimer = frameTimeSum = 0.0;
             frameCount = 0;
         }

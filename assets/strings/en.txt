@@ -1,0 +1,12 @@
+# Game text (English): "key = text" (mealkit/loc/Strings.h). Code and UI use keys only.
+# {name} is a value the game fills in, \n is a line break. Every character must be in a font in assets/fonts (checked when building).
+
+game.title = MealKit Sandbox
+
+title.steamCreating = Creating the Steam lobby...
+title.steamJoining = Joining the Steam lobby...
+title.lobbyHost = Lobby {count}/{max} players - Enter: start
+title.lobbyHostSteam = Lobby {count}/{max} players - I: invite friends, Enter: start
+title.connecting = Connecting to the host...
+title.waiting = Waiting for the host to start ({count} in the lobby)
+title.ended = Ended: {reason}

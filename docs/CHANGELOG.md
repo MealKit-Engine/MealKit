@@ -3,6 +3,22 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.15 — 1단계 진행 중 (2026-10-18)
+
+### [x] 로컬라이제이션 문자열 표 (완료 2026-10-18)
+- **왜**: UI를 만들면서 글자를 코드에 바로 쓰면 나중에 다른 언어를 넣을 때 모든 글자를 찾아 바꿔야 한다. 게임 화면 UI보다 먼저 둔다.
+- **형식**: `assets/strings/<언어>.txt`, 한 줄에 `키 = 문자열`(키는 영문자·숫자·`._-`, 첫 글자 영문자), `#` 주석, `\n` 줄바꿈, `{이름}` 자리, 여러 스타일 구간은 번호 태그 `<1>…</1>`(UI가 해석하고 표는 그대로 돌려준다). UTF-8 BOM도 읽는다.
+- **`loc::Strings`** (`mealkit/loc/Strings.h`, 엔진 코어): `GameContext::strings`(`kApiVersion` 15). `get(키)`, `format(키, {{"이름", 값}})`, `has`, `languages()`(설정 화면의 언어 목록).
+  고른 언어에 없는 키는 기본 언어 표에서, 거기에도 없으면 키 이름을 보여 주고 키마다 경고 한 번. 파일은 0.25초마다 시각을 보고 다시 읽는다.
+  기본 언어는 프로젝트 설정 `language`(기본 `ko`), 출시 exe는 `--lang <코드>`로 바꾼다(설정 화면이 생기면 플레이어가 고른 언어). 에디터 플레이·참가 창은 기본 언어.
+- **빌드 때 글자 검사** (`engine/tools/StringCheck.cpp` → `mealkit_stringcheck`, stb_truetype): `mealkit_add_game`이 게임 exe·게임 DLL 전에 `assets/strings/*.txt`의 모든 글자가 `assets/fonts`(하위 폴더 포함 `.ttf`·`.otf`·`.ttc`)의 글꼴 중 하나에 있는지 본다.
+  없으면 `파일(줄): error STR001: U+XXXX ...`로 빌드가 멈춘다. 글꼴이 하나도 없으면 검사하지 않는다(아직 게임 UI가 없는 프로젝트). 에디터 빌드의 게임 프로젝트에도 내보낸다(`MealKitTargets.cmake`).
+- **글꼴**: `assets/fonts/Pretendard-Medium.otf`(Pretendard 1.3.9, SIL OFL 1.1, 1.5 MB)와 라이선스 `Pretendard-OFL.txt`(출시 고지문에 저절로 들어간다, v0.4.6 규칙). `.otf`·`.ttf`·`.ttc`는 `.gitattributes`에서 바이너리.
+- **sandbox**: 플레이어에게 보이는 창 제목(게임 이름, 로비·연결·대기·끝남 문구)을 `ko.txt`·`en.txt`로 옮겼다. 성능 숫자는 개발용이라 영어 그대로. 끝남 이유는 아직 엔진 영어 글자 — "버전 표시와 접속 거부 이유" 항목에서 이유 코드로 바꾼다.
+- **엔진**: `listFiles(폴더, 확장자)`(`platform/Paths.h`).
+- **검증**: 단위 테스트 `strings_table`(읽기·오류 줄·기본 언어 대체·없는 키·`format`·언어 목록·키 규칙). 글꼴에 없는 글자(☃, 한자)를 넣으면 빌드가 `STR001`로 멈춘다. `--lang fr`은 경고 후 기본 언어.
+- **남은 것**: Penpot 플러그인의 키 붙이기·태그 내보내기는 게임 화면 UI 항목, 언어 고르기는 설정 화면 항목.
+
 ## v0.4.14 — 1단계 진행 중 (2026-10-18)
 
 ### [x] 디버그 UI (Dear ImGui) (완료 2026-10-18)

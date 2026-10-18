@@ -251,6 +251,24 @@ function(mealkit_add_game name)
         add_custom_target(${name}_simcheck DEPENDS "${sim_stamp}")
     endif()
 
+    # 문자열 표(assets/strings/*.txt)의 글자가 assets/fonts의 글꼴에 다 있는지 (창 있는 빌드, mealkit_stringcheck)
+    set(string_check "")
+    if(NOT MEALKIT_HEADLESS_ONLY)
+        file(GLOB string_files CONFIGURE_DEPENDS "${project_dir}/assets/strings/*.txt")
+        file(GLOB_RECURSE font_files CONFIGURE_DEPENDS "${project_dir}/assets/fonts/*.ttf" "${project_dir}/assets/fonts/*.otf"
+             "${project_dir}/assets/fonts/*.ttc")
+        if(string_files)
+            set(string_stamp "${CMAKE_CURRENT_BINARY_DIR}/${name}_stringcheck.stamp")
+            add_custom_command(OUTPUT "${string_stamp}"
+                COMMAND mealkit_stringcheck "${string_stamp}" --fonts "${project_dir}/assets/fonts" ${string_files}
+                DEPENDS mealkit_stringcheck ${string_files} ${font_files}
+                COMMENT "StringCheck ${name}: characters of assets/strings are in assets/fonts"
+                VERBATIM)
+            add_custom_target(${name}_stringcheck DEPENDS "${string_stamp}")
+            set(string_check ${name}_stringcheck)
+        endif()
+    endif()
+
     # 헤드리스 (docs/CODING_MODEL.md "창 없이(헤드리스·CI) 게임을 돌리는 방법"): sim/ + Headless.cpp만, 엔진은 코어(mealkit_core)만 링크한다. 창·렌더러·오디오 없음.
     # CI가 Linux·macOS에서도 이것을 빌드해 틱별 해시를 비교한다. Headless.cpp는 출시 exe에도 들어간다(--headless, GameSession이 같은 함수를 쓴다).
     if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
@@ -279,6 +297,9 @@ function(mealkit_add_game name)
         target_compile_definitions(${name}_game PRIVATE MEALKIT_GAME_NAME="${name}")
         if(sim_sources)
             add_dependencies(${name}_game ${name}_simcheck)
+        endif()
+        if(string_check)
+            add_dependencies(${name}_game ${string_check})
         endif()
         return()
     endif()
@@ -328,6 +349,9 @@ function(mealkit_add_game name)
     target_compile_definitions(${name} PRIVATE MEALKIT_GAME_NAME="${name}")
     if(sim_sources)
         add_dependencies(${name} ${name}_simcheck)
+    endif()
+    if(string_check)
+        add_dependencies(${name} ${string_check})
     endif()
     if(MEALKIT_STEAM_DLL)
         add_custom_command(TARGET ${name} POST_BUILD

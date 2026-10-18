@@ -1,0 +1,12 @@
+# 게임 글자 (한국어, 기본 언어): "키 = 문자열" (mealkit/loc/Strings.h). 코드와 UI는 키만 쓴다.
+# {이름}은 게임이 채우는 값, 줄바꿈은 \n. 글자는 assets/fonts의 글꼴에 모두 있어야 한다 (빌드 때 검사).
+
+game.title = MealKit 샌드박스
+
+title.steamCreating = Steam 로비 만드는 중...
+title.steamJoining = Steam 로비 들어가는 중...
+title.lobbyHost = 로비 {count}/{max}명 - Enter: 시작
+title.lobbyHostSteam = 로비 {count}/{max}명 - I: 친구 초대, Enter: 시작
+title.connecting = 호스트에 연결하는 중...
+title.waiting = 호스트가 시작하기를 기다리는 중 (로비 {count}명)
+title.ended = 끝남: {reason}

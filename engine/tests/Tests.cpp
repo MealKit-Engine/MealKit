@@ -10,6 +10,7 @@
 #include "mealkit/game/Simulation.h"
 #include "mealkit/game/Tables.h"
 #include "mealkit/input/Actions.h"
+#include "mealkit/loc/Strings.h"
 #include "mealkit/core/Clock.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/net/Socket.h"
@@ -532,6 +533,33 @@ TEST_CASE(input_record) {
     }
     TEST_CHECK(same);
     removeFile(path);
+}
+
+TEST_CASE(strings_table) {
+    const std::string oldRoot = projectRoot();
+    const std::string dir = executableDirectory() + "/test_strings";
+    createDirectories(dir + "/assets/strings");
+    TEST_CHECK(writeTextFile(dir + "/assets/strings/ko.txt",
+                             "# comment\nmenu.start = 시작\nhud.score = 점수 <1>{score}</1>점\nmulti = 한 줄\\n두 줄\nbad line\n"));
+    TEST_CHECK(writeTextFile(dir + "/assets/strings/en.txt", "menu.start = Start\nhud.score = Score <1>{score}</1>\n"));
+    setProjectRoot(dir);
+
+    std::vector<loc::StringEntry> entries;
+    std::string errors;
+    TEST_CHECK(loc::readStringsFile(dir + "/assets/strings/ko.txt", entries, &errors) && entries.size() == 3);
+    TEST_CHECK(errors.find("line 5") != std::string::npos && entries[2].value == "한 줄\n두 줄" && entries[2].line == 4);
+
+    loc::Strings s;
+    s.load("en", "ko");
+    TEST_CHECK(s.language() == "en" && s.get("menu.start") == "Start");
+    TEST_CHECK(s.format("hud.score", {{"score", "12"}}) == "Score <1>12</1>");
+    TEST_CHECK(s.get("multi") == "한 줄\n두 줄"); // en에 없으면 기본 언어(ko)
+    TEST_CHECK(s.get("no.such") == "no.such" && !s.has("no.such") && s.has("multi")); // 없으면 키 이름
+    const std::vector<std::string> langs = s.languages();
+    TEST_CHECK(langs.size() == 2 && langs[0] == "en" && langs[1] == "ko");
+    TEST_CHECK(loc::validStringKey("menu.start") && loc::validStringKey("Layer_1-b") && !loc::validStringKey("1abc") &&
+               !loc::validStringKey("a b"));
+    setProjectRoot(oldRoot);
 }
 
 MEALKIT_STRUCT(TestCommand) {
