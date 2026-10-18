@@ -314,6 +314,44 @@ Nodes: %u (budget %u) = 노드 %u개 (예산 %u)
 Over the node budget = 노드 예산을 넘었습니다
 No problems = 문제 없음
 
+# ---- 플레이어 설정 (settings.ini 필드)
+Window mode = 창 모드
+Window width = 창 너비
+Window height = 창 높이
+Vertical sync = 수직 동기
+Frame limit (0 is none) = 프레임 제한 (0이면 없음)
+Render scale = 렌더 배율
+Graphics preset = 그래픽 품질
+Field of view (degrees) = 시야각 (도)
+Brightness = 밝기
+Master volume = 전체 볼륨
+Music volume = 배경음 볼륨
+Effects volume = 효과음 볼륨
+Interface volume = 인터페이스 소리 볼륨
+Voice volume = 음성 볼륨
+Mute when the window is in the background = 창이 뒤에 있으면 소리 끄기
+Mouse sensitivity = 마우스 감도
+Invert mouse Y = 마우스 Y축 반전
+Gamepad sensitivity = 게임패드 감도
+Invert gamepad Y = 게임패드 Y축 반전
+Language (empty is the project default) = 언어 (비우면 프로젝트 기본)
+Interface scale = 인터페이스 크기
+Subtitles = 자막
+Audio = 소리
+Controls = 조작
+Gameplay = 게임
+Selected = 선택됨
+Value text = 값 글자
+On (toggle) = 켜짐 (토글)
+Value (slider, 0 to 1) = 값 (슬라이더, 0~1)
+Toggle row = 토글 줄
+Slider row = 슬라이더 줄
+Choice row = 선택 줄
+Key row = 키 줄
+Warning = 경고
+Display change waits for confirmation = 화면 변경 확인 중
+Confirmation text = 확인 글자
+
 # ---- 빌드·업그레이드
 Project Upgrade = 프로젝트 업그레이드
 This project's build files were made from the engine %s template (engine is now %s). = 이 프로젝트의 빌드 파일은 엔진 %s 템플릿으로 만들어졌습니다 (지금 엔진 %s).

@@ -2,6 +2,7 @@
 
 #include "mealkit/core/Log.h"
 
+#include <algorithm>
 #include <string>
 #include <windows.h>
 
@@ -96,6 +97,49 @@ bool Window::create(const WindowDesc& desc) {
 
     ShowWindow(hwnd, SW_SHOW);
     return true;
+}
+
+void Window::setMode(WindowMode mode, u32 width, u32 height) {
+    HWND hwnd = static_cast<HWND>(m_hwnd);
+    if (!hwnd) return;
+    m_mode = mode;
+    MONITORINFO mi{};
+    mi.cbSize = sizeof(mi);
+    GetMonitorInfoW(MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST), &mi);
+    if (mode == WindowMode::Windowed) {
+        const DWORD style = WS_OVERLAPPEDWINDOW | WS_VISIBLE;
+        SetWindowLongPtrW(hwnd, GWL_STYLE, static_cast<LONG_PTR>(style));
+        RECT rect{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
+        AdjustWindowRectEx(&rect, style, FALSE, 0);
+        const LONG w = rect.right - rect.left, h = rect.bottom - rect.top;
+        const RECT& work = mi.rcWork; // 작업 영역 가운데
+        SetWindowPos(hwnd, HWND_NOTOPMOST, work.left + std::max(0L, (work.right - work.left - w) / 2),
+                     work.top + std::max(0L, (work.bottom - work.top - h) / 2), w, h, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    } else {
+        SetWindowLongPtrW(hwnd, GWL_STYLE, static_cast<LONG_PTR>(WS_POPUP | WS_VISIBLE));
+        const RECT& r = mi.rcMonitor;
+        SetWindowPos(hwnd, HWND_TOP, r.left, r.top, r.right - r.left, r.bottom - r.top, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
+    }
+}
+
+std::vector<DisplaySize> Window::displaySizes() const {
+    std::vector<DisplaySize> out;
+    MONITORINFOEXW mi{};
+    mi.cbSize = sizeof(mi);
+    GetMonitorInfoW(MonitorFromWindow(static_cast<HWND>(m_hwnd), MONITOR_DEFAULTTONEAREST), &mi);
+    DEVMODEW dm{};
+    dm.dmSize = sizeof(dm);
+    for (DWORD i = 0; EnumDisplaySettingsW(mi.szDevice, i, &dm); ++i) {
+        const DisplaySize s{dm.dmPelsWidth, dm.dmPelsHeight};
+        if (s.width < 800 || s.height < 600) continue;
+        bool seen = false;
+        for (const DisplaySize& o : out) seen = seen || (o.width == s.width && o.height == s.height);
+        if (!seen) out.push_back(s);
+    }
+    std::sort(out.begin(), out.end(), [](const DisplaySize& a, const DisplaySize& b) {
+        return a.width * a.height > b.width * b.height;
+    });
+    return out;
 }
 
 bool Window::pumpMessages() {

@@ -1,0 +1,285 @@
+# MealKit UI (hand-written): standard settings screen. The engine opens it (action settings.open) and fills the view model
+# SettingsVm (mealkit/settings/Settings.cpp): tabs, rows built from the settings declaration, display confirmation.
+# A game may restyle this file freely; keep the bindings (tabs, rows, row fields) and the settings.* actions.
+board settings 1920 1080
+  navigation
+  back settings.close
+  frame dim
+    pos 0 0
+    size 1920 1080
+    constraints leftright topbottom
+    fill #05070CB0
+  end
+  frame panel
+    pos 360 110
+    size 1200 860
+    constraints center center
+    layout column
+    padding 32 40
+    gap 18
+    fill #141922F4
+    stroke 1 $panelStroke
+    radius 16
+    shadow 0 12 40 0 #000000AA
+    text title
+      key settings.title
+      fontSize 40
+      color $text
+    end
+    frame tabs
+      size fill hug
+      layout row
+      gap 8
+      list tabs
+      frame tab
+        size hug 52
+        layout row
+        align center
+        padding 0 22
+        radius 10
+        fill $button
+        button settings.tab
+        on hover fill $buttonHover
+        on pressed fill $buttonPressed
+        text label
+          content {label}
+          fontSize 24
+          color $text
+        end
+        frame marker
+          pos 0 46
+          size 40 4
+          absolute
+          constraints leftright bottom
+          radius 2
+          fill $accent
+          visible active
+        end
+      end
+    end
+    frame rows
+      size fill fill
+      layout column
+      gap 6
+      scroll
+      list rows
+      frame row
+        size fill 58
+        layout row
+        align center
+        padding 0 16
+        gap 16
+        radius 8
+        fill #FFFFFF08
+        text label
+          content {label}
+          fontSize 24
+          color $text
+        end
+        frame spacer
+          size fill 1
+        end
+        frame toggle
+          size 64 32
+          radius 16
+          fill #FFFFFF26
+          visible isToggle
+          toggle on settings.changed
+          on checked fill $accent
+          on hover stroke 2 #FFFFFF40
+          frame knobOff
+            pos 4 4
+            size 24 24
+            radius 12
+            fill #FFFFFF
+            visible !on
+          end
+          frame knobOn
+            pos 36 4
+            size 24 24
+            radius 12
+            fill #141922
+            visible on
+          end
+        end
+        frame slider
+          size 320 24
+          radius 12
+          fill #FFFFFF26
+          clip
+          visible isSlider
+          slider value01 0 1 0.01 settings.changed
+          on hover stroke 2 #FFFFFF40
+          frame sliderFill
+            size fill fill
+            widthRatio value01
+            radius 12
+            fill linear 0 0 1 0 #FF8A20 $accent
+          end
+        end
+        text sliderValue
+          size 90 hug
+          content {value}
+          fontSize 22
+          color $textDim
+          textAlign right
+          visible isSlider
+        end
+        frame choice
+          size hug hug
+          layout row
+          align center
+          gap 8
+          visible isChoice
+          frame prev
+            size 44 44
+            layout row
+            justify center
+            align center
+            radius 8
+            fill $button
+            button settings.prev
+            on hover fill $buttonHover
+            text arrow
+              content <
+              fontSize 24
+              color $text
+            end
+          end
+          text choiceValue
+            size 300 hug
+            content {value}
+            fontSize 22
+            color $text
+            textAlign center
+            overflow ellipsis
+            maxLines 1
+          end
+          frame next
+            size 44 44
+            layout row
+            justify center
+            align center
+            radius 8
+            fill $button
+            button settings.next
+            on hover fill $buttonHover
+            text arrow
+              content >
+              fontSize 24
+              color $text
+            end
+          end
+        end
+        frame key
+          size 400 44
+          layout row
+          justify center
+          align center
+          radius 8
+          fill $button
+          visible isKey
+          button settings.rebind
+          on hover fill $buttonHover
+          text keyValue
+            content {value}
+            fontSize 22
+            color $text
+          end
+        end
+      end
+    end
+    frame footer
+      size fill hug
+      layout row
+      justify end
+      gap 12
+      frame reset
+        size 220 52
+        layout row
+        justify center
+        align center
+        radius 10
+        fill $button
+        button settings.reset
+        on hover fill $buttonHover
+        text label
+          key settings.reset
+          fontSize 22
+          color $text
+        end
+      end
+      frame close
+        size 220 52
+        layout row
+        justify center
+        align center
+        radius 10
+        fill $accent
+        button settings.close
+        on hover fill #FFD86A
+        text label
+          key settings.close
+          fontSize 22
+          color #141922
+        end
+      end
+    end
+  end
+  frame confirm
+    pos 610 400
+    size 700 280
+    constraints center center
+    layout column
+    align center
+    justify center
+    gap 24
+    padding 32
+    fill #1C2230FA
+    stroke 2 $accent
+    radius 16
+    shadow 0 12 40 0 #000000CC
+    visible confirm
+    text confirmText
+      size 620 hug
+      content {confirmText}
+      fontSize 26
+      color $text
+      textAlign center
+    end
+    frame buttons
+      size hug hug
+      layout row
+      gap 12
+      frame keep
+        size 220 52
+        layout row
+        justify center
+        align center
+        radius 10
+        fill $accent
+        button settings.keep
+        text label
+          key settings.keep
+          fontSize 22
+          color #141922
+        end
+      end
+      frame revert
+        size 220 52
+        layout row
+        justify center
+        align center
+        radius 10
+        fill $button
+        button settings.revert
+        on hover fill $buttonHover
+        text label
+          key settings.revert
+          fontSize 22
+          color $text
+        end
+      end
+    end
+  end
+end

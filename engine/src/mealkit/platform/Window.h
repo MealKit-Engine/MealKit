@@ -4,6 +4,7 @@
 #include "mealkit/platform/Input.h"
 
 #include <cstdint>
+#include <vector>
 
 namespace mealkit {
 
@@ -15,6 +16,13 @@ struct WindowDesc {
     u32 height = 720;
     // 제목 표시줄 색(0xRRGGBB). 지정하면 어두운 제목 표시줄(흰 글자·버튼)을 켜고, Windows 11에서는 이 색으로 칠한다
     u32 captionColor = kDefaultCaptionColor;
+};
+
+// 창 모드 (설정 화면). 전체화면은 모니터 크기의 테두리 없는 창이다 (플립 모델 스왑 체인은 독점 전체화면 없이도 지연이 같다)
+enum class WindowMode : u8 { Windowed, Borderless, Fullscreen };
+
+struct DisplaySize {
+    u32 width = 0, height = 0;
 };
 
 // 다른 모듈(에디터 UI 등)이 창 메시지를 먼저 받아 보는 훅. 0이 아닌 값을 반환하면 그 메시지는 처리 완료로 본다.
@@ -41,6 +49,11 @@ public:
 
     void setTitle(const char* utf8);
     void setCursorCaptured(bool captured); // 커서 숨김 + 창 안에 가둠 (카메라 회전용)
+    // 창 모드·크기 바꾸기. 창 모드에서만 width×height(클라이언트 영역)를 쓰고, 나머지는 창이 있는 모니터 전체
+    void setMode(WindowMode mode, u32 width, u32 height);
+    WindowMode mode() const { return m_mode; }
+    // 창이 있는 모니터가 지원하는 해상도 (큰 것부터, 중복 없음)
+    std::vector<DisplaySize> displaySizes() const;
 
     Input& input() { return m_input; }
     void setMessageHook(MessageHook hook, void* user);
@@ -57,6 +70,7 @@ private:
     bool m_resized = false;
     bool m_quit = false;
     bool m_captured = false;
+    WindowMode m_mode = WindowMode::Windowed;
     Input m_input;
     MessageHook m_hook = nullptr;
     void* m_hookUser = nullptr;

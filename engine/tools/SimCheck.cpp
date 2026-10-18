@@ -430,6 +430,9 @@ constexpr HeaderRule kHeaderRules[] = {
     {"mealkit/ui/", Match::Prefix, "SIM009", kMsgViewHeader},
     {"mealkit/audio/", Match::Prefix, "SIM009", kMsgViewHeader},
     {"mealkit/settings/", Match::Prefix, "SIM009", kMsgViewHeader},
+    {"mealkit/input/", Match::Prefix, "SIM009", kMsgViewHeader},
+    {"mealkit/loc/", Match::Prefix, "SIM009", kMsgViewHeader},
+    {"mealkit/feedback/", Match::Prefix, "SIM009", kMsgViewHeader},
     {"view/", Match::Segment, "SIM009", kMsgViewHeader},
     {"app/", Match::Segment, "SIM009", kMsgViewHeader},
 };

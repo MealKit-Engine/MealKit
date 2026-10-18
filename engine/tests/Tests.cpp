@@ -24,6 +24,7 @@
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
 #if MEALKIT_TEST_UI
+#include "mealkit/settings/Settings.h"
 #include "mealkit/ui/Ui.h"
 #endif
 
@@ -645,6 +646,46 @@ TEST_CASE(ui_layout) {
     const ui::ScreenId bad = sys.open("ui/bad.ui");
     const ui::ScreenInfo info = sys.info(bad);
     TEST_CHECK(info.errors.size() == 2 && info.errors[0].find("(3)") != std::string::npos && info.errors[1].find("(4)") != std::string::npos);
+    setProjectRoot(oldRoot);
+}
+TEST_CASE(settings_service) {
+    const std::string oldRoot = projectRoot();
+    const std::string dir = executableDirectory() + "/test_settings";
+    createDirectories(dir + "/assets/ui");
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/settings.ui",
+                             "board settings 1000 1000\n"
+                             "  frame rows\n    size 1000 hug\n    layout column\n    list rows\n"
+                             "    frame row\n      size 1000 40\n      frame toggle\n        size 40 40\n        visible isToggle\n"
+                             "        toggle on settings.changed\n      end\n    end\n  end\n"
+                             "  frame close\n    pos 0 900\n    size 100 50\n    button settings.close\n  end\n"
+                             "end\n"));
+    const std::string file = dir + "/user/settings.ini";
+    removeFile(file);
+    setProjectRoot(dir);
+    {
+        ui::System sys;
+        sys.init(nullptr, nullptr);
+        settings::Service s;
+        settings::Service::Targets t;
+        t.ui = &sys;
+        s.init(t, file);
+        TEST_CHECK(s.values().display.vsync && !s.isOpen());
+        s.open();
+        TEST_CHECK(s.isOpen());
+        sys.layout({0, 0, 1000, 1000});
+        // 화면 탭: 창 모드, 해상도, 수직 동기(첫 토글) ... → 토글을 누르면 설정이 바뀌고 저장된다
+        TEST_CHECK(sys.press(1, "toggle"));
+        s.update(nullptr, 0.0);
+        TEST_CHECK(!s.values().display.vsync && fileExists(file));
+        TEST_CHECK(sys.press(1, "close"));
+        s.update(nullptr, 0.0);
+        TEST_CHECK(!s.isOpen());
+    }
+    {
+        settings::Service again; // 다시 읽으면 바꾼 값
+        again.init({}, file);
+        TEST_CHECK(!again.values().display.vsync && again.values().audio.master == 1.0f);
+    }
     setProjectRoot(oldRoot);
 }
 #endif

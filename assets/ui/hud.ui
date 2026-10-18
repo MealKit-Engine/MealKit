@@ -117,6 +117,25 @@ board hud 1920 1080
       color $text
     end
   end
+  frame settingsButton
+    pos 1628 108
+    size 260 56
+    constraints right top
+    layout row
+    justify center
+    align center
+    fill $button
+    stroke 1 $panelStroke
+    radius $radius
+    button settings.open
+    on hover fill $buttonHover
+    on pressed fill $buttonPressed
+    text label
+      key hud.settings
+      fontSize 22
+      color $text
+    end
+  end
   text respawn
     pos 460 500
     size 1000 hug

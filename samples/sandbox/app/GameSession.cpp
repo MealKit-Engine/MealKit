@@ -5,6 +5,7 @@
 #include "mealkit/feedback/Feedback.h"
 #include "mealkit/game/GameData.h"
 #include "mealkit/sim/Commands.h"
+#include "mealkit/settings/Settings.h"
 #include "mealkit/ui/Ui.h"
 #include "mealkit/platform/Window.h"
 
@@ -49,6 +50,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     m_input.poll(ctx.actions);
     // 디버그 치트는 상태를 직접 고치지 않고 확정 명령으로 보낸다 (모든 피어가 같은 틱에 처리)
     if (ctx.actions.pressed("debug.shockwave")) sim::sendCommand(session, DebugShockwave{});
+    if (ctx.actions.pressed("menu.settings")) ctx.settings.open(); // 표준 설정 화면 (HUD의 [설정] 버튼은 .ui에서 바로 settings.open)
     const bool hitStop = ctx.feedback.hitStop(); // 화면만 멈춘다: 화면 시계·효과·카메라 초점 (시뮬레이션은 계속)
     if (!hitStop) m_viewTime += dt;
     m_effects.prune(m_viewTime, look.shockwave);
@@ -105,7 +107,9 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
                       Vec3{0, look.camera.focusHeight, 0};
         }
     }
-    m_camera.apply(m_focus + ctx.feedback.cameraShake(m_focus), ctx.viewport, look.camera, frame); // 흔들림은 연출 표
+    CameraTuning camera = look.camera;
+    camera.fovDegrees = ctx.settings.values().display.fov; // 시야각은 플레이어 설정
+    m_camera.apply(m_focus + ctx.feedback.cameraShake(m_focus), ctx.viewport, camera, frame); // 흔들림은 연출 표
     applyEnvironment(m_scene.environment, frame);
 
     drawScene(m_scene, ctx.models, frame.cameraPos, out);

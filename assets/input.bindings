@@ -42,6 +42,11 @@ row debug.shockwave
 label Debug: shockwave
 keys F8
 
+row menu.settings
+label Settings
+keys F10
+pad Start
+
 row ui.up
 label Menu up
 keys Up

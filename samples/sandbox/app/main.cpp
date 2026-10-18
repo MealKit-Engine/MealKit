@@ -24,6 +24,7 @@
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/input/Actions.h"
 #include "mealkit/loc/Strings.h"
+#include "mealkit/settings/Settings.h"
 #include "mealkit/ui/Ui.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/online/Online.h"
@@ -81,6 +82,8 @@ struct Options {
     bool anyBuild = false;   // 호스트가 다른 빌드의 피어도 받는다 (컴파일러 비교 시험)
     bool mute = false;       // 소리 끄기 (자동 시험에서 여러 창을 띄울 때)
     bool debugUi = false;    // 디버그 UI(F1)를 켠 채로 시작 (개발 빌드)
+    bool openSettings = false; // 설정 화면을 연 채로 시작 (캡처·시험)
+    bool windowGiven = false; // --size/--vsync/--fps를 줬다: 이번 실행은 플레이어 설정의 화면 항목보다 명령줄
     std::string language;    // 게임 글자 언어 (비어 있으면 mealkit.project의 language)
     std::string hashLogPath;      // 틱별 해시 로그 (헤드리스와 비교)
     std::string recordInputsPath; // 확정된 입력 기록 (sandbox_headless --replay-inputs로 재생)
@@ -114,6 +117,7 @@ void printUsage() {
                 "  --any-build            host: accept peers running a different build (compiler comparison tests)\n"
                 "  --mute                 start with sound off (automated tests)\n"
                 "  --debug-ui             start with the debug UI shown (F1, development builds)\n"
+                "  --settings             start with the settings screen open\n"
                 "  --lang <code>          language of the game text (assets/strings/<code>.txt, default: language in mealkit.project)\n"
                 "  --hash-log <file>      write \"<tick> <hash>\" for every tick\n"
                 "  --record-inputs <file> save confirmed inputs and hashes (replay: --headless --replay-inputs)\n"
@@ -149,9 +153,10 @@ bool parseArgs(int argc, char** argv, Options& o) {
         else if ((a == "--bodies" || a == "--match-data") && next(v)) o.bodies = static_cast<u32>(std::atoi(v));
         else if (a == "--delay" && next(v)) o.inputDelay = static_cast<u32>(std::atoi(v));
         else if (a == "--seed" && next(v)) o.seed = std::strtoull(v, nullptr, 10);
-        else if (a == "--vsync" && next(v)) o.vsync = std::atoi(v) != 0;
-        else if (a == "--fps" && next(v)) o.fpsCap = std::atof(v);
+        else if (a == "--vsync" && next(v)) o.vsync = std::atoi(v) != 0, o.windowGiven = true;
+        else if (a == "--fps" && next(v)) o.fpsCap = std::atof(v), o.windowGiven = true;
         else if (a == "--size" && i + 2 < argc) {
+            o.windowGiven = true;
             o.width = static_cast<u32>(std::atoi(argv[++i]));
             o.height = static_cast<u32>(std::atoi(argv[++i]));
         } else if (a == "--debug") o.debugLayer = true;
@@ -169,6 +174,7 @@ bool parseArgs(int argc, char** argv, Options& o) {
         else if (a == "--any-build") o.anyBuild = true;
         else if (a == "--mute") o.mute = true;
         else if (a == "--debug-ui") o.debugUi = true;
+        else if (a == "--settings") o.openSettings = true;
         else if (a == "--lang" && i + 1 < argc) o.language = argv[++i];
         else if (a == "--hash-log" && next(v)) o.hashLogPath = v;
         else if (a == "--record-inputs" && next(v)) o.recordInputsPath = v;
@@ -335,7 +341,25 @@ int main(int argc, char** argv) {
     ui::System ui;
     ui.init(&renderer, &strings);
 
-    game::GameContext ctx{window, renderer, models, session, audio, feedback, actions, strings, ui};
+    // 플레이어 설정: 사용자 폴더의 settings.ini를 읽어 창·화면·소리·언어·UI 배율·감도에 적용한다.
+    // 자동 실행(--bot, --exit-tick)은 기본값으로 돌고 저장하지 않는다 (이 PC의 설정이 시험 결과를 바꾸지 않게, 창 크기는 명령줄)
+    settings::Service playerSettings;
+    {
+        settings::Service::Targets t;
+        const bool display = !automated && !opt.windowGiven;
+        t.window = display ? &window : nullptr;
+        t.renderer = display ? &renderer : nullptr;
+        t.limiter = display ? &limiter : nullptr;
+        t.audio = &audio;
+        t.strings = &strings;
+        t.ui = &ui;
+        t.actions = &actions;
+        t.projectLanguage = opt.language.empty() ? project.settings.language : opt.language;
+        playerSettings.init(t, automated ? std::string() : game::userFolder(project.settings) + "/" + settings::kSettingsFile);
+        if (opt.openSettings) playerSettings.open();
+    }
+
+    game::GameContext ctx{window, renderer, models, session, audio, feedback, actions, strings, ui, playerSettings};
 #if MEALKIT_DEBUG_UI
     // 디버그 UI (F1): 개발 빌드만 (출시 빌드 build.bat Export에는 ImGui가 없다). 처음 켤 때 만든다 (글꼴 읽기)
     debug::ImGuiLayer debugUi;
@@ -356,7 +380,7 @@ int main(int argc, char** argv) {
         Input& input = window.input();
         if (exitDeadline > 0.0 && now >= exitDeadline) break;
 
-        if (input.keyPressed(key::Escape)) break;
+        if (input.keyPressed(key::Escape) && !playerSettings.isOpen()) break; // 설정 화면이 열려 있으면 Esc는 화면을 닫는다
         if (input.keyPressed('V')) renderer.setVsync(!renderer.vsync());
         if (input.keyPressed(key::F12)) renderer.requestCapture("screenshot.png");
         if (window.consumeResize()) renderer.resize(window.width(), window.height());
@@ -417,10 +441,11 @@ int main(int argc, char** argv) {
         ui.update({&input, &actions, ctx.mouseAllowed, ctx.keyboardAllowed}, ctx.viewport, dt);
         if (ui.wantsMouse()) ctx.mouseAllowed = false;
         if (ui.wantsKeyboard()) ctx.keyboardAllowed = false;
+        playerSettings.update(&input, dt); // 설정 화면의 액션 (게임 update 전)
         actions.update(input, window.focused() ? pads.first() : mealkit::input::PadState{}, ctx.keyboardAllowed,
                        ctx.mouseAllowed, dt);
         game.update(ctx, dt);
-        audio.setMuted(opt.mute || !window.focused());
+        audio.setMuted(opt.mute || (playerSettings.values().audio.muteUnfocused && !window.focused()));
         audio.update(dt);
         feedback.update(dt);
         if (game.captureDue()) renderer.requestCapture(opt.capturePath.c_str());
