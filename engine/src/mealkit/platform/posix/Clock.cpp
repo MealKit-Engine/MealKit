@@ -19,6 +19,14 @@ f64 nowSeconds() {
     return monotonic() - start;
 }
 
+void sleepSeconds(f64 seconds) {
+    if (seconds <= 0.0) return;
+    timespec ts{};
+    ts.tv_sec = static_cast<time_t>(seconds);
+    ts.tv_nsec = static_cast<long>((seconds - static_cast<f64>(ts.tv_sec)) * 1e9);
+    nanosleep(&ts, nullptr);
+}
+
 FrameLimiter::FrameLimiter() = default;
 FrameLimiter::~FrameLimiter() = default;
 

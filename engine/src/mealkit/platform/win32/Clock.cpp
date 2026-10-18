@@ -21,6 +21,26 @@ f64 nowSeconds() {
     return static_cast<f64>(c.QuadPart - start) * invFrequency;
 }
 
+void sleepSeconds(f64 seconds) {
+    if (seconds <= 0.0) return;
+    // 스레드마다 타이머 하나 (만들기 실패하면 Sleep, 해상도 약 15ms)
+    struct Timer {
+        HANDLE handle = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
+        ~Timer() {
+            if (handle) CloseHandle(handle);
+        }
+    };
+    thread_local Timer timer;
+    if (!timer.handle) {
+        Sleep(static_cast<DWORD>(seconds * 1000.0 + 0.5));
+        return;
+    }
+    LARGE_INTEGER due;
+    due.QuadPart = -static_cast<LONGLONG>(seconds * 1e7); // 100ns 단위, 음수 = 상대 시간
+    SetWaitableTimerEx(timer.handle, &due, 0, nullptr, nullptr, nullptr, 0);
+    WaitForSingleObject(timer.handle, INFINITE);
+}
+
 FrameLimiter::FrameLimiter() {
     m_timer = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
     if (!m_timer) {

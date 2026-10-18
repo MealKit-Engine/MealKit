@@ -87,6 +87,10 @@ else()
         set(${jolt_off} OFF CACHE BOOL "" FORCE)
     endforeach()
     set(CROSS_PLATFORM_DETERMINISTIC ON CACHE BOOL "" FORCE)
+    # LTO는 엔진처럼 MSVC만. Clang의 LTO 라이브러리는 LLVM 비트코드라 Linux의 GNU ld가 읽지 못한다.
+    if(NOT MSVC)
+        set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)
+    endif()
     set(USE_SSE4_1 ON CACHE BOOL "" FORCE)
     set(USE_SSE4_2 ON CACHE BOOL "" FORCE)
     # Jolt는 기본으로 정적 CRT를 강제한다. 에디터 빌드에서는 mealkit.dll과 같은 동적 CRT로 맞춘다.
