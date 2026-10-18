@@ -1,0 +1,33 @@
+# MealKit table (Action). Edit it in the editor's [Tables] panel or import a CSV there.
+
+row move
+kind Axis2
+label Move
+keys W S A D Up Down Left Right
+pad LeftStick
+
+row jump
+label Jump
+keys Space
+pad A
+
+row push
+label Push
+mouse Left
+pad RightTrigger X
+
+row orbit
+label Turn camera (hold)
+mouse Right
+
+row look
+kind Delta2
+label Turn camera
+mouse Move
+pad RightStick
+rate 900
+
+row zoom
+kind Delta
+label Zoom
+mouse Wheel

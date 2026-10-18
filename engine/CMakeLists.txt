@@ -76,6 +76,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/sim/TickEvents.h
     src/mealkit/sim/TickTimer.h
     src/mealkit/sim/Table.h
+    src/mealkit/input/Actions.h
+    src/mealkit/input/Actions.cpp
     src/mealkit/physics/PhysicsWorld.h
     src/mealkit/physics/PhysicsWorld.cpp
     src/mealkit/platform/Paths.h

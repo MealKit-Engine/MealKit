@@ -12,27 +12,21 @@ i8 quantize(f32 v) { return static_cast<i8>(std::lround(std::clamp(v, -1.0f, 1.0
 
 } // namespace
 
-void LocalInput::poll(Input& input, bool keyboardAllowed, bool mouseAllowed) {
-    pushLatch |= mouseAllowed && input.mousePressed(MouseButton::Left);
-    jumpLatch |= keyboardAllowed && input.keyPressed(key::Space);
+void LocalInput::poll(const input::Actions& actions) {
+    pushLatch |= actions.pressed("push");
+    jumpLatch |= actions.pressed("jump");
 }
 
-GameInput LocalInput::sample(Input& input, const OrbitCamera& camera, bool keyboardAllowed, bool mouseAllowed) const {
+GameInput LocalInput::sample(const input::Actions& actions, const OrbitCamera& camera) const {
     GameInput g;
-    if (!keyboardAllowed && !mouseAllowed) return g;
     const Vec3 forward = camera.forward();
     const Vec3 right = cross(Vec3{0, 1, 0}, forward);
-    Vec3 move{};
-    if (keyboardAllowed) {
-        if (input.keyDown('W')) move += forward;
-        if (input.keyDown('S')) move -= forward;
-        if (input.keyDown('D')) move += right;
-        if (input.keyDown('A')) move -= right;
-    }
-    move = normalize(move);
+    const Vec2 stick = actions.axis2("move"); // 길이 1 이하 (키는 1, 스틱은 기울인 만큼)
+    const f32 amount = std::min(length(stick), 1.0f);
+    const Vec3 move = normalize(forward * stick.y + right * stick.x) * amount;
     g.moveX = quantize(move.x);
     g.moveZ = quantize(move.z);
-    if (jumpLatch || (keyboardAllowed && input.keyDown(key::Space))) g.buttons |= kButtonJump;
+    if (jumpLatch || actions.down("jump")) g.buttons |= kButtonJump;
     if (pushLatch) g.buttons |= kButtonPush;
     return g;
 }

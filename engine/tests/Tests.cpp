@@ -9,9 +9,11 @@
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/game/Simulation.h"
 #include "mealkit/game/Tables.h"
+#include "mealkit/input/Actions.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/core/Reflect.h"
 #include "mealkit/physics/PhysicsWorld.h"
+#include "mealkit/platform/Input.h"
 #include "mealkit/platform/Paths.h"
 #include "mealkit/scene/Scene.h"
 #include "mealkit/sim/Pool.h"
@@ -342,6 +344,84 @@ TEST_CASE(reflect_enum) {
     WithEnum b;
     b.shape = TestShape::Box;
     TEST_CHECK(reflect::hashOf(a) == reflect::hashOf(b)); // 해시는 정수 그대로
+}
+
+TEST_CASE(input_actions) {
+    // 임시 프로젝트 폴더의 assets/input.bindings
+    const std::string oldRoot = projectRoot();
+    const std::string dir = executableDirectory() + "/test_input_actions";
+    createDirectories(dir + "/assets");
+    TEST_CHECK(writeTextFile(dir + "/assets/input.bindings",
+                             "row move\nkind Axis2\nkeys W S A D\npad LeftStick\n"
+                             "row jump\nkeys Space\npad A\n"
+                             "row zoom\nkind Delta\nkeys Q E\nmouse Wheel\nrate 10\n"));
+    removeFile(dir + "/user.bindings");
+    setProjectRoot(dir);
+    input::Actions actions;
+    actions.setUserFile(dir + "/user.bindings");
+    actions.load();
+    TEST_CHECK(actions.count() == 3);
+
+    Input in;
+    input::PadState pad;
+    in.setKey('W', true);
+    in.setKey('D', true);
+    actions.update(in, pad, true, true, 0.1);
+    const Vec2 m = actions.axis2("move");
+    TEST_CHECK(std::fabs(length(m) - 1.0f) < 1e-5f && m.x > 0.7f && m.y > 0.7f); // 대각선도 길이 1
+    actions.update(in, pad, false, true, 0.1); // 키보드를 받지 않는 동안은 놓은 상태
+    TEST_CHECK(length(actions.axis2("move")) == 0.0f);
+
+    in.beginFrame();
+    in.setKey(key::Space, true);
+    actions.update(in, pad, true, true, 0.1);
+    TEST_CHECK(actions.pressed("jump") && actions.down("jump"));
+    in.beginFrame();
+    actions.update(in, pad, true, true, 0.1);
+    TEST_CHECK(!actions.pressed("jump") && actions.down("jump"));
+    in.beginFrame();
+    in.setKey(key::Space, false);
+    actions.update(in, pad, true, true, 0.1);
+    TEST_CHECK(actions.released("jump") && !actions.down("jump"));
+
+    in.beginFrame();
+    in.setKey('E', true);
+    in.addWheel(1.0f);
+    actions.update(in, pad, true, true, 0.5);
+    TEST_CHECK(std::fabs(actions.axis("zoom") - 6.0f) < 1e-5f); // 키는 rate × 초, 휠은 칸 그대로
+
+    // 게임패드: 데드존 안은 0, 밖은 0..1로 다시 편다
+    in.beginFrame();
+    in.clear();
+    pad.connected = true;
+    pad.leftX = 0.1f;
+    actions.update(in, pad, true, true, 0.1);
+    TEST_CHECK(length(actions.axis2("move")) == 0.0f);
+    pad.leftX = 0.6f;
+    pad.buttons = input::pad::A;
+    actions.update(in, pad, true, true, 0.1);
+    TEST_CHECK(std::fabs(actions.axis2("move").x - 0.5f) < 1e-5f && actions.pressed("jump"));
+    TEST_CHECK(actions.lastDevice() == input::Device::Gamepad);
+    pad = {};
+
+    // 플레이어가 바꾼 키: 사용자 파일에 바뀐 행만 저장하고, 다시 읽으면 프로젝트 값 위에 덮는다
+    input::Action jump = actions.binding(1);
+    jump.keys = "J";
+    TEST_CHECK(actions.setBinding("jump", jump) && actions.saveUser());
+    input::Actions again;
+    again.setUserFile(dir + "/user.bindings");
+    again.load();
+    TEST_CHECK(again.binding(1).keys == "J" && again.binding(1).pad == "A" && again.binding(0).keys == "W S A D");
+    in.beginFrame();
+    in.setKey('J', true);
+    again.update(in, pad, true, true, 0.1);
+    TEST_CHECK(again.down("jump"));
+    again.resetBinding("jump");
+    TEST_CHECK(again.saveUser() && !fileExists(dir + "/user.bindings")); // 모두 기본값이면 파일을 지운다
+
+    TEST_CHECK(input::keyFromName("Space") == key::Space && input::keyFromName("q") == 'Q' && input::keyFromName("Nope") == 0);
+    TEST_CHECK(std::string(input::keyName('Q')) == "Q" && std::string(input::keyName(key::Enter)) == "Enter");
+    setProjectRoot(oldRoot);
 }
 
 MEALKIT_STRUCT(TestKind) {

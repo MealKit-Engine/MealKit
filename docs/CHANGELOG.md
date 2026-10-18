@@ -3,6 +3,23 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.11 — 1단계 진행 중 (2026-10-18)
+
+### [x] 입력 액션 매핑 (완료 2026-10-18)
+- **왜**: 게임 코드가 `'W'`, `Space`, 마우스 버튼을 직접 확인해, 키 바꾸기·게임패드를 따로 처리해야 했다.
+- **액션과 바인딩은 데이터**: 엔진 표 `assets/input.bindings`(엔진 행 타입 `input::Action`, 화면 전용 표 — 에디터 [표] 패널, CSV). 행 id = 액션 이름.
+  열: 종류(`MEALKIT_ENUM ActionKind`: `Button`, `Axis` -1..1, `Axis2` 길이 1 이하, `Delta`·`Delta2` 이번 프레임 변화량), 플레이어에게 보이는 이름, 키(`Axis`는 "음수 양수" 짝, `Axis2`는 "위 아래 왼쪽 오른쪽" 넷씩, `-`는 빈 자리),
+  마우스(`Left Right Middle WheelUp WheelDown`, 값은 `Wheel Move MoveX MoveY` — 픽셀·휠 칸 그대로), 게임패드(`A B X Y ... LeftStick RightStick DPad LeftTrigger`), `rate`(변화량 액션에서 키·스틱의 초당 양), 데드존.
+  모르는 이름은 읽을 때 경고. 파일은 0.25초마다 시각을 보고 다시 읽는다(플레이 중에 [표] 패널에서 고치면 바로).
+- **`input::Actions`** (`mealkit/input/Actions.h`, 엔진 코어 — 헤드리스 단위 테스트도 쓴다): 엔진(출시 exe, 에디터 플레이, 참가 창)이 창마다 하나 만들어 `GameContext::actions`로 넘기고(`kApiVersion` 13), 매 프레임 게임 `update` 전에 갱신한다.
+  게임은 `down/pressed/released/axis/axis2("이름")`만 읽는다. 키보드·마우스를 받지 않는 동안(에디터 게임 뷰 밖, 창 포커스 없음)은 놓은 상태. 여러 바인딩은 더한다(버튼은 OR, `Axis2`는 길이 1로 자른다). 없는 액션은 0과 이름마다 한 번 경고. `lastDevice()`(버튼 표시용).
+  게임패드 상태(`input::PadState`)를 받는 자리와 데드존(스틱은 원형, 밖을 0..1로 다시 편다)까지 이 항목에서 만들었다. 실제 패드 읽기는 다음 항목(XInput).
+- **플레이어가 바꾼 키**: `setBinding`/`resetBinding`/`saveUser`가 사용자 폴더(`game::userFolder(설정)` = 사용자 앱 데이터 폴더/<게임 이름>)의 `input.bindings`에 프로젝트와 다른 행의 바인딩 필드만 저장하고, 읽을 때 프로젝트 값 위에 덮는다(종류·이름은 게임 것). 콘텐츠 해시와 무관. 바꾸는 화면은 "설정 시스템 + 표준 설정 화면" 항목.
+- **sandbox**: 액션 `move`(WASD·화살표, 왼쪽 스틱), `jump`, `push`, `orbit`(오른쪽 버튼을 누르는 동안 카메라 돌리기), `look`(`Delta2`, 마우스 이동), `zoom`(`Delta`, 휠). `view/LocalInput`과 `OrbitCamera::control`이 액션만 읽고, 이동은 `axis2("move")` 길이만큼(스틱은 기울인 만큼) 카메라 기준 방향으로 양자화한다.
+  `Vec2`(`core/Math.h`)를 더했다. 엔진·디버그 키(Esc, V, F12, 로비의 Enter·I)는 `app/main.cpp`에 남겨 두었다 — 화면 흐름 템플릿 항목에서 UI 액션으로 옮긴다.
+- **검증**: 단위 테스트 `input_actions`(대각선 길이, 허용 안 됨, 눌림·뗌, 변화량, 데드존, 사용자 파일 덮기·되돌리기·이름 표). 상태 해시 그대로(입력 바이트 형식 그대로, 고정 기록 `REPLAY ok`).
+- **기존 프로젝트**: `assets/input.bindings`가 없으면 액션이 없다는 경고가 나고 조작이 안 된다. 예제에서 그 파일을 복사하고 `upgrade_project.ps1 -Source`(또는 게임 코드를 액션으로)로 올린다.
+
 ## v0.4.10 — 1단계 진행 중 (2026-10-18)
 
 ### [x] 이벤트 → 연출 표 (타격감을 데이터로) (완료 2026-10-18)

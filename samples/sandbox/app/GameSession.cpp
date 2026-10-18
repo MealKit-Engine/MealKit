@@ -34,18 +34,16 @@ void GameSession::setTuning(const void* tuning) {
 
 void GameSession::update(game::GameContext& ctx, f64 dt) {
     net::LockstepSession& session = ctx.session;
-    Input& input = ctx.window.input();
-    const bool keyboardAllowed = ctx.keyboardAllowed, mouseAllowed = ctx.mouseAllowed;
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
-    m_camera.control(ctx.window, mouseAllowed, look.camera);
-    m_input.poll(input, keyboardAllowed, mouseAllowed);
+    m_camera.control(ctx.window, ctx.actions, look.camera);
+    m_input.poll(ctx.actions);
     const bool hitStop = ctx.feedback.hitStop(); // 화면만 멈춘다: 화면 시계·효과·카메라 초점 (시뮬레이션은 계속)
     if (!hitStop) m_viewTime += dt;
     m_effects.prune(m_viewTime, look.shockwave);
 
     // 확정된 틱마다: 로컬 입력을 만들어 보내고, 틱 이벤트를 화면 효과로 옮긴다
     auto sample = [&](u32 tick) {
-        const GameInput gi = m_input.sample(input, m_camera, keyboardAllowed, mouseAllowed);
+        const GameInput gi = m_input.sample(ctx.actions, m_camera);
         m_input.clearLatches();
         if (m_options.bot) return Headless::botInput(tick, session.localPlayer());
         net::PlayerInput pi;

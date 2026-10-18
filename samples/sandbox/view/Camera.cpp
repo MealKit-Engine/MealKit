@@ -12,23 +12,23 @@ constexpr f32 kPi = 3.14159265f; // 단위 변환 (도 → 라디안)
 
 } // namespace
 
-void OrbitCamera::control(Window& window, bool mouseAllowed, const CameraTuning& t) {
+void OrbitCamera::control(Window& window, const input::Actions& actions, const CameraTuning& t) {
     if (!placed) {
         yaw = t.startYaw;
         pitch = t.startPitch;
         distance = t.startDistance;
         placed = true;
     }
-    Input& input = window.input();
-    if (mouseAllowed && input.mousePressed(MouseButton::Right)) orbiting = true;
-    if (!input.mouseDown(MouseButton::Right) || !window.focused()) orbiting = false;
+    if (actions.pressed("orbit")) orbiting = true;
+    if (!actions.down("orbit") || !window.focused()) orbiting = false;
     window.setCursorCaptured(orbiting);
     if (orbiting) {
-        yaw += input.mouseDeltaX() * t.orbitSensitivity;
-        pitch += input.mouseDeltaY() * t.orbitSensitivity;
+        const Vec2 look = actions.axis2("look"); // 마우스는 픽셀, 위가 +
+        yaw += look.x * t.orbitSensitivity;
+        pitch -= look.y * t.orbitSensitivity;
     }
     pitch = std::clamp(pitch, t.minPitch, t.maxPitch); // 튜닝을 바꾸면 범위 안으로 돌아온다
-    if (mouseAllowed) distance -= input.wheelDelta() * t.zoomStep;
+    distance -= actions.axis("zoom") * t.zoomStep;
     distance = std::clamp(distance, t.minDistance, t.maxDistance);
 }
 

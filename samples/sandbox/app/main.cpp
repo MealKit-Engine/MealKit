@@ -22,6 +22,7 @@
 #include "mealkit/core/Version.h"
 #include "mealkit/game/GameData.h"
 #include "mealkit/game/ProjectSettings.h"
+#include "mealkit/input/Actions.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/online/Online.h"
 #include "mealkit/platform/Paths.h"
@@ -316,7 +317,12 @@ int main(int argc, char** argv) {
     game::LiveTuning viewTuning; // assets/view.tuning: 파일이 바뀌면 다시 읽는다 (에디터에서 저장하면 바로 보인다)
     viewTuning.open(reflect::typeOf<sandbox::ViewTuning>());
 
-    game::GameContext ctx{window, renderer, models, session, audio, feedback};
+    // 입력 액션: assets/input.bindings + 플레이어가 바꾼 키 (사용자 폴더, 설정 화면이 저장한다)
+    input::Actions actions;
+    actions.setUserFile(game::userFolder(project.settings) + "/" + input::kBindingsTable);
+    actions.load();
+
+    game::GameContext ctx{window, renderer, models, session, audio, feedback, actions};
     render::DrawList drawList;
     f64 lastTime = nowSeconds();
     f64 titleTimer = 0.0, frameTimeSum = 0.0;
@@ -375,6 +381,7 @@ int main(int argc, char** argv) {
         ctx.keyboardAllowed = ctx.mouseAllowed = window.focused();
         viewTuning.poll(now);
         ctx.viewTuningData = viewTuning.view();
+        actions.update(input, mealkit::input::PadState{}, ctx.keyboardAllowed, ctx.mouseAllowed, dt);
         game.update(ctx, dt);
         audio.setMuted(opt.mute || !window.focused());
         audio.update(dt);

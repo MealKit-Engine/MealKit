@@ -52,6 +52,25 @@ inline Vec3 normalize(Vec3 v) {
 constexpr Vec3 lerp(Vec3 a, Vec3 b, f32 t) { return a + (b - a) * t; }
 constexpr f32 lerp(f32 a, f32 b, f32 t) { return a + (b - a) * t; }
 
+// 2D 값 (입력 축, 화면 좌표)
+struct Vec2 {
+    f32 x = 0.0f, y = 0.0f;
+
+    constexpr Vec2() = default;
+    constexpr Vec2(f32 x_, f32 y_) : x(x_), y(y_) {}
+
+    constexpr Vec2 operator+(Vec2 b) const { return {x + b.x, y + b.y}; }
+    constexpr Vec2 operator-(Vec2 b) const { return {x - b.x, y - b.y}; }
+    constexpr Vec2 operator*(f32 s) const { return {x * s, y * s}; }
+    constexpr Vec2& operator+=(Vec2 b) {
+        x += b.x;
+        y += b.y;
+        return *this;
+    }
+};
+
+inline f32 length(Vec2 v) { return std::sqrt(v.x * v.x + v.y * v.y); }
+
 struct Quat {
     f32 x = 0.0f, y = 0.0f, z = 0.0f, w = 1.0f;
 };
