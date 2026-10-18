@@ -23,6 +23,7 @@
 - **뷰 모델** (`core/Reflect.h`): `MEALKIT_VIEWMODEL(이름)`(모듈 목록 `reflect::moduleViewModels()`, `GameModule::viewModels`), `MEALKIT_LIST(행 타입, 이름, 최대, 설명)` = 배열 + `이름Count`.
 - **에디터 [UI] 패널** (`editor/UiPanel.*`, [보기] > [UI], `--ui <파일>`): `assets/ui`의 화면 목록, 고른 화면을 편집 모드의 씬 뷰 위에 그린다. 해상도(16:9 1080p·720p, 21:9, 4:3, 세로) 비율로 맞춘 테두리, UI 배율, 언어 전환(글자 넘침), 포커스 표시, 게임 뷰 모델을 골라 가짜 값을 필드 위젯으로, 노드 수(예산 500), 파일·바인딩 오류 목록.
 - **sandbox**: HUD(`assets/ui/hud.ui`: 플레이어 목록 — 색·이름·"나"·떨어진 횟수, 경기 시간, 밀치기 준비 막대, [충격파] 버튼 → `debug.shockwave` 액션 → 확정 명령, 리스폰 안내)와 캐릭터 위 이름표(`nametag.ui`, 월드 위 UI), 테마, 문자열, 입력 바인딩 `ui.*`. 뷰 모델 `HudVm`·`NameTagVm`·`PlayerRowVm`(`view/Hud.*`), 화면용 튜닝 `nameTagHeight`.
+- **고친 것**: 에디터 여러 명 플레이에서 참가 창이 가끔 못 들어오던 문제 — 에디터 프로세스마다 시작할 때 `build\Editor\bin\hot\`을 비워, 동시에 뜬 참가 창이 서로 막 복사한 게임 DLL을 지웠다(`LoadLibrary failed (2)`). 이제 자기 복사본과 1분 넘게 된 남의 복사본만 지운다(`GameModuleHost::load`).
 - **엔진**: `Input::mouseX/mouseY/mouseMoved`(커서 위치), 단위 테스트가 창 있는 빌드에서 UI 모듈을 링크한다(`MEALKIT_TEST_UI`).
 - **검증**: 단위 테스트 `ui_layout`(Flex 여백·간격·정렬·채우기, 제약 오른쪽·가운데·양쪽, 목록 개수·예시 자식 빼기, 보이기 바인딩, 토글이 필드에 쓰고 `changed`, 오류 줄 번호). 게임 캡처(1080p·720p)와 에디터 플레이·미리보기 캡처. 상태 해시 그대로.
 - **남은 것 (1부 안)**: Grid 레이아웃(`layout grid`는 아직 읽기 오류 — 2부 지원 범위와 같이), 글자 입력 위젯(IME), 회전은 노드 자신의 사각형만(자식·글자는 돌지 않음), 지금은 매 프레임 다시 배치한다(화면당 수십 µs — "바뀐 노드만"은 화면이 커지면), 게임패드 스틱으로 메뉴 이동(지금은 십자키), 버튼 안내 아이콘(마지막 기기). 2부는 ROADMAP의 다음 항목.
