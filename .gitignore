@@ -1,9 +1,11 @@
-build/
-out/
-export/
+# 저장소 최상위 출력 폴더만 (Windows는 대소문자를 가리지 않아 build/는 third_party/JoltPhysics/Build/까지 막았다)
+/build/
+/out/
+/export/
 .vs/
 *.png
 !docs/**/*.png
+!engine/res/*.png
 *.autosave
 mealkit_editor.ini
 # Steamworks SDK: Valve 약관상 공개 저장소에 올리지 않는다 (docs/GUIDE.md: Steamworks 설정)
