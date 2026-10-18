@@ -10,12 +10,15 @@
 #include "mealkit/game/Simulation.h"
 #include "mealkit/game/Tables.h"
 #include "mealkit/input/Actions.h"
+#include "mealkit/core/Clock.h"
 #include "mealkit/net/Lockstep.h"
+#include "mealkit/net/Socket.h"
 #include "mealkit/core/Reflect.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/platform/Input.h"
 #include "mealkit/platform/Paths.h"
 #include "mealkit/scene/Scene.h"
+#include "mealkit/sim/Commands.h"
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
@@ -529,6 +532,113 @@ TEST_CASE(input_record) {
     }
     TEST_CHECK(same);
     removeFile(path);
+}
+
+MEALKIT_STRUCT(TestCommand) {
+    MEALKIT_FIELD(u32, value, 0, "값");
+    MEALKIT_FIELD(Vec3, where, {}, "위치");
+};
+
+MEALKIT_STRUCT(OtherCommand) {
+    MEALKIT_FIELD(u8, flag, 0, "표시");
+};
+
+// 한 세션의 확정된 틱마다 명령을 모은다: "틱 플레이어 값" 줄들
+struct CommandLog {
+    std::vector<std::string> lines;
+    void collect(u32 tick, const net::TickInputs& in) {
+        sim::forEachCommand(in, [&](const sim::Command& c) {
+            if (TestCommand t; c.read(t)) lines.push_back(std::to_string(tick) + " " + std::to_string(c.player) + " " + std::to_string(t.value));
+            else if (c.is<OtherCommand>()) lines.push_back(std::to_string(tick) + " " + std::to_string(c.player) + " other");
+        });
+    }
+};
+
+TEST_CASE(command_channel) {
+    { // 혼자: 보낸 명령은 다음에 확정되는 틱에, 보낸 순서로 들어간다
+        net::LockstepSession s;
+        TEST_CHECK(s.startOffline(1, 0));
+        TestCommand a;
+        a.value = 7;
+        TEST_CHECK(sim::sendCommand(s, a) && sim::sendCommand(s, OtherCommand{}));
+        TEST_CHECK(!s.submitCommand("x", 0) && !s.submitCommand(std::string(net::kMaxCommandBytes + 1, 'x').data(), net::kMaxCommandBytes + 1));
+        s.submitLocalInput(1, {});
+        CommandLog log;
+        log.collect(0, s.inputs(0));
+        log.collect(1, s.inputs(1));
+        TEST_CHECK(log.lines.size() == 2 && log.lines[0] == "1 0 7" && log.lines[1] == "1 0 other");
+
+        // 틱당 크기를 넘으면 나머지는 다음 틱
+        for (u32 i = 0; i < 40; ++i) {
+            TestCommand c;
+            c.value = 100 + i;
+            sim::sendCommand(s, c);
+        }
+        CommandLog more; // 명령 하나 22바이트(머리 2 + 타입 4 + 16) → 틱당 11개
+        for (u32 t = 2; t < 6; ++t) {
+            s.submitLocalInput(t, {});
+            more.collect(t, s.inputs(t));
+            TEST_CHECK(s.inputs(t).commandBytes <= net::kCommandBytesPerTick);
+        }
+        TEST_CHECK(more.lines.size() == 40 && more.lines.front() == "2 0 100" && more.lines.back() == "5 0 139");
+        TEST_CHECK(more.lines[10] == "2 0 110" && more.lines[11] == "3 0 111");
+
+        // 입력 기록에 같이 들어간다
+        const std::string path = executableDirectory() + "/test_commands.rec";
+        {
+            game::InputRecordWriter w;
+            TEST_CHECK(w.open(path, {1, 1, 0}, 0));
+            for (u32 t = 0; t < 6; ++t) w.write(s.inputs(t), t);
+        }
+        game::InputRecording rec;
+        std::string error;
+        TEST_CHECK(game::loadInputRecording(path, rec, error) && rec.inputs.size() == 6);
+        CommandLog replayed;
+        for (u32 t = 0; t < 6; ++t) replayed.collect(t, rec.inputs[t]);
+        TEST_CHECK(replayed.lines.size() == 42 && replayed.lines[0] == log.lines[0] && replayed.lines.back() == more.lines.back());
+        removeFile(path);
+    }
+    { // 호스트 + 클라이언트 (UDP 루프백): 양쪽이 같은 틱에 같은 명령을 본다
+        constexpr u16 kPort = 27931;
+        net::LockstepSession host, client;
+        TEST_CHECK(host.host(kPort, 2, 2, true));
+        net::Address address;
+        net::startup();
+        TEST_CHECK(net::resolveAddress("127.0.0.1", kPort, address));
+        net::cleanup();
+        TEST_CHECK(client.join(address));
+        const f64 deadline = nowSeconds() + 5.0;
+        while (nowSeconds() < deadline && host.lobbyPlayerCount() < 2) {
+            host.update(nowSeconds());
+            client.update(nowSeconds());
+        }
+        host.startMatch(5, 0);
+        constexpr u32 kTicks = 60;
+        u32 next[2] = {0, 0};
+        CommandLog logs[2];
+        net::LockstepSession* sessions[2] = {&host, &client};
+        while (nowSeconds() < deadline && (next[0] < kTicks || next[1] < kTicks)) {
+            for (u32 i = 0; i < 2; ++i) {
+                net::LockstepSession& s = *sessions[i];
+                s.update(nowSeconds());
+                while (next[i] < kTicks && s.canExecute(next[i])) {
+                    const u32 t = next[i]++;
+                    logs[i].collect(t, s.inputs(t));
+                    s.tickExecuted(t, 0);
+                    if (t == 5 || t == 9) { // 클라이언트 2번, 호스트 1번
+                        TestCommand c;
+                        c.value = t * 10 + i;
+                        if (i == 1 || t == 5) sim::sendCommand(s, c);
+                    }
+                    s.submitLocalInput(t + s.inputDelay(), {});
+                }
+            }
+        }
+        TEST_CHECK(next[0] == kTicks && next[1] == kTicks && !host.desynced());
+        TEST_CHECK(logs[0].lines.size() == 3 && logs[0].lines == logs[1].lines);
+        client.shutdown();
+        host.shutdown();
+    }
 }
 
 TEST_CASE(project_file) {

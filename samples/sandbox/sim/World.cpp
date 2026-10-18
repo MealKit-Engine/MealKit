@@ -137,6 +137,7 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
     for (u32 i = 0; i < state.playerCount; ++i) std::memcpy(&inputs[i], tickInputs.players[i].bytes, sizeof(GameInput));
     events.clear();
 
+    applyCommands(*this, tickInputs); // 확정 명령 (디버그 치트 등): 플레이어 번호 → 보낸 순서
     respawnPawns(*this);
     controlPawns(*this);
     usePads(*this);

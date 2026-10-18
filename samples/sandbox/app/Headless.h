@@ -22,6 +22,8 @@ struct Headless {
                            u32 physicsThreads);
     // 스크립트 입력(--bot): 원을 그리며 걷고 주기적으로 밀치기/점프
     static mealkit::net::PlayerInput botInput(u32 tick, u8 player);
+    // 봇의 확정 명령: 가끔 디버그 충격파 (명령 채널을 결정론 시험에 넣는다)
+    static void botCommands(u32 tick, u8 player, mealkit::net::LockstepSession& session);
     // 프로젝트 설정의 기본 포트·인원
     static void defaults(mealkit::game::HeadlessOptions& options, const ProjectSettings& project);
 };

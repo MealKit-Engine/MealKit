@@ -1,6 +1,9 @@
 #include "app/Headless.h"
 
+#include "sim/Commands.h"
+
 #include "mealkit/game/Tables.h"
+#include "mealkit/sim/Commands.h"
 
 #include <algorithm>
 #include <cmath>
@@ -37,6 +40,10 @@ net::PlayerInput Headless::botInput(u32 tick, u8 player) {
     net::PlayerInput pi;
     std::memcpy(pi.bytes, &g, sizeof(g));
     return pi;
+}
+
+void Headless::botCommands(u32 tick, u8 player, net::LockstepSession& session) {
+    if ((tick + player * 53u) % 300u == 150u) sim::sendCommand(session, DebugShockwave{});
 }
 
 void Headless::defaults(game::HeadlessOptions& options, const ProjectSettings& project) {

@@ -1,8 +1,10 @@
 #include "app/GameSession.h"
 #include "app/Headless.h"
+#include "sim/Commands.h"
 
 #include "mealkit/feedback/Feedback.h"
 #include "mealkit/game/GameData.h"
+#include "mealkit/sim/Commands.h"
 #include "mealkit/platform/Window.h"
 
 #include <cstring>
@@ -37,6 +39,8 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     m_camera.control(ctx.window, ctx.actions, look.camera);
     m_input.poll(ctx.actions);
+    // 디버그 치트는 상태를 직접 고치지 않고 확정 명령으로 보낸다 (모든 피어가 같은 틱에 처리)
+    if (ctx.actions.pressed("debug.shockwave")) sim::sendCommand(session, DebugShockwave{});
     const bool hitStop = ctx.feedback.hitStop(); // 화면만 멈춘다: 화면 시계·효과·카메라 초점 (시뮬레이션은 계속)
     if (!hitStop) m_viewTime += dt;
     m_effects.prune(m_viewTime, look.shockwave);
@@ -45,7 +49,10 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     auto sample = [&](u32 tick) {
         const GameInput gi = m_input.sample(ctx.actions, m_camera);
         m_input.clearLatches();
-        if (m_options.bot) return Headless::botInput(tick, session.localPlayer());
+        if (m_options.bot) {
+            Headless::botCommands(tick, session.localPlayer(), session);
+            return Headless::botInput(tick, session.localPlayer());
+        }
         net::PlayerInput pi;
         std::memcpy(pi.bytes, &gi, sizeof(gi));
         return pi;

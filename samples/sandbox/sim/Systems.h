@@ -18,6 +18,10 @@ void usePads(World& world);           // 점프대 위의 Pawn을 튕겨 올린�
 void removeFallenPawns(World& world); // 떨어진 Pawn을 없애고 리스폰을 기다린다
 void sensePawns(World& world);        // 물리 결과 → 위치, 속도, 접지
 
+// Commands.cpp
+inline constexpr u32 kMaxShockwavePushes = 8; // 디버그 명령 하나가 밀 수 있는 횟수 (잘못된 값으로 멈추지 않게)
+void applyCommands(World& world, const mealkit::net::TickInputs& inputs); // 확정 명령 (step 맨 앞)
+
 // Props.cpp
 void spawnProps(World& world, u64 seed); // 상자 생성 영역마다 count개 (씬 순서, 같은 난수열)
 void pushProps(World& world, const Vec3& center);
