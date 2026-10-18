@@ -45,7 +45,7 @@ void loadScene(World& world, const scene::Scene& scene, mealkit::asset::ModelCac
             pad.center = e.position;
             pad.halfExtents = e.scale * 0.5f;
             pad.power = def.power;
-            pad.cooldownTicks = def.cooldownTicks;
+            pad.cooldownTicks = def.cooldown;
             world.state.pads.create(pad);
         }
     }

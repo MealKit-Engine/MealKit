@@ -38,7 +38,7 @@ Intent thinkAI(World& world, Controller& c, const Pawn& pawn) {
     Intent i;
     if (c.aiThink.ready(tick)) {
         mealkit::Pcg32& rng = world.state.aiRng;
-        c.aiThink.start(tick, t.aiThinkTicks + rng.below(t.aiThinkTicks + 1));
+        c.aiThink.start(tick, t.aiThink + rng.below(t.aiThink + 1));
         const f32 angle = rng.range(-mealkit::kDetPi, mealkit::kDetPi);
         const f32 distance = rng.range(4.0f, 14.0f);
         const Vec3 target = pawn.position + Vec3{mealkit::detSin(angle), 0.0f, mealkit::detCos(angle)} * distance;
@@ -67,7 +67,7 @@ void movePawn(World& world, Pawn& p, const Intent& intent, u8 player) {
     world.physics.setLinearVelocity(p.body, v);
 
     if (intent.push && p.pushReady.ready(world.state.tick)) {
-        p.pushReady.start(world.state.tick, t.pushCooldownTicks);
+        p.pushReady.start(world.state.tick, t.pushCooldown);
         pushProps(world, p.position);
         world.events.push({EventKind::Push, player, p.position, t.pushRadius});
     }
@@ -154,7 +154,7 @@ void respawnPawns(World& world) {
         const Id<Pawn> pawn = spawnPawn(world, at);
         possess(world, id, pawn);
         world.events.push(
-            {EventKind::Spawn, c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer, at, 1.2f});
+            {EventKind::Spawn, c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer, at, 0.0f});
     }
 }
 
@@ -185,7 +185,7 @@ void usePads(World& world) {
             v.y = pad.power;
             world.physics.setLinearVelocity(p.body, v);
             pad.ready.start(tick, pad.cooldownTicks);
-            world.events.push({EventKind::Bounce, pawnPlayer(s, p), {pad.center.x, top, pad.center.z}, 2.0f});
+            world.events.push({EventKind::Bounce, pawnPlayer(s, p), {pad.center.x, top, pad.center.z}, 0.0f});
             break;
         }
     }
@@ -198,7 +198,7 @@ void removeFallenPawns(World& world) {
         if (p.position.y >= kKillPlaneY) continue;
         const u8 player = pawnPlayer(s, p);
         if (Controller* c = s.controllers.get(p.owner)) {
-            c->respawn.start(s.tick, world.tuning.respawnTicks);
+            c->respawn.start(s.tick, world.tuning.respawn);
             unpossess(world, p.owner);
         }
         if (player != kNoPlayer) ++s.slots[player].falls;

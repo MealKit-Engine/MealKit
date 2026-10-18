@@ -14,15 +14,15 @@ MEALKIT_STRUCT(Tuning) {
     MEALKIT_FIELD(mealkit::f32, airAccel, 3.0f, "공중 가속 (1/s)");
     MEALKIT_FIELD(mealkit::f32, jumpSpeed, 8.0f, "점프 속도 (m/s)");
     MEALKIT_FIELD(mealkit::Vec3, gravity, (mealkit::Vec3{0.0f, -20.0f, 0.0f}), "중력 (m/s²)");
-    MEALKIT_FIELD(mealkit::u32, pushCooldownTicks, 15, "밀치기 재사용 대기 (틱)");
+    MEALKIT_FIELD(mealkit::Ticks, pushCooldown, mealkit::Ticks::seconds(0.5f), "밀치기 재사용 대기 (초)");
     MEALKIT_FIELD(mealkit::f32, pushRadius, 7.0f, "밀치기 범위 (m)");
     MEALKIT_FIELD(mealkit::f32, pushSpeed, 18.0f, "밀치기 수평 속도 (m/s)");
     MEALKIT_FIELD(mealkit::f32, pushLift, 7.0f, "밀치기 위로 속도 (m/s)");
     MEALKIT_FIELD(mealkit::f32, pushSpin, 8.0f, "밀치기 회전 (rad/s)");
     MEALKIT_FIELD(mealkit::f32, propDensity, 200.0f, "상자 밀도 (kg/m³)");
-    MEALKIT_FIELD(mealkit::u32, respawnTicks, 45, "리스폰 대기 (틱)");
+    MEALKIT_FIELD(mealkit::Ticks, respawn, mealkit::Ticks::seconds(1.5f), "리스폰 대기 (초)");
     MEALKIT_FIELD(mealkit::u32, aiPawns, 2, "AI 캐릭터 수");
-    MEALKIT_FIELD(mealkit::u32, aiThinkTicks, 40, "AI 판단 간격 (틱)");
+    MEALKIT_FIELD(mealkit::Ticks, aiThink, mealkit::Ticks::seconds(1.3333f), "AI 판단 간격 (초)");
     MEALKIT_FIELD(mealkit::f32, aiSpeedScale, 0.7f, "AI 이동 속도 비율");
 };
 

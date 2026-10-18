@@ -1,0 +1,75 @@
+#pragma once
+
+#include "sim/World.h"
+
+#include "mealkit/core/Reflect.h"
+
+#include <array>
+
+// 화면용 튜닝: assets/view.tuning (에디터 [튜닝] 패널의 "화면" 탭에서 고친다). 보이기만 하는 값(카메라, 색, 효과)을 둔다.
+// 콘텐츠 해시에 들어가지 않아 여러 명 플레이 중에도 바로 바뀐다. 화면 쪽(view/)이 ctx.viewTuning<ViewTuning>()으로 읽는다.
+// sim/에서는 읽을 수 없다 (SimCheck가 view/ 헤더를 막는다). 게임 규칙 값은 sim/Tuning.h.
+namespace sandbox {
+
+using mealkit::Color;
+
+MEALKIT_STRUCT(CameraTuning) {
+    MEALKIT_FIELD(f32, fovDegrees, 60.0f, "세로 시야각 (도)");
+    MEALKIT_FIELD(f32, orbitSensitivity, 0.005f, "회전 감도 (rad/픽셀)");
+    MEALKIT_FIELD(f32, zoomStep, 2.0f, "휠 한 칸 줌 (m)");
+    MEALKIT_FIELD(f32, startDistance, 18.0f, "처음 거리 (m)");
+    MEALKIT_FIELD(f32, minDistance, 4.0f, "가장 가까운 거리 (m)");
+    MEALKIT_FIELD(f32, maxDistance, 80.0f, "가장 먼 거리 (m)");
+    MEALKIT_FIELD(f32, startYaw, 0.8f, "처음 방향 (rad)");
+    MEALKIT_FIELD(f32, startPitch, 0.55f, "처음 높이 각 (rad)");
+    MEALKIT_FIELD(f32, minPitch, -0.1f, "가장 낮은 높이 각 (rad)");
+    MEALKIT_FIELD(f32, maxPitch, 1.45f, "가장 높은 높이 각 (rad)");
+    MEALKIT_FIELD(f32, focusHeight, 0.8f, "캐릭터 위 바라보는 높이 (m)");
+    MEALKIT_FIELD(f32, nearPlane, 0.1f, "가까운 자르기 면 (m)");
+    MEALKIT_FIELD(f32, farPlane, 1000.0f, "먼 자르기 면 (m)");
+};
+
+// 캐릭터 겉모습 (상자 조합. 모델 에셋이 생기면 모델로 바꾼다)
+MEALKIT_STRUCT(PawnLook) {
+    MEALKIT_FIELD(Vec3, bodySize, (Vec3{0.8f, 1.8f, 0.8f}), "몸 크기 (m)");
+    MEALKIT_FIELD(Vec3, visorOffset, (Vec3{0.0f, 0.45f, 0.4f}), "얼굴 위치 (몸 기준)");
+    MEALKIT_FIELD(Vec3, visorSize, (Vec3{0.5f, 0.18f, 0.12f}), "얼굴 크기 (m)");
+    MEALKIT_FIELD(Color, visorColor, (Color::rgb(30, 30, 36)), "얼굴 색");
+    MEALKIT_FIELD(Color, aiColor, (Color::rgb(150, 150, 160)), "AI 캐릭터 색");
+    MEALKIT_FIELD(f32, turnMinSpeed, 0.5f, "바라보는 방향을 바꾸는 최소 속도 (m/s)");
+    MEALKIT_FIELD(f32, markerHeight, 1.6f, "내 캐릭터 표시 높이 (m)");
+    MEALKIT_FIELD(f32, markerSize, 0.3f, "내 캐릭터 표시 크기 (m)");
+    MEALKIT_FIELD(f32, markerSpin, 3.0f, "내 캐릭터 표시 회전 (rad/s)");
+    MEALKIT_FIELD(Color, markerColor, (Color::rgb(255, 230, 80)), "내 캐릭터 표시 색");
+};
+
+MEALKIT_STRUCT(ShockwaveLook) {
+    MEALKIT_FIELD(f32, seconds, 0.35f, "퍼지는 시간 (초)");
+    MEALKIT_FIELD(mealkit::u32, segments, 16, "고리 조각 수");
+    MEALKIT_FIELD(f32, startThickness, 0.3f, "처음 두께 (m)");
+    MEALKIT_FIELD(f32, endThickness, 0.05f, "끝 두께 (m)");
+    MEALKIT_FIELD(f32, groundOffset, 0.05f, "바닥 위 높이 (m)");
+    MEALKIT_FIELD(f32, spawnRadius, 1.2f, "스폰 고리 크기 (m)");
+    MEALKIT_FIELD(f32, bounceRadius, 2.0f, "점프대 고리 크기 (m)");
+    MEALKIT_FIELD(Color, color, (Color::rgb(255, 240, 200)), "색");
+};
+
+using PlayerColors = std::array<Color, mealkit::net::kMaxPlayers>;
+using PropColors = std::array<Color, kPropColorCount>;
+
+MEALKIT_STRUCT(ViewTuning) {
+    MEALKIT_FIELD(CameraTuning, camera, {}, "카메라");
+    MEALKIT_FIELD(PawnLook, pawn, {}, "캐릭터 겉모습");
+    MEALKIT_FIELD(ShockwaveLook, shockwave, {}, "충격파 효과");
+    MEALKIT_FIELD(PlayerColors, playerColors,
+                  (PlayerColors{Color::rgb(66, 135, 245), Color::rgb(235, 64, 52), Color::rgb(52, 199, 89),
+                                Color::rgb(250, 204, 21), Color::rgb(168, 85, 247), Color::rgb(236, 72, 153),
+                                Color::rgb(20, 184, 166), Color::rgb(249, 115, 22)}),
+                  "플레이어 색");
+    MEALKIT_FIELD(PropColors, propColors,
+                  (PropColors{Color::rgb(232, 98, 82), Color::rgb(245, 176, 65), Color::rgb(92, 172, 238),
+                              Color::rgb(120, 200, 120), Color::rgb(190, 120, 220), Color::rgb(236, 236, 230)}),
+                  "상자 색");
+};
+
+} // namespace sandbox

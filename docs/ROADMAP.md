@@ -121,13 +121,7 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
 
 - [x] 문서 저장소 (`MealKit-docs`: Sphinx + MyST, 영어 원문 + 한국어 gettext, `tools/build.py check`, 엔진 MINOR 브랜치) — v0.4.4, 상세는 `docs/CHANGELOG.md`. Read the Docs·버전 붙은 주소 열기는 저장소 공개 때, `--dump-reference` 레퍼런스 생성과 Weblate는 나중에
 
-### [ ] 화면용 튜닝 (`ViewTuning`)
-- **왜**: 튜닝(`Tuning`)은 시뮬레이션 전용이라 콘텐츠 해시에 들어가고, 여러 명 플레이 중에는 바로 적용하지 않는다. 카메라 감도·FOV, 색 팔레트, 효과 시간처럼 **보이기만 하는 값**은 넣을 곳이 없어 `view/` 코드 상수로 남는다.
-- **방식**: 게임이 `MEALKIT_STRUCT(ViewTuning)`을 선언하고 값은 `assets/view.tuning`. 에디터 [튜닝] 패널에 "화면" 탭으로 같이 보인다. `view/`가 `ctx`를 통해 읽는다.
-  콘텐츠 해시에 넣지 않으므로 **여러 명 플레이 중에도 바로 적용**한다(각 창이 파일 변경을 다시 읽는다).
-- **결정론**: `sim/`에서 읽을 수 없다(SimCheck가 헤더를 막는다).
-- **같이 할 것: 시간 값은 초로** (`docs/CODING_MODEL.md` "시간 값"): 필드 선언에 시간 타입(`Ticks`)을 더한다. 파일·에디터에는 초로 쓰고 보이며, 불러올 때 틱레이트로 반올림해 정수 틱이 된다.
-  sandbox `Tuning`의 `pushCooldownTicks`·`respawnTicks`·`aiThinkTicks`를 이 타입으로 바꾼다. `.table`과 화면용 튜닝에 시간 값이 쌓이기 전에 한다. 값이 같으면 상태 해시도 같아야 한다(`mp_test`).
+- [x] 화면용 튜닝 (`ViewTuning`, `assets/view.tuning`, 파일이 바뀌면 다시 읽음) + 시간 값은 초로(`Ticks`) + 색 필드(`Color`) — v0.4.5, 상세는 `docs/CHANGELOG.md`
 
 ### [ ] 프로젝트 폴더 구조 강제
 - **왜**: 다른 엔진에서는 폴더 구조를 정하는 데 시간이 많이 든다. 원본 파일이 출시 폴더에 섞이고, 외부 라이브러리 정보는 세 곳(`VERSIONS.txt`, `THIRD_PARTY_NOTICES.txt`, 코드)을 손으로 맞춘다.

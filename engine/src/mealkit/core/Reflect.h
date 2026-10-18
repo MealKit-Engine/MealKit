@@ -23,11 +23,42 @@
 //       MEALKIT_FIELD(f32, power, 12.0f, "점프 힘");
 //   };
 //
-// 필드 타입: bool, 정수·enum, f32, Vec3, Quat, Pool의 Id, std::string, 다른 MEALKIT_STRUCT, MEALKIT_ARRAY, sim::Pool<T>.
+// 필드 타입: bool, 정수·enum, f32, Vec3, Quat, Pool의 Id, std::string, Ticks(시간), Color(색), 다른 MEALKIT_STRUCT, MEALKIT_ARRAY, sim::Pool<T>.
 // std::string은 설정·튜닝·씬 필드용이다. 시뮬레이션 상태(WorldState, Pool 항목)에는 넣지 않는다(game::Simulation이 검사한다).
 // 기본값에 쉼표가 들어가면 괄호로 감싼다: MEALKIT_FIELD(Vec3, dir, (Vec3{0, 1, 0}), "방향").
 // 필드 순서가 곧 저장·해시 순서다. 선언 사이에 __COUNTER__를 쓰는 다른 매크로를 넣지 않는다.
+namespace mealkit {
+
+// 시간 값 (docs/CODING_MODEL.md "시간 값"): 메모리·해시·sim/에서는 정수 틱, 파일과 에디터에서는 초.
+// 파일을 읽을 때 프로세스 틱레이트(reflect::tickRate(), 프로젝트를 열 때 정한다)로 한 번 반올림한다.
+//   MEALKIT_FIELD(Ticks, respawn, Ticks::seconds(1.5f), "리스폰 대기 (초)");   // sim/에서는 world.tuning.respawn.value (u32로도 바뀐다)
+struct Ticks {
+    u32 value = 0;
+
+    static Ticks seconds(f32 seconds); // 틱레이트로 반올림 (음수는 0)
+    f32 toSeconds() const;
+    constexpr operator u32() const { return value; }
+};
+
+// 색 (화면용 값): rgba8 sRGB, render::rgba와 같은 배치(r | g << 8 | b << 16 | a << 24). 파일에는 "#RRGGBB" 또는 "#RRGGBBAA".
+struct Color {
+    u32 value = 0xFFFFFFFFu;
+
+    static constexpr Color rgb(u8 r, u8 g, u8 b, u8 a = 255) {
+        return {static_cast<u32>(r) | (static_cast<u32>(g) << 8) | (static_cast<u32>(b) << 16) |
+                (static_cast<u32>(a) << 24)};
+    }
+    constexpr bool operator==(const Color&) const = default;
+};
+
+} // namespace mealkit
+
 namespace mealkit::reflect {
+
+// Ticks 텍스트 변환에 쓰는 틱레이트 (Hz). 프로젝트 설정을 읽은 직후 한 번 정한다 (game::loadGameProject, 에디터의 프로젝트 열기).
+// 프로젝트 루트(setProjectRoot)처럼 프로세스 설정이다: 매치 중에는 바뀌지 않고, 모든 피어가 같은 값을 쓴다(콘텐츠 해시).
+void setTickRate(u32 hz);
+u32 tickRate();
 
 // ---------------------------------------------------------------- 실행 중 설명 (에디터와 엔진 함수가 타입을 몰라도 다룰 수 있게)
 
@@ -43,6 +74,8 @@ enum class Kind : u8 {
     Array,     // MEALKIT_ARRAY
     Container, // sim::Pool<T>
     String,    // std::string (텍스트 파일에서는 줄 끝까지, 앞뒤 공백 없음)
+    Ticks,     // mealkit::Ticks (메모리는 u32 틱, 텍스트는 초)
+    Color,     // mealkit::Color (메모리는 u32 rgba8, 텍스트는 #RRGGBB[AA])
 };
 
 enum FieldFlags : u32 {
@@ -263,6 +296,10 @@ ValueInfo makeValue() {
         v.kind = Kind::Quat;
     } else if constexpr (std::is_same_v<V, std::string>) {
         v.kind = Kind::String;
+    } else if constexpr (std::is_same_v<V, Ticks>) {
+        v.kind = Kind::Ticks;
+    } else if constexpr (std::is_same_v<V, Color>) {
+        v.kind = Kind::Color;
     } else if constexpr (requires { V::kReflectId; }) {
         v.kind = Kind::Id;
     } else if constexpr (IsStdArray<V>::value) {

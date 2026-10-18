@@ -285,6 +285,40 @@ TEST_CASE(reflect_string) {
     TEST_CHECK(reflect::loadStruct(t, &c, r) && r.atEnd() && c.title == a.title);
 }
 
+MEALKIT_STRUCT(Timed) {
+    MEALKIT_FIELD(Ticks, cooldown, Ticks::seconds(0.5f), "재사용 대기");
+    MEALKIT_FIELD(Color, tint, (Color::rgb(255, 128, 0)), "색");
+};
+
+TEST_CASE(reflect_ticks_and_color) {
+    const reflect::TypeInfo& t = reflect::typeOf<Timed>();
+    TEST_CHECK(t.fields[0].value->kind == reflect::Kind::Ticks && t.fields[1].value->kind == reflect::Kind::Color);
+    TEST_CHECK(reflect::tickRate() == 30);
+    Timed a;
+    TEST_CHECK(a.cooldown.value == 15 && a.tint.value == Color::rgb(255, 128, 0).value);
+    // 초 → 틱 반올림, 틱 → 초 → 틱이 같은 값
+    for (const char* text : {"1.33333", "1.3333", "0.666667", "0.0166", "2", "-1", "0"}) {
+        Timed b;
+        TEST_CHECK(reflect::setFromText(t, &b, "cooldown", text));
+        reflect::TextFields fields;
+        reflect::toText(t, &b, fields);
+        Timed c;
+        reflect::fromText(t, &c, fields);
+        TEST_CHECK(c.cooldown.value == b.cooldown.value);
+    }
+    TEST_CHECK(reflect::setFromText(t, &a, "cooldown", "1.33333") && a.cooldown.value == 40);
+    TEST_CHECK(reflect::setFromText(t, &a, "cooldown", "0.0166") && a.cooldown.value == 0);
+    TEST_CHECK(reflect::setFromText(t, &a, "cooldown", "-3") && a.cooldown.value == 0);
+    TEST_CHECK(!reflect::setFromText(t, &a, "cooldown", "abc"));
+    // 색: #RRGGBB, #RRGGBBAA
+    TEST_CHECK(reflect::setFromText(t, &a, "tint", "#102030") && a.tint.value == Color::rgb(0x10, 0x20, 0x30).value);
+    TEST_CHECK(reflect::formatScalar(*t.fields[1].value, &a.tint) == "#102030");
+    TEST_CHECK(reflect::setFromText(t, &a, "tint", "#10203040") && a.tint.value == Color::rgb(0x10, 0x20, 0x30, 0x40).value);
+    TEST_CHECK(reflect::formatScalar(*t.fields[1].value, &a.tint) == "#10203040");
+    TEST_CHECK(!reflect::setFromText(t, &a, "tint", "102030") && !reflect::setFromText(t, &a, "tint", "#12345"));
+    TEST_CHECK(!reflect::setFromText(t, &a, "tint", "#12345G"));
+}
+
 TEST_CASE(input_record) {
     const std::string path = executableDirectory() + "/test_inputs.rec";
     const game::MatchInfo match{0x0123456789ABCDEFull, 3, 2000};

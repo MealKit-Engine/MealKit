@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sim/World.h"
+#include "view/ViewTuning.h"
 
 #include "mealkit/render/DrawList.h"
 
@@ -18,9 +19,11 @@ struct Effects {
     };
     std::vector<Shockwave> shockwaves;
 
-    void onEvent(const GameEvent& event, mealkit::f64 now);
-    void prune(mealkit::f64 now); // 끝난 효과를 지운다 (그리지 않는 프레임에도 쌓이지 않게 매 프레임)
-    void draw(mealkit::f64 now, mealkit::render::MeshId box, mealkit::render::DrawList& out) const;
+    void onEvent(const GameEvent& event, mealkit::f64 now, const ShockwaveLook& look);
+    // 끝난 효과를 지운다 (그리지 않는 프레임에도 쌓이지 않게 매 프레임)
+    void prune(mealkit::f64 now, const ShockwaveLook& look);
+    void draw(mealkit::f64 now, const ShockwaveLook& look, mealkit::render::MeshId box,
+              mealkit::render::DrawList& out) const;
 };
 
 } // namespace sandbox

@@ -302,6 +302,9 @@ int main(int argc, char** argv) {
     FrameLimiter limiter;
     limiter.setTargetFps(opt.vsync ? 0.0 : opt.fpsCap);
 
+    game::LiveTuning viewTuning; // assets/view.tuning: 파일이 바뀌면 다시 읽는다 (에디터에서 저장하면 바로 보인다)
+    viewTuning.open(reflect::typeOf<sandbox::ViewTuning>());
+
     game::GameContext ctx{window, renderer, models, session};
     render::DrawList drawList;
     f64 lastTime = nowSeconds();
@@ -359,6 +362,8 @@ int main(int argc, char** argv) {
 
         ctx.viewport = {0.0f, 0.0f, static_cast<f32>(window.width()), static_cast<f32>(window.height())};
         ctx.keyboardAllowed = ctx.mouseAllowed = window.focused();
+        viewTuning.poll(now);
+        ctx.viewTuningData = viewTuning.view();
         game.update(ctx, dt);
         if (game.captureDue()) renderer.requestCapture(opt.capturePath.c_str());
         if (game.finished() && exitDeadline == 0.0) {

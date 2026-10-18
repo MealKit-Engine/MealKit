@@ -1,6 +1,7 @@
 #pragma once
 
 #include "sim/World.h"
+#include "view/ViewTuning.h"
 
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/render/DrawList.h"
@@ -23,6 +24,6 @@ void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& m
                mealkit::render::DrawList& out);
 // 직전 틱과 현재 틱 사이를 alpha로 보간해 상자와 Pawn을 그린다
 void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, u8 localPlayer, mealkit::f64 now,
-               mealkit::render::MeshId box, WorldView& view, mealkit::render::DrawList& out);
+               const ViewTuning& look, mealkit::render::MeshId box, WorldView& view, mealkit::render::DrawList& out);
 
 } // namespace sandbox

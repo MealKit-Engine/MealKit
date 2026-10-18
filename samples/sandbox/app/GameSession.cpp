@@ -33,10 +33,11 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     net::LockstepSession& session = ctx.session;
     Input& input = ctx.window.input();
     const bool keyboardAllowed = ctx.keyboardAllowed, mouseAllowed = ctx.mouseAllowed;
-    m_camera.control(ctx.window, mouseAllowed);
+    const ViewTuning& look = ctx.viewTuning<ViewTuning>();
+    m_camera.control(ctx.window, mouseAllowed, look.camera);
     m_input.poll(input, keyboardAllowed, mouseAllowed);
     m_viewTime += dt;
-    m_effects.prune(m_viewTime);
+    m_effects.prune(m_viewTime, look.shockwave);
 
     // 확정된 틱마다: 로컬 입력을 만들어 보내고, 틱 이벤트를 화면 효과로 옮긴다
     auto sample = [&](u32 tick) {
@@ -48,7 +49,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
         return pi;
     };
     auto onTick = [&](const World& world) {
-        for (const GameEvent& e : world.events) m_effects.onEvent(e, m_viewTime);
+        for (const GameEvent& e : world.events) m_effects.onEvent(e, m_viewTime, look.shockwave);
     };
     m_sim.update(session, dt, sample, onTick);
 }
@@ -57,6 +58,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     const u8 localPlayer = ctx.session.localPlayer();
     const bool started = m_sim.started();
     const f32 alpha = m_sim.alpha();
+    const ViewTuning& look = ctx.viewTuning<ViewTuning>();
 
     // 카메라는 내가 빙의한 Pawn을 따라간다. 리스폰을 기다리는 동안은 마지막 자리에 머문다 (관전).
     if (started && localPlayer < m_sim.world().state.playerCount) {
@@ -65,16 +67,17 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
         const Pawn* pawn = c ? current.pawns.get(c->pawn) : nullptr;
         if (pawn) {
             const Pawn* before = m_sim.previous().pawns.get(c->pawn);
-            m_focus = lerp(before ? before->position : pawn->position, pawn->position, alpha) + Vec3{0, 0.8f, 0};
+            m_focus = lerp(before ? before->position : pawn->position, pawn->position, alpha) +
+                      Vec3{0, look.camera.focusHeight, 0};
         }
     }
-    m_camera.apply(m_focus, ctx.viewport, frame);
+    m_camera.apply(m_focus, ctx.viewport, look.camera, frame);
     applyEnvironment(m_scene.environment, frame);
 
     drawScene(m_scene, ctx.models, frame.cameraPos, out);
     if (!started) return;
-    drawWorld(m_sim.previous(), m_sim.world().state, alpha, localPlayer, now, ctx.models.boxMesh(), m_view, out);
-    m_effects.draw(m_viewTime, ctx.models.boxMesh(), out);
+    drawWorld(m_sim.previous(), m_sim.world().state, alpha, localPlayer, now, look, ctx.models.boxMesh(), m_view, out);
+    m_effects.draw(m_viewTime, look.shockwave, ctx.models.boxMesh(), out);
 }
 
 } // namespace sandbox

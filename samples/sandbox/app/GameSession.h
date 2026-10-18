@@ -6,6 +6,7 @@
 #include "view/Draw.h"
 #include "view/Effects.h"
 #include "view/LocalInput.h"
+#include "view/ViewTuning.h"
 
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/game/GameInstance.h"
@@ -26,6 +27,7 @@ class GameSession final : public mealkit::game::GameInstance {
 public:
     using TuningType = Tuning;                   // 에디터 [튜닝] 패널 (MEALKIT_GAME_MODULE이 읽는다)
     using ProjectSettingsType = ProjectSettings; // 에디터 [프로젝트 설정] 창의 게임 항목
+    using ViewTuningType = ViewTuning;           // 화면용 튜닝 (assets/view.tuning, [튜닝] 패널 "화면" 탭)
 
     GameSession() = default;
     GameSession(const GameSession&) = delete;

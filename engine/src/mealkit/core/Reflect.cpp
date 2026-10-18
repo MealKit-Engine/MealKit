@@ -3,11 +3,32 @@
 #include "mealkit/core/Log.h"
 #include "mealkit/platform/Paths.h"
 
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
+namespace mealkit {
+namespace {
+
+u32 g_tickRate = 30; // reflect::setTickRate (프로세스 설정, 매치 중에는 바뀌지 않는다)
+
+} // namespace
+
+Ticks Ticks::seconds(f32 seconds) {
+    if (!(seconds > 0.0f)) return {};
+    return {static_cast<u32>(std::lround(static_cast<f64>(seconds) * static_cast<f64>(g_tickRate)))};
+}
+
+f32 Ticks::toSeconds() const { return static_cast<f32>(static_cast<f64>(value) / static_cast<f64>(g_tickRate)); }
+
+} // namespace mealkit
+
 namespace mealkit::reflect {
+
+void setTickRate(u32 hz) { g_tickRate = hz ? hz : 30u; }
+u32 tickRate() { return g_tickRate; }
+
 namespace {
 
 const u8* at(const void* data, u32 offset) { return static_cast<const u8*>(data) + offset; }
@@ -98,6 +119,24 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
         return true;
     }
     case Kind::String: *static_cast<std::string*>(data) = text; return true;
+    case Kind::Ticks: { // 초
+        f32 seconds = 0.0f;
+        if (!parseFloats(s, &seconds, 1)) return false;
+        store(data, Ticks::seconds(seconds));
+        return true;
+    }
+    case Kind::Color: { // #RRGGBB 또는 #RRGGBBAA
+        if (text.size() != 7 && text.size() != 9) return false;
+        if (text[0] != '#') return false;
+        const unsigned long hex = std::strtoul(s + 1, &end, 16);
+        if (*end) return false;
+        const u32 h = static_cast<u32>(hex);
+        const bool alpha = text.size() == 9;
+        const u32 r = alpha ? h >> 24 : h >> 16, g = (alpha ? h >> 16 : h >> 8) & 0xFF, b = (alpha ? h >> 8 : h) & 0xFF;
+        const u32 a = alpha ? h & 0xFF : 0xFF;
+        store(data, Color::rgb(static_cast<u8>(r & 0xFF), static_cast<u8>(g), static_cast<u8>(b), static_cast<u8>(a)));
+        return true;
+    }
     case Kind::Id: {
         // "<slot> <generation>" (sscanf_s는 MSVC 전용, sscanf는 MSVC가 C4996 경고)
         const unsigned long slot = std::strtoul(s, &end, 10);
@@ -315,6 +354,14 @@ std::string formatScalar(const ValueInfo& v, const void* data) {
         break;
     }
     case Kind::String: return *static_cast<const std::string*>(data);
+    case Kind::Ticks: snprintf(text, sizeof(text), "%.6g", static_cast<const Ticks*>(data)->toSeconds()); break; // 다시 읽으면 같은 틱
+    case Kind::Color: {
+        const u32 c = static_cast<const Color*>(data)->value;
+        const u32 r = c & 0xFF, g = (c >> 8) & 0xFF, b = (c >> 16) & 0xFF, a = c >> 24;
+        if (a == 0xFF) snprintf(text, sizeof(text), "#%02X%02X%02X", r, g, b);
+        else snprintf(text, sizeof(text), "#%02X%02X%02X%02X", r, g, b, a);
+        break;
+    }
     case Kind::Id: {
         u32 ids[2];
         std::memcpy(ids, data, sizeof(ids));

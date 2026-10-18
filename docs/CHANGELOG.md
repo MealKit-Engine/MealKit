@@ -3,6 +3,30 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.5 — 1단계 진행 중 (2026-10-18)
+
+### [x] 화면용 튜닝 (`ViewTuning`) + 시간 값은 초로 (완료 2026-10-18)
+- **왜**: 튜닝(`Tuning`)은 시뮬레이션 값이라 콘텐츠 해시에 들어가고 여러 명 플레이 중에는 바꿀 수 없다. 카메라·색·효과처럼 보이기만 하는 값은 둘 곳이 없어 `view/` 코드 상수로 남아 있었다.
+  시간 값을 틱으로 적으면 틱레이트(1단계 마지막 항목)를 바꿀 때 데이터를 모두 고쳐야 한다.
+- **필드 타입 둘** (`core/Reflect.h`, `kApiVersion` 9):
+  - `mealkit::Ticks { u32 value; }`: 메모리·해시·`sim/`은 정수 틱, 파일·에디터는 초. 파일을 읽을 때 `Ticks::seconds()`가 프로세스 틱레이트로 한 번 반올림한다(배정밀도 곱셈 + `lround`, 음수는 0).
+    기본값도 초로 쓴다: `MEALKIT_FIELD(Ticks, respawn, Ticks::seconds(1.5f), ...)`. `u32`로 저절로 바뀌어 `TickTimer::start(tick, world.tuning.respawn)`처럼 그대로 쓴다. 텍스트는 `%.6g`초(다시 읽으면 같은 틱).
+  - `mealkit::Color { u32 value; }`: rgba8 sRGB(`render::rgba`와 같은 배치), 파일에는 `#RRGGBB`/`#RRGGBBAA`. 에디터는 색 고르기 위젯.
+  - 틱레이트: `reflect::setTickRate()`/`tickRate()`(기본 30). `setProjectRoot()`처럼 프로젝트를 열 때 한 번 정하는 프로세스 설정이다(CODING_MODEL "엔진 기능에 어떻게 접근하나" 예외에 더함). 지금은 아무도 바꾸지 않고, "틱레이트를 프로젝트 설정으로" 항목에서 프로젝트 설정이 정한다.
+- **화면용 튜닝**: 게임이 `using ViewTuningType = ViewTuning;`(GameSession)을 선언하면 `MEALKIT_GAME_MODULE`이 `GameModule::viewTuningType`으로 넘긴다(없어도 된다).
+  - 값은 `assets/view.tuning`. 엔진 `game::LiveTuning`(`game/GameData.h`)이 읽고 0.25초마다 파일 시각을 봐서 바뀌면 다시 읽는다(지운 줄은 기본값). 파일이 아직 없으면 `game.tuning` 옆에 생길 때 읽는다.
+  - 게임은 `ctx.viewTuning<ViewTuning>()`(`GameContext::viewTuningData`)로 매 프레임 읽고 보관하지 않는다. 엔진이 넘기지 않으면 선언의 기본값.
+  - 출시 exe(sandbox `main.cpp`)·에디터·참가 창이 하나씩 갖는다. 에디터 [튜닝] 패널은 탭 두 개("게임", "화면")이고, 화면 탭 값은 고치는 즉시 에디터 안 게임에 보인다.
+    여러 명 플레이에서는 에디터가 `build\Editor\play\play.view.tuning` 사본을 0.2초에 한 번까지 다시 쓰고, 참가 창(`--view-tuning`)이 그 파일을 다시 읽는다 — 그래서 **여러 명 플레이 중에도 바로 바뀐다**. 게임 탭은 지금처럼 혼자 플레이에서만 바로 적용.
+  - 에디터 튜닝 코드를 파일 하나 단위(`TuningDoc`: 값, DLL을 바꿔 끼울 때 보존할 텍스트, 저장 여부)로 묶어 두 탭이 같이 쓴다.
+- **sandbox**: `view/ViewTuning.h`에 카메라(시야각·감도·줌·거리·높이 각 범위·시작 값·자르기 면), 캐릭터 겉모습(몸·얼굴 크기와 색, AI 색, 내 캐릭터 표시), 충격파(시간·조각 수·두께·색·고리 크기), 플레이어 색 8개, 상자 색 6개를 옮겼다.
+  `Camera`·`Draw`·`Effects`가 값을 인자로 받는다(코드 상수 없음). 스폰·점프대 이벤트의 효과 크기(1.2, 2.0)는 시뮬레이션에서 빼고 화면용 튜닝으로.
+  `Tuning`의 `pushCooldownTicks`·`respawnTicks`·`aiThinkTicks`는 `pushCooldown`·`respawn`·`aiThink`(`Ticks`, 0.5·1.5·1.33333초), 점프대 `cooldownTicks`는 `cooldown`(0.666667초). `game.tuning`·`arena.scene`의 키도 바꿨다.
+- **결정론**: 틱 값이 같아(15·45·40·20틱) 상태 해시가 그대로다 — 저장소의 고정 입력 기록이 바꾸기 전 해시와 901틱 모두 같았다(`REPLAY ok`). 씬 필드 텍스트가 바뀌어 콘텐츠 해시는 달라졌으므로 기록을 다시 만들었다(해시 줄은 같다).
+  화면용 튜닝은 `sim/`에서 읽을 수 없다(`view/` 헤더는 SimCheck SIM009).
+- **검증**: Release·Editor 빌드, 헤드리스 `mp_test` 1+3 PASS, 에디터 혼자 플레이 캡처에서 [튜닝] 패널 탭과 `Ticks` 위젯(0.500 s, 툴팁에 틱 수).
+- **남은 것**: 틱레이트를 실제로 바꾸는 것은 마지막 항목. `.table`의 시간 열도 `Ticks`를 쓴다(다음 항목들).
+
 ## v0.4.4 — 1단계 진행 중 (2026-10-18)
 
 ### [x] 저장소 공개 범위 (결정 2026-10-18)

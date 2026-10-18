@@ -4,13 +4,13 @@ groundAccel 12
 airAccel 3
 jumpSpeed 8
 gravity 0 -20 0
-pushCooldownTicks 15
+pushCooldown 0.5
 pushRadius 7
 pushSpeed 18
 pushLift 7
 pushSpin 8
 propDensity 200
-respawnTicks 45
+respawn 1.5
 aiPawns 2
-aiThinkTicks 40
+aiThink 1.33333
 aiSpeedScale 0.699999988

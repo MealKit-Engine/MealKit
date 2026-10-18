@@ -115,7 +115,7 @@ struct GameEvent {
     EventKind kind = EventKind::Push;
     u8 player = kNoPlayer; // 플레이어 슬롯 (AI면 kNoPlayer)
     Vec3 position;
-    f32 radius = 0.0f; // 효과 크기 (밀치기 범위 등)
+    f32 radius = 0.0f; // 게임 규칙상의 범위 (밀치기 범위). 효과 모양은 화면용 튜닝이 정한다
 };
 inline constexpr u32 kMaxEventsPerTick = 64;
 

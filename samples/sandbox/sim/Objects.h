@@ -10,7 +10,7 @@ namespace sandbox {
 MEALKIT_OBJECT(JumpPad) {
     static constexpr const char* kObjectLabel = "점프대";
     MEALKIT_FIELD(mealkit::f32, power, 14.0f, "점프 힘 (m/s)");
-    MEALKIT_FIELD(mealkit::u32, cooldownTicks, 20, "재사용 대기 (틱)");
+    MEALKIT_FIELD(mealkit::Ticks, cooldown, mealkit::Ticks::seconds(0.6667f), "재사용 대기 (초)");
 };
 
 } // namespace sandbox

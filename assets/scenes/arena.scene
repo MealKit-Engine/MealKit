@@ -301,5 +301,5 @@ scale 3 0.100000001 3
 color FF3CC8F0
 flags 0
 field power 14
-field cooldownTicks 20
+field cooldown 0.666667
 end
