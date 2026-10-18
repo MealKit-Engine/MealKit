@@ -1,0 +1,12 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+name ImGuizmo
+version 18cef5e (2026-08-08)
+license MIT
+licenseFile LICENSE
+source https://github.com/CedricGuillemet/ImGuizmo
+usedIn editor only
+inGame no
+note editor only
+kept ImGuizmo.h, ImGuizmo.cpp
+why 3D gizmo in the editor (never linked into the shipped game exe).

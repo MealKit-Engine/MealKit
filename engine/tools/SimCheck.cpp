@@ -1,6 +1,7 @@
 // SimCheck: 게임 코드 sim/ 폴더의 결정론 규칙 검사 (빌드 도구, mealkit_add_game이 빌드 전에 실행한다).
 //
-//   mealkit_simcheck <stamp 파일> <sim/ 소스...>
+//   mealkit_simcheck <stamp 파일> [--third-party <폴더>]... <sim/ 소스...>
+//   --third-party: 프로젝트 third_party/<lib>/의 include 폴더. 이 안의 헤더를 sim/에서 include하면 SIM011
 //
 // 주석, 문자열, 전처리 줄(#include 제외)은 빼고 토큰 단위로 검사한다. 걸리면 MSVC 형식
 // "파일(줄,열): error SIMnnn: ..."으로 대신 쓸 것을 알려 주고 실패한다(VS Code $msCompile이 잡는다).
@@ -10,6 +11,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <filesystem>
 #include <cstring>
 #include <fstream>
 #include <iterator>
@@ -265,6 +267,9 @@ constexpr const char* kMsgGlobal =
 constexpr const char* kMsgViewHeader =
     "the simulation must not read rendering, platform, input, editor or view state. Read World only; report to the "
     "screen with tick events (mealkit::sim::TickEvents)";
+constexpr const char* kMsgThirdParty =
+    "game libraries are for view/ and app/ only. Simulation code uses the engine's verified tools (docs/CODING_MODEL.md "
+    "\"Where external libraries go\")";
 constexpr const char* kMsgUsingStd = "write std:: explicitly so the check can see what is used";
 
 enum class Qual {
@@ -444,7 +449,8 @@ std::string normalizeInclude(const std::string& path) {
 
 class Checker {
 public:
-    explicit Checker(std::string path) : m_path(std::move(path)) {}
+    Checker(std::string path, const std::vector<std::string>& thirdParty)
+        : m_path(std::move(path)), m_thirdParty(thirdParty) {}
 
     int run(const Lexed& lexed) {
         for (const Include& inc : lexed.includes) checkInclude(inc);
@@ -493,6 +499,14 @@ private:
                 return;
             }
         }
+        // 게임 라이브러리 (프로젝트 third_party/<lib>/): 그 폴더에서 찾아지는 헤더, 또는 경로에 third_party/가 있으면
+        std::error_code ec;
+        bool thirdParty = startsWithNoCase(p, "third_party/") || p.find("/third_party/") != std::string::npos;
+        for (const std::string& dir : m_thirdParty)
+            thirdParty = thirdParty || std::filesystem::is_regular_file(std::filesystem::path(dir) / p, ec);
+        if (thirdParty)
+            report(inc.line, inc.col, "SIM011",
+                   inc.angle ? "#include <" + inc.path + ">" : "#include \"" + inc.path + "\"", kMsgThirdParty);
     }
 
     // 한정자: 바로 앞이 . / -> 이면 멤버 접근, :: 이면 그 앞 이름이 한정자
@@ -663,6 +677,7 @@ private:
     };
 
     std::string m_path;
+    const std::vector<std::string>& m_thirdParty;
     const std::vector<Token>* m_t = nullptr;
     std::vector<Report> m_reports;
 };
@@ -680,19 +695,25 @@ bool readFile(const char* path, std::string& out) {
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::printf("usage: mealkit_simcheck <stamp-file> <sim sources...>\n");
+        std::printf("usage: mealkit_simcheck <stamp-file> [--third-party <dir>]... <sim sources...>\n");
         return 2;
     }
     std::remove(argv[1]); // 실패하면 stamp가 없어야 다음 빌드에서 다시 검사한다
+    std::vector<std::string> thirdParty;
+    int first = 2;
+    while (first + 1 < argc && std::string(argv[first]) == "--third-party") {
+        thirdParty.push_back(argv[first + 1]);
+        first += 2;
+    }
     int errors = 0;
-    for (int i = 2; i < argc; ++i) {
+    for (int i = first; i < argc; ++i) {
         std::string src;
         if (!readFile(argv[i], src)) {
             std::printf("%s: error SIM000: cannot read file\n", argv[i]);
             ++errors;
             continue;
         }
-        Checker checker(argv[i]);
+        Checker checker(argv[i], thirdParty);
         errors += checker.run(Lexer(src).run());
     }
     if (errors) {

@@ -1,0 +1,12 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+name Tracy
+version v0.14.1
+license BSD-3-Clause
+licenseFile LICENSE
+source https://github.com/wolfpld/tracy
+usedIn Profile builds only
+inGame no
+note profile builds only
+kept public/
+why CPU/GPU profiling (only in `build.bat Profile`).

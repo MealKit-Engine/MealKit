@@ -75,6 +75,14 @@ Invoke-Check "Editor strings (ko.txt)" {
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
+Invoke-Check "Project layout + notices" {
+    param($log)
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layout.ps1" 2>&1
+    $code = $LASTEXITCODE
+    $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\gen_notices.ps1" -Check 2>&1
+    $output | Out-File -Encoding utf8 $log
+    return $code -eq 0 -and $LASTEXITCODE -eq 0
+}
 Invoke-Check "Platform layer (OS APIs)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_platform.ps1" 2>&1
@@ -182,7 +190,20 @@ if (-not $Quick) {
         $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\new_project.ps1" -Name CheckGame -Path $projects 2>&1
         $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\upgrade_project.ps1" -Project "$projects\CheckGame" 2>&1
         $output | Out-File -Encoding utf8 $log
-        $ok = (Test-Path "$projects\CheckGame\.mealkit-template") -and (($output -match "^Done: 0 change").Count -gt 0)
+        $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layout.ps1" -Project "$projects\CheckGame" 2>&1
+        $layoutOk = $LASTEXITCODE -eq 0 -and (($output -match "^OK layout: .* \(0 warning").Count -gt 0)
+        # 게임 라이브러리: 헤더 전용 라이브러리를 넣으면 view/에서는 되고 sim/에서는 SimCheck SIM011
+        $lib = "$projects\CheckGame\third_party\checklib"
+        New-Item -ItemType Directory -Force $lib | Out-Null
+        Set-Content "$lib\checklib.h" "#pragma once`r`ninline int checkLib() { return 1; }" -Encoding UTF8
+        Set-Content "$lib\LICENSE" "MIT" -Encoding UTF8
+        Set-Content "$lib\mealkit.txt" "name checklib`r`nversion 1`r`nlicense MIT`r`nsource local`r`n" -Encoding UTF8
+        Set-Content "$projects\CheckGame\source\sim\ZzLib.cpp" "#include `"checklib.h`"`r`n" -Encoding UTF8
+        $sim = & "$root\build\Release\tools\mealkit_simcheck.exe" "$projects\stamp" --third-party $lib "$projects\CheckGame\source\sim\ZzLib.cpp" 2>&1
+        $output += $sim
+        $simOk = ($sim -match "SIM011").Count -gt 0
+        $output | Out-File -Encoding utf8 $log
+        $ok = (Test-Path "$projects\CheckGame\.mealkit-template") -and (($output -match "^Done: 0 change").Count -gt 0) -and $layoutOk -and $simOk
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
         return $ok
     }

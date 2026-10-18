@@ -33,4 +33,7 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
   시간 값은 `MEALKIT_FIELD(mealkit::Ticks, 이름, mealkit::Ticks::seconds(0.5f), "설명 (초)")`로 선언한다(파일·에디터는 초, `sim/`은 정수 틱).
 - 엔진을 올린 뒤 에디터가 "프로젝트 업그레이드"를 물으면 받아들인다(또는 `@MEALKIT_ROOT@\tools\upgrade_project.ps1 -Project .`).
   빌드 파일만 새로 바꾸고 직접 고친 파일은 `<파일>.new`로 남긴다. `.mealkit-template`은 지우지 않는다.
+- 폴더 구조는 엔진이 정한다: `assets/` 바로 밑은 종류 폴더(`scenes models textures sounds effects ui fonts tables strings lut`)와 정해진 파일만, 외부 도구 원본(`.blend`, `.psd`, Penpot)은 `art/`.
+  외부 라이브러리는 `third_party/<lib>/`에 원본 `LICENSE`와 `mealkit.txt`(name, version, license, source, usedIn, 빌드할 게 있으면 `cmakeTarget`)를 두면 게임 exe·DLL에 붙는다(`sim/`에서는 SIM011).
+  `@MEALKIT_ROOT@\tools\check_layout.ps1 -Project .`이 검사하고, Export도 같은 검사로 실패한다.
 - 씬 충돌 데이터, 모델 파일, 튜닝 값이 바뀌면 콘텐츠 해시가 바뀌어, 다른 데이터를 쓰는 피어는 접속이 거부된다.

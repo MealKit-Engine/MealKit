@@ -3,6 +3,30 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.6 — 1단계 진행 중 (2026-10-18)
+
+### [x] 프로젝트 폴더 구조 강제 (완료 2026-10-18)
+- **왜**: 원본 파일이 출시 폴더에 섞이고, 외부 라이브러리 정보는 세 곳(`VERSIONS.txt`, `THIRD_PARTY_NOTICES.txt`, 코드)을 손으로 맞춰 왔다. 폴더 구조를 고민하는 시간을 없앤다.
+- **규칙 한 곳** `tools\check_layout.ps1 [-Project <폴더>]`: check.ps1("Project layout + notices"), Export(`game_export`가 맨 먼저 부르고 오류면 실패), 에디터(프로젝트를 열 때 `ChildProcess`로 돌려 오류는 알림 창, 경고는 상태 표시줄·로그)가 모두 이 스크립트를 쓴다. C++에 규칙을 따로 두지 않았다.
+  - `assets/` 바로 밑: 종류 폴더(`scenes models textures sounds effects ui fonts tables strings lut`)와 정해진 파일(`game.tuning view.tuning input.bindings feedback.table sounds.table`)만.
+  - 종류 폴더 안: 그 종류의 확장자만(하위 폴더는 자유). `fonts/`는 글꼴 라이선스 `.txt`도, `ui/`·`effects/`는 `.png`도 받는다.
+  - 외부 도구 원본(`.blend .psd .kra .penpot .fbx .aup3 ...`)은 `assets/` 어디에도 두지 않는다(→ `art/`). `.autosave`·`.gitkeep`은 본다.
+  - `third_party/<lib>/`: `mealkit.txt`(version·license·source 필수)와 라이선스 파일, 허용 라이선스(MIT, MIT-0, BSD-2/3, Zlib, Unlicense, PublicDomain, CC0-1.0, OFL-1.1, BSL-1.0, ISC), 게임 프로젝트는 엔진에 이미 있는 라이브러리 이름 금지.
+  - 정해진 폴더(`source assets art modules third_party`, 종류 폴더)가 없으면 경고.
+- **외부 라이브러리 메타데이터**: 엔진 `third_party/<lib>/mealkit.txt`(name, version, license, licenseFile, source, usedIn, inGame, note, kept, why) 6개를 썼다.
+  `tools\gen_notices.ps1`이 `third_party/VERSIONS.txt`(표 + 이유 + SDK 행)와 `THIRD_PARTY_NOTICES.txt`를 만든다(라이브러리 이름순, 원본 LICENSE 그대로). `-Check`는 check.ps1이 부른다(손으로 고치면 실패).
+  `-Project <폴더> -Out <파일>`은 출시 폴더용: MealKit 자신의 MIT 고지 + 게임 exe에 들어가는 엔진 라이브러리(`inGame yes`: Jolt, cgltf, meshoptimizer) + 프로젝트 `third_party/` + `assets/fonts/*.txt`.
+  Steamworks처럼 저장소에 넣지 않는 SDK는 스크립트의 SDK 목록에서 표에만 들어간다.
+- **게임 라이브러리** (`mealkit_add_game`): 프로젝트 `third_party/*/mealkit.txt`를 찾아, `CMakeLists.txt`가 있으면 `add_subdirectory` + `cmakeTarget` 링크, 없으면 헤더 전용(`include` 키, 기본 그 폴더)으로 게임 exe·DLL에만 붙인다(헤드리스 타깃에는 붙이지 않는다).
+  SimCheck가 `--third-party <폴더>`를 받아, 그 폴더에서 찾아지는 헤더나 경로에 `third_party/`가 있는 include를 `sim/`에서 **SIM011**로 막는다.
+- **Export**: 레이아웃 검사 → 고지문 합치기 → `MealKitExport.cmake`(exe가 5 MB를 넘으면 실패, 크기를 출력, `.gitkeep`은 복사하지 않음).
+- **템플릿** (엔진 버전 0.4.6): `templates/project`에 `art/ modules/ third_party/`와 `assets/<종류>/`의 `.gitkeep`. 새 프로젝트는 모든 폴더를 갖고, `upgrade_project`는 없는 `.gitkeep`을 "added"로 만든다(파일은 옮기지 않는다 — 검사가 위치를 알려 준다).
+  템플릿·엔진 `.gitignore`의 `*.png`를 캡처 파일(`/screenshot*.png /capture*.png /out*.png`)로 좁혔다(텍스처·`icon.png`가 올라간다). README 폴더 표를 새 구조로.
+- **정한 것**: 소리 이벤트 표는 `assets/audio/sounds.table`이 아니라 정해진 단일 파일 `assets/sounds.table`(`feedback.table`과 같은 자리, `assets/` 밑에 `audio/` 종류 폴더가 없다). Penpot 원본 백업은 `design/`이 아니라 `art/ui/`(CODING_MODEL의 `art/` 답과 맞춘다).
+- **검증**: 엔진 저장소 `check_layout` OK(0 경고), 잘못 놓은 파일 셋(`assets/foo.txt`, `models/x.blend`, `scenes/y.png`)이 오류 3개. 새 프로젝트(`new_project`)가 0 경고로 통과.
+  새 프로젝트에 헤더 전용 라이브러리를 넣어 `view/`에서 쓰고 `build.bat Export`: 레이아웃 OK → 고지문 5개(MealKit, cgltf, Jolt, meshoptimizer, 그 라이브러리) → exe 1611 KB → Export OK. 같은 헤더를 `sim/` 파일에서 include하면 SIM011.
+- **남은 것**: `patches/*.patch` 적용 도구는 고칠 원본이 생길 때. 에디터 에셋 브라우저(4단계)가 가져오기를 종류 폴더로 보내는 것.
+
 ## v0.4.5 — 1단계 진행 중 (2026-10-18)
 
 ### [x] 화면용 튜닝 (`ViewTuning`) + 시간 값은 초로 (완료 2026-10-18)

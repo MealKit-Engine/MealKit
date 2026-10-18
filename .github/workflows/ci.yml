@@ -54,6 +54,13 @@ jobs:
         if: matrix.checks
         shell: powershell
         run: tools\check_platform.ps1
+      - name: Project layout and notices (check_layout, gen_notices -Check)
+        if: matrix.checks
+        shell: powershell
+        run: |
+          tools\check_layout.ps1
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          tools\gen_notices.ps1 -Check
       - uses: actions/upload-artifact@v4
         if: ${{ !cancelled() }}
         with:

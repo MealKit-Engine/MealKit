@@ -1,0 +1,11 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+name Jolt Physics
+version v5.6.0
+license MIT
+licenseFile LICENSE
+source https://github.com/jrouwe/JoltPhysics
+usedIn engine (game)
+inGame yes
+kept Jolt/ + Build/CMakeLists.txt
+why deterministic build support, multithreaded, fast. Built with CROSS_PLATFORM_DETERMINISTIC and SSE4.2 only (AVX/FMA off) so it runs on office CPUs (Pentium, Celeron) and gives the same results everywhere.

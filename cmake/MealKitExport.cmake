@@ -1,10 +1,21 @@
 # 출시 폴더 만들기 (game_export 타깃이 cmake -P로 실행한다).
-# 입력: GAME_EXE, ASSETS_DIR, PROJECT_FILE, OUT_DIR, STEAM_DLL(없으면 빈 값), STEAM_APP_ID, NOTICES
+# 입력: GAME_EXE, ASSETS_DIR, PROJECT_FILE, OUT_DIR, STEAM_DLL(없으면 빈 값), STEAM_APP_ID, NOTICES(합친 고지문), EXE_BUDGET_MB
 foreach(var GAME_EXE ASSETS_DIR PROJECT_FILE OUT_DIR NOTICES)
     if(NOT ${var})
         message(FATAL_ERROR "MealKitExport: ${var} is not set")
     endif()
 endforeach()
+
+# 출시 exe 예산 (ROADMAP "성능 예산": 모든 플랫폼 5 MB, 에셋 제외)
+if(EXE_BUDGET_MB)
+    file(SIZE "${GAME_EXE}" exe_bytes)
+    math(EXPR exe_budget "${EXE_BUDGET_MB} * 1024 * 1024")
+    math(EXPR exe_kb "${exe_bytes} / 1024")
+    if(exe_bytes GREATER exe_budget)
+        message(FATAL_ERROR "MealKitExport: ${GAME_EXE} is ${exe_kb} KB, over the ${EXE_BUDGET_MB} MB budget (see docs/ROADMAP.md \"Performance budget\")")
+    endif()
+    message(STATUS "Game executable: ${exe_kb} KB (budget ${EXE_BUDGET_MB} MB)")
+endif()
 
 # 지난 출시본을 지우고 새로 만든다 (지워진 에셋이 남지 않도록)
 file(REMOVE_RECURSE "${OUT_DIR}")
@@ -13,7 +24,8 @@ file(MAKE_DIRECTORY "${OUT_DIR}")
 file(COPY "${GAME_EXE}" DESTINATION "${OUT_DIR}")
 if(EXISTS "${ASSETS_DIR}")
     file(COPY "${ASSETS_DIR}" DESTINATION "${OUT_DIR}"
-        PATTERN "*.autosave" EXCLUDE)
+        PATTERN "*.autosave" EXCLUDE
+        PATTERN ".gitkeep" EXCLUDE)
 else()
     message(WARNING "MealKitExport: no assets folder at ${ASSETS_DIR}")
 endif()

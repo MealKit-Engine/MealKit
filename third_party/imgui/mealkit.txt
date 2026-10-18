@@ -1,0 +1,12 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+name Dear ImGui
+version v1.92.9b-docking (b48d1af)
+license MIT
+licenseFile LICENSE.txt
+source https://github.com/ocornut/imgui
+usedIn editor only
+inGame no
+note editor only
+kept core files + backends/imgui_impl_win32, imgui_impl_dx12
+why editor UI (never linked into the shipped game exe).

@@ -1,7 +1,10 @@
 build/
 export/
 .vs/
-*.png
+# 스크린샷·캡처만 (텍스처와 icon.png는 올린다)
+/screenshot*.png
+/capture*.png
+/out*.png
 *.autosave
 mealkit_editor.ini
 .upgrade_backup/

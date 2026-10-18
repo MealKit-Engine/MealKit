@@ -138,6 +138,8 @@ endif()
 #     [STEAM_APP_ID <id>])            기본 480 (Valve 테스트 앱 Spacewar)
 #
 # 경로 안에 sim/ 폴더가 있는 파일은 빌드 전에 SimCheck(engine/tools/SimCheck.cpp)가 결정론 규칙을 검사하고, 어기면 빌드가 실패한다.
+# 프로젝트 third_party/<lib>/ (mealkit.txt가 있는 폴더): CMakeLists.txt가 있으면 add_subdirectory 후 mealkit.txt의 cmakeTarget을,
+# 없으면 헤더 전용으로 include 폴더(mealkit.txt의 include, 기본 그 폴더)를 게임 exe·DLL에만 붙인다. sim/에서는 쓸 수 없다(SimCheck SIM011).
 # 프로젝트 폴더는 최상위 CMakeLists.txt가 있는 곳이다. 그 아래 assets/를 쓰고, 출시 빌드는 export/<이름>/에 만든다.
 # game_export 타깃: 게임 실행 파일 + assets + Steam DLL + 라이선스 고지를 export/<이름>/에 모은다 (build.bat Export).
 function(mealkit_add_game name)
@@ -162,6 +164,44 @@ function(mealkit_add_game name)
         set(ARG_STEAM_APP_ID 480)
     endif()
     set(project_dir ${CMAKE_SOURCE_DIR})
+
+    # 게임 라이브러리 (docs/CODING_MODEL.md "외부 라이브러리 두기"). 엔진 저장소의 third_party/는 엔진 라이브러리라 여기서 보지 않는다.
+    set(game_libs "")
+    set(game_lib_includes "")
+    get_filename_component(project_dir_abs "${project_dir}" ABSOLUTE)
+    if(NOT project_dir_abs STREQUAL MEALKIT_ENGINE_DIR)
+        file(GLOB lib_metas CONFIGURE_DEPENDS "${project_dir}/third_party/*/mealkit.txt")
+        foreach(meta IN LISTS lib_metas)
+            get_filename_component(lib_dir "${meta}" DIRECTORY)
+            get_filename_component(lib_name "${lib_dir}" NAME)
+            file(STRINGS "${meta}" lib_lines ENCODING UTF-8)
+            set(lib_target "")
+            set(lib_include "")
+            foreach(line IN LISTS lib_lines)
+                if(line MATCHES "^[ \t]*cmakeTarget[ \t]+(.+)$")
+                    string(STRIP "${CMAKE_MATCH_1}" lib_target)
+                elseif(line MATCHES "^[ \t]*include[ \t]+(.+)$")
+                    string(STRIP "${CMAKE_MATCH_1}" lib_include)
+                endif()
+            endforeach()
+            if(EXISTS "${lib_dir}/CMakeLists.txt")
+                if(NOT lib_target)
+                    message(FATAL_ERROR "${meta}: the library has a CMakeLists.txt - name the target to link with 'cmakeTarget <target>'")
+                endif()
+                add_subdirectory("${lib_dir}" "${CMAKE_BINARY_DIR}/third_party/game_${lib_name}" EXCLUDE_FROM_ALL)
+                list(APPEND game_libs ${lib_target})
+            endif()
+            if(lib_include)
+                list(APPEND game_lib_includes "${lib_dir}/${lib_include}")
+            else()
+                list(APPEND game_lib_includes "${lib_dir}")
+            endif()
+        endforeach()
+    endif()
+    set(simcheck_third_party "")
+    foreach(dir IN LISTS game_lib_includes)
+        list(APPEND simcheck_third_party --third-party "${dir}")
+    endforeach()
 
     if(ARG_SOURCES)
         set(game_sources "")
@@ -196,7 +236,7 @@ function(mealkit_add_game name)
     if(sim_sources)
         set(sim_stamp "${CMAKE_CURRENT_BINARY_DIR}/${name}_simcheck.stamp")
         add_custom_command(OUTPUT "${sim_stamp}"
-            COMMAND mealkit_simcheck "${sim_stamp}" ${sim_sources}
+            COMMAND mealkit_simcheck "${sim_stamp}" ${simcheck_third_party} ${sim_sources}
             DEPENDS mealkit_simcheck ${sim_sources}
             COMMENT "SimCheck ${name}: sim/ determinism rules"
             VERBATIM)
@@ -225,8 +265,9 @@ function(mealkit_add_game name)
     if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         # 에디터가 불러오는 게임 코드. 엔진은 mealkit.dll에서 가져온다.
         add_library(${name}_game SHARED ${ARG_MODULE} ${game_sources})
-        target_link_libraries(${name}_game PRIVATE mealkit)
+        target_link_libraries(${name}_game PRIVATE mealkit ${game_libs})
         target_include_directories(${name}_game PRIVATE ${source_dir})
+        target_include_directories(${name}_game SYSTEM PRIVATE ${game_lib_includes})
         target_compile_definitions(${name}_game PRIVATE MEALKIT_GAME_NAME="${name}")
         if(sim_sources)
             add_dependencies(${name}_game ${name}_simcheck)
@@ -273,8 +314,9 @@ function(mealkit_add_game name)
     if(icon_found)
         target_sources(${name} PRIVATE "${icon_file}")
     endif()
-    target_link_libraries(${name} PRIVATE mealkit)
+    target_link_libraries(${name} PRIVATE mealkit ${game_libs})
     target_include_directories(${name} PRIVATE ${source_dir})
+    target_include_directories(${name} SYSTEM PRIVATE ${game_lib_includes})
     target_compile_definitions(${name} PRIVATE MEALKIT_GAME_NAME="${name}")
     if(sim_sources)
         add_dependencies(${name} ${name}_simcheck)
@@ -286,7 +328,14 @@ function(mealkit_add_game name)
         file(WRITE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/steam_appid.txt "${ARG_STEAM_APP_ID}")
     endif()
 
+    # 출시 전 검사: 폴더 구조(tools/check_layout.ps1, 어기면 실패) → 고지문 합치기(MealKit + 게임 exe의 엔진 라이브러리 + 게임 라이브러리 + 글꼴)
+    # → 출시 폴더 (MealKitExport.cmake가 exe 크기 예산도 본다)
+    set(export_notices "${CMAKE_BINARY_DIR}/export_notices/THIRD_PARTY_NOTICES.txt")
     add_custom_target(game_export
+        COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/check_layout.ps1"
+            -Project "${project_dir}"
+        COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/gen_notices.ps1"
+            -Project "${project_dir}" -Out "${export_notices}"
         COMMAND ${CMAKE_COMMAND}
             -DGAME_EXE=$<TARGET_FILE:${name}>
             -DASSETS_DIR=${project_dir}/assets
@@ -294,7 +343,8 @@ function(mealkit_add_game name)
             -DOUT_DIR=${project_dir}/export/${name}
             -DSTEAM_DLL=${MEALKIT_STEAM_DLL}
             -DSTEAM_APP_ID=${ARG_STEAM_APP_ID}
-            -DNOTICES=${MEALKIT_ENGINE_DIR}/THIRD_PARTY_NOTICES.txt
+            -DNOTICES=${export_notices}
+            -DEXE_BUDGET_MB=5
             -P ${MEALKIT_ENGINE_DIR}/cmake/MealKitExport.cmake
         DEPENDS ${name}
         COMMENT "Exporting ${name}"
