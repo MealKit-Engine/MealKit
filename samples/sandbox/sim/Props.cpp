@@ -9,25 +9,24 @@
 namespace sandbox {
 
 void spawnProps(World& world, u64 seed) {
-    const Tuning& t = world.tuning;
     mealkit::Pcg32 rng(seed);
     for (const World::PropSpawn& area : world.propSpawns) {
+        const PropKind& t = world.propKinds[area.kind];
         for (u32 i = 0; i < area.count; ++i) {
             Prop b;
-            const f32 base = rng.range(t.propSizeMin, t.propSizeMax);
-            b.halfExtents = {base * rng.range(t.propStretchMin, t.propStretchMax),
-                             base * rng.range(t.propStretchMin, t.propStretchMax),
-                             base * rng.range(t.propStretchMin, t.propStretchMax)};
+            const f32 base = rng.range(t.sizeMin, t.sizeMax);
+            b.halfExtents = {base * rng.range(t.stretchMin, t.stretchMax), base * rng.range(t.stretchMin, t.stretchMax),
+                             base * rng.range(t.stretchMin, t.stretchMax)};
             b.position = {rng.range(area.min.x, area.max.x), rng.range(area.min.y, area.max.y),
                           rng.range(area.min.z, area.max.z)};
             b.colorIndex = rng.below(kPropColorCount);
 
             mealkit::physics::BodyDesc d;
             d.position = b.position;
-            d.friction = t.propFriction;
-            d.restitution = t.propRestitution;
+            d.friction = t.friction;
+            d.restitution = t.restitution;
             const Vec3 h = b.halfExtents;
-            d.mass = std::max(t.propMinMass, t.propDensity * 8.0f * h.x * h.y * h.z); // const-ok: 부피 = 8 × 반 크기 곱
+            d.mass = std::max(t.minMass, t.density * 8.0f * h.x * h.y * h.z); // const-ok: 부피 = 8 × 반 크기 곱
             b.body = world.physics.createBox(b.halfExtents, d);
             world.state.props.create(b);
         }

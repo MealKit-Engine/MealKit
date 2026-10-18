@@ -253,7 +253,8 @@ int main(int argc, char** argv) {
     session.setContentHash(game::contentHash(scene, models, &reflect::moduleObjectTypes(),
                                              &reflect::typeOf<sandbox::Tuning>(), &tuning,
                                              {&reflect::typeOf<game::ProjectSettings>(), &project.settings},
-                                             {&reflect::typeOf<sandbox::ProjectSettings>(), &gameProject}));
+                                             {&reflect::typeOf<sandbox::ProjectSettings>(), &gameProject},
+                                             &reflect::moduleTables()));
     session.setAcceptOtherBuilds(opt.anyBuild);
     const u64 seed = opt.seed ? opt.seed : static_cast<u64>(std::time(nullptr));
     switch (opt.mode) {

@@ -8,6 +8,7 @@
 #include "mealkit/game/InputRecord.h"
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/game/Simulation.h"
+#include "mealkit/game/Tables.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/core/Reflect.h"
 #include "mealkit/physics/PhysicsWorld.h"
@@ -317,6 +318,82 @@ TEST_CASE(reflect_ticks_and_color) {
     TEST_CHECK(reflect::formatScalar(*t.fields[1].value, &a.tint) == "#10203040");
     TEST_CHECK(!reflect::setFromText(t, &a, "tint", "102030") && !reflect::setFromText(t, &a, "tint", "#12345"));
     TEST_CHECK(!reflect::setFromText(t, &a, "tint", "#12345G"));
+}
+
+MEALKIT_STRUCT(TestKind) {
+    MEALKIT_FIELD(f32, weight, 1.0f, "무게");
+    MEALKIT_FIELD(std::string, title, "", "이름");
+};
+
+MEALKIT_STRUCT(TestItem) {
+    MEALKIT_FIELD(u32, count, 1, "개수");
+    MEALKIT_FIELD(RowRef<TestKind>, kind, "plain", "종류");
+    MEALKIT_FIELD(Ticks, delay, Ticks::seconds(0.2f), "대기");
+};
+
+static_assert(reflect::hasStringField<TestItem>()); // RowRef에는 id 문자열이 있어 시뮬레이션 상태에 넣지 않는다
+
+TEST_CASE(tables) {
+    const std::string dir = executableDirectory();
+    // 파일: 쓰고 읽으면 같다. 겹친 id·잘못된 id는 버린다
+    game::TableText text;
+    text.ids = {"plain", "heavy"};
+    text.rows = {{{"weight", "1"}, {"title", "Plain, \"basic\""}}, {{"weight", "4.5"}, {"title", "Heavy"}}};
+    TEST_CHECK(game::writeTableText(dir + "/test_kinds.table", text, "TestKind"));
+    std::string body;
+    TEST_CHECK(readTextFile(dir + "/test_kinds.table", body));
+    TEST_CHECK(writeTextFile(dir + "/test_kinds.table", body + "\nrow heavy\nweight 9\nrow bad id\nweight 2\n"));
+    sim::Table<TestKind> kinds;
+    TEST_CHECK(game::loadTable(kinds, "../build/does-not-exist.table") == false && kinds.size() == 0);
+    game::TableData data;
+    std::string warnings;
+    TEST_CHECK(game::loadTableData(reflect::typeOf<TestKind>(), dir + "/test_kinds.table", data, &warnings));
+    TEST_CHECK(data.ids.size() == 2 && data.ids[1] == "heavy" && !warnings.empty());
+    TEST_CHECK(static_cast<const TestKind*>(data.rows[1].data())->weight == 4.5f);
+    TEST_CHECK(static_cast<const TestKind*>(data.rows[0].data())->title == "Plain, \"basic\"");
+
+    // CSV: 내보내고 가져오면 같다 (쉼표·따옴표가 든 칸)
+    TEST_CHECK(game::exportTableCsv(data, dir + "/test_kinds.csv"));
+    game::TableData back;
+    back.rowType = &reflect::typeOf<TestKind>();
+    std::string error;
+    TEST_CHECK(game::importTableCsv(back, dir + "/test_kinds.csv", &error));
+    TEST_CHECK(back.ids == data.ids);
+    for (size_t i = 0; i < back.rows.size(); ++i)
+        TEST_CHECK(reflect::hashOf(*static_cast<const TestKind*>(back.rows[i].data())) ==
+                   reflect::hashOf(*static_cast<const TestKind*>(data.rows[i].data())));
+    // 열 순서가 달라도, 모르는 열이 있어도 이름으로 맞춘다
+    TEST_CHECK(writeTextFile(dir + "/test_kinds2.csv", "\xEF\xBB\xBFid,title,extra,weight\r\nx,\"multi\nline\",1,7\r\n"));
+    TEST_CHECK(game::importTableCsv(back, dir + "/test_kinds2.csv", &error) && back.ids.size() == 1);
+    TEST_CHECK(static_cast<const TestKind*>(back.rows[0].data())->weight == 7.0f);
+    TEST_CHECK(static_cast<const TestKind*>(back.rows[0].data())->title == "multi\nline");
+    TEST_CHECK(!game::importTableCsv(back, dir + "/test_kinds.table", &error)); // 첫 칸이 id가 아니다
+
+    // 행 참조: id → 번호, 없는 id는 목록에
+    sim::Table<TestKind> table;
+    table.ids = {"plain", "heavy"};
+    table.rows.resize(2);
+    TestItem item;
+    std::vector<std::string> missing;
+    game::resolveRows(item, {game::tableIndex(table)}, &missing);
+    TEST_CHECK(item.kind.index == 0 && missing.empty() && table.get(item.kind) == &table.rows[0]);
+    TEST_CHECK(reflect::setFromText(reflect::typeOf<TestItem>(), &item, "kind", "heavy") && !item.kind.valid());
+    game::resolveRows(item, {game::tableIndex(table)}, &missing);
+    TEST_CHECK(item.kind.index == 1 && table.find("heavy") == 1 && table.find("nope") == kNoRow);
+    item.kind.id = "nope";
+    game::resolveRows(item, {game::tableIndex(table)}, &missing, "test: ");
+    TEST_CHECK(!item.kind.valid() && missing.size() == 1 && missing[0].rfind("test: kind -> nope", 0) == 0);
+    // 해시는 id로 (행 번호가 아니라)
+    TestItem a, b;
+    b.kind.index = 5;
+    TEST_CHECK(reflect::hashOf(a) == reflect::hashOf(b));
+    b.kind.id = "heavy";
+    TEST_CHECK(reflect::hashOf(a) != reflect::hashOf(b));
+    reflect::ByteWriter w;
+    reflect::saveStruct(reflect::typeOf<TestItem>(), &b, w);
+    TestItem c;
+    reflect::ByteReader r(w.data().data(), w.data().size());
+    TEST_CHECK(reflect::loadStruct(reflect::typeOf<TestItem>(), &c, r) && c.kind.id == "heavy" && c.kind.index == 5);
 }
 
 TEST_CASE(input_record) {

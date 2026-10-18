@@ -24,7 +24,8 @@
 //       MEALKIT_FIELD(f32, power, 12.0f, "점프 힘");
 //   };
 //
-// 필드 타입: bool, 정수·enum, f32, Vec3, Quat, Pool의 Id, std::string, Ticks(시간), Color(색), 다른 MEALKIT_STRUCT, MEALKIT_ARRAY, sim::Pool<T>.
+// 필드 타입: bool, 정수·enum, f32, Vec3, Quat, Pool의 Id, std::string, Ticks(시간), Color(색), RowRef<Row>(표의 행), 다른 MEALKIT_STRUCT,
+// MEALKIT_ARRAY, sim::Pool<T>.
 // std::string은 설정·튜닝·씬 필드용이다. 시뮬레이션 상태(WorldState, Pool 항목)에는 넣지 않는다(game::Simulation이 검사한다).
 // 기본값에 쉼표가 들어가면 괄호로 감싼다: MEALKIT_FIELD(Vec3, dir, (Vec3{0, 1, 0}), "방향").
 // 필드 순서가 곧 저장·해시 순서다. 선언 사이에 __COUNTER__를 쓰는 다른 매크로를 넣지 않는다.
@@ -39,6 +40,23 @@ struct Ticks {
     static Ticks seconds(f32 seconds); // 틱레이트로 반올림 (음수는 0)
     f32 toSeconds() const;
     constexpr operator u32() const { return value; }
+};
+
+// 정의 데이터 표의 행 참조 (docs/CODING_MODEL.md "같은 모양의 데이터가 여러 개"): 파일·에디터에는 행 이름 id,
+// 불러온 뒤 game::resolveRows가 행 번호(index)를 채운다. sim/은 번호로 읽는다(world.weapons[ref.index] 또는 table.get(ref)).
+// 문자열이 들어 있어 시뮬레이션 상태(WorldState)에는 넣지 않는다: 상태에는 u32 행 번호를 둔다.
+inline constexpr u32 kNoRow = 0xFFFFFFFFu;
+
+template <class Row>
+struct RowRef {
+    using RowType = Row;
+    static constexpr bool kRowRef = true;
+    std::string id;       // 행 이름 (비어 있으면 참조 없음)
+    u32 index = kNoRow;   // 불러온 뒤 정해진다 (없는 id면 kNoRow)
+
+    RowRef() = default;
+    RowRef(const char* rowId) : id(rowId) {}
+    bool valid() const { return index != kNoRow; }
 };
 
 // 색 (화면용 값): rgba8 sRGB, render::rgba와 같은 배치(r | g << 8 | b << 16 | a << 24). 파일에는 "#RRGGBB" 또는 "#RRGGBBAA".
@@ -77,6 +95,7 @@ enum class Kind : u8 {
     String,    // std::string (텍스트 파일에서는 줄 끝까지, 앞뒤 공백 없음)
     Ticks,     // mealkit::Ticks (메모리는 u32 틱, 텍스트는 초)
     Color,     // mealkit::Color (메모리는 u32 rgba8, 텍스트는 #RRGGBB[AA])
+    RowRef,    // mealkit::RowRef<Row> (type = 행 타입, 텍스트는 행 id)
 };
 
 enum FieldFlags : u32 {
@@ -146,7 +165,7 @@ struct ContainerOps {
 struct ValueInfo {
     Kind kind = Kind::Bool;
     u32 size = 0;
-    const TypeInfo* type = nullptr;     // Struct
+    const TypeInfo* type = nullptr;     // Struct, RowRef(가리키는 표의 행 타입)
     const ValueInfo* element = nullptr; // Array, Container
     u32 count = 0;                      // Array
     const ContainerOps* ops = nullptr;  // Container
@@ -221,6 +240,14 @@ void toText(const TypeInfo& type, const void* data, TextFields& out);
 bool setFromText(const TypeInfo& type, void* data, const std::string& path, const std::string& text);
 // 여러 줄을 읽어 넣고, 실패한 경로는 warnings에 붙인다.
 void fromText(const TypeInfo& type, void* data, const TextFields& fields, std::string* warnings = nullptr);
+// "a.b[2].c" 경로의 값 하나 (구조체·배열 안까지). 없으면 false.
+bool resolvePath(const TypeInfo& type, void* data, const std::string& path, const ValueInfo*& outValue, void*& outData);
+// RowRef 값 (Kind::RowRef인 data)의 id와 행 번호
+struct RowRefView {
+    std::string* id;
+    u32* index;
+};
+RowRefView rowRefOf(void* data);
 std::string formatScalar(const ValueInfo& value, const void* data); // 디버그 표시용 (구조체·배열은 빈 문자열)
 
 // .tuning 같은 텍스트 파일 ("# 주석", "경로 값")
@@ -302,6 +329,9 @@ ValueInfo makeValue() {
         v.kind = Kind::Ticks;
     } else if constexpr (std::is_same_v<V, Color>) {
         v.kind = Kind::Color;
+    } else if constexpr (requires { V::kRowRef; }) {
+        v.kind = Kind::RowRef;
+        v.type = &typeOf<typename V::RowType>();
     } else if constexpr (requires { V::kReflectId; }) {
         v.kind = Kind::Id;
     } else if constexpr (IsStdArray<V>::value) {
@@ -359,7 +389,7 @@ const TypeInfo& typeOf() {
 // V(또는 그 안의 구조체·배열)에 std::string 필드가 있는가. 시뮬레이션 상태는 복사·해시가 바이트 단위라 문자열을 넣지 않는다.
 template <class V>
 constexpr bool hasStringField() {
-    if constexpr (std::is_same_v<V, std::string>) {
+    if constexpr (std::is_same_v<V, std::string> || requires { V::kRowRef; }) {
         return true;
     } else if constexpr (IsStdArray<V>::value) {
         return hasStringField<typename V::value_type>();
@@ -378,6 +408,30 @@ u64 hashOf(const T& value, u32 skipFlags = 0) {
     Hasher h;
     hashStruct(typeOf<T>(), &value, h, skipFlags);
     return h.value;
+}
+
+// 정의 데이터 표 등록 (MEALKIT_TABLE). 표 파일은 assets 기준 경로, 행 타입은 MEALKIT_STRUCT.
+enum TableFlags : u32 {
+    kTableView = 1u << 0, // 화면 전용 표 (소리·연출·아이콘): 콘텐츠 해시 밖, 플레이 중에 고치면 바로 다시 읽는다
+};
+
+struct TableInfo {
+    const TypeInfo* rowType;
+    const char* path; // assets 기준 ("tables/props.table")
+    u32 flags;        // TableFlags
+};
+using TableList = std::vector<TableInfo>;
+
+// 이 모듈(게임 exe 또는 게임 DLL)에 선언된 MEALKIT_TABLE 목록. 엔진(mealkit.dll)은 부르지 않는다(게임 DLL은 MEALKIT_GAME_MODULE로 넘긴다).
+inline TableList& moduleTables() {
+    static TableList list;
+    return list;
+}
+
+template <class Row>
+bool registerTable(const char* path, u32 flags) {
+    moduleTables().push_back({&typeOf<Row>(), path, flags});
+    return true;
 }
 
 // 이 모듈(게임 exe 또는 게임 DLL)에 선언된 MEALKIT_OBJECT 목록. 엔진(mealkit.dll)은 이 함수를 부르지 않는다.
@@ -430,6 +484,10 @@ bool registerObjectType() {
 #define MEALKIT_FIELD_FLAGS(Type, name, def, label, flags)                                                             \
     Type name = def;                                                                                                   \
     MEALKIT_DETAIL_DECL(name, label, static_cast<::mealkit::u32>(flags))
+
+// 정의 데이터 표: MEALKIT_TABLE(PropKind, "tables/props.table", 0) — 행 타입은 MEALKIT_STRUCT, flags는 reflect::TableFlags
+#define MEALKIT_TABLE(Row, path, flags)                                                                                \
+    inline const bool mealkitTableRegistered_##Row = ::mealkit::reflect::registerTable<Row>(path, flags)
 
 #define MEALKIT_ARRAY(Type, count, name, label)                                                                        \
     ::std::array<Type, count> name{};                                                                                  \

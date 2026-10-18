@@ -325,4 +325,5 @@ scale 80 24 80
 color FF5AA0FF
 flags 0
 field count 2000
+field kind crate
 end

@@ -124,15 +124,7 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
 - [x] 화면용 튜닝 (`ViewTuning`, `assets/view.tuning`, 파일이 바뀌면 다시 읽음) + 시간 값은 초로(`Ticks`) + 색 필드(`Color`) — v0.4.5, 상세는 `docs/CHANGELOG.md`
 - [x] 프로젝트 폴더 구조 강제 (`tools\check_layout.ps1`: check.ps1·Export·에디터, `third_party/<lib>/mealkit.txt` → `tools\gen_notices.ps1`, 게임 라이브러리·SIM011, exe 예산) — v0.4.6, 상세는 `docs/CHANGELOG.md`
 - [x] 예제(sandbox) 데이터 분리 정리 (코드 숫자 → `Tuning`·씬 영역 물체·`ViewTuning`, SimCheck 실수 리터럴 경고 SIM012, 해시 그대로) — v0.4.7, 상세는 `docs/CHANGELOG.md`
-
-### [ ] 정의 데이터 표 (`.table`)
-- **왜**: 무기·아이템·스킬·적 종류처럼 **같은 모양의 행이 많은 데이터**를 둘 곳이 없다. 튜닝은 구조체 하나라 맞지 않다(유니티 ScriptableObject 목록에 해당).
-- **방식**: 게임이 행 타입을 `MEALKIT_STRUCT(WeaponDef)`로 선언하고 표를 등록한다. 데이터는 `assets/tables/weapons.table`(텍스트, 행마다 이름 id + 필드).
-  - 코드와 다른 데이터(씬 필드, 다른 표, 로드아웃)는 행을 **이름 id**로 참조한다. 불러올 때 숫자 번호로 바꿔 `sim/`은 번호로 읽는다(순서는 파일 순서로 고정).
-  - 에디터 [표] 패널: 스프레드시트 모양으로 고치고, 없는 id 참조를 경고한다.
-  - 외부 도구 원칙대로 **CSV 가져오기·내보내기**(Google Sheets·Excel). 기획자가 스프레드시트에서 밸런스를 잡고 가져온다. 가져오기는 표 파일을 다시 쓰는 단방향이다.
-- **결정론**: 시뮬레이션이 읽는 표는 `World`가 매치 시작 때 복사하고 콘텐츠 해시에 넣는다. 화면 전용 표(아이콘, 설명 문자열 키)는 표시해서 해시에서 뺀다.
-- **이어지는 것**: 4단계 소스 모듈(인벤토리·스킬)과 매치 시작 데이터(로드아웃이 행 id를 담는다)가 이 위에 놓인다.
+- [x] 정의 데이터 표 (`MEALKIT_TABLE`, `assets/tables/*.table`, `RowRef<Row>`, 에디터 [표] 패널, CSV 가져오기·내보내기, 시뮬레이션 표는 콘텐츠 해시) — v0.4.8, 상세는 `docs/CHANGELOG.md`
 
 ### [ ] 기준 샘플 (게임 대신 엔진을 검증하는 작은 예제)
 - **왜**: 이 저장소에서는 게임을 같이 만들지 않는다(`docs/DECISIONS.md`). 그러면 "실제로 쓰여서 맞는지"를 확인할 곳이 없어, 쓰는 곳 없는 기능과 쓰기 불편한 API가 쌓인다. 기준 샘플이 그 자리를 맡는다.

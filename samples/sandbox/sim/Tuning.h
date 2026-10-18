@@ -6,7 +6,8 @@
 // 게임 튜닝 값: assets/game.tuning (에디터 [튜닝] 패널에서 고친다). World가 매치를 시작할 때 복사해 world.tuning으로 읽는다.
 // 멀티플레이에서는 매치 시작 때 고정되고 콘텐츠 해시에 들어간다(다른 값을 쓰는 피어는 접속 거부).
 // 에디터 혼자 플레이에서는 값을 바꾸면 바로 적용된다 (World::setTuning).
-// 맵마다 다른 값(영역, 개수, 높이)은 씬 물체(sim/Objects.h), 보이기만 하는 값은 view/ViewTuning.h (docs/CODING_MODEL.md "숫자는 어디에 두나").
+// 맵마다 다른 값(영역, 개수, 높이)은 씬 물체(sim/Objects.h), 같은 모양이 여러 행인 값(상자 종류)은 표(sim/Tables.h),
+// 보이기만 하는 값은 view/ViewTuning.h (docs/CODING_MODEL.md "숫자는 어디에 두나").
 namespace sandbox {
 
 MEALKIT_STRUCT(Tuning) {
@@ -22,15 +23,6 @@ MEALKIT_STRUCT(Tuning) {
     MEALKIT_FIELD(mealkit::f32, pushSpeed, 18.0f, "밀치기 수평 속도 (m/s)");
     MEALKIT_FIELD(mealkit::f32, pushLift, 7.0f, "밀치기 위로 속도 (m/s)");
     MEALKIT_FIELD(mealkit::f32, pushSpin, 8.0f, "밀치기 회전 (rad/s)");
-    // 상자
-    MEALKIT_FIELD(mealkit::f32, propDensity, 200.0f, "상자 밀도 (kg/m³)");
-    MEALKIT_FIELD(mealkit::f32, propMinMass, 5.0f, "상자 최소 질량 (kg)");
-    MEALKIT_FIELD(mealkit::f32, propSizeMin, 0.28f, "상자 반 크기 최소 (m)");
-    MEALKIT_FIELD(mealkit::f32, propSizeMax, 0.64f, "상자 반 크기 최대 (m)");
-    MEALKIT_FIELD(mealkit::f32, propStretchMin, 0.8f, "상자 축별 늘림 최소 (배)");
-    MEALKIT_FIELD(mealkit::f32, propStretchMax, 1.2f, "상자 축별 늘림 최대 (배)");
-    MEALKIT_FIELD(mealkit::f32, propFriction, 0.6f, "상자 마찰");
-    MEALKIT_FIELD(mealkit::f32, propRestitution, 0.15f, "상자 반발");
     // 리스폰·AI
     MEALKIT_FIELD(mealkit::Ticks, respawn, mealkit::Ticks::seconds(1.5f), "리스폰 대기 (초)");
     MEALKIT_FIELD(mealkit::u32, aiPawns, 2, "AI 캐릭터 수");

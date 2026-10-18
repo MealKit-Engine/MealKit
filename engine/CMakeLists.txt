@@ -61,6 +61,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/game/GameInstance.h
     src/mealkit/game/GameData.h
     src/mealkit/game/GameData.cpp
+    src/mealkit/game/Tables.h
+    src/mealkit/game/Tables.cpp
     src/mealkit/game/Headless.h
     src/mealkit/game/Headless.cpp
     src/mealkit/game/InputRecord.h
@@ -73,6 +75,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/sim/Pool.h
     src/mealkit/sim/TickEvents.h
     src/mealkit/sim/TickTimer.h
+    src/mealkit/sim/Table.h
     src/mealkit/physics/PhysicsWorld.h
     src/mealkit/physics/PhysicsWorld.cpp
     src/mealkit/platform/Paths.h
@@ -268,6 +271,8 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/FieldEditor.cpp
         src/mealkit/editor/PlaySession.h
         src/mealkit/editor/PlaySession.cpp
+        src/mealkit/editor/TablesPanel.h
+        src/mealkit/editor/TablesPanel.cpp
         src/mealkit/editor/Strings.h
         src/mealkit/editor/Strings.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit mealkit_imgui)

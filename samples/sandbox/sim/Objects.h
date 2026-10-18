@@ -1,6 +1,7 @@
 #pragma once
 
 #include "mealkit/core/Reflect.h"
+#include "sim/Tables.h"
 
 // 게임이 선언한 씬 오브젝트 종류. 에디터 [추가] 메뉴와 인스펙터에 나오고, 필드 값은 씬 파일에 저장된다.
 // World는 매치를 시작할 때 scene::readObject<T>(entity)로 읽는다 (sim/World.cpp loadScene).
@@ -22,11 +23,12 @@ MEALKIT_OBJECT(MatchArea) {
     static constexpr mealkit::u32 kObjectFlags = mealkit::reflect::kObjectArea;
 };
 
-// 매치를 시작할 때 이 영역 안에 상자를 흩어 놓는다 (여러 개면 씬 순서대로)
+// 매치를 시작할 때 이 영역 안에 상자를 흩어 놓는다 (여러 개면 씬 순서대로). 종류는 상자 종류 표(tables/props.table)의 행
 MEALKIT_OBJECT(PropSpawnArea) {
     static constexpr const char* kObjectLabel = "상자 생성 영역";
     static constexpr mealkit::u32 kObjectFlags = mealkit::reflect::kObjectArea;
     MEALKIT_FIELD(mealkit::u32, count, 2000, "상자 수");
+    MEALKIT_FIELD(mealkit::RowRef<PropKind>, kind, "crate", "상자 종류");
 };
 
 } // namespace sandbox

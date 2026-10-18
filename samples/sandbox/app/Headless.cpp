@@ -1,5 +1,7 @@
 #include "app/Headless.h"
 
+#include "mealkit/game/Tables.h"
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -16,9 +18,12 @@ i8 quantize(f32 v) { return static_cast<i8>(std::lround(std::clamp(v, -1.0f, 1.0
 } // namespace
 
 // 상자 수는 씬의 상자 생성 영역이 정한다. matchData(--match-data, 창 있는 게임은 --bodies)가 0이 아니면 그 수로 맞춘다 (성능 측정).
+// 표는 매치마다 파일에서 읽는다 (매치 단위 적재, docs/CODING_MODEL.md "에셋 참조와 적재").
 void Headless::startWorld(World& world, const game::MatchInfo& match, const Tuning& tuning,
                           const scene::Scene& flatScene, asset::ModelCache& models, u32 physicsThreads) {
-    world.reset(match.seed, match.playerCount, match.matchData, tuning, flatScene, models, physicsThreads);
+    sim::Table<PropKind> propKinds;
+    game::loadTable(propKinds);
+    world.reset(match.seed, match.playerCount, match.matchData, tuning, propKinds, flatScene, models, physicsThreads);
 }
 
 // 시뮬레이션 밖이라 삼각함수를 써도 된다 (결과 바이트만 입력으로 들어간다)

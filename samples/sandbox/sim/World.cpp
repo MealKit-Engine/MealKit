@@ -56,7 +56,15 @@ void loadScene(World& world, const scene::Scene& scene, mealkit::asset::ModelCac
             arena = true;
         } else if (e.is<PropSpawnArea>()) {
             const scene::Bounds b = scene::areaBounds(e);
-            world.propSpawns.push_back({b.min, b.max, scene::readObject<PropSpawnArea>(e).count});
+            const PropSpawnArea def = scene::readObject<PropSpawnArea>(e);
+            u32 kind = world.propKinds.find(def.kind.id); // 행 이름 → 번호 (불러올 때 한 번)
+            if (kind == mealkit::kNoRow) {
+                MEALKIT_WARN("%s: box kind '%s' is not in tables/props.table - using the first row", e.name.c_str(),
+                             def.kind.id.c_str());
+                kind = 0;
+            }
+            if (world.propKinds.size() == 0) continue; // 상자 종류가 없으면 상자도 없다
+            world.propSpawns.push_back({b.min, b.max, def.count, kind});
         }
     }
     if (!arena) { // 경기 영역이 없는 씬 (엔진 기본 아레나 등): 예전 sandbox 값으로 돈다
@@ -83,10 +91,12 @@ void overridePropCount(std::vector<World::PropSpawn>& spawns, u32 total) {
 
 } // namespace
 
-void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuningValue, const scene::Scene& scene,
+void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuningValue,
+                  const mealkit::sim::Table<PropKind>& propKindTable, const scene::Scene& scene,
                   mealkit::asset::ModelCache& models, u32 physicsThreads) {
     physics.init(16384, physicsThreads);
     tuning = tuningValue;
+    propKinds = propKindTable;
     physics.setGravity(tuning.gravity);
     spawns.clear();
     propSpawns.clear();

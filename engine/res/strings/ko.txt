@@ -191,6 +191,28 @@ The game declares no items (%s). = 게임이 선언한 항목이 없습니다 (%
 The simulation state (values declared with MEALKIT_FIELD) appears during play. = 플레이 중에 시뮬레이션 상태(MEALKIT_FIELD로 선언한 값)가 나옵니다.
 %s (read-only) = %s (읽기 전용)
 
+# ---- 정의 데이터 표 ([표] 패널)
+Tables = 표
+Tables saved for play: %s = 플레이 전에 표를 저장했습니다: %s
+(none) = (없음)
+'%s' is not a row of the %s table = '%s'은(는) %s 표에 없는 행입니다
+No file yet - it is created when you save = 아직 파일이 없습니다 - 저장하면 만들어집니다
+Could not read %s = %s을(를) 읽지 못했습니다
+Could not save %s = %s을(를) 저장하지 못했습니다
+Saved %s = 저장됨: %s
+Tables appear when the game code is loaded (MEALKIT_TABLE). = 게임 코드를 불러오면 표가 나옵니다 (MEALKIT_TABLE).
+Waiting for the game code (values are kept). = 게임 코드를 기다리는 중입니다 (값은 보존 중).
+Add Row = 행 추가
+Import CSV... = CSV 가져오기...
+Imported %s (%zu rows) - save to write the table = %s을(를) 가져왔습니다 (%zu행) - 저장하면 표 파일에 씁니다
+Could not import: %s = 가져오지 못했습니다: %s
+Export CSV... = CSV 내보내기...
+Exported %s = 내보냄: %s
+Display table: saved changes apply while playing = 화면 전용 표: 저장하면 플레이 중에도 바로 적용됩니다
+Simulation table: used from the next play (content hash). Play saves it = 시뮬레이션 표: 다음 플레이부터 쓰입니다 (콘텐츠 해시). 플레이를 누르면 저장됩니다
+'%s' cannot be a row id (letters, digits, _ - . and unique in the table) = '%s'은(는) 행 id로 쓸 수 없습니다 (영문자·숫자·_ - . , 표 안에서 겹치지 않게)
+Missing row references: %zu = 없는 행 참조: %zu개
+
 # ---- 빌드·업그레이드
 Project Upgrade = 프로젝트 업그레이드
 This project's build files were made from the engine %s template (engine is now %s). = 이 프로젝트의 빌드 파일은 엔진 %s 템플릿으로 만들어졌습니다 (지금 엔진 %s).

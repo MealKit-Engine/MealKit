@@ -10,6 +10,7 @@
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
 #include "sim/Objects.h"
+#include "sim/Tables.h"
 #include "sim/Tuning.h"
 
 #include <vector>
@@ -139,7 +140,9 @@ struct World {
     // 모델이 있는 충돌 물체는 모델 정점의 볼록 껍질로 충돌한다.
     // 상자 수는 씬의 상자 생성 영역(PropSpawnArea.count)의 합. propOverride가 0이 아니면 그 수로 맞춘다(--bodies, 성능 측정).
     // Pool 용량은 매치 시작 때 정한다: 상자 = 상자 수, 컨트롤러 = 플레이어 + AI, Pawn = 컨트롤러 × 2.
-    void reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuning, const mealkit::scene::Scene& scene,
+    // propKinds: 상자 종류 표 (app/이 tables/props.table에서 읽어 넘긴다)
+    void reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuning,
+               const mealkit::sim::Table<PropKind>& propKinds, const mealkit::scene::Scene& scene,
                mealkit::asset::ModelCache& models, u32 physicsThreads = 0);
     // 매치 도중 튜닝을 바꾼다 (에디터 혼자 플레이 전용: 멀티플레이에서는 피어마다 달라지면 디싱크)
     void setTuning(const Tuning& value);
@@ -151,11 +154,13 @@ struct World {
     struct PropSpawn {
         Vec3 min, max; // 상자 생성 영역
         u32 count = 0;
+        u32 kind = 0; // propKinds의 행 번호
     };
     std::vector<Vec3> spawns;
     std::vector<PropSpawn> propSpawns;
     Vec3 arenaMin, arenaMax; // 경기 영역 (MatchArea): 가로·세로 = AI·상자 범위, 바닥 = 낙사, 위 = 상자 다시 떨어뜨리기
     Tuning tuning;
+    mealkit::sim::Table<PropKind> propKinds; // 상자 종류 (콘텐츠 해시에 들어가는 표)
 
     // 상태
     WorldState state;

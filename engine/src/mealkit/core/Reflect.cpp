@@ -119,6 +119,12 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
         return true;
     }
     case Kind::String: *static_cast<std::string*>(data) = text; return true;
+    case Kind::RowRef: { // 행 id (번호는 game::resolveRows가 채운다)
+        const RowRefView r = rowRefOf(data);
+        *r.id = text;
+        *r.index = kNoRow;
+        return true;
+    }
     case Kind::Ticks: { // 초
         f32 seconds = 0.0f;
         if (!parseFloats(s, &seconds, 1)) return false;
@@ -245,6 +251,10 @@ void diffValue(const ValueInfo& v, const void* a, const void* b, const std::stri
         if (*static_cast<const std::string*>(a) != *static_cast<const std::string*>(b))
             out.push_back(path + ": " + formatScalar(v, a) + " -> " + formatScalar(v, b));
         break;
+    case Kind::RowRef:
+        if (formatScalar(v, a) != formatScalar(v, b))
+            out.push_back(path + ": " + formatScalar(v, a) + " -> " + formatScalar(v, b));
+        break;
     default:
         if (std::memcmp(a, b, v.size) != 0)
             out.push_back(path + ": " + formatScalar(v, a) + " -> " + formatScalar(v, b));
@@ -265,6 +275,13 @@ void saveValue(const ValueInfo& v, const void* data, ByteWriter& w) {
         w.bytes(text.data(), text.size());
         break;
     }
+    case Kind::RowRef: {
+        const RowRefView r = rowRefOf(const_cast<void*>(data));
+        w.value(static_cast<u32>(r.id->size()));
+        w.bytes(r.id->data(), r.id->size());
+        w.value(*r.index);
+        break;
+    }
     default: w.bytes(data, v.size); break;
     }
 }
@@ -283,6 +300,13 @@ bool loadValue(const ValueInfo& v, void* data, ByteReader& r) {
         std::string& text = *static_cast<std::string*>(data);
         text.resize(size);
         return r.bytes(text.data(), size);
+    }
+    case Kind::RowRef: {
+        const RowRefView ref = rowRefOf(data);
+        u32 size = 0;
+        if (!r.value(size)) return false;
+        ref.id->resize(size);
+        return r.bytes(ref.id->data(), size) && r.value(*ref.index);
     }
     default: return r.bytes(data, v.size);
     }
@@ -313,6 +337,12 @@ void hashValue(const ValueInfo& v, const void* data, Hasher& h, u32 skipFlags) {
         const std::string& text = *static_cast<const std::string*>(data);
         h.add(static_cast<u64>(text.size()));
         h.bytes(text.data(), text.size());
+        break;
+    }
+    case Kind::RowRef: { // id가 정체성이다 (행 번호는 같은 표에서 저절로 같다)
+        const std::string& id = *rowRefOf(const_cast<void*>(data)).id;
+        h.add(static_cast<u64>(id.size()));
+        h.bytes(id.data(), id.size());
         break;
     }
     default: h.bytes(data, v.size); break; // 스칼라·Vec3·Quat·Id는 패딩이 없다
@@ -354,6 +384,7 @@ std::string formatScalar(const ValueInfo& v, const void* data) {
         break;
     }
     case Kind::String: return *static_cast<const std::string*>(data);
+    case Kind::RowRef: return *rowRefOf(const_cast<void*>(data)).id;
     case Kind::Ticks: snprintf(text, sizeof(text), "%.6g", static_cast<const Ticks*>(data)->toSeconds()); break; // 다시 읽으면 같은 틱
     case Kind::Color: {
         const u32 c = static_cast<const Color*>(data)->value;
@@ -374,6 +405,16 @@ std::string formatScalar(const ValueInfo& v, const void* data) {
 }
 
 void toText(const TypeInfo& type, const void* data, TextFields& out) { toTextStruct(type, data, "", out); }
+
+RowRefView rowRefOf(void* data) {
+    auto* r = static_cast<RowRef<int>*>(data); // 행 타입과 무관하게 배치가 같다 (id, index)
+    return {&r->id, &r->index};
+}
+
+bool resolvePath(const TypeInfo& type, void* data, const std::string& path, const ValueInfo*& outValue,
+                 void*& outData) {
+    return resolve(type, data, path.c_str(), outValue, outData);
+}
 
 bool setFromText(const TypeInfo& type, void* data, const std::string& path, const std::string& text) {
     const ValueInfo* v = nullptr;

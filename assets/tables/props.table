@@ -1,0 +1,31 @@
+# MealKit table (PropKind). Edit it in the editor's [Tables] panel or import a CSV there.
+
+row crate
+sizeMin 0.280000001
+sizeMax 0.639999986
+stretchMin 0.800000012
+stretchMax 1.20000005
+density 200
+minMass 5
+friction 0.600000024
+restitution 0.150000006
+
+row heavy
+sizeMin 0.5
+sizeMax 0.899999976
+stretchMin 0.899999976
+stretchMax 1.10000002
+density 600
+minMass 40
+friction 0.800000012
+restitution 0.0500000007
+
+row bouncy
+sizeMin 0.200000003
+sizeMax 0.400000006
+stretchMin 1
+stretchMax 1
+density 80
+minMass 2
+friction 0.300000012
+restitution 0.800000012

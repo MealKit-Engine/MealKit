@@ -3,6 +3,28 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.8 — 1단계 진행 중 (2026-10-18)
+
+### [x] 정의 데이터 표 (`.table`) (완료 2026-10-18)
+- **왜**: 무기·아이템·적 종류처럼 같은 모양의 행이 여러 개인 데이터를 둘 곳이 없었다(튜닝은 구조체 하나). 4단계 모듈(인벤토리·스킬)·로드아웃·소리 이벤트가 이 위에 놓인다.
+- **선언** (`core/Reflect.h`, `kApiVersion` 10): 행 타입은 `MEALKIT_STRUCT`, `MEALKIT_TABLE(PropKind, "tables/props.table", flags)`로 등록한다(`reflect::moduleTables()`, `MEALKIT_OBJECT`와 같은 방식, 게임 DLL은 `GameModule::tables`로 넘긴다).
+  `flags`의 `reflect::kTableView`는 화면 전용 표(콘텐츠 해시 밖, 플레이 중 바로 적용 — 쓰는 곳은 오디오·연출 항목).
+- **행 참조** `RowRef<Row>` (필드 종류 `Kind::RowRef`): 파일·에디터에는 행 이름 id, 불러온 뒤 행 번호. 해시·비교는 id로, 스냅샷은 id와 번호를 같이. 문자열이 들어 있어 `hasStringField`가 참이다 — 시뮬레이션 상태에는 넣지 않고 번호(u32)를 둔다.
+- **파일** (`game/Tables.h`·`.cpp`, 엔진 코어): `row <id>` 다음 줄들이 그 행의 "경로 값"(튜닝과 같은 경로 규칙, 중첩·배열 포함). 행 순서 = 파일 순서 = 행 번호. id는 영문자·숫자·`_ - .`, 표 안에서 겹치면 뒤 행을 버리고 경고.
+  - 형식을 아는 쪽: `sim::Table<Row>`(`mealkit/sim/Table.h`: ids + rows, `operator[]`, `get(RowRef)`, `find(id)`)과 `game::loadTable(table)`(등록한 경로).
+  - 형식을 모르는 쪽(에디터·해시): `game::TableData`(행마다 `reflect::Instance`), `readTableText`/`writeTableText`, `loadTableData`/`saveTableData`.
+  - 참조 풀기: `game::resolveRows(data, {game::tableIndex(table), ...}, &missing)` — 구조체·배열 안의 모든 `RowRef`, 없는 id는 "경로 -> id (행 타입)" 줄. 행 타입은 포인터와 이름으로 찾는다(DLL을 바꿔 끼운 뒤에도).
+  - CSV(`exportTableCsv`/`importTableCsv`): 첫 줄 `id` + 필드 경로, RFC 4180(따옴표 안 쉼표·줄바꿈, `""`), Excel의 BOM, 열 순서 무관·모르는 열 무시. 가져오기는 표를 CSV 내용으로 바꾸는 한쪽 방향(저장해야 파일에 쓴다).
+  - 콘텐츠 해시: `contentHash(..., tables)`가 시뮬레이션 표의 id와 행 값(`MEALKIT_VIEW_FIELD` 제외)을 넣는다(`game::hashTables`). 출시 exe·헤드리스는 `reflect::moduleTables()`, 에디터는 `GameModule::tables`.
+- **에디터 [표] 패널** (`editor/TablesPanel.*`, [보기] > [표], `Ctrl+T`, `--tables`): 표 고르기, 저장·다시 읽기, 행 추가·복제·삭제·위아래, id 칸(Enter·다른 곳을 누르면 적용, 규칙 검사), 칸마다 필드 위젯(머리글은 필드 설명),
+  CSV 가져오기·내보내기(파일 대화상자). 아래에 **없는 행 참조** 목록: 표끼리, 그리고 에디터가 0.5초마다 튜닝과 씬 물체 필드도 검사해 넣는다. 인스펙터·튜닝의 `RowRef` 필드는 드롭다운(없는 id는 빨간색 `(?)`).
+  플레이를 누르면 고친 표를 저장한다(게임은 매치를 시작할 때 파일을 읽는다). 표 값은 DLL 타입이라 DLL을 내릴 때 텍스트로 보존했다가 새 타입으로 다시 만든다.
+- **sandbox**: `sim/Tables.h`의 `PropKind`(크기·늘림 범위, 밀도, 최소 질량, 마찰, 반발) + `assets/tables/props.table`(`crate`, `heavy`, `bouncy`). 튜닝의 상자 값 8개는 표로 옮겼다.
+  `PropSpawnArea.kind`(`RowRef<PropKind>`, 기본 `crate`)가 종류를 고르고, `World::loadScene`이 `propKinds.find(id)`로 번호를 정한다(없으면 첫 행과 경고). `Headless::startWorld`가 매치마다 `game::loadTable`로 읽어 `World::reset`에 넘긴다.
+  `crate`가 예전 튜닝 값과 비트까지 같아 **상태 해시가 그대로**다(고정 입력 기록 901틱 `REPLAY ok`). 콘텐츠 해시가 바뀌어 기록을 다시 만들었다.
+- **검증**: 단위 테스트 `tables`(파일 왕복, 겹친·잘못된 id, CSV 왕복과 따옴표·줄바꿈·BOM·열 순서, 참조 풀기와 없는 id, 해시는 id로, 스냅샷), 에디터 캡처에서 [표] 패널과 인스펙터 드롭다운.
+- **남은 것**: 화면 전용 표를 플레이 중 다시 읽는 `LiveTable`은 첫 화면 전용 표(소리 이벤트, 오디오 항목)와 같이. 표 사이의 행 참조를 에디터에서 따라가기(누르면 그 행으로)는 나중에.
+
 ## v0.4.7 — 1단계 진행 중 (2026-10-18)
 
 ### [x] 예제(sandbox) 데이터 분리 정리 (완료 2026-10-18)
