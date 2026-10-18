@@ -22,11 +22,10 @@ void OrbitCamera::control(Window& window, const input::Actions& actions, const C
     if (actions.pressed("orbit")) orbiting = true;
     if (!actions.down("orbit") || !window.focused()) orbiting = false;
     window.setCursorCaptured(orbiting);
-    if (orbiting) {
-        const Vec2 look = actions.axis2("look"); // 마우스는 픽셀, 위가 +
-        yaw += look.x * t.orbitSensitivity;
-        pitch -= look.y * t.orbitSensitivity;
-    }
+    Vec2 look = actions.axis2("turn"); // 게임패드 스틱: 누르지 않고 바로 (rate = 초당 픽셀 환산)
+    if (orbiting) look += actions.axis2("look"); // 마우스는 픽셀, 위가 +
+    yaw += look.x * t.orbitSensitivity;
+    pitch -= look.y * t.orbitSensitivity;
     pitch = std::clamp(pitch, t.minPitch, t.maxPitch); // 튜닝을 바꾸면 범위 안으로 돌아온다
     distance -= actions.axis("zoom") * t.zoomStep;
     distance = std::clamp(distance, t.minDistance, t.maxDistance);

@@ -25,6 +25,7 @@
 #include "mealkit/input/Actions.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/online/Online.h"
+#include "mealkit/platform/Gamepad.h"
 #include "mealkit/platform/Paths.h"
 #include "mealkit/platform/System.h"
 #include "mealkit/platform/Window.h"
@@ -321,6 +322,7 @@ int main(int argc, char** argv) {
     input::Actions actions;
     actions.setUserFile(game::userFolder(project.settings) + "/" + input::kBindingsTable);
     actions.load();
+    Gamepads pads; // XInput: 연결되지 않은 슬롯은 1초에 한 번만 본다
 
     game::GameContext ctx{window, renderer, models, session, audio, feedback, actions};
     render::DrawList drawList;
@@ -381,7 +383,9 @@ int main(int argc, char** argv) {
         ctx.keyboardAllowed = ctx.mouseAllowed = window.focused();
         viewTuning.poll(now);
         ctx.viewTuningData = viewTuning.view();
-        actions.update(input, mealkit::input::PadState{}, ctx.keyboardAllowed, ctx.mouseAllowed, dt);
+        pads.update(dt);
+        actions.update(input, window.focused() ? pads.first() : mealkit::input::PadState{}, ctx.keyboardAllowed,
+                       ctx.mouseAllowed, dt);
         game.update(ctx, dt);
         audio.setMuted(opt.mute || !window.focused());
         audio.update(dt);

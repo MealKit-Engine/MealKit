@@ -291,7 +291,7 @@ Kind (Button, Axis, Axis2, Delta, Delta2) = 종류 (Button 버튼, Axis 축, Axi
 Name shown to players = 플레이어에게 보이는 이름
 Keys (Axis: negative positive, Axis2: up down left right) = 키 (Axis: 음수 양수, Axis2: 위 아래 왼쪽 오른쪽)
 Mouse (Left, Right, Middle, WheelUp, WheelDown, Wheel, Move, MoveX, MoveY) = 마우스 (Left, Right, Middle, WheelUp, WheelDown, Wheel, Move, MoveX, MoveY)
-Gamepad (A, B, X, Y, LeftStick, RightStick, DPad, LeftTrigger ...) = 게임패드 (A, B, X, Y, LeftStick, RightStick, DPad, LeftTrigger ...)
+Gamepad (A, B, X, Y, LeftStick, RightStick, DPad, LeftTrigger ..., -name is negative) = 게임패드 (A, B, X, Y, LeftStick, RightStick, DPad, LeftTrigger ..., -이름은 음수 쪽)
 Delta: amount per second from keys and sticks = 변화량: 키·스틱의 초당 양
 Stick and trigger dead zone (0 to 1) = 스틱·트리거 데드존 (0~1)
 

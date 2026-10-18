@@ -99,6 +99,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/net/Lockstep.cpp)
 set(MEALKIT_FRONT_SOURCES
     src/mealkit/platform/Input.h
+    src/mealkit/platform/Gamepad.h
     src/mealkit/platform/Window.h
     src/mealkit/platform/Process.h
     src/mealkit/platform/DynamicLibrary.h
@@ -125,6 +126,7 @@ if(WIN32)
         src/mealkit/platform/win32/System.cpp)
     list(APPEND MEALKIT_FRONT_SOURCES
         src/mealkit/platform/win32/DynamicLibrary.cpp
+        src/mealkit/platform/win32/Gamepad.cpp
         src/mealkit/platform/win32/FileDialog.cpp
         src/mealkit/platform/win32/Image.cpp
         src/mealkit/platform/win32/Process.cpp
@@ -209,7 +211,7 @@ else()
     target_link_libraries(${mealkit_core_target} PUBLIC Threads::Threads)
 endif()
 if(NOT MEALKIT_HEADLESS_ONLY)
-    target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid windowscodecs uuid dwmapi comdlg32)
+    target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid windowscodecs uuid dwmapi comdlg32 xinput)
 endif()
 
 # --- SimCheck: 게임 sim/ 폴더의 결정론 규칙 검사 (빌드 도구, mealkit_add_game이 게임 코드보다 먼저 실행한다) ---

@@ -3,6 +3,17 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.12 — 1단계 진행 중 (2026-10-18)
+
+### [x] 게임패드 (완료 2026-10-18)
+- **방식**: 플랫폼 계층 `mealkit::Gamepads`(`platform/Gamepad.h`, Windows는 `win32/Gamepad.cpp`의 XInput 1.4, `xinput` 링크): Xbox·XInput 호환 패드 4슬롯. 연결된 슬롯은 매 프레임, 연결되지 않은 슬롯은 1초에 한 번만 `XInputGetState`(빈 슬롯은 약 14 µs, `docs/DECISIONS.md` 2026-10-18). 연결·해제는 로그에.
+  스틱은 -1..1(y는 위가 +), 트리거 0..1, 버튼은 `input::pad::*` 비트로 `input::PadState`에 담는다. 데드존은 입력 액션 쪽(행마다 `deadzone`, 스틱은 원형).
+- **입력 액션의 바인딩 소스**: 엔진(출시 exe, 에디터 플레이, 참가 창)이 매 프레임 `first()`(연결된 첫 패드)를 `Actions::update`에 넘긴다. 창에 포커스가 없을 때(에디터는 게임 뷰가 키보드를 받지 않을 때)는 넘기지 않는다.
+  `pad` 열에 `-이름`은 음수 쪽: `pad DPadUp -DPadDown`처럼 버튼 둘로 축 하나. 트리거를 버튼으로 쓰면 0.5 이상이 눌림.
+- **sandbox**: `move` 왼쪽 스틱, `jump` A, `push` 오른쪽 트리거·X, 새 액션 `turn`(`Delta2`, 오른쪽 스틱, `rate 500` — 마우스 픽셀과 같은 단위라 `orbitSensitivity`를 같이 쓴다)은 누르지 않고 바로 카메라를 돌리고, 마우스 `look`은 오른쪽 버튼을 누르는 동안만. `zoom`에 십자 위아래.
+- **검증**: 단위 테스트 `input_actions`에 패드 데드존·`-이름`. 출시 exe 크기 변화 없음(시스템 DLL). **실제 패드로는 시험하지 않았다**(이 PC에 패드 없음) — 패드를 꽂으면 로그에 `Gamepad 0 connected`가 나온다.
+- **남은 것**: PlayStation·Switch 패드(Windows.Gaming.Input/RawInput), 진동, 여러 로컬 플레이어(지금은 첫 패드만). 다른 플랫폼은 5단계.
+
 ## v0.4.11 — 1단계 진행 중 (2026-10-18)
 
 ### [x] 입력 액션 매핑 (완료 2026-10-18)

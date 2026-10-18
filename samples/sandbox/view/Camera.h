@@ -18,7 +18,7 @@ struct OrbitCamera {
     bool orbiting = false;
     bool placed = false; // 처음 control()에서 튜닝의 시작 값으로 놓는다
 
-    // 매 프레임: 액션 orbit(누르는 동안 돌리기), look(돌리는 양), zoom(확대 양)
+    // 매 프레임: 액션 orbit(누르는 동안 look으로 돌리기), turn(바로 돌리기, 패드), zoom(확대 양)
     void control(mealkit::Window& window, const mealkit::input::Actions& actions, const CameraTuning& tuning);
     Vec3 forward() const; // 수평 앞 방향 (이동 입력을 월드 방향으로 바꿀 때)
     Vec3 eye(const Vec3& focus) const;

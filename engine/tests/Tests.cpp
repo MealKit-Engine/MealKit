@@ -354,7 +354,7 @@ TEST_CASE(input_actions) {
     TEST_CHECK(writeTextFile(dir + "/assets/input.bindings",
                              "row move\nkind Axis2\nkeys W S A D\npad LeftStick\n"
                              "row jump\nkeys Space\npad A\n"
-                             "row zoom\nkind Delta\nkeys Q E\nmouse Wheel\nrate 10\n"));
+                             "row zoom\nkind Delta\nkeys Q E\nmouse Wheel\npad DPadUp -DPadDown\nrate 10\n"));
     removeFile(dir + "/user.bindings");
     setProjectRoot(dir);
     input::Actions actions;
@@ -402,6 +402,9 @@ TEST_CASE(input_actions) {
     actions.update(in, pad, true, true, 0.1);
     TEST_CHECK(std::fabs(actions.axis2("move").x - 0.5f) < 1e-5f && actions.pressed("jump"));
     TEST_CHECK(actions.lastDevice() == input::Device::Gamepad);
+    pad.buttons = input::pad::DPadDown; // "-이름"은 음수 쪽
+    actions.update(in, pad, true, true, 0.5);
+    TEST_CHECK(std::fabs(actions.axis("zoom") + 5.0f) < 1e-5f);
     pad = {};
 
     // 플레이어가 바꾼 키: 사용자 파일에 바뀐 행만 저장하고, 다시 읽으면 프로젝트 값 위에 덮는다

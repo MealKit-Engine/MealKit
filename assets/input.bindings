@@ -22,12 +22,18 @@ mouse Right
 
 row look
 kind Delta2
-label Turn camera
+label Turn camera (mouse)
 mouse Move
+
+row turn
+kind Delta2
+label Turn camera (stick)
 pad RightStick
-rate 900
+rate 500
 
 row zoom
 kind Delta
 label Zoom
 mouse Wheel
+pad DPadUp -DPadDown
+rate 4

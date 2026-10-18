@@ -128,6 +128,7 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
 - [x] 오디오 (`mealkit/audio/`: miniaudio 위 소리 이벤트·컨테이너·목소리 관리·버스, `assets/sounds.table`, 에디터 [소리] 패널, 물리 충돌 이벤트). SDL3는 재 보고 쓰지 않음 — v0.4.9, 상세는 `docs/CHANGELOG.md`
 - [x] 이벤트 → 연출 표 (`assets/feedback.table`, `feedback::Player`: 소리·카메라 흔들림·화면 번쩍임·화면 정지, 에디터 [연출] 패널, `MEALKIT_ENUM`) — v0.4.10, 상세는 `docs/CHANGELOG.md`
 - [x] 입력 액션 매핑 (`mealkit/input/Actions.h`, 엔진 표 `assets/input.bindings`, `ctx.actions`, 플레이어가 바꾼 키는 사용자 폴더) — v0.4.11, 상세는 `docs/CHANGELOG.md`
+- [x] 게임패드 (`mealkit/platform/Gamepad.h`, Windows XInput, 빈 슬롯은 1초에 한 번, 입력 액션의 `pad` 바인딩) — v0.4.12, 상세는 `docs/CHANGELOG.md`. 실제 패드로는 시험하지 않았다
 
 ### [ ] 기준 샘플 (게임 대신 엔진을 검증하는 작은 예제)
 - **왜**: 이 저장소에서는 게임을 같이 만들지 않는다(`docs/DECISIONS.md`). 그러면 "실제로 쓰여서 맞는지"를 확인할 곳이 없어, 쓰는 곳 없는 기능과 쓰기 불편한 API가 쌓인다. 기준 샘플이 그 자리를 맡는다.
@@ -139,12 +140,6 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
   - 샘플을 만들다 엔진이 없어 막히면 샘플 쪽 우회 코드로 넘어가지 않고 그 항목을 당긴다(`docs/CODING_MODEL.md`의 단계 표시 규칙).
   - 모든 샘플이 `check.ps1`(빌드, `mp_test`, 화면 캡처)과 Export를 통과한다. 5단계부터는 각 플랫폼에서도.
 - **범위**: 샘플은 게임이 아니다. 아트·콘텐츠·밸런스는 기능을 보일 만큼만 넣는다.
-
-### [ ] 게임패드
-- **방식**: 플랫폼 계층의 게임패드. SDL3는 재 보고 쓰지 않기로 했으므로(`docs/DECISIONS.md` 2026-10-18) Windows는 XInput(Xbox·XInput 호환 패드). 입력 액션 매핑의 바인딩 소스로 추가. 스틱 데드존, 트리거.
-  빈 슬롯의 `XInputGetState`가 느리므로(슬롯당 약 14 µs) 연결되지 않은 슬롯은 1초에 한 번만 본다. PlayStation·Switch 패드는 Windows.Gaming.Input/RawInput로 필요할 때 더한다.
-- **결정론**: 이미 입력 단계에서 양자화하므로 영향 없음.
-- **비용**: 작음. 하루 이틀.
 
 ### [ ] 확정 명령 채널
 - **왜**: 락스텝으로 보내는 것은 틱당 플레이어 입력 8바이트(`kInputBytes`)뿐이다. 디버그 치트, 입력 지연 변경, 일시정지 투표, 매치 중 설정 변경처럼 **가끔 있고 크기가 제각각인 명령**을 보낼 길이 없어, 기능마다 다른 방법을 만들게 된다.
