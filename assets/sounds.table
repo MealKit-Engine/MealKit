@@ -1,0 +1,94 @@
+# MealKit table (SoundEvent). Edit it in the editor's [Tables] panel or import a CSV there.
+
+row hit
+clips sounds/hit_1.wav sounds/hit_2.wav sounds/hit_3.wav
+container random
+param speed
+paramMin 3
+paramMax 15
+volume 0.9
+volumeRandom 0.15
+pitchRandom 0.08
+volumeAtMin 0.2
+volumeAtMax 1
+pitchAtMin 1.15
+pitchAtMax 0.9
+minDistance 3
+maxDistance 45
+priority 30
+maxInstances 6
+steal quietest
+
+row push
+clips sounds/push.wav
+pitchRandom 0.05
+minDistance 4
+maxDistance 50
+priority 70
+maxInstances 4
+
+row jump
+clips sounds/jump.wav
+volume 0.6
+pitchRandom 0.06
+minDistance 3
+maxDistance 35
+priority 60
+maxInstances 4
+cooldown 0.05
+
+row bounce
+clips sounds/bounce.wav
+volume 0.8
+minDistance 4
+maxDistance 50
+priority 60
+maxInstances 3
+
+row spawn
+clips sounds/spawn.wav
+volume 0.7
+minDistance 4
+maxDistance 50
+priority 50
+maxInstances 4
+
+row fall
+clips sounds/fall.wav
+volume 0.7
+minDistance 6
+maxDistance 80
+priority 60
+maxInstances 3
+
+row music
+clips sounds/music_loop.wav
+volume 0.45
+spatial false
+bus music
+loop true
+stream true
+priority 100
+maxInstances 1
+steal none
+
+row ui_click
+clips sounds/ui_click.wav
+spatial false
+bus ui
+priority 90
+maxInstances 2
+
+row ui_confirm
+clips sounds/ui_confirm.wav
+spatial false
+bus ui
+priority 90
+maxInstances 2
+
+row ui_back
+clips sounds/ui_back.wav
+spatial false
+bus ui
+priority 90
+maxInstances 2

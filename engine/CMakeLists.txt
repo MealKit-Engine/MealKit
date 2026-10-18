@@ -103,6 +103,10 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/platform/FileDialog.h
     src/mealkit/platform/Image.h
     src/mealkit/online/Online.h
+    src/mealkit/audio/Audio.h
+    src/mealkit/audio/Audio.cpp
+    src/mealkit/audio/MiniaudioConfig.h
+    src/mealkit/audio/MiniaudioImpl.cpp
     src/mealkit/render/Renderer.cpp
     shaders/Forward.hlsl
     ${MEALKIT_SHADER_HEADERS})
@@ -164,6 +168,11 @@ target_include_directories(${mealkit_core_target} PUBLIC src)
 target_include_directories(${mealkit_core_target} SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf)
 if(NOT MEALKIT_HEADLESS_ONLY)
     target_include_directories(mealkit PRIVATE ${MEALKIT_SHADER_OUT})
+    # 소리: miniaudio + stb_vorbis (audio/Miniaudio.h). 외부 코드 구현 파일은 경고를 끈다
+    target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/miniaudio ${MEALKIT_THIRD_PARTY}/stb)
+    if(MSVC)
+        set_source_files_properties(src/mealkit/audio/MiniaudioImpl.cpp PROPERTIES COMPILE_OPTIONS "/W0")
+    endif()
 endif()
 
 target_compile_definitions(${mealkit_core_target} PUBLIC
@@ -273,6 +282,8 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/PlaySession.cpp
         src/mealkit/editor/TablesPanel.h
         src/mealkit/editor/TablesPanel.cpp
+        src/mealkit/editor/SoundPanel.h
+        src/mealkit/editor/SoundPanel.cpp
         src/mealkit/editor/Strings.h
         src/mealkit/editor/Strings.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit mealkit_imgui)

@@ -97,6 +97,7 @@ void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tun
     physics.init(16384, physicsThreads);
     tuning = tuningValue;
     propKinds = propKindTable;
+    physics.setContactEvents(tuning.impactSpeed, tuning.impactsPerTick); // 충돌 소리 (화면 알림)
     physics.setGravity(tuning.gravity);
     spawns.clear();
     propSpawns.clear();
@@ -140,6 +141,8 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
     controlPawns(*this);
     usePads(*this);
     physics.step(kTickDt, 2); // 30Hz 틱을 물리 2단계로 나눠 안정성을 높인다
+    for (const mealkit::physics::ContactEvent& c : physics.contacts()) // 센 것부터 (스레드 수와 무관한 순서)
+        events.push({EventKind::Impact, kNoPlayer, c.point, c.speed});
     removeFallenPawns(*this);
     recoverFallenProps(*this);
     sensePawns(*this);

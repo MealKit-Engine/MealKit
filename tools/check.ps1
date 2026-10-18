@@ -127,7 +127,7 @@ Invoke-Check "Committed replays (samples/*/replays)" {
 if (-not $Quick) {
     Invoke-Check "Shadow simulation + rewind" {
         param($log)
-        Run $log $game "--bot --seed 7 --exit-tick 900 --shadow --rewind-test --vsync 0 --size 640 360 --hash-log `"$out\window-hashes.txt`"" | Out-Null
+        Run $log $game "--bot --mute --seed 7 --exit-tick 900 --shadow --rewind-test --vsync 0 --size 640 360 --hash-log `"$out\window-hashes.txt`"" | Out-Null
         return (Has $log "^SHADOW ok") -and (Has $log "^REWIND ok")
     }
     Invoke-Check "Headless = window (900 tick hashes)" {
@@ -140,7 +140,7 @@ if (-not $Quick) {
     Invoke-Check "Game capture" {
         param($log)
         $png = Join-Path $out "game.png"
-        $code = Run $log $game "--bot --seed 7 --exit-tick 300 --capture `"$png`" 240"
+        $code = Run $log $game "--bot --mute --seed 7 --exit-tick 300 --capture `"$png`" 240"
         return $code -eq 0 -and (Test-Path $png)
     }
     Invoke-Check "Editor capture (edit mode)" {

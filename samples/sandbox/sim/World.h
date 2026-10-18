@@ -106,14 +106,14 @@ MEALKIT_STRUCT(Pad) {
 };
 
 // 시뮬레이션 → 화면 알림 (소리·효과용). sim/은 쓰기만 하고 읽지 않는다.
-enum class EventKind : u8 { Push, Bounce, Spawn, Fall };
+enum class EventKind : u8 { Push, Bounce, Spawn, Fall, Jump, Impact };
 inline constexpr u8 kNoPlayer = 0xFF;
 
 struct GameEvent {
     EventKind kind = EventKind::Push;
     u8 player = kNoPlayer; // 플레이어 슬롯 (AI면 kNoPlayer)
     Vec3 position;
-    f32 radius = 0.0f; // 게임 규칙상의 범위 (밀치기 범위). 효과 모양은 화면용 튜닝이 정한다
+    f32 value = 0.0f; // 밀치기: 범위(m), 충돌: 다가오던 속도(m/s). 효과 모양은 화면용 튜닝이 정한다
 };
 inline constexpr u32 kMaxEventsPerTick = 64;
 

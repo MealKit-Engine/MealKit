@@ -3,3 +3,5 @@
 *.glb binary
 *.png binary
 *.ico binary
+*.wav binary
+*.ogg binary

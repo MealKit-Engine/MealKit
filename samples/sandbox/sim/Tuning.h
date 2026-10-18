@@ -43,6 +43,9 @@ MEALKIT_STRUCT(Tuning) {
     MEALKIT_FIELD(mealkit::f32, solidFriction, 0.8f, "씬 충돌 물체 마찰");
     MEALKIT_FIELD(mealkit::f32, padBelow, 0.3f, "점프대 윗면 아래로 감지 (m)");
     MEALKIT_FIELD(mealkit::f32, padAbove, 0.4f, "점프대 윗면 위로 감지 (m)");
+    // 화면 알림 (소리·효과의 재료. 상태에는 들어가지 않는다)
+    MEALKIT_FIELD(mealkit::f32, impactSpeed, 3.0f, "충돌 이벤트를 내는 최소 속도 (m/s)");
+    MEALKIT_FIELD(mealkit::u32, impactsPerTick, 8, "틱당 충돌 이벤트 수 (센 것부터)");
 };
 
 } // namespace sandbox

@@ -22,6 +22,8 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     });
     m_input.clearLatches();
     m_effects = {};
+    ctx.audio.stop(m_music);
+    m_music = ctx.audio.play2D("music");
 }
 
 void GameSession::setTuning(const void* tuning) {
@@ -49,8 +51,10 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
         return pi;
     };
     auto onTick = [&](const World& world) {
-        for (const GameEvent& e : world.events)
+        for (const GameEvent& e : world.events) {
             m_effects.onEvent(e, m_viewTime, look.shockwave, world.tuning.pawnHalfHeight);
+            playEventSound(ctx.audio, e);
+        }
     };
     m_sim.update(session, dt, sample, onTick);
 }

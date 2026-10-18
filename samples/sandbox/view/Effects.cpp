@@ -15,12 +15,14 @@ constexpr f32 kTwoPi = 6.28318531f;
 void Effects::onEvent(const GameEvent& event, f64 now, const ShockwaveLook& look, f32 pawnHalfHeight) {
     const Vec3 feet = event.position - Vec3{0.0f, pawnHalfHeight - look.groundOffset, 0.0f};
     switch (event.kind) {
-    case EventKind::Push: shockwaves.push_back({feet, now, event.radius}); break; // 밀치기 범위
+    case EventKind::Push: shockwaves.push_back({feet, now, event.value}); break; // 밀치기 범위
     case EventKind::Bounce:
         shockwaves.push_back({event.position + Vec3{0.0f, look.groundOffset, 0.0f}, now, look.bounceRadius});
         break;
     case EventKind::Spawn: shockwaves.push_back({feet, now, look.spawnRadius}); break;
-    case EventKind::Fall: break;
+    case EventKind::Fall:
+    case EventKind::Jump:
+    case EventKind::Impact: break;
     }
 }
 

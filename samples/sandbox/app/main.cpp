@@ -14,6 +14,7 @@
 #include "app/Headless.h"
 
 #include "mealkit/asset/ModelCache.h"
+#include "mealkit/audio/Audio.h"
 #include "mealkit/core/Clock.h"
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Profile.h"
@@ -67,6 +68,7 @@ struct Options {
     u32 captureTick = 0;
     bool systemInfo = false; // CPU·GPU 정보만 출력하고 끝 (최소 사양 실기 측정 기록용)
     bool anyBuild = false;   // 호스트가 다른 빌드의 피어도 받는다 (컴파일러 비교 시험)
+    bool mute = false;       // 소리 끄기 (자동 시험에서 여러 창을 띄울 때)
     std::string hashLogPath;      // 틱별 해시 로그 (헤드리스와 비교)
     std::string recordInputsPath; // 확정된 입력 기록 (sandbox_headless --replay-inputs로 재생)
 };
@@ -97,6 +99,7 @@ void printUsage() {
                 "  --capture <png> <tick> save a screenshot after the given tick\n"
                 "  --system-info          print CPU/GPU capabilities and exit (exit code 2 if below minimum spec)\n"
                 "  --any-build            host: accept peers running a different build (compiler comparison tests)\n"
+                "  --mute                 start with sound off (automated tests)\n"
                 "  --hash-log <file>      write \"<tick> <hash>\" for every tick\n"
                 "  --record-inputs <file> save confirmed inputs and hashes (replay: --headless --replay-inputs)\n"
                 "  --headless --help      run without a window (headless options)\n");
@@ -149,6 +152,7 @@ bool parseArgs(int argc, char** argv, Options& o) {
             o.captureTick = static_cast<u32>(std::atoi(argv[++i]));
         } else if (a == "--system-info") o.systemInfo = true;
         else if (a == "--any-build") o.anyBuild = true;
+        else if (a == "--mute") o.mute = true;
         else if (a == "--hash-log" && next(v)) o.hashLogPath = v;
         else if (a == "--record-inputs" && next(v)) o.recordInputsPath = v;
         else if (a == "--help" || a == "-h") return false;
@@ -303,10 +307,14 @@ int main(int argc, char** argv) {
     FrameLimiter limiter;
     limiter.setTargetFps(opt.vsync ? 0.0 : opt.fpsCap);
 
+    // 소리: 기본 출력 장치 (없으면 소리 없이 돈다). 창이 포커스를 잃으면 음소거 (설정 항목에서 끌 수 있게 된다)
+    audio::Engine audio;
+    audio.init({project.settings.audioVoices, opt.mute});
+
     game::LiveTuning viewTuning; // assets/view.tuning: 파일이 바뀌면 다시 읽는다 (에디터에서 저장하면 바로 보인다)
     viewTuning.open(reflect::typeOf<sandbox::ViewTuning>());
 
-    game::GameContext ctx{window, renderer, models, session};
+    game::GameContext ctx{window, renderer, models, session, audio};
     render::DrawList drawList;
     f64 lastTime = nowSeconds();
     f64 titleTimer = 0.0, frameTimeSum = 0.0;
@@ -366,6 +374,8 @@ int main(int argc, char** argv) {
         viewTuning.poll(now);
         ctx.viewTuningData = viewTuning.view();
         game.update(ctx, dt);
+        audio.setMuted(opt.mute || !window.focused());
+        audio.update(dt);
         if (game.captureDue()) renderer.requestCapture(opt.capturePath.c_str());
         if (game.finished() && exitDeadline == 0.0) {
             std::printf("FINAL tick=%u hash=%016llx desync=%d\n", game.nextTick() - 1,
@@ -398,6 +408,7 @@ int main(int argc, char** argv) {
             render::FrameParams frame;
             drawList.clear();
             game.buildFrame(ctx, now, frame, drawList);
+            audio.setListener(frame.cameraPos, frame.cameraForward);
             if (renderer.beginFrame(frame)) {
                 drawList.submit(renderer);
                 renderer.endFrame();
@@ -431,11 +442,12 @@ int main(int argc, char** argv) {
             } else {
                 snprintf(title, sizeof(title),
                          "MealKit Sandbox | %.0f fps %.2f ms | sim %.2f ms/tick | tick %u | P%u of %u | rtt %.0f ms | "
-                         "net %.1f/%.1f KB/s | %u draws %u inst | %s%s",
+                         "net %.1f/%.1f KB/s | %u draws %u inst | audio %u+%u voices %.2f ms | %s%s",
                          1000.0 / avgMs, avgMs, simMs, game.nextTick(), session.localPlayer() + 1,
                          session.playerCount(), st.rttMs, st.sentBytesPerSec / 1024.0, st.recvBytesPerSec / 1024.0,
-                         renderer.stats().drawCalls, renderer.stats().instances,
-                         session.desynced() ? "DESYNC" : "in sync", renderer.vsync() ? " | vsync" : "");
+                         renderer.stats().drawCalls, renderer.stats().instances, audio.stats().realVoices,
+                         audio.stats().virtualVoices, audio.stats().updateMs, session.desynced() ? "DESYNC" : "in sync",
+                         renderer.vsync() ? " | vsync" : "");
             }
             window.setTitle(title);
             if (automated && (perfLogCounter++ % 8) == 7) MEALKIT_INFO("perf: %s", title + 15);
@@ -445,6 +457,7 @@ int main(int argc, char** argv) {
     }
 
     session.shutdown();
+    audio.shutdown();
     online.shutdown();
     renderer.shutdown();
     return exitCode;

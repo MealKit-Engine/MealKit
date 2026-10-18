@@ -1,0 +1,11 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+name miniaudio
+version 0.11.25
+license MIT-0
+licenseFile LICENSE
+source https://github.com/mackron/miniaudio
+usedIn engine (audio)
+inGame yes
+kept miniaudio.h
+why audio devices on every target platform (WASAPI, CoreAudio, ALSA/PulseAudio, AAudio, Web Audio), node graph, 3D attenuation, WAV decoding and streaming in one file. The engine's sound events, voice management and buses (mealkit/audio) are built on it. SDL3 was measured instead and not used (+1.6-1.9 MB exe, docs/DECISIONS.md 2026-10-18).

@@ -507,6 +507,46 @@ TEST_CASE(physics_snapshot) {
     std::printf("  physics snapshot: %zu bytes for 61 bodies\n", snap.byteSize());
 }
 
+// 접촉 이벤트: 물리 스레드 수가 달라도 같은 목록 (정렬 순서), 해시도 같다
+std::vector<physics::ContactEvent> runContacts(u32 threads, u64& hash) {
+    physics::PhysicsWorld w;
+    w.init(1024, threads);
+    w.setGravity({0.0f, -20.0f, 0.0f});
+    w.setContactEvents(1.0f, 16);
+    physics::BodyDesc ground;
+    ground.motion = physics::Motion::Static;
+    ground.position = {0.0f, -0.5f, 0.0f};
+    w.createBox({20.0f, 0.5f, 20.0f}, ground);
+    Pcg32 rng(11);
+    for (int i = 0; i < 200; ++i) {
+        physics::BodyDesc d;
+        d.position = {rng.range(-4.0f, 4.0f), rng.range(1.0f, 12.0f), rng.range(-4.0f, 4.0f)};
+        w.createBox({0.25f, 0.25f, 0.25f}, d);
+    }
+    std::vector<physics::ContactEvent> all;
+    for (int t = 0; t < 60; ++t) {
+        w.step(1.0f / 30.0f, 2);
+        TEST_CHECK(w.contacts().size() <= 16);
+        for (size_t i = 1; i < w.contacts().size(); ++i) TEST_CHECK(w.contacts()[i - 1].speed >= w.contacts()[i].speed);
+        all.insert(all.end(), w.contacts().begin(), w.contacts().end());
+    }
+    Hasher h;
+    w.hashState(h);
+    hash = h.value;
+    return all;
+}
+
+TEST_CASE(physics_contact_events) {
+    u64 hashOne = 0, hashFour = 0;
+    const std::vector<physics::ContactEvent> one = runContacts(1, hashOne);
+    const std::vector<physics::ContactEvent> four = runContacts(4, hashFour);
+    TEST_CHECK(!one.empty() && one.size() == four.size() && hashOne == hashFour);
+    for (size_t i = 0; i < one.size() && i < four.size(); ++i)
+        TEST_CHECK(one[i].a == four[i].a && one[i].b == four[i].b && one[i].speed == four[i].speed &&
+                   one[i].point.x == four[i].point.x && one[i].point.y == four[i].point.y);
+    std::printf("  contact events: %zu in 60 ticks\n", one.size());
+}
+
 bool near(Vec3 a, Vec3 b) {
     return std::fabs(a.x - b.x) < 1e-4f && std::fabs(a.y - b.y) < 1e-4f && std::fabs(a.z - b.z) < 1e-4f;
 }

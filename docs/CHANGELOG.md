@@ -3,6 +3,34 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.9 — 1단계 진행 중 (2026-10-18)
+
+### [x] 오디오 (완료 2026-10-18)
+- **SDL3 평가 먼저** (플랫폼 계층에서 옮긴 일): 출시 exe와 같은 조건(정적 CRT, /O2, LTO)의 작은 exe로 쟀다. 기준 exe 140 KB.
+  SDL3 3.4.18 정적, 영상·렌더·GPU·카메라·센서 끔, 조이스틱·게임패드·햅틱·HIDAPI·오디오만: **2006 KB(+1866 KB)**, HIDAPI까지 꺼도 1728 KB(+1588 KB). 초기화 약 50 ms, 프레임당 폴링 약 3 µs.
+  miniaudio 0.11.25 엔진(WASAPI만, MP3·FLAC 끔): **437 KB(+297 KB)**. XInput 직접: +0 KB, 다만 빈 슬롯의 `XInputGetState`가 슬롯당 약 14 µs.
+  → SDL3는 exe 예산(5 MB)의 3분의 1을 패드 지원에 쓴다: **쓰지 않는다.** 소리는 miniaudio 자체 백엔드(플랫폼마다 그 플랫폼 백엔드), 게임패드는 플랫폼 계층의 XInput(`docs/DECISIONS.md` 2026-10-18).
+- **외부 라이브러리**: `third_party/miniaudio`(0.11.25, MIT-0, `miniaudio.h`), `third_party/stb`(2c980bb: `stb_vorbis.c` v1.22, `stb_truetype.h` v1.26, `stb_image.h` v2.30, MIT). 둘 다 `mealkit.txt` + `gen_notices.ps1`.
+  구현은 `audio/MiniaudioImpl.cpp` 하나(경고 끔), 설정은 `audio/MiniaudioConfig.h`(WAV + Ogg Vorbis 디코더, MP3·FLAC·인코딩·생성기 없음, 백엔드는 플랫폼마다 하나). 이름을 `Miniaudio.h`로 했더니 Windows에서 `miniaudio.h`와 같은 파일로 잡혀 이름을 바꿨다.
+- **`audio::Engine`** (`mealkit/audio/Audio.h`, 화면 쪽 라이브러리, 헤드리스에는 없다, `GameContext::audio`, `kApiVersion` 11):
+  `play(이벤트, 위치, {{"speed", 6}})`·`play2D` → `Handle`, `setParam`, `setPosition`, `stop(handle, 페이드)`, `stopAll`, `setGlobalParam`, `setListener`(엔진이 프레임마다 `FrameParams::cameraPos`·`cameraForward`로), `setBusVolume`, `setMuted`, `update(dt)`.
+  장치가 없으면 `init`이 false이고 모든 호출이 아무 일도 하지 않는다(게임은 소리 없이 돈다).
+- **소리 이벤트 표** `assets/sounds.table`(엔진 행 타입 `audio::SoundEvent`, 엔진이 등록하는 화면 전용 표 `audio::engineTables()`): 클립(공백으로 나눈 assets 경로), 컨테이너(`random` 직전 클립 반복 안 함 / `switch` 파라미터 값의 정수 / `blend` 파라미터로 이웃한 두 클립 크로스페이드, 최대 4),
+  무작위 볼륨·피치(±비율), 파라미터 곡선(파라미터 범위 → 볼륨·피치·로우패스 시작·끝 값, 선형), 3D 여부·감쇠(최소·최대 거리, 선형), 버스, 루프, 스트리밍, 우선순위, 동시 재생 상한과 넘칠 때(`oldest`/`quietest`/`none`), 쿨다운(초).
+  0.25초마다 파일 시각을 보고 바뀌면 다시 읽는다(재생 중인 소리는 이름으로 새 행을 찾는다) — **플레이 중에 고치면 바로 들린다.** 에디터 [표] 패널에서 화면 전용 표를 고치면 0.3초에 한 번까지 저장한다.
+- **목소리 관리** (엔진이 맡는다): 실제로 섞는 수 상한 = 프로젝트 설정 `audioVoices`(기본 32). 매 프레임 우선순위 × 들리는 크기(볼륨 × 거리 감쇠)로 고르고, 넘치거나 들리지 않는 루프는 **가상 목소리**(믹싱하지 않고 재생 위치만 센다, 다시 들리면 그 위치에서 이어 낸다), 짧은 소리는 끊는다.
+  **같은 프레임 묶기**: 시작은 `update()`에서 한 번에 — 같은 이벤트가 여러 번이면 세기(곡선 파라미터, 없으면 볼륨) 큰 순으로 상한만큼. 끊긴 소리는 이유와 함께 64개까지 기록한다.
+  효과음은 표를 읽을 때 메모리에 풀어 두고(원본 `ma_sound`를 복사해 재생), 스트리밍 클립은 재생할 때 연다. 엔진은 스테레오로 섞는다(장치가 7.1이어도).
+- **버스**: master → music / sfx / ui / voice(표에 다른 이름이 오면 프로젝트 버스로 만든다). 버스마다 레벨 미터 노드(오디오 스레드가 최댓값을 원자 변수에 적는다). 출시 exe는 창이 포커스를 잃으면 음소거(설정 화면에서 끌 수 있게 된다), `--mute`로 끈 채 시작(자동 시험).
+- **에디터 [소리] 패널** (`editor/SoundPanel.*`, [보기] > [소리], `--sounds`): 이벤트 미리듣기와 파라미터 슬라이더, 버스 볼륨·레벨, 실제·가상 목소리 목록(들리는 크기·거리), 끊긴 소리와 이유. 에디터가 오디오 엔진 하나를 만들어 플레이와 미리듣기가 같이 쓴다. 플레이를 멈추면 모든 소리를 끈다. 참가 창은 같은 PC라 소리를 끈 채로 연다.
+- **물리 충돌 이벤트** (`PhysicsWorld::setContactEvents(minSpeed, maxPerStep)`, `contacts()`): Jolt 접촉 리스너가 새로 닿은 쌍의 접근 속도를 모으고, `step()` 끝에서 세기 → 바디 번호 → 위치로 정렬해 상한만 남긴다 — **물리 스레드 수가 달라도 같다**(단위 테스트 `physics_contact_events`: 1스레드·4스레드 60틱 384개가 같고 상태 해시도 같다). 해시·스냅샷에는 들어가지 않는다.
+- **sandbox**: `sim/`이 충돌(`Impact`, 세기 = 다가오던 속도, 틱당 센 것 8개 — 튜닝 `impactSpeed`·`impactsPerTick`)과 점프(`Jump`) 이벤트를 더 남긴다. `GameEvent::radius`는 `value`(밀치기 범위 / 충돌 속도).
+  `view/Sounds.cpp`가 틱 이벤트를 소리 이벤트로(다음 항목 "이벤트 → 연출 표"에서 데이터로 옮긴다), `GameSession::start`가 배경음을 튼다. 소리는 `tools/make_sample_sounds.py`가 합성한다(충돌 3, 밀치기, 점프, 점프대, 스폰, 낙사, UI 셋, 16초 배경음 루프. CC0, 시드 고정).
+- **측정**: 상자 2000개가 떨어지는 처음 8초 동안 메인 스레드 오디오 시간 프레임당 0.06~0.15 ms, 동시 목소리 최대 7. 출시 exe 1611 KB → 2035 KB(+424 KB). 상태 해시는 그대로(고정 입력 기록 `REPLAY ok`).
+- **바꾼 것**: 배경음은 Ogg 인코더가 이 PC에 없어(ffmpeg·oggenc 없음) **WAV 스트리밍**으로 시작했다. Ogg Vorbis 디코딩(stb_vorbis)은 빌드에 들어 있지만 `.ogg` 파일로 아직 시험하지 않았다 — 첫 `.ogg` 에셋이 생기면 확인한다.
+  레벨 미터는 버스마다(엔진 미터 노드), 같은 이벤트의 "스위치"는 문자열이 아니라 파라미터의 정수 값으로 고른다.
+- **남은 것**: 가림·잔향·더킹·인터랙티브 음악(4단계), 설정 화면의 버스 볼륨(설정 항목), UI 소리(게임 UI 항목). 다른 플랫폼 백엔드는 5단계.
+
 ## v0.4.8 — 1단계 진행 중 (2026-10-18)
 
 ### [x] 정의 데이터 표 (`.table`) (완료 2026-10-18)

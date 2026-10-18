@@ -59,6 +59,8 @@
 | 2026-10-18 | **소리 이벤트 표는 `assets/sounds.table`, Penpot 원본은 `art/ui/`** (폴더 구조 강제 때 정함. ROADMAP의 `assets/audio/sounds.table`, `design/`을 바꿈) | `assets/` 바로 밑은 종류 폴더와 정해진 단일 파일만 두기로 했는데 `audio/`는 종류 폴더 목록에 없다. 이벤트 표는 `feedback.table`처럼 프로젝트에 하나뿐이라 정해진 단일 파일로 둔다. 외부 도구 원본은 모두 `art/` 한 곳(CODING_MODEL)이라 Penpot 백업도 그 아래 |
 | 2026-10-18 | **폴더 규칙은 `tools\check_layout.ps1` 한 곳, 에디터도 그 스크립트를 실행한다** | check.ps1·Export·에디터가 같은 규칙을 써야 하는데 C++과 PowerShell 두 곳에 두면 어긋난다. 에디터는 프로젝트를 열 때 백그라운드 프로세스로 돌려 결과 줄만 읽는다(Windows 에디터 전용이라 PowerShell이 늘 있다). 5단계 다른 OS 에디터에서는 pwsh로 같은 스크립트를 돌린다 |
 | 2026-10-18 | **맵마다 다른 범위·높이는 영역 물체(`kObjectArea`)의 상자 자체로, `sim/` 실수 리터럴은 SimCheck 경고(SIM012, `// const-ok:`로 허용)** (ROADMAP 예제 정리의 "씬 환경 필드"·"도입 때 정한다"를 정함) | 낙사 높이·AI 범위·생성 영역을 숫자 필드로 두면 에디터에서 보이지 않는다. 영역을 상자로 놓으면 바닥·위·가로세로가 곧 값이고 기즈모로 고친다. 게임별 씬 환경 구조체(새 장치)는 만들지 않았다. 리터럴 검사는 오류로 하면 알고리즘 상수마다 예외를 달아야 하므로 경고로 두고, 남길 상수는 이유를 줄 끝에 쓰게 한다 |
+| 2026-10-18 | **SDL3는 쓰지 않는다: 소리는 miniaudio 자체 백엔드, 게임패드는 플랫폼 계층(Windows XInput)** (2026-10-18 "SDL3 평가를 오디오·게임패드 항목으로"의 결론) | 출시 exe와 같은 조건으로 쟀다: SDL3 3.4.18 정적(영상 끔, 게임패드·HIDAPI·오디오만) +1866 KB, HIDAPI 없이 +1588 KB — 5 MB 예산의 3분의 1이 패드 지원이다. miniaudio는 +297 KB로 모든 대상 플랫폼 장치를 덮는다. 대신 PlayStation·Switch 패드는 바로 되지 않는다(XInput은 Xbox·호환 패드만). 필요해지면 Windows.Gaming.Input/RawInput을 플랫폼 계층에 더하고, 다른 플랫폼은 그 플랫폼 API로(5단계) |
+| 2026-10-18 | **예제 배경음은 WAV 스트리밍으로 시작** | 이 PC에 Ogg Vorbis 인코더가 없다(ffmpeg·oggenc 없음, 외부 패키지를 받지 않았다). 엔진은 Ogg Vorbis 디코딩(stb_vorbis)을 갖고 있으므로 `.ogg`가 생기면 표의 경로만 바꾼다. WAV 16초 모노 22 kHz는 700 KB로 에셋 크기 문제는 작다 |
 
 ## 보류 / 넣지 않을 것
 

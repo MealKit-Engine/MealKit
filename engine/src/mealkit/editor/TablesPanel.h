@@ -17,7 +17,7 @@ public:
     // 게임 DLL의 표 목록 (DLL을 내리기 전에 nullptr). 처음 받으면 파일에서 읽는다.
     void setTables(const reflect::TableList* tables);
     // 엔진이 등록한 표 (소리 이벤트 등). 게임 표와 같이 보인다.
-    void setEngineTables(const reflect::TableList& tables) { m_engineTables = tables; }
+    void setEngineTables(const reflect::TableList& tables);
 
     // owner: 파일 대화상자의 창 (Window::nativeHandle), open: 창의 닫기 버튼
     void draw(void* owner, bool editing, bool* open);

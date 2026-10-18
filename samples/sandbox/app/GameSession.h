@@ -6,6 +6,7 @@
 #include "view/Draw.h"
 #include "view/Effects.h"
 #include "view/LocalInput.h"
+#include "view/Sounds.h"
 #include "view/ViewTuning.h"
 
 #include "mealkit/asset/ModelCache.h"
@@ -63,6 +64,7 @@ private:
     Vec3 m_focus{0.0f, 1.0f, 0.0f}; // 카메라가 따라가는 점 (내 Pawn이 없으면 마지막 위치)
     Effects m_effects;              // 틱 이벤트 → 화면 효과
     mealkit::f64 m_viewTime = 0.0;  // 화면 효과용 시계 (update의 dt 합)
+    mealkit::audio::Handle m_music; // 배경음 (매치 동안)
 };
 
 } // namespace sandbox

@@ -48,6 +48,7 @@ void OrbitCamera::apply(const Vec3& focus, render::Viewport viewport, const Came
     frame.viewProj =
         lookAtLH(from, focus, Vec3{0, 1, 0}) * perspectiveReversedZ(fovY, width / height, t.nearPlane, t.farPlane);
     frame.cameraPos = from;
+    frame.cameraForward = normalize(focus - from); // 소리 리스너 방향
 }
 
 } // namespace sandbox

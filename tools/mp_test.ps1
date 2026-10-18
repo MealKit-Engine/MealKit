@@ -36,7 +36,7 @@ $logDir = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent 
 New-Item -ItemType Directory -Force $logDir | Out-Null
 
 $players = $Clients + 1
-$common = "--bot --vsync 0 --fps 120 --size 640 360 --exit-tick $Ticks"
+$common = "--bot --mute --vsync 0 --fps 120 --size 640 360 --exit-tick $Ticks"
 if ($Headless) { $common = "--headless $common" }
 if ($Scene -ne "") { $common += " --scene `"$((Resolve-Path $Scene).Path)`"" }
 if ($Tuning -ne "") { $common += " --tuning `"$((Resolve-Path $Tuning).Path)`"" }

@@ -43,6 +43,11 @@ void TablesPanel::setTables(const reflect::TableList* tables) {
     syncDocs(infos);
 }
 
+void TablesPanel::setEngineTables(const reflect::TableList& tables) {
+    m_engineTables = tables;
+    if (m_docs.empty()) syncDocs(m_engineTables); // 게임 코드를 불러오기 전에도 엔진 표는 보인다
+}
+
 void TablesPanel::syncDocs(const std::vector<reflect::TableInfo>& infos) {
     std::vector<Doc> next;
     for (const reflect::TableInfo& info : infos) {
@@ -285,7 +290,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         for (const std::string& c : doc.columns) {
             // 열 이름: 맨 위 필드면 그 설명 (게임이 선언한 글자), 안쪽 경로(a.b, a[1])는 경로 그대로. CSV 열 이름은 경로다
             const reflect::FieldInfo* field = t.rowType->field(c.c_str());
-            ImGui::TableSetupColumn(field ? field->label : c.c_str(), ImGuiTableColumnFlags_WidthFixed, 110.0f);
+            ImGui::TableSetupColumn(field ? trData(field->label) : c.c_str(), ImGuiTableColumnFlags_WidthFixed, 110.0f);
         }
         ImGui::TableHeadersRow();
         ImGuiListClipper clipper;
