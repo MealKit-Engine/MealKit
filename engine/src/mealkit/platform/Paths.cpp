@@ -1,9 +1,8 @@
+// 파일·폴더 중 std::filesystem으로 되는 부분 (모든 플랫폼 공통). OS 호출은 win32/Paths.cpp, posix/Paths.cpp.
 #include "mealkit/platform/Paths.h"
 
-#include <cstdio>
 #include <filesystem>
 #include <system_error>
-#include <windows.h>
 
 namespace mealkit {
 namespace fs = std::filesystem;
@@ -23,12 +22,6 @@ std::string& projectRootStorage() {
 
 void setProjectRoot(const std::string& directory) { projectRootStorage() = directory; }
 const std::string& projectRoot() { return projectRootStorage(); }
-
-std::string executableDirectory() {
-    wchar_t buffer[MAX_PATH];
-    const DWORD len = GetModuleFileNameW(nullptr, buffer, MAX_PATH);
-    return toUtf8(fs::path(std::wstring(buffer, len)).parent_path());
-}
 
 std::string findAsset(const std::string& relative) {
     std::error_code ec;
@@ -65,8 +58,8 @@ std::string fileName(const std::string& path) { return toUtf8(fromUtf8(path).fil
 std::string parentDirectory(const std::string& path) { return toUtf8(fromUtf8(path).parent_path()); }
 
 bool readTextFile(const std::string& path, std::string& out) {
-    FILE* f = nullptr;
-    if (_wfopen_s(&f, fromUtf8(path).c_str(), L"rb") != 0 || !f) return false;
+    FILE* f = openFile(path, "rb");
+    if (!f) return false;
     out.clear();
     char buffer[16384];
     size_t n = 0;
@@ -74,22 +67,6 @@ bool readTextFile(const std::string& path, std::string& out) {
     const bool ok = !ferror(f);
     fclose(f);
     return ok;
-}
-
-bool writeTextFile(const std::string& path, const std::string& text) {
-    const fs::path target = fromUtf8(path);
-    fs::path temp = target;
-    temp += L".tmp";
-    FILE* f = nullptr;
-    if (_wfopen_s(&f, temp.c_str(), L"wb") != 0 || !f) return false;
-    bool ok = fwrite(text.data(), 1, text.size(), f) == text.size();
-    ok = fflush(f) == 0 && ok;
-    fclose(f);
-    if (!ok) {
-        DeleteFileW(temp.c_str());
-        return false;
-    }
-    return MoveFileExW(temp.c_str(), target.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH) != 0;
 }
 
 bool createDirectories(const std::string& path) {
@@ -101,13 +78,6 @@ bool createDirectories(const std::string& path) {
 bool removeFile(const std::string& path) {
     std::error_code ec;
     return fs::remove(fromUtf8(path), ec);
-}
-
-unsigned long long fileWriteTime(const std::string& path) {
-    WIN32_FILE_ATTRIBUTE_DATA data{};
-    if (!GetFileAttributesExW(fromUtf8(path).c_str(), GetFileExInfoStandard, &data)) return 0;
-    return (static_cast<unsigned long long>(data.ftLastWriteTime.dwHighDateTime) << 32) |
-           data.ftLastWriteTime.dwLowDateTime;
 }
 
 } // namespace mealkit

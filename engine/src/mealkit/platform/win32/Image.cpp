@@ -1,11 +1,11 @@
-#include "mealkit/editor/Image.h"
+#include "mealkit/platform/Image.h"
 
 #include "mealkit/core/Log.h"
 
 #include <windows.h>
 #include <wincodec.h>
 
-namespace mealkit::editor {
+namespace mealkit {
 namespace {
 
 std::wstring widen(const std::string& s) {
@@ -136,4 +136,4 @@ bool savePng(const std::string& path, const Image& image) {
            SUCCEEDED(frame->Commit()) && SUCCEEDED(encoder->Commit());
 }
 
-} // namespace mealkit::editor
+} // namespace mealkit

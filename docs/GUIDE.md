@@ -235,7 +235,9 @@ MSVC 빌드 호스트에 clang-cl 빌드 클라이언트를 붙여 **컴파일�
 engine/
   shaders/Forward.hlsl       인스턴스 변환 + 정점 색 + 하프 램버트 + 반구 환경광 + 안개 + 선택 강조
   src/mealkit/core/            Types, Log, Clock, Math, Random, Hash, Profile
-  src/mealkit/platform/        Window, Input, Paths, Process, System
+  src/mealkit/platform/        Window, Input, Paths, Process, System, DynamicLibrary, FileDialog, Image (헤더 + 공통 부분)
+  src/mealkit/platform/win32/  OS를 부르는 Windows 구현 (Win32, Winsock, WIC, 대화상자)
+  src/mealkit/platform/posix/  헤드리스용 Linux·macOS 최소 구현 (시간, 파일, UDP, 로그)
   src/mealkit/online/          Online (계정·로비·초대·릴레이): Steam 백엔드, SDK 없을 때의 None 백엔드
   src/mealkit/render/          Renderer, Mesh, DrawList
   src/mealkit/physics/         PhysicsWorld (Jolt)

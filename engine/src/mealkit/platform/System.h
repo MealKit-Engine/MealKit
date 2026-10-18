@@ -1,10 +1,25 @@
 #pragma once
 
+#include "mealkit/core/Types.h"
+
 #include <string>
 
 namespace mealkit {
 
 // CPU 이름 (예: "Intel(R) Core(TM) i5-1135G7 @ 2.40GHz"). 다른 PC 결정론 기록용. 모르면 빈 문자열.
 std::string cpuName();
+
+// 디버거 출력 창에 한 줄 (Windows OutputDebugString). 없는 플랫폼에서는 아무것도 하지 않는다.
+void debugOutput(const char* text);
+bool debuggerAttached();
+void debugBreak();
+
+// 치명적 오류 대화상자 (창이 없는 플랫폼·헤드리스에서는 아무것도 하지 않는다. 로그는 이미 남았다).
+void showErrorDialog(const char* title, const char* message);
+
+// 정리 없이 바로 끝낸다 (치명적 오류). 표준 출력은 미리 비워 둔다.
+[[noreturn]] void exitProcess(int code);
+
+u32 processId();
 
 } // namespace mealkit

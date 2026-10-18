@@ -5,6 +5,24 @@
 
 ## v0.4.3 — 1단계 진행 중 (2026-10-16)
 
+### [x] 플랫폼 계층 (`mealkit/platform/`) (완료 2026-10-18)
+SDL3 평가(창·입력·게임패드·오디오 장치)는 하지 않고 1단계 "오디오" 항목의 첫 일로 옮겼다(ROADMAP 결정 기록 2026-10-18). 창·입력은 Win32 그대로다.
+- **규칙**: 헤더는 기능 자리에 그대로 두고(게임 코드의 include가 바뀌지 않는다), OS API를 부르는 구현 `.cpp`만 `platform/win32/`·`platform/posix/`로 옮겼다. CMake가 `WIN32`로 하나를 고른다.
+  **옮긴 것**: `core/Clock.cpp` → `win32/Clock.cpp`, `net/Socket.cpp`의 소켓 부분 → `win32/Socket.cpp`(주소 표시는 `net/Socket.cpp`에 남김),
+  `platform/Paths.cpp`는 std::filesystem 부분(`platform/Paths.cpp`)과 OS 부분(`win32/Paths.cpp`)으로 나눔, `Process.cpp`·`Window.cpp` → `win32/`, `editor/Image.*` → `platform/Image.h` + `win32/Image.cpp`(WIC, `namespace mealkit`).
+- **새 인터페이스**: `Paths.h`에 `openFile`(UTF-8 경로 fopen), `fileCreationTime`, `formatFileTime`, `userDataDirectory`(%LOCALAPPDATA% / XDG / Application Support), `documentsDirectory`.
+  `System.h`에 `debugOutput`, `debuggerAttached`, `debugBreak`, `showErrorDialog`, `exitProcess`, `processId`. 새 헤더 `DynamicLibrary.h`(게임 DLL), `FileDialog.h`(`openFileDialog`·`saveFileDialog`·`pickFolderDialog`).
+  에디터 전용(DLL·대화상자·그림)은 Windows 구현만 있다.
+- **바뀐 호출처**: `Log.cpp`(SRWLOCK → `std::mutex`, 대화상자·종료는 `System.h`), `Scene.cpp`·`ModelCache.cpp`(`openFile`), `GameModuleHost.cpp`(`DynamicLibrary`, `processId`, `fileWriteTime`),
+  `Project.cpp`(`userDataDirectory`), `ProjectManager.cpp`·`Editor.cpp`(파일 대화상자·파일 시각·문서 폴더를 platform으로, 각자 갖던 UTF-8↔UTF-16 변환 삭제). 프로젝트 아이콘 고르기는 공용 대화상자(`GetOpenFileName`)로 바뀌었다.
+- **POSIX 최소 구현** (`platform/posix/`): `Clock`(clock_gettime + nanosleep), `Socket`(BSD 소켓, 논블로킹), `Paths`(/proc/self/exe·_NSGetExecutablePath, fsync + rename 원자적 쓰기, 나노초 파일 시각),
+  `System`(대화상자 없음, `_Exit`). **이 PC에 Linux 도구가 없어 한 번도 컴파일하지 않았다** — 헤드리스·CI 항목에서 처음 빌드하며 고친다. 창·입력·DLL·대화상자·그림은 5단계.
+- **검사** `tools\check_platform.ps1`(check.ps1 "Platform layer" 단계): `engine/src/mealkit`(`platform/win32|posix` 밖)과 `samples/`에서 OS 헤더 include와 대표 Win32·POSIX 함수 호출을 찾는다(대소문자 구분).
+  예외는 RHI 전의 `render/Renderer.cpp`, `editor/ImGuiLayer.cpp` 두 개. 일부러 `<windows.h>`를 넣은 파일로 실패하는 것을 확인했다.
+- **검증**: Release·Editor·ClangCL 빌드, `check.ps1` 17개 통과. 에디터의 파일·폴더 대화상자는 직접 눌러 보지 않았다.
+  검증 중 "Editor keeps the old DLL on failure"가 두 번 실패했다: 이번 작업 중 `mealkit.dll`이 내보내기 변화 없이 다시 링크돼 게임 DLL보다 새것이 됐고, `olderThanEngine`(파일 시각 비교)이 멀쩡한 게임 DLL을 "엔진보다 오래됨"으로 봤다.
+  게임 DLL을 다시 링크한 뒤 통과. 이 판정 방식의 약점은 그대로 남아 있다(엔진 내부만 바뀌어도 생긴다).
+
 ### [x] Steam 실검증 (완료 처리 2026-10-18, 미검증)
 **실제 Steam 접속 시험은 하지 않았고, 사용자 결정으로 문제없이 통과한 것으로 가정하고 항목을 닫았다.** Steam 백엔드는 여전히 컴파일·링크만 확인된 상태다. 측정값은 없다.
 - **가정하고 넘긴 것 (실제로 하면 결과를 여기에 적는다)**: 두 계정으로 `--steam` → 초대 → `+connect_lobby` 참가 → 900틱 이상 디싱크 없음, 끊김·재시도·NAT 로그, 릴레이 RTT(입력 지연 100 ms 가정과 맞는지),

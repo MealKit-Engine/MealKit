@@ -2,28 +2,19 @@
 
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
+#include "mealkit/platform/Paths.h"
 
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <windows.h>
 
 namespace mealkit::scene {
 namespace {
 
 constexpr u32 rgba(u8 r, u8 g, u8 b, u8 a = 255) {
     return static_cast<u32>(r) | (static_cast<u32>(g) << 8) | (static_cast<u32>(b) << 16) | (static_cast<u32>(a) << 24);
-}
-
-FILE* openFile(const std::string& path, const wchar_t* mode) {
-    const int len = MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, nullptr, 0);
-    std::wstring wide(len > 0 ? len - 1 : 0, L'\0');
-    if (len > 1) MultiByteToWideChar(CP_UTF8, 0, path.c_str(), -1, wide.data(), len);
-    FILE* f = nullptr;
-    _wfopen_s(&f, wide.c_str(), mode);
-    return f;
 }
 
 bool readFloats(const char* text, f32* out, int count) {
@@ -144,7 +135,7 @@ u64 Scene::contentHash(const TypeList* gameTypes) const {
 }
 
 bool save(const Scene& scene, const std::string& path) {
-    FILE* f = openFile(path, L"wb");
+    FILE* f = openFile(path, "wb");
     if (!f) {
         MEALKIT_ERROR("Cannot write scene: %s", path.c_str());
         return false;
@@ -173,7 +164,7 @@ bool save(const Scene& scene, const std::string& path) {
 }
 
 bool load(Scene& out, const std::string& path, std::string* error) {
-    FILE* f = openFile(path, L"rb");
+    FILE* f = openFile(path, "rb");
     if (!f) {
         if (error) *error = "cannot open file";
         return false;

@@ -1,3 +1,4 @@
+// 시간의 Windows 구현: QueryPerformanceCounter, 고해상도 대기 타이머.
 #include "mealkit/core/Clock.h"
 
 #include <windows.h>

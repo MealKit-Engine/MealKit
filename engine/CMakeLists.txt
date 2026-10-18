@@ -47,7 +47,6 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/core/Log.h
     src/mealkit/core/Log.cpp
     src/mealkit/core/Clock.h
-    src/mealkit/core/Clock.cpp
     src/mealkit/core/Math.h
     src/mealkit/core/DetMath.h
     src/mealkit/core/Reflect.h
@@ -71,13 +70,14 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/physics/PhysicsWorld.cpp
     src/mealkit/platform/Input.h
     src/mealkit/platform/Window.h
-    src/mealkit/platform/Window.cpp
     src/mealkit/platform/Paths.h
     src/mealkit/platform/Paths.cpp
     src/mealkit/platform/Process.h
-    src/mealkit/platform/Process.cpp
     src/mealkit/platform/System.h
     src/mealkit/platform/System.cpp
+    src/mealkit/platform/DynamicLibrary.h
+    src/mealkit/platform/FileDialog.h
+    src/mealkit/platform/Image.h
     src/mealkit/online/Online.h
     src/mealkit/scene/Scene.h
     src/mealkit/scene/Scene.cpp
@@ -97,6 +97,27 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     ${MEALKIT_SHADER_HEADERS})
 
 set_source_files_properties(shaders/Forward.hlsl PROPERTIES HEADER_FILE_ONLY ON)
+
+# 플랫폼 계층 구현 (docs/CODING_MODEL.md "그래픽 API와 OS 기능"): OS API는 platform/<os>/ 안에서만 부른다.
+# posix/는 헤드리스(Linux·macOS)에 필요한 만큼만 있다(시간·파일·UDP·로그). 창·입력·DLL·대화상자·그림은 Windows만 (5단계).
+if(WIN32)
+    target_sources(mealkit PRIVATE
+        src/mealkit/platform/win32/Clock.cpp
+        src/mealkit/platform/win32/DynamicLibrary.cpp
+        src/mealkit/platform/win32/FileDialog.cpp
+        src/mealkit/platform/win32/Image.cpp
+        src/mealkit/platform/win32/Paths.cpp
+        src/mealkit/platform/win32/Process.cpp
+        src/mealkit/platform/win32/Socket.cpp
+        src/mealkit/platform/win32/System.cpp
+        src/mealkit/platform/win32/Window.cpp)
+else()
+    target_sources(mealkit PRIVATE
+        src/mealkit/platform/posix/Clock.cpp
+        src/mealkit/platform/posix/Paths.cpp
+        src/mealkit/platform/posix/Socket.cpp
+        src/mealkit/platform/posix/System.cpp)
+endif()
 # mealkit.dll: 엔진 함수와 클래스를 모두 내보낸다 (__declspec 표시 없이). 게임 코드가 엔진 전역 변수에 직접 접근하지 않는 한 충분하다.
 # CMake의 WINDOWS_EXPORT_ALL_SYMBOLS와 같은 방식(__create_def)으로 def를 만들되, MSVC CRT의 약한 별칭이 남기는
 # 잘못된 줄("==")을 지운 뒤 링크한다 (WINDOWS_EXPORT_ALL_SYMBOLS 그대로는 LNK2001로 실패한다).
@@ -131,7 +152,7 @@ endif()
 target_compile_options(mealkit PUBLIC /W4 /permissive- /utf-8 /Zc:__cplusplus /GR-
     $<IF:$<CXX_COMPILER_ID:Clang>,/clang:-ffp-contract=off,/fp:precise>)
 
-target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid ws2_32 windowscodecs ole32 uuid shell32 dwmapi mealkit_tracy PRIVATE Jolt mealkit_meshopt)
+target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid ws2_32 windowscodecs ole32 uuid shell32 dwmapi comdlg32 mealkit_tracy PRIVATE Jolt mealkit_meshopt)
 
 # --- SimCheck: 게임 sim/ 폴더의 결정론 규칙 검사 (빌드 도구, mealkit_add_game이 게임 코드보다 먼저 실행한다) ---
 add_executable(mealkit_simcheck tools/SimCheck.cpp)
@@ -197,10 +218,8 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/PlaySession.h
         src/mealkit/editor/PlaySession.cpp
         src/mealkit/editor/Strings.h
-        src/mealkit/editor/Strings.cpp
-        src/mealkit/editor/Image.h
-        src/mealkit/editor/Image.cpp)
-    target_link_libraries(mealkit_editor PUBLIC mealkit mealkit_imgui comdlg32)
+        src/mealkit/editor/Strings.cpp)
+    target_link_libraries(mealkit_editor PUBLIC mealkit mealkit_imgui)
     target_compile_definitions(mealkit_editor PUBLIC MEALKIT_EDITOR=1)
 
     add_executable(MealKitEditor src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)

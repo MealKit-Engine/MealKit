@@ -1,15 +1,16 @@
 #include "mealkit/core/Log.h"
 
 #include "mealkit/core/Clock.h"
+#include "mealkit/platform/System.h"
 
 #include <cstdarg>
 #include <cstdio>
-#include <windows.h>
+#include <mutex>
 
 namespace mealkit::log {
 namespace {
 
-SRWLOCK g_lock = SRWLOCK_INIT;
+std::mutex g_lock;
 bool g_dialogs = true;
 
 void emit(Level level, const char* message) {
@@ -17,12 +18,11 @@ void emit(Level level, const char* message) {
     char line[2200];
     snprintf(line, sizeof(line), "[%8.3f][%s] %s\n", nowSeconds(), tag, message);
 
-    AcquireSRWLockExclusive(&g_lock);
+    std::lock_guard<std::mutex> guard(g_lock);
     FILE* out = level == Level::Info ? stdout : stderr;
     fputs(line, out);
     fflush(out);
-    OutputDebugStringA(line);
-    ReleaseSRWLockExclusive(&g_lock);
+    debugOutput(line);
 }
 
 } // namespace
@@ -43,17 +43,15 @@ void fatal(const char* fmt, ...) {
     vsnprintf(message, sizeof(message), fmt, args);
     va_end(args);
     emit(Level::Error, message);
-    if (g_dialogs) {
-        MessageBoxA(nullptr, message, "MealKit - fatal error", MB_ICONERROR | MB_OK);
-    }
-    ExitProcess(1);
+    if (g_dialogs) showErrorDialog("MealKit - fatal error", message);
+    exitProcess(1);
 }
 
 void setDialogs(bool enabled) { g_dialogs = enabled; }
 
 void assertFailed(const char* condition, const char* file, int line) {
     write(Level::Error, "Assertion failed: %s (%s:%d)", condition, file, line);
-    if (IsDebuggerPresent()) __debugbreak();
+    if (debuggerAttached()) debugBreak();
 }
 
 } // namespace mealkit::log

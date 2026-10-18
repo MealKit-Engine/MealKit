@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-// 에디터용 그림 파일 읽기·쓰기 (Windows WIC: PNG, JPEG, BMP, ICO 등). 프로젝트 아이콘에 쓴다.
-namespace mealkit::editor {
+// 그림 파일 읽기·쓰기 (에디터의 프로젝트 아이콘). Windows 구현은 WIC(PNG, JPEG, BMP, ICO 등)이고 다른 OS는 5단계 에디터 이식 때.
+namespace mealkit {
 
 struct Image {
     u32 width = 0;
@@ -19,4 +19,4 @@ bool loadImage(const std::string& path, u32 maxSize, Image& out);
 bool loadImageResource(int resourceId, u32 maxSize, Image& out); // 실행 파일의 RCDATA 리소스
 bool savePng(const std::string& path, const Image& image);
 
-} // namespace mealkit::editor
+} // namespace mealkit

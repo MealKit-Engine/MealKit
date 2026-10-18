@@ -1,7 +1,10 @@
 #pragma once
 
+#include <cstdio>
 #include <string>
 
+// 파일·폴더 (UTF-8 경로). 구현은 std::filesystem으로 되는 부분(platform/Paths.cpp)과
+// OS 호출이 필요한 부분(platform/win32/Paths.cpp, platform/posix/Paths.cpp)으로 나뉜다.
 namespace mealkit {
 
 // 실행 파일이 있는 폴더 (UTF-8, 끝에 구분자 없음)
@@ -26,7 +29,18 @@ bool readTextFile(const std::string& path, std::string& out);
 bool writeTextFile(const std::string& path, const std::string& text);
 bool createDirectories(const std::string& path);
 bool removeFile(const std::string& path);
-// 마지막 수정 시각 (비교용, 없으면 0)
+// UTF-8 경로로 fopen (mode는 "rb", "wb" 등). 실패하면 nullptr.
+FILE* openFile(const std::string& path, const char* mode);
+// 마지막 수정·만든 시각 (OS 단위, 비교와 formatFileTime용, 없으면 0)
 unsigned long long fileWriteTime(const std::string& path);
+unsigned long long fileCreationTime(const std::string& path);
+// 위 시각을 지역 시각 "2026-10-18" 또는 "2026-10-18 14:05"로. 0이면 "-".
+std::string formatFileTime(unsigned long long time, bool withTime);
+
+// 사용자별 앱 데이터 폴더의 바탕 (Windows %LOCALAPPDATA%, Linux $XDG_DATA_HOME 또는 ~/.local/share,
+// macOS ~/Library/Application Support). 엔진·게임은 이 아래에 자기 폴더를 만든다. 모르면 실행 파일 폴더.
+std::string userDataDirectory();
+// 사용자 문서 폴더 (새 프로젝트 기본 위치). 모르면 빈 문자열.
+std::string documentsDirectory();
 
 } // namespace mealkit
