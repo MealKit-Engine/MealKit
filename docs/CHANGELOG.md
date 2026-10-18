@@ -5,6 +5,15 @@
 
 ## v0.4.3 — 1단계 진행 중 (2026-10-16)
 
+### 고침: 에디터가 멀쩡한 게임 DLL을 "엔진보다 오래됨"으로 보던 문제 (2026-10-18)
+- **현상**: `GameModuleHost::olderThanEngine`이 게임 DLL과 `mealkit.dll`의 수정 시각을 비교했다. 엔진 `.cpp`만 바뀌면 `mealkit.dll`은 다시 링크되지만 내보내기가 같아 import lib이 그대로라 Ninja가 게임 DLL을 다시 링크하지 않는다.
+  그래서 에디터가 시작할 때마다 게임 코드 빌드를 했고, 그 빌드가 실패하면 이전 DLL로 돌아가지 못했다(check.ps1 "Editor keeps the old DLL on failure" 실패).
+- **판정**: 엔진 시각 = 엔진 import lib(`build\Editor\engine\mealkit.lib`, 링커가 내보내기가 바뀔 때만 다시 쓴다)과 엔진 헤더(`engine/src/mealkit/**/*.h`, 게임 코드가 쓰지 않는 `editor/` 제외) 중 가장 새것.
+  헤더를 넣은 것은 구조체 배치·인라인 함수처럼 내보내기 없이 바뀌는 경우 때문이다. import lib이 없으면 예전처럼 `mealkit.dll` 시각을 쓴다. 게임 프로젝트도 같은 엔진 빌드의 lib(`MealKitTargets.cmake`의 `IMPORTED_IMPLIB`)과 `MEALKIT_ENGINE_DIR` 헤더를 본다.
+  게임 모듈 경계(`GameModule`, `kApiVersion`)는 바꾸지 않았다. 헤더를 내용 변화 없이 저장만 해도 다시 빌드를 요구한다(보수적).
+- **검증**: 엔진 `.cpp`에 주석만 더해 `mealkit.dll`만 다시 링크(lib은 그대로)한 상태에서 `check.ps1` 17개 통과, 에디터가 빌드 없이 게임 DLL을 불러옴.
+  `core/Types.h` 시각을 새로 하면 에디터가 시작 때 게임 코드 빌드를 시작했고, 엔진을 다시 빌드하자 게임 DLL도 다시 링크되어 바로 불러왔다.
+
 ### [x] 플랫폼 계층 (`mealkit/platform/`) (완료 2026-10-18)
 SDL3 평가(창·입력·게임패드·오디오 장치)는 하지 않고 1단계 "오디오" 항목의 첫 일로 옮겼다(ROADMAP 결정 기록 2026-10-18). 창·입력은 Win32 그대로다.
 - **규칙**: 헤더는 기능 자리에 그대로 두고(게임 코드의 include가 바뀌지 않는다), OS API를 부르는 구현 `.cpp`만 `platform/win32/`·`platform/posix/`로 옮겼다. CMake가 `WIN32`로 하나를 고른다.
@@ -21,7 +30,7 @@ SDL3 평가(창·입력·게임패드·오디오 장치)는 하지 않고 1단�
   예외는 RHI 전의 `render/Renderer.cpp`, `editor/ImGuiLayer.cpp` 두 개. 일부러 `<windows.h>`를 넣은 파일로 실패하는 것을 확인했다.
 - **검증**: Release·Editor·ClangCL 빌드, `check.ps1` 17개 통과. 에디터의 파일·폴더 대화상자는 직접 눌러 보지 않았다.
   검증 중 "Editor keeps the old DLL on failure"가 두 번 실패했다: 이번 작업 중 `mealkit.dll`이 내보내기 변화 없이 다시 링크돼 게임 DLL보다 새것이 됐고, `olderThanEngine`(파일 시각 비교)이 멀쩡한 게임 DLL을 "엔진보다 오래됨"으로 봤다.
-  게임 DLL을 다시 링크한 뒤 통과. 이 판정 방식의 약점은 그대로 남아 있다(엔진 내부만 바뀌어도 생긴다).
+  게임 DLL을 다시 링크한 뒤 통과. 판정 방식은 바로 위 "고침" 항목에서 고쳤다.
 
 ### [x] Steam 실검증 (완료 처리 2026-10-18, 미검증)
 **실제 Steam 접속 시험은 하지 않았고, 사용자 결정으로 문제없이 통과한 것으로 가정하고 항목을 닫았다.** Steam 백엔드는 여전히 컴파일·링크만 확인된 상태다. 측정값은 없다.
