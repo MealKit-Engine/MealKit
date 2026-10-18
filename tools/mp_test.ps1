@@ -8,7 +8,7 @@
 param(
     [int]$Clients = 1,
     [int]$Ticks = 900,
-    [int]$Bodies = 2000,
+    [int]$Bodies = 0, # 0 = 씬이 정한 상자 수
     [int]$Port = 27115,
     [string]$Config = "Release",
     [string]$Exe = "",

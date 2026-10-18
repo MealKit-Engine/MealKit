@@ -77,6 +77,16 @@ const reflect::TypeInfo* findType(const std::string& name, const TypeList* gameT
     return nullptr;
 }
 
+bool visibleInGame(const Entity& e, const TypeList* gameTypes) {
+    const reflect::TypeInfo* type = findType(e.type, gameTypes);
+    return !type || !(type->flags & (reflect::kObjectMarker | reflect::kObjectArea));
+}
+
+Bounds areaBounds(const Entity& e) {
+    const Vec3 half = e.scale * 0.5f;
+    return {e.position - half, e.position + half};
+}
+
 reflect::TextFields defaultFields(const reflect::TypeInfo& type) {
     reflect::Instance instance(type);
     reflect::TextFields fields;

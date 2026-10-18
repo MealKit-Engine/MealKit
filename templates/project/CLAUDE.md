@@ -28,6 +28,8 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
 - 에디터에 놓을 새 물체 종류는 `source/sim/Objects.h`에 `MEALKIT_OBJECT(이름) { MEALKIT_FIELD(타입, 필드, 기본값, "표시 이름"); };`로 선언하고,
   `World.cpp`의 `loadScene`에서 `scene::readObject<이름>(entity)`로 읽는다. 게임 코드를 다시 빌드하면 에디터 [추가] 메뉴에 나온다.
   include는 `"sim/World.h"`처럼 `source/` 기준으로 쓴다. 파일을 추가해도 `CMakeLists.txt`를 고치지 않는다.
+- **숫자는 코드 상수로 두지 않는다** (엔진 `docs/CODING_MODEL.md` "숫자는 어디에 두나"): 게임 규칙 값 → `Tuning`, 맵마다 다른 값(범위, 개수, 높이) → 씬 물체(영역은 `kObjectFlags = mealkit::reflect::kObjectArea`인 `MEALKIT_OBJECT`의 위치·크기),
+  보이기만 하는 값 → `ViewTuning`. `sim/`의 실수 리터럴은 SimCheck가 경고(SIM012)한다. 단위 변환·알고리즘 상수만 줄 끝 `// const-ok: <이유>`로 남긴다.
 - 튜닝 값(속도, 쿨다운 같은 숫자)은 코드 상수 대신 `source/sim/Tuning.h`의 `MEALKIT_FIELD`로 선언하고 `world.tuning`으로 읽는다. 값은 `assets/game.tuning`, 에디터 [튜닝] 패널에서 고친다.
   보이기만 하는 값(카메라, 색, 효과 시간)은 `source/view/ViewTuning.h`(`assets/view.tuning`, [튜닝] 패널 "화면" 탭)에 두고 화면 쪽에서 `ctx.viewTuning<ViewTuning>()`으로 읽는다. 콘텐츠 해시에 들어가지 않아 여러 명 플레이 중에도 바로 바뀐다.
   시간 값은 `MEALKIT_FIELD(mealkit::Ticks, 이름, mealkit::Ticks::seconds(0.5f), "설명 (초)")`로 선언한다(파일·에디터는 초, `sim/`은 정수 틱).

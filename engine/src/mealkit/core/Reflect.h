@@ -20,6 +20,7 @@
 //   };
 //   MEALKIT_OBJECT(JumpPad) {                      // 에디터 [추가] 메뉴에 나오는 씬 오브젝트 종류
 //       static constexpr const char* kObjectLabel = "점프대";
+//       static constexpr mealkit::u32 kObjectFlags = mealkit::reflect::kObjectArea; // (선택) TypeFlags
 //       MEALKIT_FIELD(f32, power, 12.0f, "점프 힘");
 //   };
 //
@@ -86,6 +87,7 @@ enum FieldFlags : u32 {
 enum TypeFlags : u32 {
     kObjectCosmetic = 1u << 0, // 게임 결과에 영향이 없는 오브젝트 (장식): 콘텐츠 해시에서 뺀다
     kObjectMarker = 1u << 1,   // 위치만 쓰는 표시 (스폰 지점): 에디터는 고정 크기로 그리고, 게임은 그리지 않는다
+    kObjectArea = 1u << 2,     // 크기만 쓰는 보이지 않는 영역 (생성 영역, 경기 범위): 에디터는 모서리만 그리고, 게임은 그리지 않는다
 };
 
 class ByteWriter {

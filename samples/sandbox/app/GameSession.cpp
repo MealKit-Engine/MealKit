@@ -49,7 +49,8 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
         return pi;
     };
     auto onTick = [&](const World& world) {
-        for (const GameEvent& e : world.events) m_effects.onEvent(e, m_viewTime, look.shockwave);
+        for (const GameEvent& e : world.events)
+            m_effects.onEvent(e, m_viewTime, look.shockwave, world.tuning.pawnHalfHeight);
     };
     m_sim.update(session, dt, sample, onTick);
 }

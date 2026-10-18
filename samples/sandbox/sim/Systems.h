@@ -19,7 +19,7 @@ void removeFallenPawns(World& world); // 떨어진 Pawn을 없애고 리스폰�
 void sensePawns(World& world);        // 물리 결과 → 위치, 속도, 접지
 
 // Props.cpp
-void spawnProps(World& world, u64 seed, u32 count);
+void spawnProps(World& world, u64 seed); // 상자 생성 영역마다 count개 (씬 순서, 같은 난수열)
 void pushProps(World& world, const Vec3& center);
 void recoverFallenProps(World& world);
 void senseProps(World& world); // 물리 결과 → 위치, 회전

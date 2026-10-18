@@ -48,7 +48,7 @@ struct Options {
     std::string scenePath;
     std::string tuningPath;
     u32 maxPlayers = 0; // 0 = 프로젝트 설정 game.defaultMaxPlayers
-    u32 bodies = 2000;
+    u32 bodies = 0; // 0 = 씬의 상자 생성 영역
     u32 inputDelay = 3;
     u64 seed = 0;
     bool vsync = true;
@@ -80,7 +80,7 @@ void printUsage() {
                 "  --scene <file>         scene to play (default: scene in mealkit.project)\n"
                 "  --tuning <file>        tuning values (default assets/game.tuning)\n"
                 "  --players <n>          max players when hosting (default: game.defaultMaxPlayers, max 8)\n"
-                "  --bodies <n>           physics bodies (default 2000, set by host; same as --match-data)\n"
+                "  --bodies <n>           number of boxes (default: the scene's box spawn areas; set by host, = --match-data)\n"
                 "  --delay <ticks>        input delay in 33ms ticks (default 3)\n"
                 "  --seed <n>             world seed\n"
                 "  --vsync <0|1>          vertical sync (default 1)\n"
@@ -356,8 +356,8 @@ int main(int argc, char** argv) {
 
         if (!game.started() && session.state() == net::SessionState::Running) {
             game.start(ctx, scene, gameOptions);
-            MEALKIT_INFO("World ready: %u bodies, %u player(s), you are player %u", session.matchData(),
-                         session.playerCount(), session.localPlayer());
+            MEALKIT_INFO("World ready: %u player(s), you are player %u, %u moving bodies", session.playerCount(),
+                         session.localPlayer(), game.activeBodies());
         }
 
         ctx.viewport = {0.0f, 0.0f, static_cast<f32>(window.width()), static_cast<f32>(window.height())};

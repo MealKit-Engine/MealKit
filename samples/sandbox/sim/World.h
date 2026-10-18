@@ -30,12 +30,9 @@ using mealkit::u64;
 using mealkit::u8;
 using mealkit::Vec3;
 
-inline constexpr f32 kTickRate = 30.0f;
+inline constexpr f32 kTickRate = 30.0f; // const-ok: 1단계 "틱레이트를 프로젝트 설정으로"에서 옮긴다
 inline constexpr f32 kTickDt = 1.0f / kTickRate;
-inline constexpr f32 kKillPlaneY = -30.0f;
-inline constexpr f32 kPlayerHalfHeight = 0.9f; // 캡슐 전체 높이 1.8m
-inline constexpr f32 kPlayerRadius = 0.45f;
-inline constexpr u32 kPropColorCount = 6; // 색 자체는 화면 쪽(view/Draw.cpp)이 정한다
+inline constexpr u32 kPropColorCount = 6; // 상자 색 종류 수 (색 자체는 화면용 튜닝 view/ViewTuning.h)
 
 inline constexpr u8 kButtonJump = 1;
 inline constexpr u8 kButtonPush = 2;
@@ -140,17 +137,24 @@ struct World {
 
     // physicsThreads = 0 이면 코어 수에 맞춘다 (결과는 스레드 수와 무관하다).
     // 모델이 있는 충돌 물체는 모델 정점의 볼록 껍질로 충돌한다.
-    // propCapacity: 상자 Pool 용량 (propCount 이상). 매치 중에는 바뀌지 않는다.
-    void reset(u64 seed, u32 playerCount, u32 propCount, u32 propCapacity, const Tuning& tuning,
-               const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, u32 physicsThreads = 0);
+    // 상자 수는 씬의 상자 생성 영역(PropSpawnArea.count)의 합. propOverride가 0이 아니면 그 수로 맞춘다(--bodies, 성능 측정).
+    // Pool 용량은 매치 시작 때 정한다: 상자 = 상자 수, 컨트롤러 = 플레이어 + AI, Pawn = 컨트롤러 × 2.
+    void reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuning, const mealkit::scene::Scene& scene,
+               mealkit::asset::ModelCache& models, u32 physicsThreads = 0);
     // 매치 도중 튜닝을 바꾼다 (에디터 혼자 플레이 전용: 멀티플레이에서는 피어마다 달라지면 디싱크)
     void setTuning(const Tuning& value);
     void step(const mealkit::net::TickInputs& inputs);
     u64 hash() const;
     u32 activeBodies() const { return physics.activeBodyCount(); }
 
-    // 매치 시작 때 정해지는 데이터
+    // 매치 시작 때 정해지는 데이터 (씬과 튜닝에서)
+    struct PropSpawn {
+        Vec3 min, max; // 상자 생성 영역
+        u32 count = 0;
+    };
     std::vector<Vec3> spawns;
+    std::vector<PropSpawn> propSpawns;
+    Vec3 arenaMin, arenaMax; // 경기 영역 (MatchArea): 가로·세로 = AI·상자 범위, 바닥 = 낙사, 위 = 상자 다시 떨어뜨리기
     Tuning tuning;
 
     // 상태

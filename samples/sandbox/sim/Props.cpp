@@ -7,24 +7,30 @@
 #include <cmath>
 
 namespace sandbox {
-namespace {} // namespace
 
-void spawnProps(World& world, u64 seed, u32 count) {
+void spawnProps(World& world, u64 seed) {
+    const Tuning& t = world.tuning;
     mealkit::Pcg32 rng(seed);
-    for (u32 i = 0; i < count; ++i) {
-        Prop b;
-        const f32 base = rng.range(0.28f, 0.64f);
-        b.halfExtents = {base * rng.range(0.8f, 1.2f), base * rng.range(0.8f, 1.2f), base * rng.range(0.8f, 1.2f)};
-        b.position = {rng.range(-40.0f, 40.0f), rng.range(1.0f, 25.0f), rng.range(-40.0f, 40.0f)};
-        b.colorIndex = rng.below(kPropColorCount);
+    for (const World::PropSpawn& area : world.propSpawns) {
+        for (u32 i = 0; i < area.count; ++i) {
+            Prop b;
+            const f32 base = rng.range(t.propSizeMin, t.propSizeMax);
+            b.halfExtents = {base * rng.range(t.propStretchMin, t.propStretchMax),
+                             base * rng.range(t.propStretchMin, t.propStretchMax),
+                             base * rng.range(t.propStretchMin, t.propStretchMax)};
+            b.position = {rng.range(area.min.x, area.max.x), rng.range(area.min.y, area.max.y),
+                          rng.range(area.min.z, area.max.z)};
+            b.colorIndex = rng.below(kPropColorCount);
 
-        mealkit::physics::BodyDesc d;
-        d.position = b.position;
-        d.friction = 0.6f;
-        d.restitution = 0.15f;
-        d.mass = std::max(5.0f, world.tuning.propDensity * 8.0f * b.halfExtents.x * b.halfExtents.y * b.halfExtents.z);
-        b.body = world.physics.createBox(b.halfExtents, d);
-        world.state.props.create(b);
+            mealkit::physics::BodyDesc d;
+            d.position = b.position;
+            d.friction = t.propFriction;
+            d.restitution = t.propRestitution;
+            const Vec3 h = b.halfExtents;
+            d.mass = std::max(t.propMinMass, t.propDensity * 8.0f * h.x * h.y * h.z); // const-ok: 부피 = 8 × 반 크기 곱
+            b.body = world.physics.createBox(b.halfExtents, d);
+            world.state.props.create(b);
+        }
     }
 }
 
@@ -35,7 +41,7 @@ void pushProps(World& world, const Vec3& center) {
         const f32 dist2 = mealkit::lengthSq(d);
         if (dist2 >= t.pushRadius * t.pushRadius) continue;
         const f32 dist = std::sqrt(dist2);
-        const Vec3 dir = dist > 1e-4f ? d / dist : Vec3{0, 1, 0};
+        const Vec3 dir = dist > 1e-4f ? d / dist : Vec3{0, 1, 0}; // const-ok: 0으로 나누지 않는 문턱
         const f32 strength = 1.0f - dist / t.pushRadius;
         world.physics.addLinearVelocity(prop.body,
                                         dir * (t.pushSpeed * strength) + Vec3{0.0f, t.pushLift * strength, 0.0f});
@@ -44,12 +50,14 @@ void pushProps(World& world, const Vec3& center) {
     }
 }
 
+// 경기 영역 바닥 아래로 떨어진 상자는 영역 위에서 다시 떨어뜨린다
 void recoverFallenProps(World& world) {
+    const Vec3 lo = world.arenaMin, hi = world.arenaMax;
     for (auto [propId, prop] : world.state.props) {
         const mealkit::physics::BodyId id = prop.body;
         const Vec3 p = world.physics.position(id);
-        if (p.y < kKillPlaneY) {
-            world.physics.setTransform(id, {std::clamp(p.x, -40.0f, 40.0f), 30.0f, std::clamp(p.z, -40.0f, 40.0f)}, {});
+        if (p.y < lo.y) {
+            world.physics.setTransform(id, {std::clamp(p.x, lo.x, hi.x), hi.y, std::clamp(p.z, lo.z, hi.z)}, {});
             world.physics.setLinearVelocity(id, {});
             world.physics.setAngularVelocity(id, {});
         }

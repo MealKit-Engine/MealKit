@@ -159,7 +159,7 @@ if (-not $Quick) {
         param($log)
         $png = Join-Path $out "editor-3p.png"
         $code = Run $log $editor "--project `"$root`" --frames 400 --play --players 3 --bot --capture `"$png`""
-        return $code -eq 0 -and (Has $log "Play mode: \d+ bodies, 3 player") -and -not (Has $log "Play stopped")
+        return $code -eq 0 -and (Has $log "Play mode: 3 player") -and -not (Has $log "Play stopped")
     }
     # 빌드 실패: sim/에 금지 코드를 넣으면 SimCheck가 빌드를 멈추고, 에디터는 이전 DLL로 계속 플레이할 수 있어야 한다
     $bad = Join-Path $root "samples\sandbox\sim\ZzCheckFailure.cpp"

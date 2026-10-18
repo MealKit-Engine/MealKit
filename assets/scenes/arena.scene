@@ -303,3 +303,26 @@ flags 0
 field power 14
 field cooldown 0.666667
 end
+
+entity
+id 27
+name Match Area
+kind MatchArea
+position 0 0 0
+rotation 0 0 0 1
+scale 80 60 80
+color FF50C8FF
+flags 0
+end
+
+entity
+id 28
+name Box Spawn Area
+kind PropSpawnArea
+position 0 13 0
+rotation 0 0 0 1
+scale 80 24 80
+color FF5AA0FF
+flags 0
+field count 2000
+end

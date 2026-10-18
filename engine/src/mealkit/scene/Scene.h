@@ -91,6 +91,13 @@ Scene flattened(const Scene& scene);
 
 // 종류 이름으로 설명을 찾는다 (기본 종류 → gameTypes 순서). 없으면 nullptr.
 const reflect::TypeInfo* findType(const std::string& name, const TypeList* gameTypes);
+// 게임 화면에 그리는 물체인가: 표시(kObjectMarker: 스폰 지점)와 영역(kObjectArea)은 그리지 않는다
+bool visibleInGame(const Entity& e, const TypeList* gameTypes);
+// 영역 물체(kObjectArea)의 월드 좌표 상자 (회전은 무시한다: 축 정렬, flattened() 씬의 물체)
+struct Bounds {
+    Vec3 min, max;
+};
+Bounds areaBounds(const Entity& e);
 
 // 게임 종류의 필드를 읽는다. 씬에 없는 필드는 선언의 기본값.
 template <class T>

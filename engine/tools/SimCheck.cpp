@@ -3,6 +3,8 @@
 //   mealkit_simcheck <stamp 파일> [--third-party <폴더>]... <sim/ 소스...>
 //   --third-party: 프로젝트 third_party/<lib>/의 include 폴더. 이 안의 헤더를 sim/에서 include하면 SIM011
 //
+// 실수 리터럴(0, 1, 2, 0.5 제외)은 경고 SIM012다(빌드는 계속): 게임 값은 튜닝·씬 데이터에 둔다. 알고리즘 상수면 줄 끝에 "// const-ok: 이유".
+// MEALKIT_FIELD 같은 필드 선언의 기본값은 데이터 자체라 보지 않는다.
 // 주석, 문자열, 전처리 줄(#include 제외)은 빼고 토큰 단위로 검사한다. 걸리면 MSVC 형식
 // "파일(줄,열): error SIMnnn: ..."으로 대신 쓸 것을 알려 주고 실패한다(VS Code $msCompile이 잡는다).
 // 문제가 없으면 stamp 파일을 써서 다음 빌드에서는 소스가 바뀔 때만 다시 검사한다.
@@ -11,8 +13,9 @@
 
 #include <algorithm>
 #include <cstdio>
-#include <filesystem>
+#include <cstdlib>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <sstream>
@@ -41,6 +44,7 @@ struct Include {
 struct Lexed {
     std::vector<Token> tokens;
     std::vector<Include> includes;
+    std::vector<int> constOkLines; // "// const-ok:" 주석이 있는 줄
 };
 
 bool isIdentStart(unsigned char c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c >= 0x80; }
@@ -73,7 +77,11 @@ public:
                 continue;
             }
             if (c == '/' && peek(1) == '/') {
+                const int commentLine = m_line;
+                const size_t start = m_pos;
                 skipLineComment();
+                if (m_src.substr(start, m_pos - start).find("const-ok:") != std::string_view::npos)
+                    out.constOkLines.push_back(commentLine);
                 continue;
             }
             if (c == '/' && peek(1) == '*') {
@@ -267,6 +275,9 @@ constexpr const char* kMsgGlobal =
 constexpr const char* kMsgViewHeader =
     "the simulation must not read rendering, platform, input, editor or view state. Read World only; report to the "
     "screen with tick events (mealkit::sim::TickEvents)";
+constexpr const char* kMsgFloatLiteral =
+    "game values go in Tuning (game.tuning), scene objects or ViewTuning (docs/CODING_MODEL.md \"Where do numbers go\"). "
+    "If it is an algorithm constant, end the line with '// const-ok: <reason>'";
 constexpr const char* kMsgThirdParty =
     "game libraries are for view/ and app/ only. Simulation code uses the engine's verified tools (docs/CODING_MODEL.md "
     "\"Where external libraries go\")";
@@ -456,6 +467,7 @@ public:
         for (const Include& inc : lexed.includes) checkInclude(inc);
         m_t = &lexed.tokens;
         checkTokens();
+        checkFloatLiterals(lexed.constOkLines);
         checkScopes();
         flush();
         return static_cast<int>(m_reports.size());
@@ -469,11 +481,49 @@ private:
         m_reports.push_back({line, col, buf});
     }
 
+    void warn(int line, int col, const char* code, const std::string& what, const char* message) {
+        char buf[1024];
+        std::snprintf(buf, sizeof(buf), "%s(%d,%d): warning %s: %s in sim/: %s\n", m_path.c_str(), line, col, code,
+                      what.c_str(), message);
+        m_warnings.push_back({line, col, buf});
+    }
+
+    // 0·1·2·0.5 같은 자명한 값이 아닌 실수 리터럴 (필드 선언 매크로 안, "// const-ok:" 줄은 뺀다)
+    void checkFloatLiterals(const std::vector<int>& constOkLines) {
+        const std::vector<Token>& t = *m_t;
+        int skipDepth = 0; // MEALKIT_* ( ... ) 안
+        for (size_t i = 0; i < t.size(); ++i) {
+            if (skipDepth == 0 && t[i].kind == Tok::Ident && t[i].text.rfind("MEALKIT_", 0) == 0 && i + 1 < t.size() &&
+                t[i + 1].text == "(") {
+                skipDepth = 1;
+                ++i;
+                continue;
+            }
+            if (skipDepth > 0) {
+                if (t[i].text == "(") ++skipDepth;
+                else if (t[i].text == ")") --skipDepth;
+                continue;
+            }
+            if (t[i].kind != Tok::Number) continue;
+            const std::string& n = t[i].text;
+            const bool hex = n.size() > 1 && n[0] == '0' && (n[1] == 'x' || n[1] == 'X');
+            if (hex || (n.find('.') == std::string::npos && n.find_first_of("eE") == std::string::npos)) continue;
+            std::string digits;
+            for (char c : n)
+                if (c != '\'' && c != 'f' && c != 'F' && c != 'l' && c != 'L') digits += c;
+            const double v = std::strtod(digits.c_str(), nullptr);
+            if (v == 0.0 || v == 1.0 || v == 2.0 || v == 0.5) continue;
+            if (std::find(constOkLines.begin(), constOkLines.end(), t[i].line) != constOkLines.end()) continue;
+            warn(t[i].line, t[i].col, "SIM012", "the float literal " + n, kMsgFloatLiteral);
+        }
+    }
+
     void flush() {
         std::stable_sort(m_reports.begin(), m_reports.end(), [](const Report& a, const Report& b) {
             return a.line != b.line ? a.line < b.line : a.col < b.col;
         });
         for (const Report& r : m_reports) std::fputs(r.text.c_str(), stdout);
+        for (const Report& r : m_warnings) std::fputs(r.text.c_str(), stdout);
     }
 
     const Token* at(size_t i) const { return i < m_t->size() ? &(*m_t)[i] : nullptr; }
@@ -680,6 +730,7 @@ private:
     const std::vector<std::string>& m_thirdParty;
     const std::vector<Token>* m_t = nullptr;
     std::vector<Report> m_reports;
+    std::vector<Report> m_warnings; // 빌드를 멈추지 않는다
 };
 
 bool readFile(const char* path, std::string& out) {

@@ -1,4 +1,4 @@
-# MealKit tuning (Tuning). 에디터 [튜닝] 패널에서 고친다.
+# MealKit tuning (Tuning). Edit it in the editor's [Tuning] panel.
 playerSpeed 7
 groundAccel 12
 airAccel 3
@@ -10,7 +10,27 @@ pushSpeed 18
 pushLift 7
 pushSpin 8
 propDensity 200
+propMinMass 5
+propSizeMin 0.280000001
+propSizeMax 0.639999986
+propStretchMin 0.800000012
+propStretchMax 1.20000005
+propFriction 0.600000024
+propRestitution 0.150000006
 respawn 1.5
 aiPawns 2
 aiThink 1.33333
 aiSpeedScale 0.699999988
+aiTargetMin 4
+aiTargetMax 14
+aiJumpOneIn 4
+aiPushOneIn 3
+pawnHalfHeight 0.899999976
+pawnRadius 0.449999988
+pawnMass 80
+groundProbe 0.119999997
+jumpMaxRise 1
+spawnSpacing 1.20000005
+solidFriction 0.800000012
+padBelow 0.300000012
+padAbove 0.400000006

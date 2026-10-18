@@ -3,6 +3,7 @@
 #include "sim/Systems.h"
 
 #include "mealkit/core/Hash.h"
+#include "mealkit/core/Log.h"
 #include "mealkit/core/Profile.h"
 
 #include <cstring>
@@ -14,11 +15,12 @@ using mealkit::physics::BodyDesc;
 using mealkit::physics::Motion;
 namespace scene = mealkit::scene;
 
-// 씬의 충돌 상자(정적), 스폰 지점, 점프대
+// 씬의 충돌 상자(정적), 스폰 지점, 점프대, 경기 영역, 상자 생성 영역
 void loadScene(World& world, const scene::Scene& scene, mealkit::asset::ModelCache& models) {
     u32 padCount = 0;
     for (const scene::Entity& e : scene.entities) padCount += e.is<JumpPad>() ? 1u : 0u;
     world.state.pads.init(padCount);
+    bool arena = false;
 
     for (const scene::Entity& e : scene.entities) {
         if (e.is(scene::kTypeSolid)) {
@@ -26,7 +28,7 @@ void loadScene(World& world, const scene::Scene& scene, mealkit::asset::ModelCac
             d.motion = Motion::Static;
             d.position = e.position;
             d.rotation = e.rotation;
-            d.friction = 0.8f;
+            d.friction = world.tuning.solidFriction;
             const mealkit::asset::Model* model = e.model.empty() ? nullptr : models.get(e.model);
             if (model) {
                 std::vector<Vec3> points;
@@ -47,36 +49,67 @@ void loadScene(World& world, const scene::Scene& scene, mealkit::asset::ModelCac
             pad.power = def.power;
             pad.cooldownTicks = def.cooldown;
             world.state.pads.create(pad);
+        } else if (e.is<MatchArea>() && !arena) {
+            const scene::Bounds b = scene::areaBounds(e);
+            world.arenaMin = b.min;
+            world.arenaMax = b.max;
+            arena = true;
+        } else if (e.is<PropSpawnArea>()) {
+            const scene::Bounds b = scene::areaBounds(e);
+            world.propSpawns.push_back({b.min, b.max, scene::readObject<PropSpawnArea>(e).count});
         }
+    }
+    if (!arena) { // 경기 영역이 없는 씬 (엔진 기본 아레나 등): 예전 sandbox 값으로 돈다
+        MEALKIT_WARN("Scene has no MatchArea - using a default 80 m arena");
+        world.arenaMin = {-40.0f, -30.0f, -40.0f}; // const-ok: 영역이 없는 씬의 안전값
+        world.arenaMax = {40.0f, 30.0f, 40.0f};    // const-ok: 영역이 없는 씬의 안전값
     }
     world.state.pads.endTick();
     world.physics.optimize();
 }
 
+// 상자 수를 override로 맞춘다: 영역마다 비율대로, 나머지는 마지막 영역 (정수 계산이라 모든 피어가 같다)
+void overridePropCount(std::vector<World::PropSpawn>& spawns, u32 total) {
+    u64 declared = 0;
+    for (const World::PropSpawn& s : spawns) declared += s.count;
+    if (spawns.empty() || declared == 0) return;
+    u32 given = 0;
+    for (World::PropSpawn& s : spawns) {
+        s.count = static_cast<u32>(static_cast<u64>(s.count) * total / declared);
+        given += s.count;
+    }
+    spawns.back().count += total - given;
+}
+
 } // namespace
 
-void World::reset(u64 seed, u32 playerCount, u32 propCount, u32 propCapacity, const Tuning& tuningValue,
-                  const scene::Scene& scene, mealkit::asset::ModelCache& models, u32 physicsThreads) {
+void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuningValue, const scene::Scene& scene,
+                  mealkit::asset::ModelCache& models, u32 physicsThreads) {
     physics.init(16384, physicsThreads);
     tuning = tuningValue;
     physics.setGravity(tuning.gravity);
     spawns.clear();
+    propSpawns.clear();
     state = WorldState{};
+    events.clear();
+
+    // 바디 생성 순서 고정: 씬 → Pawn → 상자. 씬을 먼저 읽어야 상자 수(= Pool 용량, 물리 바디 수)를 안다.
+    loadScene(*this, scene, models);
+    if (propOverride) overridePropCount(propSpawns, propOverride);
+    u32 propCount = 0;
+    for (const PropSpawn& s : propSpawns) propCount += s.count;
     state.playerCount = playerCount;
     const u32 controllers = playerCount + tuning.aiPawns;
     state.controllers.init(controllers);
     state.pawns.init(controllers * 2); // 리스폰 대기 0틱이면 지우는 Pawn과 새 Pawn이 한 틱에 같이 있다
-    state.props.init(propCapacity);
+    state.props.init(propCount);
     state.aiRng = mealkit::Pcg32(seed ^ 0x9E3779B97F4A7C15ull, 7);
-    events.clear();
 
-    // 바디 생성 순서 고정: 씬 → Pawn → 상자
-    loadScene(*this, scene, models);
     createControllers(*this);
     state.controllers.endTick();
     respawnPawns(*this); // 리스폰 대기가 0인 컨트롤러 = 전부: 첫 Pawn
     state.pawns.endTick();
-    spawnProps(*this, seed, propCount);
+    spawnProps(*this, seed);
     state.props.endTick(); // 처음 만든 상자도 0틱부터 순회에 나온다
     sensePawns(*this);
     senseProps(*this);

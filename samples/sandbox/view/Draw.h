@@ -19,7 +19,7 @@ struct WorldView {
 };
 
 void applyEnvironment(const mealkit::scene::Environment& env, mealkit::render::FrameParams& frame);
-// 씬의 정적 물체 (스폰 지점은 그리지 않는다)
+// 씬의 정적 물체 (스폰 지점과 영역은 그리지 않는다)
 void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, const Vec3& eye,
                mealkit::render::DrawList& out);
 // 직전 틱과 현재 틱 사이를 alpha로 보간해 상자와 Pawn을 그린다

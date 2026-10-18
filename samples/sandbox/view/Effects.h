@@ -19,7 +19,8 @@ struct Effects {
     };
     std::vector<Shockwave> shockwaves;
 
-    void onEvent(const GameEvent& event, mealkit::f64 now, const ShockwaveLook& look);
+    // pawnHalfHeight: 캐릭터 이벤트 위치(몸 중심)에서 발밑까지 (world.tuning)
+    void onEvent(const GameEvent& event, mealkit::f64 now, const ShockwaveLook& look, f32 pawnHalfHeight);
     // 끝난 효과를 지운다 (그리지 않는 프레임에도 쌓이지 않게 매 프레임)
     void prune(mealkit::f64 now, const ShockwaveLook& look);
     void draw(mealkit::f64 now, const ShockwaveLook& look, mealkit::render::MeshId box,
