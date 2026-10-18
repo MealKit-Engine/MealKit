@@ -4,6 +4,7 @@
 #   powershell -ExecutionPolicy Bypass -File tools\mp_test.ps1 [-Clients 1] [-Ticks 900] [-Config Release] [-Scene <file>] [-Tuning <file>]
 # 게임 프로젝트의 실행 파일을 시험하려면 -Exe <프로젝트>\build\Release\bin\<이름>.exe
 # 다른 컴파일러 빌드와 맞붙이려면 -ClientExe build\ClangCL\bin\sandbox.exe (호스트는 -Exe, 클라이언트는 이것)
+# 창 없이(헤드리스) 돌리려면 -Headless (각 실행 파일에 --headless를 붙인다. 입력이 허락하는 만큼 빨리 돈다)
 param(
     [int]$Clients = 1,
     [int]$Ticks = 900,
@@ -13,7 +14,8 @@ param(
     [string]$Exe = "",
     [string]$ClientExe = "",
     [string]$Scene = "",
-    [string]$Tuning = ""
+    [string]$Tuning = "",
+    [switch]$Headless
 )
 
 if ($Exe -eq "") {
@@ -35,12 +37,13 @@ New-Item -ItemType Directory -Force $logDir | Out-Null
 
 $players = $Clients + 1
 $common = "--bot --vsync 0 --fps 120 --size 640 360 --exit-tick $Ticks"
+if ($Headless) { $common = "--headless $common" }
 if ($Scene -ne "") { $common += " --scene `"$((Resolve-Path $Scene).Path)`"" }
 if ($Tuning -ne "") { $common += " --tuning `"$((Resolve-Path $Tuning).Path)`"" }
 $hostExtra = if ($ClientExe -ne "") { " --any-build" } else { "" }
 $procs = @()
 $procs += Start-Process -FilePath $exe -PassThru -NoNewWindow `
-    -ArgumentList "--host $Port --local --players $players --auto-start $players --bodies $Bodies --seed 12345$hostExtra $common" `
+    -ArgumentList "--host $Port --local --players $players --auto-start $players --match-data $Bodies --seed 12345$hostExtra $common" `
     -RedirectStandardOutput "$logDir\host.txt" -RedirectStandardError "$logDir\host_err.txt"
 Start-Sleep -Milliseconds 500
 for ($i = 1; $i -le $Clients; $i++) {

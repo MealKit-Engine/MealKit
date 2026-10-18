@@ -5,6 +5,31 @@
 
 ## v0.4.3 — 1단계 진행 중 (2026-10-16)
 
+### [x] 헤드리스 시뮬레이션 (완료 2026-10-18)
+- **왜**: CI가 GPU·창 없는 러너에서 컴파일러·OS·CPU 사이 틱별 해시를 매 커밋 비교하려면(5단계 크로스플레이의 바탕) 시뮬레이션만 도는 실행 파일이 먼저 있어야 한다.
+- **엔진 라이브러리 나누기** (`engine/CMakeLists.txt`): 코어(`mealkit_core`: core, game, sim, physics, scene, asset, net, `render/Mesh`, 플랫폼의 시간·파일·소켓·시스템)와 화면 쪽(창·입력·렌더러·온라인 서비스·에디터용 플랫폼 기능).
+  Game 빌드는 `mealkit_core` + `mealkit`(코어를 PUBLIC으로 링크) 두 정적 라이브러리, Editor 빌드는 예전처럼 둘을 합친 `mealkit.dll`. 단위 테스트는 코어만 링크한다.
+  `ModelCache`는 렌더러를 직접 부르지 않고 업로드 함수 포인터를 갖는다(`setRenderer`는 헤더 인라인이라, 부르지 않는 헤드리스는 렌더러 없이 링크된다). 에셋 폴더 경로 구분자를 `/`로.
+- **비Windows CMake** (`cmake/MealKit.cmake`): Windows는 그대로 MSVC·clang-cl. Linux·macOS의 Clang·GCC는 `MEALKIT_HEADLESS_ONLY`로 코어 + 헤드리스 타깃 + 단위 테스트 + SimCheck만 만든다.
+  컴파일 옵션 `-Wall -Wextra -fno-rtti -ffp-contract=off -fno-fast-math`, 스레드 라이브러리. Jolt는 `CROSS_PLATFORM_DETERMINISTIC`로 스스로 `-ffp-contract=off`를 붙인다. LTO는 MSVC만.
+  **이 PC에 Linux·macOS 도구(WSL 배포판 포함)가 없어 비Windows 구성은 한 번도 돌려 보지 않았다** — CI 빌드 매트릭스 항목에서 처음 빌드하며 고친다(POSIX 플랫폼 구현도 마찬가지).
+- **게임 쪽 경계** (`docs/CODING_MODEL.md` "창 없이 게임을 돌리는 방법", 사용자와 정함): 게임은 `app/Headless.cpp`에 클래스 하나와 `MEALKIT_HEADLESS_GAME(클래스)`.
+  클래스는 `World`·`TuningType`·`ProjectSettingsType` 타입, `kTickDt`, `startWorld(World&, MatchInfo, 튜닝, 평평한 씬, 모델, 물리 스레드)`, `botInput(틱, 플레이어)`, 선택 `defaults(옵션, 게임 프로젝트 설정)`을 내놓는다.
+  엔진(`mealkit/game/Headless.h/.cpp`)이 옵션 해석, 프로젝트·씬·튜닝 읽기, 콘텐츠 해시(출시 exe와 같은 값이라 창 있는 피어와도 접속된다), 세션(혼자·방장·참가), `game::Simulation` 실행, 출력(`FINAL`, `SHADOW`, `REPLAY`)을 맡는다.
+  `mealkit_add_game()`은 Game 빌드에서 `<이름>_headless`(sim/ + `Headless.cpp`, `MEALKIT_HEADLESS_TARGET`이면 매크로가 `main`도 만든다)를 만든다(`HEADLESS` 인자, 파일이 없으면 만들지 않는다).
+  출시 exe는 `--headless`가 있으면 `mealkitHeadlessMain`을 부른다. sandbox `GameSession`도 매치 시작과 봇 입력에 같은 함수를 쓴다(`botInput`은 `view/LocalInput`에서 옮겼다. CRT 삼각함수를 써서 `sim/`에는 둘 수 없다).
+- **실행 방식**: 입력은 항상 봇. 혼자면 쉬지 않고 돌고(900틱 약 2초, 그림자 시뮬레이션 포함), 네트워크면 한 번에 최대 8틱씩 따라잡고 대기 중에는 1ms씩 잔다. 호스트는 `--auto-start`(기본 `--players`) 인원이 모이면 시작.
+  창 옵션(`--bot`, `--vsync`, `--fps`, `--size`, `--debug`)은 받아서 버린다(mp_test가 같은 인자를 넘긴다). 매치 값 옵션 이름은 엔진 쪽 `--match-data`(sandbox 창 모드는 `--bodies`와 같다).
+- **해시 로그·입력 기록** (`mealkit/game/InputRecord.h/.cpp`): `PlayOptions::hashLogPath`(틱마다 `<틱> <해시16진>`)와 `recordInputsPath`(확정된 틱 입력 + 해시, 리틀 엔디언, 헤더에 시드·인원·매치 데이터·콘텐츠 해시)를 `game::Simulation`이 쓴다.
+  그래서 창 있는 게임(`--hash-log`, `--record-inputs`)과 헤드리스가 같은 파일을 만든다. `--replay-inputs`는 네트워크 없이 `World`를 처음부터 다시 돌리고 틱마다 기록된 해시와 비교한다(`REPLAY ok` / `REPLAY DESYNC tick=N`, 콘텐츠 해시가 다르면 경고).
+  `PlayOptions`가 바뀌어 `kApiVersion` 8. `LockstepSession::contentHash()` 추가.
+- **도구**: `mp_test.ps1 -Headless`(모든 피어에 `--headless`, 1+3 900틱 약 5초, 창 모드 약 30초). `check.ps1`에 "Headless (mp_test, record + replay)"(헤드리스 mp_test + `sandbox_headless`로 기록 → `sandbox.exe --headless`로 재생, 해시 로그 비교)와
+  "Headless = window"(창 있는 게임의 그림자·되감기 실행의 해시 로그가 헤드리스와 같은지)를 더했다. 단위 테스트 `input_record`(기록 왕복).
+- **검증**: Release·Editor 빌드, `check.ps1` 19개 통과. seed 7 900틱에서 헤드리스·재생·창 있는 게임의 해시 로그 901줄이 모두 같다. 실행 파일 크기: `sandbox.exe` 1.6 MB, `sandbox_headless.exe` 1.5 MB.
+  컴파일러 비교: `build.bat ClangCL`의 `sandbox_headless.exe`로 MSVC 빌드가 만든 기록 파일을 재생해 `REPLAY ok`, 해시 로그가 MSVC와 같다.
+  첫 `check.ps1`에서 "Editor play (3 players)"가 한 번 실패했다(참가 창들이 400프레임 안에 접속하지 않음). 같은 시험을 따로 세 번, `check.ps1` 전체를 한 번 더 돌려 모두 통과했고 원인은 찾지 못했다(이번 변경과 관련된 증거는 없음). 다시 나오면 참가 창 로그(`build\Editor\play\player*.log`)부터 본다.
+- **남은 것**: Linux·macOS 실제 빌드와 CI(다음 항목), 플레이하지 않는 전용 중계 프로세스(락스텝 세션의 방장이 지금은 플레이어 0이라 세션 쪽 변경이 필요하다. 3단계 "호스트 이전"과 같이 본다).
+
 ### 고침: 에디터가 멀쩡한 게임 DLL을 "엔진보다 오래됨"으로 보던 문제 (2026-10-18)
 - **현상**: `GameModuleHost::olderThanEngine`이 게임 DLL과 `mealkit.dll`의 수정 시각을 비교했다. 엔진 `.cpp`만 바뀌면 `mealkit.dll`은 다시 링크되지만 내보내기가 같아 import lib이 그대로라 Ninja가 게임 DLL을 다시 링크하지 않는다.
   그래서 에디터가 시작할 때마다 게임 코드 빌드를 했고, 그 빌드가 실패하면 이전 DLL로 돌아가지 못했다(check.ps1 "Editor keeps the old DLL on failure" 실패).

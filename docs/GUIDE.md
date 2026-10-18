@@ -146,7 +146,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 
 ```bat
 build.bat Editor     :: 범용 에디터: build\Editor\bin\MealKitEditor.exe + mealkit.dll + sandbox_game.dll
-build.bat            :: Release: build\Release\bin\sandbox.exe (출시용 게임, 엔진 정적 링크)
+build.bat            :: Release: build\Release\bin\sandbox.exe (출시용 게임, 엔진 정적 링크) + sandbox_headless.exe (창 없는 시뮬레이션)
 build.bat Debug      :: Debug (D3D12 디버그 레이어 자동 활성화)
 build.bat Profile    :: Release + Tracy 프로파일링
 build.bat Export     :: 출시 폴더 export\sandbox\
@@ -173,6 +173,22 @@ sandbox.exe --help                   :: 전체 옵션
 - 모든 플레이어가 **같은 실행 파일, 같은 씬, 같은 모델 파일**을 써야 한다. 다르면 접속이 거부된다(결정론 보장).
 - UDP로 다른 PC에서 접속하려면 호스트 방화벽에서 `sandbox.exe`를 허용해야 하고, 인터넷 너머라면 포트 포워딩이 필요하다. Steam을 쓰면 둘 다 필요 없다.
 - 같은 PC에서 여러 창으로 테스트할 때는 `--host --local`을 쓰면 방화벽 확인 창이 뜨지 않는다.
+
+### 헤드리스 (창 없이 시뮬레이션만)
+
+```bat
+sandbox_headless.exe --seed 7 --exit-tick 900 --hash-log a.txt --record-inputs match.rec
+sandbox.exe --headless --replay-inputs match.rec --hash-log b.txt   :: 같은 입력으로 다시 돌려 틱마다 기록된 해시와 비교
+sandbox_headless.exe --host --local --players 2 --exit-tick 900      :: 네트워크도 그대로 (창 있는 피어와도 접속된다)
+sandbox_headless.exe --help
+```
+
+- 창·렌더러·오디오를 만들지 않고 `World`만 돌린다. 입력은 항상 봇 입력이고, 혼자면 쉬지 않고 돈다(900틱 약 1~2초).
+- `sandbox_headless.exe`는 `sim/` + `app/Headless.cpp`만 엔진 코어(`mealkit_core`, 렌더러·창 없음)와 링크한 실행 파일이다. Linux(x64)·macOS(ARM64)의 Clang에서는 이것만 빌드한다(CI 항목에서 처음 컴파일한다). 출시 exe의 `--headless`도 같은 코드다.
+- `--hash-log`: 틱마다 `<틱> <해시>` 한 줄. 창 있는 게임(`sandbox.exe --bot --hash-log`)과도 같은 파일이 나온다.
+- `--record-inputs`(창 있는 게임에도 있다): 확정된 입력과 틱별 해시를 파일로. `--replay-inputs`는 네트워크 없이 그것을 다시 돌려 `REPLAY ok` 또는 처음 갈라진 틱을 출력한다.
+  빌드·컴파일러·OS 사이 비교는 봇을 따로 돌리지 않고 **같은 기록 파일**을 각 빌드에서 재생한다 (예: `build\ClangCL\bin\sandbox_headless.exe --replay-inputs match.rec`).
+- 게임 프로젝트는 `source/app/Headless.cpp`에 `MEALKIT_HEADLESS_GAME(클래스)`를 두면 `<이름>_headless`가 생긴다(`mealkit/game/Headless.h`, `docs/CODING_MODEL.md` "헤드리스 진입점").
 
 조작: `WASD` 이동, `Space` 점프, `왼쪽 클릭` 밀치기, `오른쪽 드래그` 카메라, `휠` 줌, `V` 수직동기, `F12` 스크린샷, `Esc` 종료
 
@@ -216,6 +232,8 @@ powershell -ExecutionPolicy Bypass -File tools\mp_test.ps1 -Clients 3 -Ticks 900
 MSVC 빌드 호스트에 clang-cl 빌드 클라이언트를 붙여 **컴파일러가 달라도 결과가 같은지** 본다(`-Exe`와 바꿔 반대 방향도).
 보통은 실행 파일이 다르면 접속이 거부되므로, 이때 호스트는 시험용 `--any-build`로 다른 빌드를 받는다.
 
+`-Headless`를 붙이면 모든 피어가 창 없이(`--headless`) 돈다. 입력이 허락하는 만큼 빨리 돌아 900틱이 약 5초다(창 모드는 약 30초).
+
 ## 외부 라이브러리
 
 | 라이브러리 | 버전 | 라이선스 | 쓰는 곳 | 이유 |
@@ -239,14 +257,15 @@ engine/
   src/mealkit/core/            Types, Log, Clock, Math, DetMath, Random, Hash, Reflect(필드 선언), Version, Profile
   src/mealkit/platform/        Window, Input, Paths, Process, System, DynamicLibrary, FileDialog, Image (헤더 + 공통 부분)
   src/mealkit/platform/win32/  OS를 부르는 Windows 구현 (Win32, Winsock, WIC, 대화상자)
-  src/mealkit/platform/posix/  헤드리스용 Linux·macOS 최소 구현 (시간, 파일, UDP, 로그)
+  src/mealkit/platform/posix/  헤드리스용 Linux·macOS 최소 구현 (시간, 파일, UDP, 로그. 아직 컴파일해 보지 않았다)
   src/mealkit/online/          Online (계정·로비·초대·릴레이): Steam 백엔드, SDK 없을 때의 None 백엔드
   src/mealkit/render/          Renderer, Mesh, DrawList
   src/mealkit/physics/         PhysicsWorld (Jolt)
   src/mealkit/asset/           ModelCache (cgltf + meshoptimizer)
   src/mealkit/net/             Socket, Transport, Lockstep
   src/mealkit/scene/           Scene (.scene 읽기/쓰기)
-  src/mealkit/game/            GameInstance, GameContext (엔진·에디터와 게임 코드의 경계, MEALKIT_GAME_MODULE), Simulation, WorldSnapshot, ProjectSettings, GameData
+  src/mealkit/game/            GameInstance, GameContext (엔진·에디터와 게임 코드의 경계, MEALKIT_GAME_MODULE), Simulation, WorldSnapshot, ProjectSettings, GameData,
+                               Headless (창 없는 실행, MEALKIT_HEADLESS_GAME), InputRecord (입력 기록·해시 로그)
   src/mealkit/sim/             Pool<T>, TickTimer, TickEvents (게임 sim/이 쓰는 결정론 도구)
   src/mealkit/editor/          MealKitEditor: EditorMain, ProjectManager, Project, GameModuleHost(DLL 핫 리로드), Editor, PlaySession, FieldEditor, Strings(tr), ImGuiLayer
   res/                       에디터 아이콘, 에디터 UI 번역(strings/ko.txt)
@@ -255,7 +274,8 @@ engine/
 samples/sandbox/             예제 게임 = 새 프로젝트 템플릿 (프로젝트에서는 source/ 아래)
   sim/                       결정론 시뮬레이션: World(상태, step 순서, hash), Systems.h, Pawns(슬롯·컨트롤러·Pawn·AI), Props, Objects, Tuning
   view/                      Camera, LocalInput(조작 → GameInput), Draw, Effects(틱 이벤트 → 화면 효과) (sim/ 상태는 읽기만)
-  app/                       GameSession(한 판 진행, GameInstance 구현), main.cpp(출시 exe), GameModule.cpp(에디터 DLL 진입점)
+  app/                       GameSession(한 판 진행, GameInstance 구현), main.cpp(출시 exe), GameModule.cpp(에디터 DLL 진입점),
+                             Headless.cpp(헤드리스 진입점: 매치 시작·봇 입력, GameSession도 쓴다)
 mealkit.project                엔진 저장소를 예제 게임 프로젝트로 열 때 쓰는 프로젝트 파일
 assets/scenes, assets/models 씬과 모델
 third_party/                 외부 라이브러리 (VERSIONS.txt)
@@ -300,7 +320,7 @@ VERSION                      엔진 버전 (mealkit.project의 engineVersion과 
 ## 다음 단계
 
 계획과 순서는 [docs/ROADMAP.md](ROADMAP.md)("추천 순서 요약"), 정한 것과 미룬 것은 [docs/DECISIONS.md](DECISIONS.md), 끝낸 것의 상세는 [docs/CHANGELOG.md](CHANGELOG.md).
-지금은 1단계(v0.5, 게임이 되게 하는 최소 기능) 중이고, 다음은 헤드리스 시뮬레이션 → CI 빌드 매트릭스다.
+지금은 1단계(v0.5, 게임이 되게 하는 최소 기능) 중이고, 다음은 CI 빌드 매트릭스다.
 
 ## 라이선스
 

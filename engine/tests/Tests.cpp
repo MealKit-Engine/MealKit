@@ -5,6 +5,7 @@
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Random.h"
+#include "mealkit/game/InputRecord.h"
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/game/Simulation.h"
 #include "mealkit/net/Lockstep.h"
@@ -282,6 +283,34 @@ TEST_CASE(reflect_string) {
     Named c;
     reflect::ByteReader r(w.data().data(), w.data().size());
     TEST_CHECK(reflect::loadStruct(t, &c, r) && r.atEnd() && c.title == a.title);
+}
+
+TEST_CASE(input_record) {
+    const std::string path = executableDirectory() + "/test_inputs.rec";
+    const game::MatchInfo match{0x0123456789ABCDEFull, 3, 2000};
+    std::vector<net::TickInputs> inputs(5);
+    for (u32 t = 0; t < inputs.size(); ++t)
+        for (u32 p = 0; p < net::kMaxPlayers; ++p)
+            for (u32 b = 0; b < net::kInputBytes; ++b) inputs[t].players[p].bytes[b] = static_cast<u8>(t * 31 + p * 7 + b);
+    {
+        game::InputRecordWriter w;
+        TEST_CHECK(w.open(path, match, 0xFEEDull));
+        for (u32 t = 0; t < inputs.size(); ++t) w.write(inputs[t], 1000ull + t);
+    }
+    game::InputRecording rec;
+    std::string error;
+    TEST_CHECK(game::loadInputRecording(path, rec, error));
+    TEST_CHECK(rec.match.seed == match.seed && rec.match.playerCount == 3 && rec.match.matchData == 2000);
+    TEST_CHECK(rec.contentHash == 0xFEEDull && rec.inputs.size() == 5 && rec.hashes.size() == 5);
+    bool same = true;
+    for (u32 t = 0; t < inputs.size(); ++t) {
+        same = same && rec.hashes[t] == 1000ull + t;
+        for (u32 p = 0; p < net::kMaxPlayers; ++p) // 인원 밖의 플레이어는 기록하지 않는다 (0으로 읽힌다)
+            for (u32 b = 0; b < net::kInputBytes; ++b)
+                same = same && rec.inputs[t].players[p].bytes[b] == (p < 3 ? inputs[t].players[p].bytes[b] : 0);
+    }
+    TEST_CHECK(same);
+    removeFile(path);
 }
 
 TEST_CASE(project_file) {

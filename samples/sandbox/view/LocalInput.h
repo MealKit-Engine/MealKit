@@ -20,7 +20,4 @@ struct LocalInput {
     void clearLatches() { pushLatch = jumpLatch = false; }
 };
 
-// 스크립트 입력(--bot): 원을 그리며 걷고 주기적으로 밀치기/점프
-GameInput botInput(u32 tick, u8 player);
-
 } // namespace sandbox

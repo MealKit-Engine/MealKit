@@ -4,12 +4,14 @@
 //   sandbox.exe --host [port]           방 만들기 (로비에서 Enter로 시작)
 //   sandbox.exe --join 127.0.0.1[:port] 참가
 //   sandbox.exe --scene my.scene        다른 씬으로 플레이 (모든 플레이어가 같은 파일이어야 한다)
+//   sandbox.exe --headless ...          창 없이 시뮬레이션만 (app/Headless.cpp, sandbox_headless.exe와 같다)
 //
 // 시작 씬·기본 포트·기본 인원은 mealkit.project (에디터 [프로젝트 설정])에서 읽는다.
 //
 // 조작: WASD 이동, Space 점프, 왼쪽 클릭 밀치기, 오른쪽 드래그 카메라, 휠 줌, V 수직동기, F12 스크린샷, Esc 종료
 
 #include "app/GameSession.h"
+#include "app/Headless.h"
 
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/core/Clock.h"
@@ -64,6 +66,8 @@ struct Options {
     u32 captureTick = 0;
     bool systemInfo = false; // CPU·GPU 정보만 출력하고 끝 (최소 사양 실기 측정 기록용)
     bool anyBuild = false;   // 호스트가 다른 빌드의 피어도 받는다 (컴파일러 비교 시험)
+    std::string hashLogPath;      // 틱별 해시 로그 (헤드리스와 비교)
+    std::string recordInputsPath; // 확정된 입력 기록 (sandbox_headless --replay-inputs로 재생)
 };
 
 void printUsage() {
@@ -75,7 +79,7 @@ void printUsage() {
                 "  --scene <file>         scene to play (default: scene in mealkit.project)\n"
                 "  --tuning <file>        tuning values (default assets/game.tuning)\n"
                 "  --players <n>          max players when hosting (default: game.defaultMaxPlayers, max 8)\n"
-                "  --bodies <n>           physics bodies (default 2000, set by host)\n"
+                "  --bodies <n>           physics bodies (default 2000, set by host; same as --match-data)\n"
                 "  --delay <ticks>        input delay in 33ms ticks (default 3)\n"
                 "  --seed <n>             world seed\n"
                 "  --vsync <0|1>          vertical sync (default 1)\n"
@@ -91,7 +95,10 @@ void printUsage() {
                 "  --rewind-test          record inputs and snapshots, rewind and replay at the exit tick\n"
                 "  --capture <png> <tick> save a screenshot after the given tick\n"
                 "  --system-info          print CPU/GPU capabilities and exit (exit code 2 if below minimum spec)\n"
-                "  --any-build            host: accept peers running a different build (compiler comparison tests)\n");
+                "  --any-build            host: accept peers running a different build (compiler comparison tests)\n"
+                "  --hash-log <file>      write \"<tick> <hash>\" for every tick\n"
+                "  --record-inputs <file> save confirmed inputs and hashes (replay: --headless --replay-inputs)\n"
+                "  --headless --help      run without a window (headless options)\n");
 }
 
 bool parseArgs(int argc, char** argv, Options& o) {
@@ -120,7 +127,7 @@ bool parseArgs(int argc, char** argv, Options& o) {
         } else if (a == "--scene" && next(v)) o.scenePath = v;
         else if (a == "--tuning" && next(v)) o.tuningPath = v;
         else if (a == "--players" && next(v)) o.maxPlayers = static_cast<u32>(std::atoi(v));
-        else if (a == "--bodies" && next(v)) o.bodies = static_cast<u32>(std::atoi(v));
+        else if ((a == "--bodies" || a == "--match-data") && next(v)) o.bodies = static_cast<u32>(std::atoi(v));
         else if (a == "--delay" && next(v)) o.inputDelay = static_cast<u32>(std::atoi(v));
         else if (a == "--seed" && next(v)) o.seed = std::strtoull(v, nullptr, 10);
         else if (a == "--vsync" && next(v)) o.vsync = std::atoi(v) != 0;
@@ -141,6 +148,8 @@ bool parseArgs(int argc, char** argv, Options& o) {
             o.captureTick = static_cast<u32>(std::atoi(argv[++i]));
         } else if (a == "--system-info") o.systemInfo = true;
         else if (a == "--any-build") o.anyBuild = true;
+        else if (a == "--hash-log" && next(v)) o.hashLogPath = v;
+        else if (a == "--record-inputs" && next(v)) o.recordInputsPath = v;
         else if (a == "--help" || a == "-h") return false;
         else {
             std::printf("Unknown option: %s\n", a.c_str());
@@ -195,6 +204,8 @@ int printSystemInfo() {
 } // namespace
 
 int main(int argc, char** argv) {
+    for (int i = 1; i < argc; ++i)
+        if (std::string(argv[i]) == "--headless") return mealkitHeadlessMain(argc, argv);
     Options opt;
     if (!parseArgs(argc, argv, opt)) {
         printUsage();
@@ -283,6 +294,8 @@ int main(int argc, char** argv) {
     gameOptions.tuningPath = opt.tuningPath;
     gameOptions.shadow = opt.shadow;
     gameOptions.record = opt.rewindTest;
+    gameOptions.hashLogPath = opt.hashLogPath;
+    gameOptions.recordInputsPath = opt.recordInputsPath;
 
     FrameLimiter limiter;
     limiter.setTargetFps(opt.vsync ? 0.0 : opt.fpsCap);

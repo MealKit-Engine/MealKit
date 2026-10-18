@@ -15,6 +15,7 @@ Get-ChildItem $out -File | Remove-Item -Force
 $release = Join-Path $root "build\Release\bin"
 $editorBin = Join-Path $root "build\Editor\bin"
 $game = Join-Path $release "sandbox.exe"
+$headless = Join-Path $release "sandbox_headless.exe"
 $editor = Join-Path $editorBin "MealKitEditor.exe"
 $results = @()
 $step = 0
@@ -87,11 +88,32 @@ Invoke-Check "Determinism (mp_test 1+3, 900 ticks)" {
     return ($output -match "^PASS").Count -gt 0
 }
 
+# 헤드리스: 창 없이 같은 결정론 테스트 + 입력 기록을 다른 실행 파일(sandbox.exe --headless)로 재생해 틱별 해시가 같은지
+Invoke-Check "Headless (mp_test, record + replay)" {
+    param($log)
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 3 -Ticks 900 -Headless 2>&1
+    $output | Out-File -Encoding utf8 $log
+    if (($output -match "^PASS").Count -eq 0) { return "mp_test -Headless failed" }
+    $rec = Join-Path $out "headless.rec"
+    Run "$log.record" $headless "--seed 7 --exit-tick 900 --record-inputs `"$rec`" --hash-log `"$out\headless-hashes.txt`"" | Out-Null
+    $code = Run "$log.replay" $game "--headless --replay-inputs `"$rec`" --hash-log `"$out\replay-hashes.txt`""
+    if ($code -ne 0 -or -not (Has "$log.replay" "^REPLAY ok")) { return "replay failed" }
+    if ((Get-FileHash "$out\headless-hashes.txt").Hash -ne (Get-FileHash "$out\replay-hashes.txt").Hash) { return "hash logs differ" }
+    return $true
+}
+
 if (-not $Quick) {
     Invoke-Check "Shadow simulation + rewind" {
         param($log)
-        Run $log $game "--bot --seed 7 --exit-tick 900 --shadow --rewind-test --vsync 0 --size 640 360" | Out-Null
+        Run $log $game "--bot --seed 7 --exit-tick 900 --shadow --rewind-test --vsync 0 --size 640 360 --hash-log `"$out\window-hashes.txt`"" | Out-Null
         return (Has $log "^SHADOW ok") -and (Has $log "^REWIND ok")
+    }
+    Invoke-Check "Headless = window (900 tick hashes)" {
+        param($log)
+        $a = Join-Path $out "headless-hashes.txt"
+        $b = Join-Path $out "window-hashes.txt"
+        if (-not (Test-Path $a) -or -not (Test-Path $b)) { return "hash log missing" }
+        return (Get-FileHash $a).Hash -eq (Get-FileHash $b).Hash
     }
     Invoke-Check "Game capture" {
         param($log)

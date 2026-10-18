@@ -37,14 +37,4 @@ GameInput LocalInput::sample(Input& input, const OrbitCamera& camera, bool keybo
     return g;
 }
 
-GameInput botInput(u32 tick, u8 player) {
-    GameInput g;
-    const f32 a = static_cast<f32>(tick) * 0.05f + static_cast<f32>(player) * 1.7f;
-    g.moveX = quantize(std::sin(a));
-    g.moveZ = quantize(std::cos(a));
-    if ((tick + player * 11u) % 40u == 0) g.buttons |= kButtonPush;
-    if ((tick + player * 7u) % 75u == 0) g.buttons |= kButtonJump;
-    return g;
-}
-
 } // namespace sandbox

@@ -1,4 +1,5 @@
 #include "app/GameSession.h"
+#include "app/Headless.h"
 
 #include "mealkit/game/GameData.h"
 #include "mealkit/platform/Window.h"
@@ -15,11 +16,9 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     m_options = options;
     Tuning tuning;
     game::loadTuning(reflect::typeOf<Tuning>(), &tuning, options.tuningPath);
-    // 상자는 매치 중에 늘지 않으므로 Pool 용량 = 상자 수
-    const u32 propCount = session.matchData();
+    const game::MatchInfo match{session.seed(), session.playerCount(), session.matchData()};
     m_sim.start(options, kTickDt, [&](World& world, u32 physicsThreads) {
-        world.reset(session.seed(), session.playerCount(), propCount, propCount, tuning, m_scene, ctx.models,
-                    physicsThreads);
+        Headless::startWorld(world, match, tuning, m_scene, ctx.models, physicsThreads); // 헤드리스와 같은 매치 시작
     });
     m_input.clearLatches();
     m_effects = {};
@@ -41,9 +40,9 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
 
     // 확정된 틱마다: 로컬 입력을 만들어 보내고, 틱 이벤트를 화면 효과로 옮긴다
     auto sample = [&](u32 tick) {
-        const GameInput gi = m_options.bot ? botInput(tick, session.localPlayer())
-                                           : m_input.sample(input, m_camera, keyboardAllowed, mouseAllowed);
+        const GameInput gi = m_input.sample(input, m_camera, keyboardAllowed, mouseAllowed);
         m_input.clearLatches();
+        if (m_options.bot) return Headless::botInput(tick, session.localPlayer());
         net::PlayerInput pi;
         std::memcpy(pi.bytes, &gi, sizeof(gi));
         return pi;

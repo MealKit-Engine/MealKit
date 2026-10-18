@@ -1,47 +1,50 @@
 # 엔진 폴더가 최상위가 아닐 수도 있으므로(게임 프로젝트에서 include) CMAKE_SOURCE_DIR 대신 이 경로를 쓴다.
 get_filename_component(MEALKIT_THIRD_PARTY "${CMAKE_CURRENT_SOURCE_DIR}/../third_party" ABSOLUTE)
 
-# --- 셰이더: 빌드 시점에 DXC로 DXIL 바이트 배열 헤더를 만든다 (런타임 컴파일러 의존성 없음) ---
-find_program(MEALKIT_DXC dxc HINTS "$ENV{WindowsSdkVerBinPath}/x64" REQUIRED)
-
+# --- 셰이더: 빌드 시점에 DXC로 DXIL 바이트 배열 헤더를 만든다 (런타임 컴파일러 의존성 없음). Windows 화면 쪽만 ---
 set(MEALKIT_SHADER_OUT ${CMAKE_CURRENT_BINARY_DIR}/shaders)
-file(MAKE_DIRECTORY ${MEALKIT_SHADER_OUT})
-
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-    set(MEALKIT_DXC_FLAGS -Zi -Qembed_debug -Od)
-else()
-    set(MEALKIT_DXC_FLAGS -O3 -Qstrip_debug -Qstrip_reflect)
-endif()
-
 set(MEALKIT_SHADER_HEADERS "")
-function(mealkit_shader source entry profile name)
-    set(out ${MEALKIT_SHADER_OUT}/${name}.h)
-    add_custom_command(
-        OUTPUT ${out}
-        COMMAND ${MEALKIT_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${out} ${MEALKIT_DXC_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
-        DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source}
-        COMMENT "DXC ${source} (${entry})"
-        VERBATIM)
-    set(MEALKIT_SHADER_HEADERS ${MEALKIT_SHADER_HEADERS} ${out} PARENT_SCOPE)
-endfunction()
+if(NOT MEALKIT_HEADLESS_ONLY)
+    find_program(MEALKIT_DXC dxc HINTS "$ENV{WindowsSdkVerBinPath}/x64" REQUIRED)
+    file(MAKE_DIRECTORY ${MEALKIT_SHADER_OUT})
 
-mealkit_shader(shaders/Forward.hlsl VSMain vs_6_0 g_ForwardVS)
-mealkit_shader(shaders/Forward.hlsl PSMain ps_6_0 g_ForwardPS)
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+        set(MEALKIT_DXC_FLAGS -Zi -Qembed_debug -Od)
+    else()
+        set(MEALKIT_DXC_FLAGS -O3 -Qstrip_debug -Qstrip_reflect)
+    endif()
+
+    function(mealkit_shader source entry profile name)
+        set(out ${MEALKIT_SHADER_OUT}/${name}.h)
+        add_custom_command(
+            OUTPUT ${out}
+            COMMAND ${MEALKIT_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${out} ${MEALKIT_DXC_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+            COMMENT "DXC ${source} (${entry})"
+            VERBATIM)
+        set(MEALKIT_SHADER_HEADERS ${MEALKIT_SHADER_HEADERS} ${out} PARENT_SCOPE)
+    endfunction()
+
+    mealkit_shader(shaders/Forward.hlsl VSMain vs_6_0 g_ForwardVS)
+    mealkit_shader(shaders/Forward.hlsl PSMain ps_6_0 g_ForwardPS)
+endif()
 
 # --- meshoptimizer (모델 최적화/LOD) ---
 file(GLOB MEALKIT_MESHOPT_SOURCES ${MEALKIT_THIRD_PARTY}/meshoptimizer/src/*.cpp)
 add_library(mealkit_meshopt STATIC ${MEALKIT_MESHOPT_SOURCES})
 target_include_directories(mealkit_meshopt SYSTEM PUBLIC ${MEALKIT_THIRD_PARTY}/meshoptimizer/src)
-target_compile_options(mealkit_meshopt PRIVATE /W0)
+if(MSVC)
+    target_compile_options(mealkit_meshopt PRIVATE /W0)
+else()
+    target_compile_options(mealkit_meshopt PRIVATE -w)
+endif()
 
 # --- 엔진 라이브러리 ---
-# Game 빌드: 정적 라이브러리 (출시 exe에 들어간다). Editor 빌드: mealkit.dll (에디터와 게임 DLL이 같이 쓴다).
-if(MEALKIT_BUILD_KIND STREQUAL "Editor")
-    set(MEALKIT_LIBRARY_TYPE SHARED)
-else()
-    set(MEALKIT_LIBRARY_TYPE STATIC)
-endif()
-add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
+# 코어(MEALKIT_CORE_SOURCES): 시뮬레이션·물리·네트워크·데이터·플랫폼 최소 기능. 창·그래픽 없이 돈다 (헤드리스, Linux·macOS도).
+# 화면 쪽(MEALKIT_FRONT_SOURCES): 창·입력·렌더러·온라인 서비스·에디터용 플랫폼 기능. Windows만 (다른 OS는 5단계).
+# Game 빌드: mealkit_core(정적) + mealkit(정적, 코어를 PUBLIC으로 링크). 출시 exe는 mealkit, <게임>_headless는 mealkit_core만 쓴다.
+# Editor 빌드: 둘을 합친 mealkit.dll (에디터와 게임 DLL이 같이 쓴다).
+set(MEALKIT_CORE_SOURCES
     src/mealkit/core/Types.h
     src/mealkit/core/Version.h
     src/mealkit/core/Log.h
@@ -58,6 +61,10 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/game/GameInstance.h
     src/mealkit/game/GameData.h
     src/mealkit/game/GameData.cpp
+    src/mealkit/game/Headless.h
+    src/mealkit/game/Headless.cpp
+    src/mealkit/game/InputRecord.h
+    src/mealkit/game/InputRecord.cpp
     src/mealkit/game/ProjectSettings.h
     src/mealkit/game/ProjectSettings.cpp
     src/mealkit/game/WorldSnapshot.h
@@ -68,17 +75,10 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/sim/TickTimer.h
     src/mealkit/physics/PhysicsWorld.h
     src/mealkit/physics/PhysicsWorld.cpp
-    src/mealkit/platform/Input.h
-    src/mealkit/platform/Window.h
     src/mealkit/platform/Paths.h
     src/mealkit/platform/Paths.cpp
-    src/mealkit/platform/Process.h
     src/mealkit/platform/System.h
     src/mealkit/platform/System.cpp
-    src/mealkit/platform/DynamicLibrary.h
-    src/mealkit/platform/FileDialog.h
-    src/mealkit/platform/Image.h
-    src/mealkit/online/Online.h
     src/mealkit/scene/Scene.h
     src/mealkit/scene/Scene.cpp
     src/mealkit/asset/ModelCache.h
@@ -87,37 +87,60 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/render/Mesh.h
     src/mealkit/render/Mesh.cpp
     src/mealkit/render/Renderer.h
-    src/mealkit/render/Renderer.cpp
     src/mealkit/net/Socket.h
     src/mealkit/net/Socket.cpp
     src/mealkit/net/Transport.h
     src/mealkit/net/Lockstep.h
-    src/mealkit/net/Lockstep.cpp
+    src/mealkit/net/Lockstep.cpp)
+set(MEALKIT_FRONT_SOURCES
+    src/mealkit/platform/Input.h
+    src/mealkit/platform/Window.h
+    src/mealkit/platform/Process.h
+    src/mealkit/platform/DynamicLibrary.h
+    src/mealkit/platform/FileDialog.h
+    src/mealkit/platform/Image.h
+    src/mealkit/online/Online.h
+    src/mealkit/render/Renderer.cpp
     shaders/Forward.hlsl
     ${MEALKIT_SHADER_HEADERS})
-
-set_source_files_properties(shaders/Forward.hlsl PROPERTIES HEADER_FILE_ONLY ON)
 
 # 플랫폼 계층 구현 (docs/CODING_MODEL.md "그래픽 API와 OS 기능"): OS API는 platform/<os>/ 안에서만 부른다.
 # posix/는 헤드리스(Linux·macOS)에 필요한 만큼만 있다(시간·파일·UDP·로그). 창·입력·DLL·대화상자·그림은 Windows만 (5단계).
 if(WIN32)
-    target_sources(mealkit PRIVATE
+    list(APPEND MEALKIT_CORE_SOURCES
         src/mealkit/platform/win32/Clock.cpp
+        src/mealkit/platform/win32/Paths.cpp
+        src/mealkit/platform/win32/Socket.cpp
+        src/mealkit/platform/win32/System.cpp)
+    list(APPEND MEALKIT_FRONT_SOURCES
         src/mealkit/platform/win32/DynamicLibrary.cpp
         src/mealkit/platform/win32/FileDialog.cpp
         src/mealkit/platform/win32/Image.cpp
-        src/mealkit/platform/win32/Paths.cpp
         src/mealkit/platform/win32/Process.cpp
-        src/mealkit/platform/win32/Socket.cpp
-        src/mealkit/platform/win32/System.cpp
         src/mealkit/platform/win32/Window.cpp)
 else()
-    target_sources(mealkit PRIVATE
+    list(APPEND MEALKIT_CORE_SOURCES
         src/mealkit/platform/posix/Clock.cpp
         src/mealkit/platform/posix/Paths.cpp
         src/mealkit/platform/posix/Socket.cpp
         src/mealkit/platform/posix/System.cpp)
 endif()
+
+if(MEALKIT_BUILD_KIND STREQUAL "Editor")
+    add_library(mealkit SHARED ${MEALKIT_CORE_SOURCES} ${MEALKIT_FRONT_SOURCES})
+    set(mealkit_core_target mealkit)
+else()
+    add_library(mealkit_core STATIC ${MEALKIT_CORE_SOURCES})
+    set(mealkit_core_target mealkit_core)
+    if(NOT MEALKIT_HEADLESS_ONLY)
+        add_library(mealkit STATIC ${MEALKIT_FRONT_SOURCES})
+        target_link_libraries(mealkit PUBLIC mealkit_core)
+    endif()
+endif()
+if(NOT MEALKIT_HEADLESS_ONLY)
+    set_source_files_properties(shaders/Forward.hlsl PROPERTIES HEADER_FILE_ONLY ON)
+endif()
+
 # mealkit.dll: 엔진 함수와 클래스를 모두 내보낸다 (__declspec 표시 없이). 게임 코드가 엔진 전역 변수에 직접 접근하지 않는 한 충분하다.
 # CMake의 WINDOWS_EXPORT_ALL_SYMBOLS와 같은 방식(__create_def)으로 def를 만들되, MSVC CRT의 약한 별칭이 남기는
 # 잘못된 줄("==")을 지운 뒤 링크한다 (WINDOWS_EXPORT_ALL_SYMBOLS 그대로는 LNK2001로 실패한다).
@@ -133,39 +156,66 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     target_link_options(mealkit PRIVATE /DEF:${mealkit_def})
 endif()
 
-target_include_directories(mealkit
-    PUBLIC src
-    PRIVATE ${MEALKIT_SHADER_OUT})
-target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf)
+# 아래 PUBLIC 설정은 코어 타깃에 둔다 (Game 빌드의 mealkit은 코어를 PUBLIC으로 링크해 물려받는다)
+target_include_directories(${mealkit_core_target} PUBLIC src)
+target_include_directories(${mealkit_core_target} SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf)
+if(NOT MEALKIT_HEADLESS_ONLY)
+    target_include_directories(mealkit PRIVATE ${MEALKIT_SHADER_OUT})
+endif()
 
-target_compile_definitions(mealkit PUBLIC
-    NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE
+target_compile_definitions(${mealkit_core_target} PUBLIC
     MEALKIT_VERSION="${MEALKIT_VERSION}"
     $<$<CONFIG:Debug>:MEALKIT_DEBUG=1>)
+if(WIN32)
+    target_compile_definitions(${mealkit_core_target} PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
+endif()
 # MEALKIT_ASSERT는 Editor 빌드(에디터 + 게임 DLL)에서도 켠다. PUBLIC이라 MealKitTargets.cmake로 게임 DLL에도 넘어간다.
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     target_compile_definitions(mealkit PUBLIC MEALKIT_ASSERTS=1)
 endif()
 
-# /fp:precise 고정: 시뮬레이션 결정론을 위해 /fp:fast, /fp:contract, /arch:AVX2 를 쓰지 않는다.
-# clang-cl(build.bat ClangCL)은 기본이 precise지만 식 안의 곱셈-덧셈 합치기(fp-contract=on)를 허용하므로 그것만 끈다.
-target_compile_options(mealkit PUBLIC /W4 /permissive- /utf-8 /Zc:__cplusplus /GR-
-    $<IF:$<CXX_COMPILER_ID:Clang>,/clang:-ffp-contract=off,/fp:precise>)
+# 부동소수점 결정론 (docs/GUIDE.md "결정론 규칙"): /fp:fast, /fp:contract, /arch:AVX2, -ffast-math를 쓰지 않는다.
+# MSVC는 /fp:precise. clang-cl(build.bat ClangCL)은 기본이 precise지만 식 안의 곱셈-덧셈 합치기(fp-contract=on)를 허용하므로 그것만 끈다.
+# Linux·macOS의 Clang·GCC(헤드리스)도 -ffp-contract=off, -fno-fast-math.
+if(MSVC)
+    target_compile_options(${mealkit_core_target} PUBLIC /W4 /permissive- /utf-8 /Zc:__cplusplus /GR-
+        $<IF:$<CXX_COMPILER_ID:Clang>,/clang:-ffp-contract=off,/fp:precise>)
+else()
+    target_compile_options(${mealkit_core_target} PUBLIC -Wall -Wextra -fno-rtti -ffp-contract=off -fno-fast-math)
+endif()
 
-target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid ws2_32 windowscodecs ole32 uuid shell32 dwmapi comdlg32 mealkit_tracy PRIVATE Jolt mealkit_meshopt)
+target_link_libraries(${mealkit_core_target} PUBLIC mealkit_tracy PRIVATE Jolt mealkit_meshopt)
+if(WIN32)
+    target_link_libraries(${mealkit_core_target} PUBLIC ws2_32 shell32 ole32)
+else()
+    find_package(Threads REQUIRED)
+    target_link_libraries(${mealkit_core_target} PUBLIC Threads::Threads)
+endif()
+if(NOT MEALKIT_HEADLESS_ONLY)
+    target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid windowscodecs uuid dwmapi comdlg32)
+endif()
 
 # --- SimCheck: 게임 sim/ 폴더의 결정론 규칙 검사 (빌드 도구, mealkit_add_game이 게임 코드보다 먼저 실행한다) ---
 add_executable(mealkit_simcheck tools/SimCheck.cpp)
-target_compile_options(mealkit_simcheck PRIVATE /W4 /permissive- /utf-8)
+if(MSVC)
+    target_compile_options(mealkit_simcheck PRIVATE /W4 /permissive- /utf-8)
+else()
+    target_compile_options(mealkit_simcheck PRIVATE -Wall -Wextra)
+endif()
 set_target_properties(mealkit_simcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tools)
 
-# --- 엔진 단위 테스트: 엔진 저장소 빌드에만 (tools\check.ps1이 Release와 Editor 빌드에서 돌린다) ---
+# --- 엔진 단위 테스트: 엔진 저장소 빌드에만 (tools\check.ps1이 Release와 Editor 빌드에서 돌린다). 화면 쪽 없이 코어만 쓴다 ---
 if(MEALKIT_IS_ENGINE)
     add_executable(mealkit_tests tests/Tests.cpp tests/TestRegistry.h)
-    target_link_libraries(mealkit_tests PRIVATE mealkit)
+    target_link_libraries(mealkit_tests PRIVATE ${mealkit_core_target})
 endif()
 
-# --- Steamworks (선택): SDK를 third_party/steamworks/sdk 에 풀면 자동으로 켜진다 ---
+if(MEALKIT_HEADLESS_ONLY)
+    return() # Linux·macOS: 헤드리스만 (온라인 서비스·에디터는 5단계)
+endif()
+
+# --- 온라인 서비스 (mealkit/online/): 빌드 때 백엔드 하나. 헤드리스는 쓰지 않는다 ---
+# Steamworks (선택): SDK를 third_party/steamworks/sdk 에 풀면 자동으로 켜진다
 set(MEALKIT_STEAMWORKS_SDK ${MEALKIT_THIRD_PARTY}/steamworks/sdk)
 # 에디터 빌드는 Steam을 쓰지 않는다 (여러 명 플레이 시험은 출시 exe로 한다)
 if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor" AND EXISTS ${MEALKIT_STEAMWORKS_SDK}/public/steam/steam_api.h AND EXISTS ${MEALKIT_STEAMWORKS_SDK}/redistributable_bin/win64/steam_api64.lib)
