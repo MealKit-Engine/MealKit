@@ -20,6 +20,7 @@
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/platform/Paths.h"
 #include "mealkit/platform/Steam.h"
+#include "mealkit/platform/System.h"
 #include "mealkit/platform/Window.h"
 #include "mealkit/render/DrawList.h"
 #include "mealkit/render/Renderer.h"
@@ -61,6 +62,8 @@ struct Options {
     bool rewindTest = false; // 끝날 때 기록을 되감아 다시 돌려 보고 결과를 출력
     std::string capturePath;
     u32 captureTick = 0;
+    bool systemInfo = false; // CPU·GPU 정보만 출력하고 끝 (최소 사양 실기 측정 기록용)
+    bool anyBuild = false;   // 호스트가 다른 빌드의 피어도 받는다 (컴파일러 비교 시험)
 };
 
 void printUsage() {
@@ -86,7 +89,9 @@ void printUsage() {
                 "  --bot                  drive the local player with scripted input\n"
                 "  --shadow               run a shadow simulation and compare state hashes every tick\n"
                 "  --rewind-test          record inputs and snapshots, rewind and replay at the exit tick\n"
-                "  --capture <png> <tick> save a screenshot after the given tick\n");
+                "  --capture <png> <tick> save a screenshot after the given tick\n"
+                "  --system-info          print CPU/GPU capabilities and exit (exit code 2 if below minimum spec)\n"
+                "  --any-build            host: accept peers running a different build (compiler comparison tests)\n");
 }
 
 bool parseArgs(int argc, char** argv, Options& o) {
@@ -134,7 +139,9 @@ bool parseArgs(int argc, char** argv, Options& o) {
         else if (a == "--capture" && i + 2 < argc) {
             o.capturePath = argv[++i];
             o.captureTick = static_cast<u32>(std::atoi(argv[++i]));
-        } else if (a == "--help" || a == "-h") return false;
+        } else if (a == "--system-info") o.systemInfo = true;
+        else if (a == "--any-build") o.anyBuild = true;
+        else if (a == "--help" || a == "-h") return false;
         else {
             std::printf("Unknown option: %s\n", a.c_str());
             return false;
@@ -157,6 +164,34 @@ const char* stateName(net::SessionState s) {
     return "?";
 }
 
+// 최소 사양 실기 측정 결과를 CHANGELOG에 옮겨 적기 쉬운 모양으로 출력한다.
+int printSystemInfo() {
+    std::printf("CPU: %s\n", cpuName().c_str());
+    render::GpuInfo gpu;
+    std::string error;
+    if (!render::queryGpu(gpu, &error)) {
+        std::printf("GPU: none (%s)\n", error.c_str());
+        return 2;
+    }
+    std::printf("GPU: %s (vendor 0x%04X, device 0x%04X)\n"
+                "Driver: %s\n"
+                "Memory: %llu MB dedicated, %llu MB shared, %s\n"
+                "Feature level: %u_%u\n"
+                "Shader Model: %u.%u\n"
+                "Resource binding tier: %u\n"
+                "Wave lanes: %u-%u\n"
+                "Mesh shader tier: %u\n",
+                gpu.adapter.c_str(), gpu.vendorId, gpu.deviceId,
+                gpu.driverVersion.empty() ? "unknown" : gpu.driverVersion.c_str(),
+                static_cast<unsigned long long>(gpu.dedicatedVideoMemory >> 20),
+                static_cast<unsigned long long>(gpu.sharedSystemMemory >> 20), gpu.uma ? "UMA" : "discrete",
+                gpu.featureLevel >> 12, (gpu.featureLevel >> 8) & 0xF, gpu.shaderModel >> 4, gpu.shaderModel & 0xF,
+                gpu.resourceBindingTier, gpu.waveLaneCountMin, gpu.waveLaneCountMax, gpu.meshShaderTier);
+    const std::string below = render::gpuMinimumError(gpu);
+    std::printf("Minimum spec: %s\n", below.empty() ? "OK" : below.c_str());
+    return below.empty() ? 0 : 2;
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -165,6 +200,7 @@ int main(int argc, char** argv) {
         printUsage();
         return 1;
     }
+    if (opt.systemInfo) return printSystemInfo();
     const bool automated = opt.exitTick > 0;
     if (automated) log::setDialogs(false);
 
@@ -172,6 +208,7 @@ int main(int argc, char** argv) {
     game::ProjectFile project;
     sandbox::ProjectSettings gameProject;
     game::loadGameProject(project, &reflect::typeOf<sandbox::ProjectSettings>(), &gameProject);
+    MEALKIT_INFO("CPU: %s", cpuName().c_str()); // 다른 PC 결정론 기록용
     if (opt.port == 0) opt.port = gameProject.defaultPort;
     if (opt.maxPlayers == 0) opt.maxPlayers = gameProject.defaultMaxPlayers;
 
@@ -193,7 +230,7 @@ int main(int argc, char** argv) {
 
     render::Renderer renderer;
     if (!renderer.init({window.nativeHandle(), window.width(), window.height(), opt.vsync, opt.debugLayer}))
-        MEALKIT_FATAL("Renderer initialization failed. A Direct3D 12 GPU with Shader Model 6.0 is required.");
+        MEALKIT_FATAL("Renderer initialization failed.\n%s", renderer.initError());
     asset::ModelCache models;
     models.setRenderer(&renderer);
 
@@ -205,6 +242,7 @@ int main(int argc, char** argv) {
                                              &reflect::typeOf<sandbox::Tuning>(), &tuning,
                                              {&reflect::typeOf<game::ProjectSettings>(), &project.settings},
                                              {&reflect::typeOf<sandbox::ProjectSettings>(), &gameProject}));
+    session.setAcceptOtherBuilds(opt.anyBuild);
     const u64 seed = opt.seed ? opt.seed : static_cast<u64>(std::time(nullptr));
     switch (opt.mode) {
     case Options::Mode::Offline: session.startOffline(seed, opt.bodies); break;

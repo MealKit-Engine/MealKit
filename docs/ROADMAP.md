@@ -106,11 +106,11 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
 
 ### [ ] 최소 사양 실기 측정과 다른 PC 결정론
 - **왜**: 성능 예산의 "현재" 값과 SM 6.6 bindless 계획은 최소 사양보다 빠른 Core Ultra에서만 확인했다. `mp_test`는 한 PC 안에서만 돌아, Intel과 AMD CPU 사이 결정론은 시험한 적이 없다. 보류 표의 "고정소수점" 결정은 "다른 CPU 사이 디싱크가 발견될 때" 다시 보기로 했는데, 발견할 절차가 없다.
-- **할 일**:
-  - 11세대(Xe-LP) 실기에서 SM 6.6, 리소스 바인딩 티어 3, Vulkan 버전·descriptor indexing 지원(2단계 Vulkan 백엔드), 드라이버 버전을 기록하고 `sandbox.exe --bot`으로 프레임·틱 시간을 잰다(벤치마크 모드 전이라 창 제목·Tracy 값). 성능 예산 표의 "현재"를 고친다.
-  - 사무용 PC는 제조사가 깐 오래된 드라이버가 많다. 시작 때 드라이버 버전을 로그에 남기고, SM 6.6이 없으면 이유를 알려 주고 끝내는 검사를 넣는다.
-  - Intel PC와 AMD PC(가능하면 CPU 세대가 다른 것)를 UDP로 이어 봇 입력 900틱 이상 디싱크가 없는지 본다. 결과(CPU 이름, PASS/틱)를 CHANGELOG에 남긴다.
-  - 크로스플레이 목표(5단계) 때문에 clang-cl 빌드(`-ffp-contract=off`)도 만들어 MSVC 빌드와 `detmath-bits` 해시·`mp_test`를 맞붙인다. Windows on ARM 기기가 있으면 같이 본다.
+- **끝난 것** (실기 없이 할 수 있는 부분, 상세는 CHANGELOG v0.4.3): 시작 때 CPU·GPU·드라이버 버전 로그, SM 6.6·바인딩 티어 3 검사, `sandbox.exe --system-info`, `build.bat ClangCL` + `mp_test -ClientExe`(MSVC ↔ clang-cl 같은 PC에서 PASS).
+- **남은 할 일 (실기가 필요하다)**:
+  - 11세대(Xe-LP) 실기에서 `sandbox.exe --system-info` 출력과 Vulkan 버전·descriptor indexing 지원(2단계 Vulkan 백엔드, `vulkaninfo --summary`)을 기록하고 `sandbox.exe --bot`으로 프레임·틱 시간을 잰다(벤치마크 모드 전이라 창 제목·Tracy 값). 성능 예산 표의 "현재"를 고친다.
+  - Intel PC와 AMD PC(가능하면 CPU 세대가 다른 것)를 UDP로 이어 봇 입력 900틱 이상 디싱크가 없는지 본다. 결과(시작 로그의 `CPU:` 줄, PASS/틱)를 CHANGELOG에 남긴다. MSVC·clang-cl 빌드를 PC마다 섞어서도 본다(`--any-build`).
+  - Windows on ARM 기기가 있으면 같이 본다.
 - **같이 할 것**: 아래 "Steam 실검증"을 같은 때 한다(두 PC가 이미 있다).
 - **실패하면**: SM 6.6이 없으면 2단계 텍스처 방식(bindless)을 다시 정한다. CPU 사이 디싱크면 디싱크 진단 도구(3단계)를 당겨 원인을 찾고, 고정소수점 보류를 다시 본다.
 

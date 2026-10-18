@@ -136,7 +136,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 
 ## 요구사항
 
-- 실행: Windows 10 1803 이상, **Intel 11세대(Xe) 내장 그래픽 이상** (Direct3D 12, Shader Model 6.6 — 지금 코드는 6.0만 쓰지만 텍스처 작업부터 6.6 bindless를 쓴다), SSE4.2 CPU
+- 실행: Windows 10 1803 이상, **Intel 11세대(Xe) 내장 그래픽 이상** (Direct3D 12, Shader Model 6.6 + 리소스 바인딩 티어 3 — 시작 때 검사하고, 없으면 드라이버 버전과 함께 이유를 알려 주고 끝낸다. 텍스처 작업부터 6.6 bindless를 쓴다), SSE4.2 CPU
   - 최소 사양 결정과 이유: [docs/ROADMAP.md](ROADMAP.md) "결정 기록"
 - 빌드: Visual Studio 2022 또는 Build Tools 2022 (C++ 데스크톱 워크로드, CMake 포함), Python 3 (샘플 모델 생성 시)
 
@@ -148,7 +148,10 @@ build.bat            :: Release: build\Release\bin\sandbox.exe (출시용 게임
 build.bat Debug      :: Debug (D3D12 디버그 레이어 자동 활성화)
 build.bat Profile    :: Release + Tracy 프로파일링
 build.bat Export     :: 출시 폴더 export\sandbox\
+build.bat ClangCL    :: clang-cl Release: build\ClangCL\bin (MSVC 빌드와 결정론 비교용, 출시하지 않는다)
 ```
+
+`ClangCL`은 Visual Studio의 "C++ Clang tools for Windows" 구성 요소가 필요하다(PATH의 clang-cl, 없으면 미리 보기 버전을 포함한 Visual Studio 설치에서 찾는다).
 
 게임 프로젝트에도 같은 인자를 받는 자기 `build.bat`이 있다 (빌드 폴더는 프로젝트 안의 `build\`). 프로젝트의 `build.bat Editor`는 게임 DLL만 만들고, 엔진 에디터 빌드가 오래되었으면 그것부터 빌드한다.
 엔진(`mealkit.dll`)을 다시 빌드할 때는 에디터를 닫는다(실행 중이면 파일이 잠겨 링크가 실패한다). 게임 DLL은 에디터가 켜져 있어도 된다.
@@ -161,6 +164,7 @@ sandbox.exe --host                   :: 방 만들기 (UDP 27015). 로비에서 
 sandbox.exe --join 192.168.0.10      :: 참가
 sandbox.exe --steam                  :: Steam 친구 로비 만들기 (Steamworks SDK 필요)
 sandbox.exe --scene my.scene         :: 다른 씬으로 플레이
+sandbox.exe --system-info            :: CPU·GPU 기능 출력 (최소 사양 미달이면 종료 코드 2)
 sandbox.exe --help                   :: 전체 옵션
 ```
 
@@ -202,6 +206,13 @@ powershell -ExecutionPolicy Bypass -File tools\mp_test.ps1 -Clients 3 -Ticks 180
 
 호스트 1개와 클라이언트 N개를 봇 입력으로 실행하고, 모든 피어가 같은 틱에서 같은 상태 해시를 내는지 확인한다.
 클라이언트 i는 물리 스레드를 i개 쓰므로, **스레드 수가 달라도 결과가 같은지**도 함께 확인된다.
+
+```powershell
+powershell -ExecutionPolicy Bypass -File tools\mp_test.ps1 -Clients 3 -Ticks 900 -ClientExe build\ClangCL\bin\sandbox.exe
+```
+
+MSVC 빌드 호스트에 clang-cl 빌드 클라이언트를 붙여 **컴파일러가 달라도 결과가 같은지** 본다(`-Exe`와 바꿔 반대 방향도).
+보통은 실행 파일이 다르면 접속이 거부되므로, 이때 호스트는 시험용 `--any-build`로 다른 빌드를 받는다.
 
 ## 외부 라이브러리
 

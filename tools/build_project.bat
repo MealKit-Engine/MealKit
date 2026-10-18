@@ -5,6 +5,7 @@ rem     Release   shipping game in <project>\build\Release\bin (engine linked st
 rem     Debug     Debug (D3D12 debug layer on)
 rem     Profile   Release + Tracy profiling (connect with the Tracy profiler app)
 rem     Export    Release game only, collected into <project>\export\<name>
+rem     ClangCL   Release built with clang-cl in <project>\build\ClangCL\bin (determinism comparison with MSVC, not shipped)
 rem     Editor    editor build in <project>\build\Editor\bin:
 rem                 engine repository: mealkit.dll + MealKitEditor.exe + sample game DLL
 rem                 game project:      <name>_game.dll only (builds the engine editor first if needed)
@@ -31,6 +32,7 @@ if /I "%CONFIG%"=="Export" (
     set BUILD_NAME=Release
     set TARGET=--target game_export
 )
+if /I "%CONFIG%"=="ClangCL" set BUILD_TYPE=Release
 if /I "%CONFIG%"=="Editor" (
     set BUILD_TYPE=RelWithDebInfo
     set BUILD_NAME=Editor
@@ -39,6 +41,9 @@ if /I "%CONFIG%"=="Editor" (
 
 if not defined VSCMD_VER (
     call :vcvars || exit /b 1
+)
+if /I "%CONFIG%"=="ClangCL" (
+    call :clangcl || exit /b 1
 )
 
 rem A game project's editor build links against the engine editor build (mealkit.dll). Bring it up to date first.
@@ -74,4 +79,20 @@ if not defined VSDIR (
     exit /b 1
 )
 call "%VSDIR%\VC\Auxiliary\Build\vcvars64.bat" >nul 2>nul || exit /b 1
+exit /b 0
+
+:clangcl
+rem clang-cl: PATH, then any Visual Studio (including previews) with the "C++ Clang tools" component.
+set CLANG_CL=
+for /f "usebackq tokens=*" %%i in (`where clang-cl 2^>nul`) do if not defined CLANG_CL set CLANG_CL=%%i
+if not defined CLANG_CL (
+    for /f "usebackq tokens=*" %%i in (`"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -all -prerelease -products * -requires Microsoft.VisualStudio.Component.VC.Llvm.Clang -property installationPath`) do (
+        if not defined CLANG_CL if exist "%%i\VC\Tools\Llvm\x64\bin\clang-cl.exe" set "CLANG_CL=%%i\VC\Tools\Llvm\x64\bin\clang-cl.exe"
+    )
+)
+if not defined CLANG_CL (
+    echo [MealKit] clang-cl not found. Install the "C++ Clang tools for Windows" Visual Studio component.
+    exit /b 1
+)
+set EXTRA=%EXTRA% "-DCMAKE_C_COMPILER=%CLANG_CL%" "-DCMAKE_CXX_COMPILER=%CLANG_CL%"
 exit /b 0

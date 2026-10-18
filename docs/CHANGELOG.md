@@ -5,6 +5,24 @@
 
 ## v0.4.3 — 1단계 진행 중 (2026-10-16)
 
+### 위험 확인: 실기 없이 할 수 있는 부분 (2026-10-18)
+ROADMAP "최소 사양 실기 측정과 다른 PC 결정론" 중 코드로 할 수 있는 것. 실기 측정과 Intel·AMD PC 사이 시험은 남았다(항목은 `[ ]` 그대로).
+- **GPU 검사** (`render::queryGpu`, `render::gpuMinimumError`, `Renderer::gpu()`/`initError()`): 어댑터 이름, 사용자 모드 드라이버 버전(`CheckInterfaceSupport`, 장치 관리자와 같은 네 자리),
+  vendor·device ID, 메모리, 기능 수준, 최고 셰이더 모델(런타임이 아는 것까지 6.9부터 내려가며 묻는다), 리소스 바인딩 티어, wave 폭, 메시 셰이더 티어(참고용), UMA.
+  시작 로그 한 줄: `GPU: <이름> | driver <버전> | feature level 12_2 | SM 6.8 | binding tier 3 | unified (UMA) memory`.
+  **SM 6.6과 바인딩 티어 3이 없으면 시작하지 않는다**(전에는 6.0 검사). 오류 창에 GPU 이름·드라이버 버전·"드라이버를 업데이트하라"·최소 사양(Intel 11세대)을 보인다.
+  지금 셰이더는 6.0만 쓰지만 최소 사양 결정(2026-10-15)대로 미리 막아, 2단계 bindless 때 지원하지 않는 PC가 새로 생기지 않게 한다.
+- **`sandbox.exe --system-info`**: 창 없이 CPU 이름과 위 GPU 정보를 출력하고 끝낸다. 최소 사양 미달이면 종료 코드 2. 실기 측정 결과를 그대로 옮겨 적는 용도.
+  CPU 이름은 `mealkit/platform/System.h`의 `cpuName()`(CPUID 브랜드 문자열, x64만). sandbox 시작 로그에도 `CPU:` 줄을 남긴다(다른 PC 결정론 기록용).
+- **`build.bat ClangCL`**: clang-cl로 Release(정적 CRT)를 `build\ClangCL`에 만든다. clang-cl은 PATH, 없으면 vswhere(`-prerelease` 포함)로 "C++ Clang tools" 구성 요소를 찾는다.
+  clang에는 `/fp:precise` 대신 `-ffp-contract=off`를 준다(clang의 precise는 식 안 곱셈-덧셈 합치기를 허용한다). Jolt의 Windows 분기는 clang-cl에 그 옵션을 주지 않아 `cmake/MealKit.cmake`가 Jolt 타깃에도 건다.
+  링크 시간 최적화는 끈다(lld-link가 필요해진다). `/W4` 경고 0개. exe 1.79 MB(MSVC 1.62 MB). 출시하지 않는 비교용 빌드다.
+- **`mp_test.ps1 -ClientExe <exe>`**: 클라이언트만 다른 실행 파일로 돌린다. 호스트는 `--any-build`(시험 전용: 빌드 ID가 달라도 받는다, `LockstepSession::setAcceptOtherBuilds`)로 연다.
+  빌드 ID는 지금 `Lockstep.cpp`의 컴파일 시각이라 컴파일러가 다르면 항상 다르다. 정식 비교 방식(시뮬레이션 버전 + 결정론 그룹)은 "버전 표시와 접속 거부 이유"에서 정한다.
+- **결과 (Intel Core Ultra 5 125U, 같은 PC, clang 22.1.3 / MSVC 2022)**:
+  `detmath-bits` 같음(`f67a477cb2496808`). MSVC 호스트 + clang-cl 클라이언트 3개, 반대 방향 모두 900틱 PASS이고 해시도 MSVC끼리와 같다(`5bcaa500ce729a6d`).
+  같은 시드 혼자 900틱 해시 같음, clang-cl 빌드 단독 `SHADOW ok`·`REWIND ok`. `check.ps1` 통과(첫 실행에서 "Editor play (3 players)"가 한 번 3번째 플레이어 접속 전에 끝났고, 그 단계만 세 번·전체 다시 돌려 통과).
+
 ### README 줄이기 (2026-10-16)
 - **README**: 영어로 한 줄 소개 + 특징 5개 + 문서 링크 + 라이선스만 남겼다. 사용 설명은 나중에 별도 문서 프로젝트(고도의 godot-docs처럼)로 다시 쓴다.
 - **`docs/GUIDE.md`**: 예전 README 전체를 그대로 옮긴 임시 문서(한국어). README를 가리키던 곳(CLAUDE.md, ROADMAP, SimCheck 주석·메시지, SteamStub·sandbox 로그, `.gitignore`, `CMakeLists.txt`, 템플릿 README)을 이 문서로 바꿨다.

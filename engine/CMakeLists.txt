@@ -76,6 +76,8 @@ add_library(mealkit ${MEALKIT_LIBRARY_TYPE}
     src/mealkit/platform/Paths.cpp
     src/mealkit/platform/Process.h
     src/mealkit/platform/Process.cpp
+    src/mealkit/platform/System.h
+    src/mealkit/platform/System.cpp
     src/mealkit/platform/Steam.h
     src/mealkit/scene/Scene.h
     src/mealkit/scene/Scene.cpp
@@ -125,7 +127,9 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
 endif()
 
 # /fp:precise 고정: 시뮬레이션 결정론을 위해 /fp:fast, /fp:contract, /arch:AVX2 를 쓰지 않는다.
-target_compile_options(mealkit PUBLIC /W4 /permissive- /utf-8 /Zc:__cplusplus /GR- /fp:precise)
+# clang-cl(build.bat ClangCL)은 기본이 precise지만 식 안의 곱셈-덧셈 합치기(fp-contract=on)를 허용하므로 그것만 끈다.
+target_compile_options(mealkit PUBLIC /W4 /permissive- /utf-8 /Zc:__cplusplus /GR-
+    $<IF:$<CXX_COMPILER_ID:Clang>,/clang:-ffp-contract=off,/fp:precise>)
 
 target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid ws2_32 windowscodecs ole32 uuid shell32 dwmapi mealkit_tracy PRIVATE Jolt mealkit_meshopt)
 

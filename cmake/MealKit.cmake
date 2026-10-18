@@ -45,7 +45,10 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
 else()
     # 정적 CRT: 재배포 패키지 없이 실행되고, 모든 PC가 같은 CRT 코드를 쓰므로 결정론에도 유리하다.
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    # clang-cl 빌드(build.bat ClangCL)는 결정론 비교용이라 링크 시간 최적화를 쓰지 않는다 (lld-link가 필요해진다).
+    if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
+    endif()
 endif()
 
 option(MEALKIT_PROFILE "Tracy 프로파일링 마커 켜기 (build.bat Profile)" OFF)
@@ -81,6 +84,10 @@ else()
         set(USE_STATIC_MSVC_RUNTIME_LIBRARY ON CACHE BOOL "" FORCE)
     endif()
     add_subdirectory(${MEALKIT_ENGINE_DIR}/third_party/JoltPhysics/Build ${CMAKE_BINARY_DIR}/third_party/jolt EXCLUDE_FROM_ALL)
+    # Jolt의 Windows 분기는 clang-cl에 -ffp-contract=off를 주지 않는다 (MSVC는 /fp:precise로 받는다).
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        target_compile_options(Jolt PRIVATE /clang:-ffp-contract=off)
+    endif()
 
     # Tracy: 마커 헤더는 항상 쓰고, 클라이언트는 프로파일 빌드에서만 링크한다.
     if(MEALKIT_PROFILE)
