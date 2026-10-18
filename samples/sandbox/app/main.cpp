@@ -33,6 +33,12 @@
 #include "mealkit/render/Renderer.h"
 #include "mealkit/scene/Scene.h"
 
+#if MEALKIT_DEBUG_UI
+#include "mealkit/debug/ImGuiLayer.h"
+
+#include <imgui.h>
+#endif
+
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
@@ -72,6 +78,7 @@ struct Options {
     bool systemInfo = false; // CPU·GPU 정보만 출력하고 끝 (최소 사양 실기 측정 기록용)
     bool anyBuild = false;   // 호스트가 다른 빌드의 피어도 받는다 (컴파일러 비교 시험)
     bool mute = false;       // 소리 끄기 (자동 시험에서 여러 창을 띄울 때)
+    bool debugUi = false;    // 디버그 UI(F1)를 켠 채로 시작 (개발 빌드)
     std::string hashLogPath;      // 틱별 해시 로그 (헤드리스와 비교)
     std::string recordInputsPath; // 확정된 입력 기록 (sandbox_headless --replay-inputs로 재생)
 };
@@ -103,6 +110,7 @@ void printUsage() {
                 "  --system-info          print CPU/GPU capabilities and exit (exit code 2 if below minimum spec)\n"
                 "  --any-build            host: accept peers running a different build (compiler comparison tests)\n"
                 "  --mute                 start with sound off (automated tests)\n"
+                "  --debug-ui             start with the debug UI shown (F1, development builds)\n"
                 "  --hash-log <file>      write \"<tick> <hash>\" for every tick\n"
                 "  --record-inputs <file> save confirmed inputs and hashes (replay: --headless --replay-inputs)\n"
                 "  --headless --help      run without a window (headless options)\n");
@@ -156,6 +164,7 @@ bool parseArgs(int argc, char** argv, Options& o) {
         } else if (a == "--system-info") o.systemInfo = true;
         else if (a == "--any-build") o.anyBuild = true;
         else if (a == "--mute") o.mute = true;
+        else if (a == "--debug-ui") o.debugUi = true;
         else if (a == "--hash-log" && next(v)) o.hashLogPath = v;
         else if (a == "--record-inputs" && next(v)) o.recordInputsPath = v;
         else if (a == "--help" || a == "-h") return false;
@@ -325,6 +334,12 @@ int main(int argc, char** argv) {
     Gamepads pads; // XInput: 연결되지 않은 슬롯은 1초에 한 번만 본다
 
     game::GameContext ctx{window, renderer, models, session, audio, feedback, actions};
+#if MEALKIT_DEBUG_UI
+    // 디버그 UI (F1): 개발 빌드만 (출시 빌드 build.bat Export에는 ImGui가 없다). 처음 켤 때 만든다 (글꼴 읽기)
+    debug::ImGuiLayer debugUi;
+    bool debugUiReady = false, debugUiShown = false;
+    std::string perfText;
+#endif
     render::DrawList drawList;
     f64 lastTime = nowSeconds();
     f64 titleTimer = 0.0, frameTimeSum = 0.0;
@@ -381,6 +396,17 @@ int main(int argc, char** argv) {
 
         ctx.viewport = {0.0f, 0.0f, static_cast<f32>(window.width()), static_cast<f32>(window.height())};
         ctx.keyboardAllowed = ctx.mouseAllowed = window.focused();
+#if MEALKIT_DEBUG_UI
+        if (input.keyPressed(key::F1) || (opt.debugUi && !debugUiReady)) {
+            if (!debugUiReady) debugUiReady = debugUi.init(window, renderer, {});
+            debugUiShown = debugUiReady && !debugUiShown;
+        }
+        if (debugUiShown) { // 디버그 창 위에서는 게임이 키·마우스를 받지 않는다
+            const ImGuiIO& io = ImGui::GetIO();
+            if (io.WantCaptureKeyboard) ctx.keyboardAllowed = false;
+            if (io.WantCaptureMouse) ctx.mouseAllowed = false;
+        }
+#endif
         viewTuning.poll(now);
         ctx.viewTuningData = viewTuning.view();
         pads.update(dt);
@@ -424,10 +450,25 @@ int main(int argc, char** argv) {
             game.buildFrame(ctx, now, frame, drawList);
             audio.setListener(frame.cameraPos, frame.cameraForward);
             feedback.screenTint(frame.tintColor, frame.tintAmount);
-            if (renderer.beginFrame(frame)) {
-                drawList.submit(renderer);
-                renderer.endFrame();
+#if MEALKIT_DEBUG_UI
+            if (debugUiShown) {
+                debugUi.newFrame();
+                ImGui::SetNextWindowPos(ImVec2(10.0f, static_cast<f32>(window.height()) - 10.0f), ImGuiCond_Always,
+                                        ImVec2(0.0f, 1.0f)); // 왼쪽 아래 (게임 창은 왼쪽 위)
+                if (ImGui::Begin("MealKit", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+                    ImGui::TextUnformatted(perfText.c_str());
+                    ImGui::TextDisabled("F1: hide | V: vsync | F12: screenshot | F8: shockwave");
+                }
+                ImGui::End();
+                game.debugUi(ctx);
             }
+#endif
+            const bool active = renderer.beginFrame(frame);
+            if (active) drawList.submit(renderer);
+#if MEALKIT_DEBUG_UI
+            if (debugUiShown) debugUi.render(renderer, active);
+#endif
+            if (active) renderer.endFrame();
         }
 
         limiter.wait();
@@ -465,6 +506,17 @@ int main(int argc, char** argv) {
                          renderer.vsync() ? " | vsync" : "");
             }
             window.setTitle(title);
+#if MEALKIT_DEBUG_UI
+            perfText.clear(); // 창 제목의 " | " 항목을 한 줄씩
+            for (const char* p = title + 15; *p; ++p) {
+                if (p[0] == ' ' && p[1] == '|' && p[2] == ' ') {
+                    if (!perfText.empty()) perfText += '\n';
+                    p += 2;
+                } else {
+                    perfText += *p;
+                }
+            }
+#endif
             if (automated && (perfLogCounter++ % 8) == 7) MEALKIT_INFO("perf: %s", title + 15);
             titleTimer = frameTimeSum = 0.0;
             frameCount = 0;
@@ -474,6 +526,9 @@ int main(int argc, char** argv) {
     session.shutdown();
     audio.shutdown();
     online.shutdown();
+#if MEALKIT_DEBUG_UI
+    debugUi.shutdown();
+#endif
     renderer.shutdown();
     return exitCode;
 }

@@ -140,6 +140,11 @@ else()
         src/mealkit/platform/posix/System.cpp)
 endif()
 
+# 디버그 UI (MEALKIT_DEBUG_UI, cmake/MealKit.cmake): ImGui 연결 층. 에디터와 개발용 게임 exe의 오버레이가 같이 쓴다
+if(MEALKIT_DEBUG_UI)
+    list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/debug/ImGuiLayer.h src/mealkit/debug/ImGuiLayer.cpp)
+endif()
+
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     add_library(mealkit SHARED ${MEALKIT_CORE_SOURCES} ${MEALKIT_FRONT_SOURCES})
     set(mealkit_core_target mealkit)
@@ -161,7 +166,7 @@ endif()
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     set(mealkit_def ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.def)
     set(mealkit_objs ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.objs)
-    file(GENERATE OUTPUT ${mealkit_objs} CONTENT "$<JOIN:$<TARGET_OBJECTS:mealkit>,\n>\n")
+    file(GENERATE OUTPUT ${mealkit_objs} CONTENT "$<JOIN:$<TARGET_OBJECTS:mealkit>;$<TARGET_OBJECTS:mealkit_imgui>,\n>\n")
     add_custom_command(TARGET mealkit PRE_LINK
         COMMAND ${CMAKE_COMMAND} -E __create_def ${mealkit_def} ${mealkit_objs}
         COMMAND ${CMAKE_COMMAND} -DDEF_FILE=${mealkit_def} -P ${MEALKIT_ENGINE_DIR}/cmake/FixExportsDef.cmake
@@ -254,27 +259,38 @@ else()
     set(MEALKIT_STEAM_DLL "" CACHE INTERNAL "")
 endif()
 
-# --- 범용 에디터 (Editor 빌드): MealKitEditor.exe = mealkit.dll + Dear ImGui + ImGuizmo. 출시 exe에는 들어가지 않는다 ---
-if(MEALKIT_BUILD_KIND STREQUAL "Editor")
-    add_library(mealkit_imgui STATIC
+# --- Dear ImGui (MEALKIT_DEBUG_UI): 엔진 라이브러리 안에 넣는다 ---
+# Editor 빌드는 mealkit.dll 안(내보내기 def에도)이라 에디터와 게임 DLL이 ImGui 하나·컨텍스트 하나를 같이 쓴다.
+# Game 빌드는 정적 mealkit에 들어가 개발용 exe의 디버그 오버레이가 쓴다. ImGuizmo는 에디터만.
+if(MEALKIT_DEBUG_UI)
+    set(mealkit_imgui_sources
         ${MEALKIT_THIRD_PARTY}/imgui/imgui.cpp
         ${MEALKIT_THIRD_PARTY}/imgui/imgui_draw.cpp
         ${MEALKIT_THIRD_PARTY}/imgui/imgui_tables.cpp
         ${MEALKIT_THIRD_PARTY}/imgui/imgui_widgets.cpp
         ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_win32.cpp
-        ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_dx12.cpp
-        ${MEALKIT_THIRD_PARTY}/imguizmo/ImGuizmo.cpp)
-    target_include_directories(mealkit_imgui PUBLIC
-        ${MEALKIT_THIRD_PARTY}/imgui
-        ${MEALKIT_THIRD_PARTY}/imgui/backends
-        ${MEALKIT_THIRD_PARTY}/imguizmo)
-    target_compile_definitions(mealkit_imgui PUBLIC IMGUI_IMPL_WIN32_DISABLE_GAMEPAD PRIVATE NOMINMAX WIN32_LEAN_AND_MEAN)
+        ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_dx12.cpp)
+    set(mealkit_imgui_includes ${MEALKIT_THIRD_PARTY}/imgui ${MEALKIT_THIRD_PARTY}/imgui/backends)
+    if(MEALKIT_BUILD_KIND STREQUAL "Editor")
+        list(APPEND mealkit_imgui_sources ${MEALKIT_THIRD_PARTY}/imguizmo/ImGuizmo.cpp)
+        list(APPEND mealkit_imgui_includes ${MEALKIT_THIRD_PARTY}/imguizmo)
+    endif()
+    # 외부 코드는 엔진 경고·옵션(/W4, UNICODE)과 따로 컴파일한다 (OBJECT 라이브러리 → 목적 파일만 엔진 타깃에)
+    add_library(mealkit_imgui OBJECT ${mealkit_imgui_sources})
+    target_include_directories(mealkit_imgui PUBLIC ${mealkit_imgui_includes})
+    target_compile_definitions(mealkit_imgui PRIVATE IMGUI_IMPL_WIN32_DISABLE_GAMEPAD NOMINMAX WIN32_LEAN_AND_MEAN)
     target_compile_options(mealkit_imgui PRIVATE /W0 /utf-8)
-    target_link_libraries(mealkit_imgui PUBLIC d3d12 dxgi d3dcompiler dwmapi)
+    target_sources(mealkit PRIVATE $<TARGET_OBJECTS:mealkit_imgui>)
+    add_dependencies(mealkit mealkit_imgui)
+    target_include_directories(mealkit SYSTEM PUBLIC ${mealkit_imgui_includes})
+    target_compile_definitions(mealkit PUBLIC MEALKIT_DEBUG_UI=1 IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
+    target_link_libraries(mealkit PUBLIC d3dcompiler)
+endif()
 
+# --- 범용 에디터 (Editor 빌드): MealKitEditor.exe = mealkit.dll(+ Dear ImGui + ImGuizmo). 출시 exe에는 들어가지 않는다 ---
+if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     add_library(mealkit_editor STATIC
         src/mealkit/editor/ImGuiLayer.h
-        src/mealkit/editor/ImGuiLayer.cpp
         src/mealkit/editor/Editor.h
         src/mealkit/editor/Editor.cpp
         src/mealkit/editor/Project.h
@@ -295,7 +311,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/FeedbackPanel.cpp
         src/mealkit/editor/Strings.h
         src/mealkit/editor/Strings.cpp)
-    target_link_libraries(mealkit_editor PUBLIC mealkit mealkit_imgui)
+    target_link_libraries(mealkit_editor PUBLIC mealkit)
     target_compile_definitions(mealkit_editor PUBLIC MEALKIT_EDITOR=1)
 
     add_executable(MealKitEditor src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)

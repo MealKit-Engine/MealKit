@@ -41,6 +41,7 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
   외부 라이브러리는 `third_party/<lib>/`에 원본 `LICENSE`와 `mealkit.txt`(name, version, license, source, usedIn, 빌드할 게 있으면 `cmakeTarget`)를 두면 게임 exe·DLL에 붙는다(`sim/`에서는 SIM011).
   `@MEALKIT_ROOT@\tools\check_layout.ps1 -Project .`이 검사하고, Export도 같은 검사로 실패한다.
 - 디버그 치트·매치 중 설정 변경처럼 시뮬레이션을 바꾸는 일은 화면 쪽에서 상태를 고치지 않고 확정 명령으로 보낸다: `source/sim/`에 명령 타입 `MEALKIT_STRUCT`(문자열 없음), 화면 쪽은 `mealkit::sim::sendCommand(ctx.session, 명령)`, `World::step()` 맨 앞에서 `mealkit::sim::forEachCommand`로 처리(`mealkit/sim/Commands.h`).
+- 개발용 화면(성능, 치트 버튼, 상태 보기)은 `GameSession::debugUi(ctx)` 안에서 `#if MEALKIT_DEBUG_UI`로 감싸 Dear ImGui로 그린다(게임 exe는 F1, 에디터는 플레이 중). 출시 빌드(`build.bat Export`)에는 없다. 게임 UI에는 쓰지 않는다.
 - 조작은 키가 아니라 입력 액션으로 읽는다: `ctx.actions.axis2("move")`, `ctx.actions.pressed("jump")`. 액션과 키·마우스·게임패드 바인딩은 `assets/input.bindings`(에디터 [표] 패널)에 두고, 코드에서 키(`window.input()`)를 직접 보지 않는다.
 - 틱 이벤트(`world.events`, `GameEvent`의 종류는 `MEALKIT_ENUM`)에 붙는 소리·흔들림·번쩍임·화면 정지는 코드가 아니라 연출 표 `assets/feedback.table`(에디터 [연출] 패널)에 둔다. 게임 코드는 `ctx.feedback.trigger(e, localPlayer)`만 부른다.
 - 소리는 `source/view/`에서 `ctx.audio.play("이벤트", 위치, {{"파라미터", 값}})`(`mealkit/audio/Audio.h`)로만 낸다. 이벤트(클립, 볼륨, 감쇠, 동시 재생 상한)는 `assets/sounds.table`(에디터 [표] 패널, [소리] 패널에서 미리듣기),

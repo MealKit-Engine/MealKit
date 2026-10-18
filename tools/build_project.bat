@@ -29,7 +29,8 @@ if /I "%CONFIG%"=="Profile" (
 )
 if /I "%CONFIG%"=="Export" (
     set BUILD_TYPE=Release
-    set BUILD_NAME=Release
+    set BUILD_NAME=Export
+    set EXTRA=-DMEALKIT_DEBUG_UI=OFF
     set TARGET=--target game_export
 )
 if /I "%CONFIG%"=="ClangCL" set BUILD_TYPE=Release

@@ -1,4 +1,4 @@
-#include "mealkit/editor/ImGuiLayer.h"
+#include "mealkit/debug/ImGuiLayer.h"
 
 #include "mealkit/core/Log.h"
 #include "mealkit/platform/Paths.h"
@@ -15,7 +15,7 @@
 
 extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-namespace mealkit::editor {
+namespace mealkit::debug {
 
 constexpr u32 kSrvCapacity = 64;
 
@@ -86,7 +86,7 @@ bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::str
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO();
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
-    io.IniFilename = m_iniPath.c_str();
+    io.IniFilename = m_iniPath.empty() ? nullptr : m_iniPath.c_str();
 
     HWND hwnd = static_cast<HWND>(window.nativeHandle());
     const float scale = ImGui_ImplWin32_GetDpiScaleForHwnd(hwnd);
@@ -204,4 +204,4 @@ void ImGuiLayer::render(render::Renderer& renderer, bool frameActive) {
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd);
 }
 
-} // namespace mealkit::editor
+} // namespace mealkit::debug

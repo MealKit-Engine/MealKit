@@ -9,7 +9,7 @@ $engineSrc = Join-Path $root "engine\src\mealkit"
 
 $exceptions = @{
     "engine\src\mealkit\render\Renderer.cpp"   = "DX12 renderer (moves into mealkit/rhi/ in stage 2)"
-    "engine\src\mealkit\editor\ImGuiLayer.cpp" = "ImGui Win32 + DX12 backends (moves with the RHI in stage 2)"
+    "engine\src\mealkit\debug\ImGuiLayer.cpp"  = "ImGui Win32 + DX12 backends (moves with the RHI in stage 2)"
 }
 
 $osHeaders = 'windows\.h|winsock2?\.h|ws2tcpip\.h|mstcpip\.h|shobjidl\.h|shlobj\.h|shellapi\.h|commdlg\.h|wincodec\.h|dwmapi\.h|' +

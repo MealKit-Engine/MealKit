@@ -130,6 +130,7 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
 - [x] 입력 액션 매핑 (`mealkit/input/Actions.h`, 엔진 표 `assets/input.bindings`, `ctx.actions`, 플레이어가 바꾼 키는 사용자 폴더) — v0.4.11, 상세는 `docs/CHANGELOG.md`
 - [x] 게임패드 (`mealkit/platform/Gamepad.h`, Windows XInput, 빈 슬롯은 1초에 한 번, 입력 액션의 `pad` 바인딩) — v0.4.12, 상세는 `docs/CHANGELOG.md`. 실제 패드로는 시험하지 않았다
 - [x] 확정 명령 채널 (`LockstepSession::submitCommand`, `net::TickInputs`의 명령 바이트, `mealkit/sim/Commands.h`, 입력 기록 버전 2) — v0.4.13, 상세는 `docs/CHANGELOG.md`
+- [x] 디버그 UI (Dear ImGui: `GameInstance::debugUi`, 개발 exe는 F1 오버레이, 에디터는 플레이 중, 출시 빌드 `build\Export`는 `MEALKIT_DEBUG_UI` 끔) — v0.4.14, 상세는 `docs/CHANGELOG.md`
 
 ### [ ] 기준 샘플 (게임 대신 엔진을 검증하는 작은 예제)
 - **왜**: 이 저장소에서는 게임을 같이 만들지 않는다(`docs/DECISIONS.md`). 그러면 "실제로 쓰여서 맞는지"를 확인할 곳이 없어, 쓰는 곳 없는 기능과 쓰기 불편한 API가 쌓인다. 기준 샘플이 그 자리를 맡는다.
@@ -141,13 +142,6 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
   - 샘플을 만들다 엔진이 없어 막히면 샘플 쪽 우회 코드로 넘어가지 않고 그 항목을 당긴다(`docs/CODING_MODEL.md`의 단계 표시 규칙).
   - 모든 샘플이 `check.ps1`(빌드, `mp_test`, 화면 캡처)과 Export를 통과한다. 5단계부터는 각 플랫폼에서도.
 - **범위**: 샘플은 게임이 아니다. 아트·콘텐츠·밸런스는 기능을 보일 만큼만 넣는다.
-
-### [ ] 디버그 UI (Dear ImGui)
-- **왜**: 성능·치트·시뮬레이션 상태·디싱크 정보 같은 개발용 화면은 프로그래머가 코드로 빨리 만드는 게 맞다. 게임 UI(Penpot)와 섞지 않는다.
-- **방식**: 게임 코드는 `GameContext`로 받은 ImGui로 패널을 그린다. Editor 빌드에서는 에디터의 ImGui 컨텍스트를 게임 DLL에 넘긴다(DLL마다 ImGui 전역이 따로라서 `ImGui::SetCurrentContext`).
-  Dev 게임 빌드에서는 게임 창 위의 오버레이(키 하나로 켜고 끔). 출시 빌드에서는 `MEALKIT_DEBUG_UI`로 코드가 빠지고 ImGui를 링크하지 않는다.
-- **결정론**: 디버그 패널이 시뮬레이션을 바꾸는 치트는 상태를 직접 고치지 않고 확정 명령(`sim::sendCommand`, v0.4.13)으로 보낸다. 직접 고치면 다른 피어와 그림자 시뮬레이션이 디싱크된다.
-- **이어지는 것**: 4단계 "디버그 그리기 API", "성능 패널과 예산 경고"가 이 위에 놓인다.
 
 ### [ ] 로컬라이제이션 문자열 테이블
 - **왜**: UI를 만들면서 문자열을 코드에 바로 쓰면, 나중에 영어를 넣을 때 모든 문자열을 찾아 바꿔야 한다.

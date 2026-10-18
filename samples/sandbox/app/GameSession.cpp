@@ -7,6 +7,10 @@
 #include "mealkit/sim/Commands.h"
 #include "mealkit/platform/Window.h"
 
+#if MEALKIT_DEBUG_UI
+#include <imgui.h>
+#endif
+
 #include <cstring>
 
 using namespace mealkit;
@@ -99,6 +103,27 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     if (!started) return;
     drawWorld(previous, current, alpha, localPlayer, now, look, ctx.models.boxMesh(), m_view, out);
     m_effects.draw(m_viewTime, look.shockwave, ctx.models.boxMesh(), out);
+}
+
+// 디버그 창 (개발 빌드 F1, 에디터 플레이 중). 시뮬레이션을 바꾸는 버튼은 확정 명령으로 보낸다.
+void GameSession::debugUi(game::GameContext& ctx) {
+#if MEALKIT_DEBUG_UI
+    if (!m_sim.started()) return;
+    const World& world = m_sim.world();
+    const WorldState& state = world.state;
+    ImGui::SetNextWindowPos(ImVec2(ctx.viewport.x + 10.0f, ctx.viewport.y + 10.0f), ImGuiCond_FirstUseEver);
+    if (ImGui::Begin("Sandbox", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
+        ImGui::Text("tick %u | player %u of %u", state.tick, ctx.session.localPlayer() + 1, state.playerCount);
+        ImGui::Text("pawns %u | boxes %u | moving bodies %u", state.pawns.count(), state.props.count(), world.activeBodies());
+        for (u32 i = 0; i < state.playerCount; ++i) ImGui::Text("P%u falls %u", i + 1, state.slots[i].falls);
+        if (ImGui::Button("Shockwave (F8)")) sim::sendCommand(ctx.session, DebugShockwave{});
+        ImGui::SameLine();
+        ImGui::TextDisabled("sent as a command");
+    }
+    ImGui::End();
+#else
+    (void)ctx;
+#endif
 }
 
 } // namespace sandbox

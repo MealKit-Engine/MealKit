@@ -67,6 +67,14 @@ else()
 endif()
 
 option(MEALKIT_PROFILE "Tracy 프로파일링 마커 켜기 (build.bat Profile)" OFF)
+# 디버그 UI (Dear ImGui): 개발 빌드(build\Release·Debug·Profile)와 에디터에 넣고, 출시 빌드(build.bat Export → build\Export)는 뺀다.
+# 켜지면 엔진 타깃이 MEALKIT_DEBUG_UI=1과 imgui.h 경로를 게임에 넘긴다. 게임 코드는 #if MEALKIT_DEBUG_UI로 감싼다.
+option(MEALKIT_DEBUG_UI "디버그 UI(Dear ImGui) 넣기 (build.bat Export는 OFF)" ON)
+if(MEALKIT_HEADLESS_ONLY)
+    set(MEALKIT_DEBUG_UI OFF)
+elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
+    set(MEALKIT_DEBUG_UI ON) # 에디터는 ImGui로 그린다
+endif()
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT MEALKIT_IS_ENGINE)
     # ---------------------------------------------------------------- 게임 프로젝트의 에디터 빌드: 엔진은 가져다 쓴다
@@ -309,7 +317,7 @@ function(mealkit_add_game name)
     file(CONFIGURE OUTPUT "${icon_rc}" CONTENT "#pragma code_page(65001)\n1 ICON \"${icon_file}\"\n" @ONLY)
     set_source_files_properties("${icon_rc}" PROPERTIES OBJECT_DEPENDS "${icon_file}")
 
-    # 출시용 게임: 에디터와 ImGui가 들어가지 않는다.
+    # 게임 exe: 에디터는 들어가지 않는다. ImGui(디버그 UI)는 MEALKIT_DEBUG_UI일 때만 (Export는 꺼서 뺀다).
     add_executable(${name} ${ARG_GAME_MAIN} ${game_sources} "${icon_rc}")
     if(icon_found)
         target_sources(${name} PRIVATE "${icon_file}")

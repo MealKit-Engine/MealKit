@@ -3,6 +3,21 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.14 — 1단계 진행 중 (2026-10-18)
+
+### [x] 디버그 UI (Dear ImGui) (완료 2026-10-18)
+- **왜**: 성능·치트·시뮬레이션 상태 같은 개발용 화면은 프로그래머가 코드로 빨리 만든다. 게임 UI(Penpot)와 섞지 않는다.
+- **게임 쪽**: `GameInstance::debugUi(GameContext&)`(기본은 빈 함수, `kApiVersion` 14). 엔진이 ImGui 프레임 안에서 부르고, 게임은 몸을 `#if MEALKIT_DEBUG_UI`로 감싸 `<imgui.h>`를 바로 쓴다.
+  시뮬레이션을 바꾸는 버튼은 상태를 고치지 않고 확정 명령을 보낸다(sandbox [Shockwave] 버튼 = `DebugShockwave` 명령).
+- **개발용 게임 exe** (`build\Release`·`Debug`·`Profile`): **F1**로 켜고 끄는 오버레이(처음 켤 때 ImGui를 만든다 — 글꼴 읽기). 엔진 창 "MealKit"(창 제목의 성능 숫자, 왼쪽 아래)과 게임의 창들.
+  디버그 창 위에서는 게임이 키·마우스를 받지 않는다(`WantCaptureKeyboard/Mouse` → `keyboardAllowed/mouseAllowed`). `--debug-ui`로 켠 채로 시작(캡처·자동 시험).
+- **에디터**: 플레이 중 매 프레임 `debugUi`를 에디터의 ImGui 프레임 안에서 부른다. ImGui를 `mealkit.dll` 안에 넣어(내보내기 def에도) 에디터와 게임 DLL이 ImGui 하나·컨텍스트 하나를 쓴다 — 로드맵에 적었던 `SetCurrentContext` 넘기기가 필요 없다. 참가 창에는 아직 없다.
+- **출시 빌드**: `build.bat Export`가 **`build\Export`**에서 `-DMEALKIT_DEBUG_UI=OFF`로 따로 빌드한다(`docs/DECISIONS.md` 2026-10-18). ImGui 코드·글자가 출시 exe에 없다(개발 exe 2583 KB, 출시 exe 2093 KB). 처음 Export는 엔진을 한 번 더 빌드한다.
+- **엔진**: ImGui 연결 층을 `editor/`에서 `mealkit/debug/ImGuiLayer.*`로 옮겼다(에디터·오버레이가 같이, 빈 ini 경로는 창 위치를 저장하지 않음). ImGui는 OBJECT 라이브러리로 따로 컴파일해(경고·UNICODE 옵션 분리) 엔진 타깃에 넣고, `MEALKIT_DEBUG_UI=1`·imgui 경로를 게임에 넘긴다. ImGuizmo는 에디터만.
+- **sandbox**: "Sandbox" 창(틱, 플레이어, Pawn·상자·움직이는 물체 수, 플레이어별 떨어진 횟수, [Shockwave]). 충격파 키는 에디터의 F6(일시정지)과 겹쳐 **F8**로 옮겼다.
+- **검증**: 에디터 플레이 캡처와 `sandbox.exe --debug-ui` 캡처에서 창이 보인다. 출시 exe에 `ImGui` 글자가 없다. 상태 해시 그대로.
+- **남은 것**: 참가 창의 오버레이, 4단계 "디버그 그리기 API"·"성능 패널과 예산 경고"가 이 위에 놓인다.
+
 ## v0.4.13 — 1단계 진행 중 (2026-10-18)
 
 ### [x] 확정 명령 채널 (완료 2026-10-18)

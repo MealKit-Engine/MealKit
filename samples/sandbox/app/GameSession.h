@@ -53,6 +53,7 @@ public:
         return {&mealkit::reflect::typeOf<WorldState>(), &m_sim.world().state};
     }
     mealkit::game::SimDebug* debug() override { return &m_sim; }
+    void debugUi(mealkit::game::GameContext& ctx) override;
 
 private:
     // 고정 틱 실행, 보간용 직전 상태, 그림자 시뮬레이션, 기록·되감기 (엔진 mealkit/game/Simulation.h)
