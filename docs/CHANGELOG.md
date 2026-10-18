@@ -17,8 +17,16 @@
   `tools/record_replay.ps1`이 만든다(다시 만들면 바이트까지 같은 파일이 나온다). 시뮬레이션 결과를 일부러 바꾸면 이것으로 다시 만들어 같이 커밋한다 — 로컬 `check.ps1`에 "Committed replays" 단계를 더해 푸시 전에 알 수 있게 했다.
   `.gitattributes`에서 `.rec`(와 `.glb`·`.png`·`.ico`)를 바이너리로 두어 Windows 러너의 `core.autocrlf`가 바꾸지 않게 했다.
 - **로컬 검증**: Release·ClangCL·Editor 빌드에서 `ci_test.ps1`가 모두 PASS(`detmath-bits f67a477cb2496808`, 기록 재생 901틱 같음), `ci_compare.ps1`가 PASS, 해시 한 줄을 일부러 바꾸면 FAIL. `check.ps1 -Quick` 9개 통과.
-  **Linux·macOS 빌드와 GitHub 러너 위의 실행은 이 PC에서 확인할 수 없어 첫 CI 실행이 처음이다** — 비Windows CMake·`platform/posix/`가 처음 컴파일되므로 실패하면 그 실행에서 고친다.
-- **ROADMAP 방식과 다른 점·남은 것**: Windows on ARM은 넣지 않았다(ARM Windows 러너는 공개 저장소용이라 저장소 공개 범위 결정 뒤). ROADMAP의 `check_layout`은 아직 없는 검사라 빠졌고(배치 검사는 디자이너 항목), SimCheck는 각 빌드 안에서 돈다.
+- **CI 결과** (실행 #4, 커밋 6b548bc, 약 4분): 5개 빌드 모두 통과. `detmath-bits f67a477cb2496808`이 모든 빌드에서 같고, 고정 기록 901틱의 해시가
+  **Windows MSVC·clang-cl(x64), Linux x64 Clang(apt clang), macOS ARM64 Apple clang에서 모두 같다** — OS·CPU 아키텍처·컴파일러 사이 결정론을 처음 확인했다. 각 러너 안의 헤드리스 mp_test도 PASS.
+- **첫 실행들에서 고친 것**:
+  `.gitignore`의 `build/`가 Windows에서 대소문자를 가리지 않아 `third_party/JoltPhysics/Build/CMakeLists.txt`와 `engine/res/MealKitEditor.png`(에디터 리소스)가 저장소에 없었다 → 출력 폴더를 `/build/` 등 최상위로 고정.
+  `Reflect.cpp`의 MSVC 전용 `sscanf_s` → `strtoul`. Jolt 자체 LTO가 Clang에서 LLVM 비트코드 라이브러리를 만들어 Linux GNU ld가 못 읽었다 → 비MSVC에서는 Jolt LTO 끔(엔진과 같게).
+  헤드리스 네트워크 루프가 `FrameLimiter`(1000fps, 남은 시간 1ms 이하라 자지 않음)로 바쁜 대기를 해, vCPU 4개 Windows 러너에서 피어 4개가 물리 작업 스레드를 굶겨 60초 안에 끝나지 않았다
+  → 틱이 나아가지 않은 반복에서만 1ms 자도록(`core/Clock.h`의 새 `sleepSeconds`, Windows 고해상도 대기 타이머 / POSIX nanosleep). 로컬 1+3 900틱은 그대로 약 5초.
+  `ci_compare.ps1`은 빌드 결과가 빠지면 실패하도록(`-Expect`), `ci_test.ps1`은 mp_test 실패 때 피어 로그를 출력하도록, 헤드리스 빌드는 `ninja -k 0`으로 오류를 한 번에 보이도록 했다.
+  `platform/posix/`는 고칠 것 없이 Linux·macOS에서 컴파일·동작했다.
+- **ROADMAP 방식과 다른 점·남은 것**: 액션(checkout·upload/download-artifact v4)이 Node.js 20 경고를 낸다(버전 올리기는 따로). Windows on ARM은 넣지 않았다(ARM Windows 러너는 공개 저장소용이라 저장소 공개 범위 결정 뒤). ROADMAP의 `check_layout`은 아직 없는 검사라 빠졌고(배치 검사는 디자이너 항목), SimCheck는 각 빌드 안에서 돈다.
   기록은 sandbox 하나뿐이다 — 샘플이 늘면(기준 샘플 규칙 항목) `samples/<샘플>/replays/`에 두면 `ci_test.ps1`이 자동으로 재생한다. 3단계 디싱크 진단 도구가 생기면 비교 실패 때 그것을 부른다.
 
 ### [x] 헤드리스 시뮬레이션 (완료 2026-10-18)
