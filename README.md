@@ -12,7 +12,7 @@ A lightweight 3D multiplayer game engine that runs fast even on office PCs with 
 
 Windows + DirectX 12 only for now. Minimum spec: Intel 11th-gen (Xe) integrated graphics.
 
-Documentation (Korean, temporary): [docs/GUIDE.md](docs/GUIDE.md) · [Roadmap](docs/ROADMAP.md) · [Changelog](docs/CHANGELOG.md)
+Documentation (Korean, temporary): [docs/GUIDE.md](docs/GUIDE.md) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/DECISIONS.md) · [Changelog](docs/CHANGELOG.md)
 
 ## License
 

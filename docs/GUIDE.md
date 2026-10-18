@@ -32,7 +32,7 @@
 | `build.bat` (Release) | `<게임>.exe` 하나 (엔진 정적 링크, 정적 CRT) | 출시, 결정론 테스트 |
 
 - 에디터는 게임 DLL의 **복사본**을 불러오므로, 에디터를 켜 둔 채로 게임 코드를 다시 빌드할 수 있다. 새 DLL이 생기면 편집 모드에서 **자동으로 바꿔 끼운다(핫 리로드)**.
-- 게임 DLL이 없거나 엔진(`mealkit.dll`)보다 오래되었으면 에디터가 프로젝트를 열 때 게임 코드를 먼저 빌드한다.
+- 게임 DLL이 없거나 엔진보다 오래되었으면(엔진 import lib `mealkit.lib`과 엔진 헤더 중 가장 새것과 비교) 에디터가 프로젝트를 열 때 게임 코드를 먼저 빌드한다.
 - 엔진과 게임 코드의 경계는 `mealkit::game::GameInstance`(`engine/src/mealkit/game/GameInstance.h`). 게임은 이것을 구현하고(엔진 서비스는 `GameContext&`로 받는다), `MEALKIT_GAME_MODULE(이름, 클래스)`로 에디터용 진입점을 내보낸다. 약속이 바뀌면 `kApiVersion`을 올린다(다른 번호의 DLL은 불러오지 않는다).
 - 출시 exe는 게임 클래스를 직접 쓰므로 DLL 경계 비용이 없다.
 
@@ -112,18 +112,20 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 - 충돌 상자에 붙인 모델은 **모델 정점의 볼록 껍질**로 충돌한다 (오목한 부분은 메워진다).
 - 샘플 모델(나무, 바위, 고리)은 `python tools/make_sample_models.py`로 다시 만들 수 있다.
 
-## 현재 상태 (v0.4)
+## 현재 상태 (v0.4.3)
 
 | 모듈 | 내용 |
 |---|---|
-| Core | 로그, 고해상도 시계, 프레임 제한기, 수학(Vec3/Quat/Mat4, reversed-Z), PCG32 난수, FNV 해시, Tracy 마커 |
-| Platform | Win32 창, Per-Monitor DPI, Raw Input, 경로 찾기, 자식 프로세스(에디터 빌드), Steam(SDK가 있을 때) |
+| Core | 로그, 고해상도 시계, 프레임 제한기, 수학(Vec3/Quat/Mat4, reversed-Z), 결정론 수학(DetMath), PCG32 난수, FNV 해시, 필드 선언(`MEALKIT_FIELD`), Tracy 마커 |
+| Platform | OS 호출을 모은 층(`platform/win32/`, 헤드리스용 `platform/posix/` 최소 구현 — 아직 컴파일 안 해 봄): Win32 창, Per-Monitor DPI, Raw Input, 경로·사용자 데이터 폴더, 자식 프로세스·DLL·파일 대화상자(에디터), 그림(WIC). `tools\check_platform.ps1`이 층 밖의 OS 호출을 막는다 |
+| Online | `online::Service`: 계정, 친구 로비, 초대, 플랫폼 릴레이 전송. 백엔드는 빌드 때 하나(Steam: SDK가 있는 게임 빌드, 없음: 그 밖과 Editor 빌드) |
 | Render | DX12 포워드 렌더러: 메시별 인스턴싱(드로우 콜 = 메시 종류 수), 업로드 링 버퍼, 빌드 시점 셰이더 컴파일(DXC), 정점 색, 16/32비트 인덱스, PNG 스크린샷, Tracy GPU 시간 |
 | Physics | Jolt Physics 래퍼: 상자/구/캡슐/볼록 껍질, 광선, 상태 해시. 결정론 빌드 |
 | Asset | glTF 불러오기(cgltf) + 최적화·LOD(meshoptimizer) + 모델 캐시 |
 | Net | 호스트-클라이언트(방장이 플레이어이자 중계자, 전용 서버 없음) 결정론 입력 락스텝: 틱당 입력 8바이트만 전송, 상태 해시로 디싱크 감지, 최대 8명. 전송: UDP(중복 전송, TCP 안 씀) 또는 Steam 릴레이. 빌드·씬·모델·튜닝이 다르면 접속 거부. 맞는 장르와 한계는 `docs/ROADMAP.md` "네트워크 방식" |
-| Scene | 물체(상자/모델, 충돌/장식/스폰)와 환경. 사람이 읽을 수 있는 `.scene` 텍스트 |
-| Editor | 범용 에디터 `MealKitEditor` (Dear ImGui + ImGuizmo): 프로젝트 관리자, 게임 DLL 핫 리로드, 도킹 패널, 씬 트리, 인스펙터, 기즈모, 클릭 선택, 되돌리기, 모델 선택, 플레이 모드, 게임 코드·출시 빌드 |
+| Scene | 게임이 선언한 물체 종류 + 필드, 부모·자식 계층, 환경. 사람이 읽을 수 있는 `.scene` 텍스트 |
+| Game / Sim | `GameInstance`·`GameContext`(게임 코드 경계), `Simulation<World>`(고정 틱, 보간, 그림자 시뮬레이션, 기록·되감기), 튜닝(`.tuning`), 프로젝트 설정, `Pool<T>`·`TickTimer`·`TickEvents` |
+| Editor | 범용 에디터 `MealKitEditor` (Dear ImGui + ImGuizmo, 한국어/영어): 프로젝트 관리자, 게임 DLL 핫 리로드, 도킹 패널, 씬 트리, 인스펙터, 기즈모, 클릭 선택, 되돌리기, 자동 저장, 모델 선택, 튜닝·상태·프로젝트 설정 패널, 플레이 모드(여러 명, 일시정지·되감기), 게임 코드·출시 빌드 |
 
 측정값 (Intel Core Ultra 5 125U 내장 그래픽, 1280×720, 수직동기 끔, Release, 상자 2,000개 + 모델 9개):
 
@@ -137,7 +139,7 @@ powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame -Pat
 ## 요구사항
 
 - 실행: Windows 10 1803 이상, **Intel 11세대(Xe) 내장 그래픽 이상** (Direct3D 12, Shader Model 6.6 + 리소스 바인딩 티어 3 — 시작 때 검사하고, 없으면 드라이버 버전과 함께 이유를 알려 주고 끝낸다. 텍스처 작업부터 6.6 bindless를 쓴다), SSE4.2 CPU
-  - 최소 사양 결정과 이유: [docs/ROADMAP.md](ROADMAP.md) "결정 기록"
+  - 최소 사양 결정과 이유: [docs/DECISIONS.md](DECISIONS.md) "결정 기록"
 - 빌드: Visual Studio 2022 또는 Build Tools 2022 (C++ 데스크톱 워크로드, CMake 포함), Python 3 (샘플 모델 생성 시)
 
 ## 빌드
@@ -234,7 +236,7 @@ MSVC 빌드 호스트에 clang-cl 빌드 클라이언트를 붙여 **컴파일�
 ```
 engine/
   shaders/Forward.hlsl       인스턴스 변환 + 정점 색 + 하프 램버트 + 반구 환경광 + 안개 + 선택 강조
-  src/mealkit/core/            Types, Log, Clock, Math, Random, Hash, Profile
+  src/mealkit/core/            Types, Log, Clock, Math, DetMath, Random, Hash, Reflect(필드 선언), Version, Profile
   src/mealkit/platform/        Window, Input, Paths, Process, System, DynamicLibrary, FileDialog, Image (헤더 + 공통 부분)
   src/mealkit/platform/win32/  OS를 부르는 Windows 구현 (Win32, Winsock, WIC, 대화상자)
   src/mealkit/platform/posix/  헤드리스용 Linux·macOS 최소 구현 (시간, 파일, UDP, 로그)
@@ -244,9 +246,11 @@ engine/
   src/mealkit/asset/           ModelCache (cgltf + meshoptimizer)
   src/mealkit/net/             Socket, Transport, Lockstep
   src/mealkit/scene/           Scene (.scene 읽기/쓰기)
-  src/mealkit/game/            GameInstance, GameContext (엔진·에디터와 게임 코드의 경계, MEALKIT_GAME_MODULE)
+  src/mealkit/game/            GameInstance, GameContext (엔진·에디터와 게임 코드의 경계, MEALKIT_GAME_MODULE), Simulation, WorldSnapshot, ProjectSettings, GameData
   src/mealkit/sim/             Pool<T>, TickTimer, TickEvents (게임 sim/이 쓰는 결정론 도구)
-  src/mealkit/editor/          MealKitEditor: EditorMain, ProjectManager, Project, GameModuleHost(DLL 핫 리로드), Editor, ImGuiLayer
+  src/mealkit/editor/          MealKitEditor: EditorMain, ProjectManager, Project, GameModuleHost(DLL 핫 리로드), Editor, PlaySession, FieldEditor, Strings(tr), ImGuiLayer
+  res/                       에디터 아이콘, 에디터 UI 번역(strings/ko.txt)
+  tests/Tests.cpp            엔진 단위 테스트 (mealkit_tests.exe)
   tools/SimCheck.cpp         게임 sim/ 폴더의 결정론 규칙 검사 (빌드 때 mealkit_add_game이 실행)
 samples/sandbox/             예제 게임 = 새 프로젝트 템플릿 (프로젝트에서는 source/ 아래)
   sim/                       결정론 시뮬레이션: World(상태, step 순서, hash), Systems.h, Pawns(슬롯·컨트롤러·Pawn·AI), Props, Objects, Tuning
@@ -259,8 +263,8 @@ cmake/MealKit.cmake            빌드 공통 설정 + mealkit_add_game() (엔진
 cmake/MealKitExport.cmake      출시 폴더 만들기 (game_export 타깃)
 cmake/FixExportsDef.cmake    mealkit.dll 내보내기 목록에서 MSVC CRT 약한 별칭 줄 제거 (Editor 빌드)
 templates/project/           새 게임 프로젝트의 빌드 파일 템플릿
-tools/                       build_project.bat (공통 빌드), new_project.ps1 (새 프로젝트), upgrade_project.ps1 (프로젝트를 새 엔진 템플릿으로),
-                             check.ps1 (전체 검증), mp_test.ps1 (멀티플레이 테스트), make_sample_models.py
+tools/                       build_project.bat (공통 빌드), new_project.ps1 (새 프로젝트), rename_project.ps1 (이름 바꾸기), upgrade_project.ps1 (프로젝트를 새 엔진 템플릿으로),
+                             check.ps1 (전체 검증), check_platform.ps1 (플랫폼 층 밖 OS 호출), check_strings.ps1 (에디터 번역), mp_test.ps1 (멀티플레이 테스트), make_sample_models.py
 VERSION                      엔진 버전 (mealkit.project의 engineVersion과 비교)
 .vscode/                     빌드 작업, 디버그 실행 구성
 ```
@@ -295,18 +299,8 @@ VERSION                      엔진 버전 (mealkit.project의 engineVersion과 
 
 ## 다음 단계
 
-자세한 계획과 순서는 [docs/ROADMAP.md](ROADMAP.md), 끝낸 것의 상세는 [docs/CHANGELOG.md](CHANGELOG.md). 다음은 1단계(v0.5, 게임이 되게 하는 최소 기능)다.
-
-1. 위험 확인: 최소 사양(11세대) 실기 측정, 다른 PC 사이 결정론, Steam 실검증
-2. 플랫폼 계층(`mealkit/platform/`): 오디오·입력이 OS API를 고르기 전에
-   이어서 온라인 서비스 계층(Steam 백엔드부터, 크로스플레이는 3단계 EOS), 헤드리스 시뮬레이션, CI 빌드 매트릭스(GitHub Actions: Windows MSVC·clang-cl, Linux x64·macOS ARM64 헤드리스 빌드의 틱별 해시 비교), 저장소 공개 범위 결정(라이선스는 MIT로 정함)
-3. 데이터와 코드 분리: ~~프로젝트 설정~~ → 화면용 튜닝(+ 시간 값은 초) → 프로젝트 폴더 구조 강제 → 예제 데이터 정리 → 정의 데이터 표
-4. 그다음 순서 (각 항목은 기준 샘플에서 실제로 써야 끝난다):
-   - 오디오 → 이벤트 → 연출 표
-   - 입력 액션 매핑 → 게임패드 → 확정 명령 채널 → 디버그 UI(ImGui) → 로컬라이제이션
-   - 게임 UI(`.ui` 런타임 + 미리보기. Penpot 플러그인은 디자이너가 생길 때)
-   - 설정 화면, 세이브, 매치 시작 데이터(로드아웃), 기본 화면 흐름
-   - 네트워크 흉내, 입력 지연 자동 조절, 내 캐릭터 겉모습 예측, 틱레이트 설정, 버전 표시·접속 거부 이유
+계획과 순서는 [docs/ROADMAP.md](ROADMAP.md)("추천 순서 요약"), 정한 것과 미룬 것은 [docs/DECISIONS.md](DECISIONS.md), 끝낸 것의 상세는 [docs/CHANGELOG.md](CHANGELOG.md).
+지금은 1단계(v0.5, 게임이 되게 하는 최소 기능) 중이고, 다음은 헤드리스 시뮬레이션 → CI 빌드 매트릭스다.
 
 ## 라이선스
 

@@ -1,6 +1,6 @@
 # MealKit 변경 기록
 
-끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`.
+끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
 ## v0.4.3 — 1단계 진행 중 (2026-10-16)
@@ -15,7 +15,7 @@
   `core/Types.h` 시각을 새로 하면 에디터가 시작 때 게임 코드 빌드를 시작했고, 엔진을 다시 빌드하자 게임 DLL도 다시 링크되어 바로 불러왔다.
 
 ### [x] 플랫폼 계층 (`mealkit/platform/`) (완료 2026-10-18)
-SDL3 평가(창·입력·게임패드·오디오 장치)는 하지 않고 1단계 "오디오" 항목의 첫 일로 옮겼다(ROADMAP 결정 기록 2026-10-18). 창·입력은 Win32 그대로다.
+SDL3 평가(창·입력·게임패드·오디오 장치)는 하지 않고 1단계 "오디오" 항목의 첫 일로 옮겼다(`docs/DECISIONS.md` 2026-10-18). 창·입력은 Win32 그대로다.
 - **규칙**: 헤더는 기능 자리에 그대로 두고(게임 코드의 include가 바뀌지 않는다), OS API를 부르는 구현 `.cpp`만 `platform/win32/`·`platform/posix/`로 옮겼다. CMake가 `WIN32`로 하나를 고른다.
   **옮긴 것**: `core/Clock.cpp` → `win32/Clock.cpp`, `net/Socket.cpp`의 소켓 부분 → `win32/Socket.cpp`(주소 표시는 `net/Socket.cpp`에 남김),
   `platform/Paths.cpp`는 std::filesystem 부분(`platform/Paths.cpp`)과 OS 부분(`win32/Paths.cpp`)으로 나눔, `Process.cpp`·`Window.cpp` → `win32/`, `editor/Image.*` → `platform/Image.h` + `win32/Image.cpp`(WIC, `namespace mealkit`).
