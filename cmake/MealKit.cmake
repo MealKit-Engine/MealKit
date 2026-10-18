@@ -30,6 +30,9 @@ get_filename_component(MEALKIT_ENGINE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUT
 # 엔진 버전 (저장소 루트 VERSION). 프로젝트의 mealkit.project engineVersion과 비교한다.
 file(STRINGS "${MEALKIT_ENGINE_DIR}/VERSION" MEALKIT_VERSION LIMIT_COUNT 1)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${MEALKIT_ENGINE_DIR}/VERSION")
+# 엔진 메시지가 가리키는 문서 주소: 엔진 MINOR 버전의 문서 브랜치 (문서 저장소 MealKit-docs, 공개 전에는 아직 열리지 않는다)
+string(REGEX MATCH "^[0-9]+\.[0-9]+" MEALKIT_VERSION_MINOR "${MEALKIT_VERSION}")
+set(MEALKIT_DOCS_URL "https://mealkit.readthedocs.io/en/${MEALKIT_VERSION_MINOR}/")
 get_filename_component(mealkit_source_dir "${CMAKE_SOURCE_DIR}" ABSOLUTE)
 if(mealkit_source_dir STREQUAL MEALKIT_ENGINE_DIR)
     set(MEALKIT_IS_ENGINE ON)
@@ -200,7 +203,7 @@ function(mealkit_add_game name)
         add_custom_target(${name}_simcheck DEPENDS "${sim_stamp}")
     endif()
 
-    # 헤드리스 (docs/GUIDE.md "헤드리스"): sim/ + Headless.cpp만, 엔진은 코어(mealkit_core)만 링크한다. 창·렌더러·오디오 없음.
+    # 헤드리스 (docs/CODING_MODEL.md "창 없이(헤드리스·CI) 게임을 돌리는 방법"): sim/ + Headless.cpp만, 엔진은 코어(mealkit_core)만 링크한다. 창·렌더러·오디오 없음.
     # CI가 Linux·macOS에서도 이것을 빌드해 틱별 해시를 비교한다. Headless.cpp는 출시 exe에도 들어간다(--headless, GameSession이 같은 함수를 쓴다).
     if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
         if(EXISTS "${ARG_HEADLESS}")

@@ -84,6 +84,20 @@
 | 실패 처리 | 예외 / null / Result | **예외 안 씀.** 값을 돌려주는 함수는 `std::optional<T>`, 값이 없으면 `bool`. 실패 이유는 실패한 곳에서 로그로 남긴다. 프로그래머 실수는 `MEALKIT_ASSERT` | 실패 경로가 함수 모양에 보인다 |
 | 메모리 | 아무 데서나 할당 | `sim/`은 `Pool`과 고정 배열만, 틱 도중 할당 금지, `unordered_map` 금지(조회는 Pool id로). 화면 쪽은 **매 프레임 `clear()`로 재사용하는 컨테이너**(지금 `DrawList` 방식) | 할당 스파이크·순서 문제가 없다. 별도 할당기를 만들지 않는다 |
 
+## 결정론 규칙 (시뮬레이션 코드)
+
+락스텝은 모든 PC가 비트 단위로 같은 계산을 해야 동작한다. 게임의 시뮬레이션 코드는 `sim/` 폴더에 두고, `World::step()`이 시스템 함수를 정해진 순서로 직접 부른다.
+엔진의 `engine/src/mealkit/physics`도 같은 규칙을 따른다. `sim/` 파일은 빌드 전에 SimCheck가 검사한다(아래 "강제하는 방법" 2). 이 절이 정본이고, 문서 저장소의 설명은 여기를 가리킨다.
+
+- 사칙연산과 `sqrt`만 쓴다. `sin/cos/atan2/pow/exp` 같은 CRT 함수는 CPU에 따라 다른 경로(FMA)를 탈 수 있다. 각도 계산은 `mealkit/core/DetMath.h`의 `detSin`/`detCos`/`detAtan2`/`detQuatFromAxisAngle`을 쓰거나, 입력 단계에서 계산해 양자화해서 보낸다.
+- 컴파일 옵션은 `/fp:precise`로 고정한다. `/fp:fast`, `/fp:contract`, `/arch:AVX2`는 쓰지 않는다. Clang·GCC(다른 플랫폼)는 `-ffp-contract=off`이고 `-ffast-math`를 쓰지 않는다. Jolt는 `CROSS_PLATFORM_DETERMINISTIC`, AVX/FMA 끔(SSE4.2까지).
+- 난수는 `Pcg32`(시드 기반)만 쓴다.
+- 물리 바디는 모든 피어에서 같은 순서로 만들고 지우고, 힘도 같은 순서로 준다.
+- 순회 순서를 고정한다. 해시맵을 순회하지 않고, 포인터 주소에 의존하지 않는다.
+- 실제 시간, 카메라, 프레임레이트, 렌더링 LOD를 시뮬레이션이 읽지 않는다.
+- 틱을 넘어 남는 상태는 `WorldState` 안에 `MEALKIT_FIELD`로 선언한다. `World::hash()`와 스냅샷이 선언을 그대로 쓰므로 빠뜨릴 수 없다.
+- 시뮬레이션 코드에 플랫폼 분기(`#ifdef`, 플랫폼별 라이브러리)를 두지 않는다(크로스플레이).
+
 ## 강제하는 방법
 
 1. **엔진이 주는 도구가 곧 답이다.** `Pool<T>`, 틱 이벤트, 틱 타이머, `GameContext`, 확정 명령(1단계), Job System(4단계)만 제공하고, 같은 일을 하는 다른 헬퍼는 만들지 않는다. 소스 모듈도 이 도구 위에서만 만든다.

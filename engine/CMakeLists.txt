@@ -165,6 +165,7 @@ endif()
 
 target_compile_definitions(${mealkit_core_target} PUBLIC
     MEALKIT_VERSION="${MEALKIT_VERSION}"
+    MEALKIT_DOCS_URL="${MEALKIT_DOCS_URL}"
     $<$<CONFIG:Debug>:MEALKIT_DEBUG=1>)
 if(WIN32)
     target_compile_definitions(${mealkit_core_target} PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
@@ -174,7 +175,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     target_compile_definitions(mealkit PUBLIC MEALKIT_ASSERTS=1)
 endif()
 
-# 부동소수점 결정론 (docs/GUIDE.md "결정론 규칙"): /fp:fast, /fp:contract, /arch:AVX2, -ffast-math를 쓰지 않는다.
+# 부동소수점 결정론 (docs/CODING_MODEL.md "결정론 규칙"): /fp:fast, /fp:contract, /arch:AVX2, -ffast-math를 쓰지 않는다.
 # MSVC는 /fp:precise. clang-cl(build.bat ClangCL)은 기본이 precise지만 식 안의 곱셈-덧셈 합치기(fp-contract=on)를 허용하므로 그것만 끈다.
 # Linux·macOS의 Clang·GCC(헤드리스)도 -ffp-contract=off, -fno-fast-math.
 if(MSVC)

@@ -3,6 +3,32 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.4 — 1단계 진행 중 (2026-10-18)
+
+### [x] 저장소 공개 범위 (결정 2026-10-18)
+- 공개 시점은 날짜·단계로 정하지 않고 사용자가 요청할 때. 외부 기여는 DCO(`git commit -s`, CLA 없음), 기준 샘플 에셋은 CC0. 이유는 `docs/DECISIONS.md` 2026-10-18.
+- 공개할 때 할 일: `CONTRIBUTING.md`(DCO), 에셋 폴더의 CC0 고지, Windows on ARM CI 러너, 문서 Read the Docs.
+
+### [x] 문서 저장소 (완료 2026-10-18)
+- **왜**: 사용 설명이 `docs/GUIDE.md` 한 파일(한국어)에 쌓이고 있었다. 엔진 코드와 따로 고칠 설명을 나누고, 영어·한국어와 엔진 버전별로 보여 준다.
+- **저장소** `D:\MealKit-docs`(git, 아직 원격 없음): Sphinx 8.2.3 + MyST 4.0.1 + sphinx-rtd-theme, 버전은 `requirements.txt`에 고정. 목차는 ROADMAP대로
+  소개(소개·요구사항·라이선스) / 시작하기(엔진 빌드·첫 프로젝트·작업 흐름·에디터 빠른 시작) / 매뉴얼(엔진 폴더와 프로젝트·에디터·에셋·멀티플레이와 결정론·빌드와 출시·성능) / 쿡북 / 엔진 개발(소스 구조·테스트·기여) / 레퍼런스(명령줄) / 용어집.
+  GUIDE.md의 모든 절이 자리를 받았다(현재 상태·측정값·보이스 챗 → 소개, 빌드 → 시작하기, 게임 실행·헤드리스·Steamworks → 멀티플레이, 테스트·CI·구조·프레임 흐름 → 엔진 개발).
+  명령줄 레퍼런스는 게임·헤드리스·에디터의 `--help`와 `tools\` 스크립트를 표로 새로 썼다.
+- **번역**: 영어 원문, 한국어는 `locale/ko/LC_MESSAGES/<문서>.po`(문서마다 하나, 줄 위치 없음 → diff가 작다). 538문장. 처음 번역은 GUIDE.md 한국어 문장을 영어 원문과 같은 구조로 나눈 사본에서 순서대로 짝지어 만들었다.
+  코드 블록 안의 주석도 번역한다: Sphinx 자체의 코드 블록 번역은 번역문을 reST(`::`)로 다시 읽어 MyST에서는 내용이 사라지므로, `conf.py`의 작은 변환(`LiteralBlockTranslator`)이 카탈로그에서 바로 바꾼다(gettext 빌더만 코드 블록을 뽑는다).
+- **검사** `tools/build.py`(로컬·CI 공통): `html`(영어 `_build/html/en`, 한국어 `_build/html/ko`, 경고 = 오류), `update`(sphinx-intl: 새 문장은 빈 칸, 바뀐 문장은 fuzzy), `check`(두 언어 빌드 + 미번역·fuzzy·원문 없는 번역 0 + `ENGINE_VERSION`과 엔진 `VERSION` MINOR 비교), `linkcheck`.
+  영어 문장 하나를 바꾸면 `check`가 실패하고 `update` 뒤 그 문장이 fuzzy가 되는 것을 확인했다. CI는 `.github/workflows/docs.yml`(ubuntu, 엔진 저장소가 비공개인 동안은 `ENGINE_REPO_TOKEN` 비밀 값이 있을 때만 버전을 비교).
+  엔진 저장소 파일 링크는 `{engine}` 역할(GitHub `master`)이고, 비공개인 동안 링크 검사에서 뺀다.
+- **엔진 쪽 정본**: GUIDE "결정론 규칙"을 `docs/CODING_MODEL.md` "결정론 규칙 (시뮬레이션 코드)" 절로, 외부 라이브러리 표의 "이유" 열을 `third_party/VERSIONS.txt`로 옮겼다. 문서 저장소는 이것들을 복사하지 않고 링크한다.
+- **참조 바꾸기**: CLAUDE.md, ROADMAP, DECISIONS 보류 표, SimCheck 주석·메시지(→ CODING_MODEL), `.gitignore`·CMake·`check.ps1`·`record_replay.ps1`·CI 주석, README, 템플릿 README. `docs/GUIDE.md`는 지웠다(지난 결정·변경 기록의 언급은 기록이라 그대로 둔다).
+- **버전 붙은 문서 주소**: CMake가 `VERSION`에서 `MEALKIT_DOCS_URL`(`https://mealkit.readthedocs.io/en/<MAJOR.MINOR>/`)을 만들어 넘기고(`core/Version.h`의 `kDocsUrl`), "없음" 온라인 백엔드와 sandbox의 Steam 오류 메시지가 `manual/multiplayer.html#steamworks`를 가리킨다.
+  Read the Docs 프로젝트 이름 `mealkit`은 가정이다 — 공개할 때 다르면 CMake 한 줄을 고친다. 그때까지 이 주소는 열리지 않는다.
+- **에디터 `--lang ko|en`**: 이번 실행만 에디터 언어를 바꾼다(사용자 설정은 그대로). 문서 스크린샷을 언어별로 `--capture`하기 위한 것.
+- **템플릿**: 템플릿 README의 결정론 규칙 링크와 sandbox 메시지가 바뀌어 엔진 버전 0.4.3 → 0.4.4.
+- **ROADMAP 방식과 다른 점·남은 것**: 문서 브랜치는 `master`만 만들었다(0.5부터 MINOR 브랜치). 스크린샷은 아직 없다(옵션만 넣음). `--dump-reference`로 레퍼런스 생성, Weblate는 나중에.
+  영어 문서의 CODING_MODEL 절 이름은 영어로 옮겨 적었다(CODING_MODEL 자체는 한국어). 기존 GUIDE 내용 다시 쓰기는 페이지마다 조금씩.
+
 ## v0.4.3 — 1단계 진행 중 (2026-10-16)
 
 ### [x] CI 빌드 매트릭스 (완료 2026-10-18)

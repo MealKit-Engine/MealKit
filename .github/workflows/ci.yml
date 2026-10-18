@@ -1,4 +1,4 @@
-# MealKit CI 빌드 매트릭스 (docs/ROADMAP.md 1단계 "CI 빌드 매트릭스", docs/GUIDE.md "CI").
+# MealKit CI 빌드 매트릭스 (docs/ROADMAP.md 1단계 "CI 빌드 매트릭스", 문서 저장소 "엔진 개발 > 테스트").
 # 커밋마다 Windows MSVC(Release, Editor)·clang-cl과 Linux x64·macOS ARM64 Clang 헤드리스를 빌드하고,
 # 각 빌드에서 tools/ci_test.ps1(단위 테스트, 고정 입력 기록 재생, 헤드리스 mp_test)을 돌린 뒤
 # tools/ci_compare.ps1이 detmath-bits와 틱별 해시가 모든 빌드에서 같은지 본다. 하나라도 다르면 실패한다.

@@ -1,5 +1,5 @@
 ﻿# CI용 고정 입력 기록 만들기: 헤드리스 호스트 1 + 클라이언트 N-1을 봇 입력으로 돌리고, 호스트가 확정 입력과 틱별 해시를 기록한다.
-# 시뮬레이션 결과를 일부러 바꿨을 때 저장소의 기록(samples/*/replays/*.rec)을 다시 만든다 (docs/GUIDE.md "CI").
+# 시뮬레이션 결과를 일부러 바꿨을 때 저장소의 기록(samples/*/replays/*.rec)을 다시 만든다 (문서 저장소 "엔진 개발 > 테스트").
 #   powershell -ExecutionPolicy Bypass -File tools\record_replay.ps1                (sandbox arena_4p_seed7.rec 다시 만들기)
 #   ... -Out <파일.rec> [-Players 4] [-Seed 7] [-Ticks 900] [-Exe <게임>_headless.exe]
 param(

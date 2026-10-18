@@ -17,6 +17,7 @@
 #include "mealkit/core/Clock.h"
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Profile.h"
+#include "mealkit/core/Version.h"
 #include "mealkit/game/GameData.h"
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/net/Lockstep.h"
@@ -279,7 +280,8 @@ int main(int argc, char** argv) {
     if (useSteam) {
         if (online::Service::backend() != online::Backend::Steam || !online.init())
             MEALKIT_FATAL(
-                "Steam is not available. Run the Steam client, and build with the Steamworks SDK (see docs/GUIDE.md).");
+                "Steam is not available. Run the Steam client, and build with the Steamworks SDK (see " MEALKIT_DOCS_URL
+                "manual/multiplayer.html#steamworks).");
         if (opt.mode == Options::Mode::SteamHost) online.createLobby(opt.maxPlayers);
         else online.joinLobby(opt.steamLobby);
     }

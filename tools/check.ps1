@@ -103,7 +103,7 @@ Invoke-Check "Headless (mp_test, record + replay)" {
 }
 
 # 저장소의 고정 입력 기록(samples/*/replays/*.rec, CI가 모든 OS에서 재생한다)이 지금 코드와 맞는가.
-# 시뮬레이션 결과를 일부러 바꿨다면 기록을 다시 만든다 (docs/GUIDE.md "CI").
+# 시뮬레이션 결과를 일부러 바꿨다면 기록을 다시 만든다 (문서 저장소 "엔진 개발 > 테스트").
 Invoke-Check "Committed replays (samples/*/replays)" {
     param($log)
     $recs = @(Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Filter *.rec | Where-Object { $_.Directory.Name -eq "replays" })
