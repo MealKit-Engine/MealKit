@@ -4,6 +4,7 @@
 #   powershell -ExecutionPolicy Bypass -File tools\mp_test.ps1 [-Clients 1] [-Ticks 900] [-Config Release] [-Scene <file>] [-Tuning <file>]
 # 게임 프로젝트의 실행 파일을 시험하려면 -Exe <프로젝트>\build\Release\bin\<이름>.exe
 # 다른 컴파일러 빌드와 맞붙이려면 -ClientExe build\ClangCL\bin\sandbox.exe (호스트는 -Exe, 클라이언트는 이것)
+# 먼 상대·손실을 흉내 내려면 -Lag <ms> -Jitter <ms> -Loss <%> (모든 프로세스에 --net-lag 등)
 # 창 없이(헤드리스) 돌리려면 -Headless (각 실행 파일에 --headless를 붙인다. 입력이 허락하는 만큼 빨리 돈다)
 param(
     [int]$Clients = 1,
@@ -15,6 +16,9 @@ param(
     [string]$ClientExe = "",
     [string]$Scene = "",
     [string]$Tuning = "",
+    [int]$Lag = 0,      # 네트워크 상태 흉내 (ms, 모든 프로세스: --net-lag)
+    [int]$Jitter = 0,   # --net-jitter (ms)
+    [double]$Loss = 0,  # --net-loss (%)
     [switch]$Headless
 )
 
@@ -40,6 +44,7 @@ $common = "--bot --mute --vsync 0 --fps 120 --size 640 360 --exit-tick $Ticks"
 if ($Headless) { $common = "--headless $common" }
 if ($Scene -ne "") { $common += " --scene `"$((Resolve-Path $Scene).Path)`"" }
 if ($Tuning -ne "") { $common += " --tuning `"$((Resolve-Path $Tuning).Path)`"" }
+if ($Lag -gt 0 -or $Jitter -gt 0 -or $Loss -gt 0) { $common += " --net-lag $Lag --net-jitter $Jitter --net-loss $Loss" }
 $hostExtra = if ($ClientExe -ne "") { " --any-build" } else { "" }
 $procs = @()
 $procs += Start-Process -FilePath $exe -PassThru -NoNewWindow `
@@ -52,7 +57,7 @@ for ($i = 1; $i -le $Clients; $i++) {
         -RedirectStandardOutput "$logDir\client$i.txt" -RedirectStandardError "$logDir\client${i}_err.txt"
 }
 
-$timeoutMs = [int](($Ticks / 30.0 + 30) * 1000)
+$timeoutMs = [int](($Ticks / 30.0 + 30) * 1000 * (1 + ($Lag + $Jitter) / 100.0)) # 지연이 입력 지연보다 크면 매치가 느려진다
 foreach ($p in $procs) {
     if (-not $p.WaitForExit($timeoutMs)) { $p.Kill(); Write-Warning "Process $($p.Id) timed out" }
 }

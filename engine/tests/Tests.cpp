@@ -963,6 +963,50 @@ TEST_CASE(lobby_chat_rematch) {
                finder.rooms()[0].address.port == 12345 && other.rooms().empty());
 }
 
+// 네트워크 상태 흉내: 지연·흔들림·손실이 있어도 락스텝은 같은 입력으로 끝까지 간다 (재전송·중복 전송 길)
+TEST_CASE(net_conditions) {
+    constexpr u16 kPort = 27935;
+    net::LockstepSession host, client;
+    const net::NetConditions bad{60.0f, 30.0f, 15.0f};
+    host.setConditions(bad);
+    client.setConditions(bad);
+    TEST_CHECK(host.host(kPort, 2, 3, true));
+    net::Address address;
+    net::startup();
+    TEST_CHECK(net::resolveAddress("127.0.0.1", kPort, address));
+    net::cleanup();
+    TEST_CHECK(client.join(address));
+    net::LockstepSession* sessions[2] = {&host, &client};
+    const f64 deadline = nowSeconds() + 15.0;
+    while (nowSeconds() < deadline && host.lobbyPlayerCount() < 2) {
+        for (net::LockstepSession* s : sessions) s->update(nowSeconds());
+        sleepSeconds(0.001);
+    }
+    host.startMatch(9, 0);
+    constexpr u32 kTicks = 90;
+    u32 next[2] = {0, 0};
+    u64 sum[2] = {0, 0};
+    while (nowSeconds() < deadline && (next[0] < kTicks || next[1] < kTicks)) {
+        for (u32 i = 0; i < 2; ++i) {
+            net::LockstepSession& s = *sessions[i];
+            s.update(nowSeconds());
+            while (next[i] < kTicks && s.canExecute(next[i])) {
+                const u32 t = next[i]++;
+                for (u32 p = 0; p < s.playerCount(); ++p) sum[i] = sum[i] * 31 + s.inputs(t).players[p].bytes[0];
+                s.tickExecuted(t, sum[i]);
+                net::PlayerInput in;
+                in.bytes[0] = static_cast<u8>(t * 7 + i);
+                s.submitLocalInput(t + s.inputDelay(), in);
+            }
+        }
+        sleepSeconds(0.001);
+    }
+    TEST_CHECK(next[0] == kTicks && next[1] == kTicks && sum[0] == sum[1] && !host.desynced());
+    TEST_CHECK(host.stats().rttMs == 0.0f && client.stats().rttMs > 40.0f); // 클라이언트가 재는 왕복 시간에 지연이 보인다
+    client.shutdown();
+    host.shutdown();
+}
+
 TEST_CASE(project_file) {
     const std::string path = executableDirectory() + "\\test.project";
     // 예전 형식(키=값)과 새 형식(경로 값)이 섞여 있어도 읽는다

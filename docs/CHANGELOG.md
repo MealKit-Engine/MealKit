@@ -3,6 +3,14 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.25 — 1단계 진행 중 (2026-10-19)
+
+### [x] 네트워크 상태 흉내 내기 (완료 2026-10-19)
+- **왜**: 같은 PC 시험은 지연이 0에 가까워, 입력 지연 자동 조절·끊김 처리를 실제 친구 없이 시험할 수 없었다.
+- **방식** (`mealkit/net/Conditions.h`): `withConditions(전송, {지연, 흔들림, 손실})` 래퍼가 보내는 패킷과 받는 패킷을 각각 손실 확률로 버리고, 나머지는 지연의 반 + 0..흔들림만큼 큐에 두었다 내보낸다(순서가 바뀔 수 있다). UDP·Steam 어느 전송에도 씌운다. `LockstepSession::setConditions`(host/join 전, `reset`해도 남는다), 매치 옵션 `--net-lag <ms>`(왕복 시간)·`--net-jitter <ms>`·`--net-loss <%>`(출시 exe·헤드리스, `MatchServiceConfig::conditions`), `mp_test.ps1 -Lag -Jitter -Loss`(모든 피어, 시간 제한도 늘린다).
+- **결정론**: 영향 없음(전달 시점만). 난수는 시뮬레이션 밖 `Pcg32`.
+- **검증**: 단위 테스트 `net_conditions`(60 ms·흔들림 30·손실 15%에서 90틱, 양쪽 입력 합이 같고 클라이언트 rtt가 지연을 보인다). `mp_test -Headless -Clients 3 -Lag 120 -Jitter 40 -Loss 5` PASS, 창 1+2 `-Lag 80 -Jitter 20 -Loss 3` PASS. 왕복이 입력 지연(100 ms)보다 길면 매치가 입력을 기다리며 느려진다(약 240 ms에서 초당 12틱) — 다음 항목 "입력 지연 자동 조절"이 고친다.
+
 ## v0.4.24 — 1단계 진행 중 (2026-10-19)
 
 ### [x] 기본 화면 흐름 템플릿 + LAN 방 찾기 + 텍스트 채팅 (완료 2026-10-19)

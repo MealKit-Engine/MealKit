@@ -106,6 +106,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/net/Transport.h
     src/mealkit/net/Lockstep.h
     src/mealkit/net/Lockstep.cpp
+    src/mealkit/net/Conditions.h
+    src/mealkit/net/Conditions.cpp
     src/mealkit/net/Rooms.h
     src/mealkit/net/Rooms.cpp)
 set(MEALKIT_FRONT_SOURCES
