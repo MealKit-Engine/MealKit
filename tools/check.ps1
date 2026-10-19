@@ -89,6 +89,12 @@ Invoke-Check "Platform layer (OS APIs)" {
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
+Invoke-Check "Engine layers (include order)" {
+    param($log)
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layers.ps1" 2>&1
+    $output | Out-File -Encoding utf8 $log
+    return $LASTEXITCODE -eq 0
+}
 Invoke-Check "Determinism (mp_test 1+3, 900 ticks)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 3 -Ticks 900 2>&1

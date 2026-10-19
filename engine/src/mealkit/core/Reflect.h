@@ -44,7 +44,7 @@ struct Ticks {
 };
 
 // 정의 데이터 표의 행 참조 (docs/CODING_MODEL.md "같은 모양의 데이터가 여러 개"): 파일·에디터에는 행 이름 id,
-// 불러온 뒤 game::resolveRows가 행 번호(index)를 채운다. sim/은 번호로 읽는다(world.weapons[ref.index] 또는 table.get(ref)).
+// 불러온 뒤 data::resolveRows가 행 번호(index)를 채운다. sim/은 번호로 읽는다(world.weapons[ref.index] 또는 table.get(ref)).
 // 문자열이 들어 있어 시뮬레이션 상태(WorldState)에는 넣지 않는다: 상태에는 u32 행 번호를 둔다.
 inline constexpr u32 kNoRow = 0xFFFFFFFFu;
 

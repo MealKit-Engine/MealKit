@@ -31,7 +31,7 @@ void TablesPanel::setTables(const reflect::TableList* tables) {
             bool engineTable = false;
             for (const reflect::TableInfo& e : m_engineTables) engineTable = engineTable || e.rowType == doc.info.rowType;
             if (engineTable) continue;
-            game::tableToText(doc.data, doc.backup);
+            data::tableToText(doc.data, doc.backup);
             doc.data = {};
             doc.info.rowType = nullptr;
         }
@@ -59,7 +59,7 @@ void TablesPanel::syncDocs(const std::vector<reflect::TableInfo>& infos) {
             doc.info = info;
             if (reloadType) { // 새 DLL의 타입으로 텍스트에서 다시 만든다
                 std::string warnings;
-                game::tableFromText(*info.rowType, doc.backup, doc.data, &warnings);
+                data::tableFromText(*info.rowType, doc.backup, doc.data, &warnings);
                 if (!warnings.empty()) MEALKIT_WARN("Table %s: %s", info.path, warnings.c_str());
             }
         } else {
@@ -85,7 +85,7 @@ void TablesPanel::load(Doc& doc) {
         doc.data = {};
         doc.data.rowType = doc.info.rowType;
         doc.status = tr("No file yet - it is created when you save");
-    } else if (!game::loadTableData(*doc.info.rowType, doc.path, doc.data, &warnings)) {
+    } else if (!data::loadTableData(*doc.info.rowType, doc.path, doc.data, &warnings)) {
         doc.status = trf("Could not read %s", doc.path.c_str());
     } else {
         doc.status = warnings;
@@ -98,7 +98,7 @@ void TablesPanel::load(Doc& doc) {
 bool TablesPanel::save(Doc& doc) {
     if (!doc.data.rowType) return false;
     createDirectories(parentDirectory(doc.path));
-    if (!game::saveTableData(doc.data, doc.path)) {
+    if (!data::saveTableData(doc.data, doc.path)) {
         doc.status = trf("Could not save %s", doc.path.c_str());
         return false;
     }
@@ -158,7 +158,7 @@ void TablesPanel::draw(void* owner, bool editing, bool* open) {
     for (Doc& doc : m_docs) {
         if (!doc.data.rowType) continue;
         for (size_t i = 0; i < doc.data.rows.size(); ++i)
-            game::resolveRows(*doc.data.rowType, doc.data.rows[i].data(), m_index, &m_problems,
+            data::resolveRows(*doc.data.rowType, doc.data.rows[i].data(), m_index, &m_problems,
                               std::string(doc.info.path) + " " + doc.data.ids[i] + ": ");
     }
     m_problems.insert(m_problems.end(), m_extraProblems.begin(), m_extraProblems.end());
@@ -189,7 +189,7 @@ void TablesPanel::draw(void* owner, bool editing, bool* open) {
 
 void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
     (void)editing;
-    game::TableData& t = doc.data;
+    data::TableData& t = doc.data;
     const bool view = (doc.info.flags & reflect::kTableView) != 0;
     auto changed = [&] {
         doc.dirty = true;
@@ -256,7 +256,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         const std::string csv = openFileDialog(owner, "", m_projectDir, kCsvFilters, 2);
         std::string error;
         if (!csv.empty()) {
-            if (game::importTableCsv(t, csv, &error)) {
+            if (data::importTableCsv(t, csv, &error)) {
                 doc.selected = -1;
                 doc.status = trf("Imported %s (%zu rows) - save to write the table", fileName(csv).c_str(), t.rows.size());
                 changed();
@@ -271,7 +271,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         const std::string name = base.substr(0, base.rfind('.')) + ".csv";
         const std::string csv = saveFileDialog(owner, name, m_projectDir, kCsvFilters, 2, "csv");
         if (!csv.empty())
-            doc.status = game::exportTableCsv(t, csv) ? trf("Exported %s", csv.c_str()) : trf("Could not write %s", csv.c_str());
+            doc.status = data::exportTableCsv(t, csv) ? trf("Exported %s", csv.c_str()) : trf("Could not write %s", csv.c_str());
     }
     ImGui::TextDisabled("%s", view ? tr("Display table: saved changes apply while playing")
                                    : tr("Simulation table: used from the next play (content hash). Play saves it"));
@@ -317,7 +317,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                     const std::string id = m_idBuffer;
                     m_idRow = -1;
                     if (id != t.ids[r]) {
-                        if (!game::validRowId(id) || std::find(t.ids.begin(), t.ids.end(), id) != t.ids.end()) {
+                        if (!data::validRowId(id) || std::find(t.ids.begin(), t.ids.end(), id) != t.ids.end()) {
                             doc.status = trf("'%s' cannot be a row id (letters, digits, _ - . and unique in the table)", id.c_str());
                         } else {
                             t.ids[r] = id;

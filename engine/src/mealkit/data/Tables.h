@@ -8,7 +8,8 @@
 #include <string>
 #include <vector>
 
-// 정의 데이터 표 파일 (assets/tables/*.table, mealkit/sim/Table.h). 게임 app/·에디터·콘텐츠 해시가 같은 함수로 읽는다.
+// 정의 데이터 표 파일 (assets/tables/*.table, mealkit/sim/Table.h). 게임 app/·에디터·콘텐츠 해시와 엔진 표(입력·소리·연출)가 같은 함수로 읽는다.
+// data/는 게임 경계(game/)보다 아래 계층이다 (docs/CODING_MODEL.md "엔진 폴더 사이 의존").
 //   # MealKit table (PropKind) ...
 //   row crate
 //   density 200
@@ -16,7 +17,7 @@
 //   row barrel
 //   ...
 // 행 순서 = 파일 순서 = 행 번호. 행 id는 영문자·숫자·_·-·. 이고 표 안에서 겹치지 않는다(겹치면 뒤의 행을 버린다).
-namespace mealkit::game {
+namespace mealkit::data {
 
 // 표 파일 내용: 형식을 몰라도 다룬다 (행 id + 그 행의 "경로 값" 줄)
 struct TableText {
@@ -105,4 +106,4 @@ bool loadTable(sim::Table<Row>& out, const char* assetPath = nullptr) {
     return true;
 }
 
-} // namespace mealkit::game
+} // namespace mealkit::data

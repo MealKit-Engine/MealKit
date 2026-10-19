@@ -63,8 +63,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/game/GameInstance.h
     src/mealkit/game/GameData.h
     src/mealkit/game/GameData.cpp
-    src/mealkit/game/Tables.h
-    src/mealkit/game/Tables.cpp
+    src/mealkit/data/Tables.h
+    src/mealkit/data/Tables.cpp
     src/mealkit/game/Headless.h
     src/mealkit/game/Headless.cpp
     src/mealkit/game/InputRecord.h

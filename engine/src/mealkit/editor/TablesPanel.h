@@ -1,7 +1,7 @@
 #pragma once
 
 #include "mealkit/core/Reflect.h"
-#include "mealkit/game/Tables.h"
+#include "mealkit/data/Tables.h"
 
 #include <string>
 #include <vector>
@@ -28,7 +28,7 @@ public:
     bool takeViewTableChanged();
 
     // 행 참조 드롭다운과 검사용: 지금 열린 표들의 행 id
-    const game::TableIndexList& index() const { return m_index; }
+    const data::TableIndexList& index() const { return m_index; }
     // 표·튜닝·씬 물체 필드의 없는 행 참조 ("<어디> <경로> -> <id> (표)")
     const std::vector<std::string>& problems() const { return m_problems; }
     // 패널 밖의 데이터(튜닝, 씬 물체)도 검사하도록 넣는다. 다음 draw에서 목록이 갱신된다.
@@ -38,8 +38,8 @@ private:
     struct Doc {
         reflect::TableInfo info{};
         std::string path; // 절대 경로
-        game::TableData data;
-        game::TableText backup; // DLL을 바꿔 끼울 때
+        data::TableData data;
+        data::TableText backup; // DLL을 바꿔 끼울 때
         std::vector<std::string> columns; // 칸 경로 (기본값 행의 toText 순서)
         bool dirty = false;
         bool viewChanged = false;
@@ -58,7 +58,7 @@ private:
     reflect::TableList m_engineTables;
     std::vector<Doc> m_docs;
     int m_current = 0;
-    game::TableIndexList m_index;
+    data::TableIndexList m_index;
     std::vector<std::string> m_problems;
     std::vector<std::string> m_extraProblems;
     char m_idBuffer[128] = {};

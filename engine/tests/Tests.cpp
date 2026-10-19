@@ -5,12 +5,12 @@
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Random.h"
+#include "mealkit/data/Tables.h"
 #include "mealkit/game/InputRecord.h"
 #include "mealkit/game/Loadout.h"
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/game/Save.h"
 #include "mealkit/game/Simulation.h"
-#include "mealkit/game/Tables.h"
 #include "mealkit/input/Actions.h"
 #include "mealkit/loc/Strings.h"
 #include "mealkit/core/Clock.h"
@@ -373,7 +373,7 @@ TEST_CASE(input_actions) {
     TEST_CHECK(actions.count() == 3);
 
     Input in;
-    input::PadState pad;
+    PadState pad;
     in.setKey('W', true);
     in.setKey('D', true);
     actions.update(in, pad, true, true, 0.1);
@@ -408,11 +408,11 @@ TEST_CASE(input_actions) {
     actions.update(in, pad, true, true, 0.1);
     TEST_CHECK(length(actions.axis2("move")) == 0.0f);
     pad.leftX = 0.6f;
-    pad.buttons = input::pad::A;
+    pad.buttons = pad::A;
     actions.update(in, pad, true, true, 0.1);
     TEST_CHECK(std::fabs(actions.axis2("move").x - 0.5f) < 1e-5f && actions.pressed("jump"));
     TEST_CHECK(actions.lastDevice() == input::Device::Gamepad);
-    pad.buttons = input::pad::DPadDown; // "-이름"은 음수 쪽
+    pad.buttons = pad::DPadDown; // "-이름"은 음수 쪽
     actions.update(in, pad, true, true, 0.5);
     TEST_CHECK(std::fabs(actions.axis("zoom") + 5.0f) < 1e-5f);
     pad = {};
@@ -453,38 +453,38 @@ static_assert(reflect::hasStringField<TestItem>()); // RowRef에는 id 문자열
 TEST_CASE(tables) {
     const std::string dir = executableDirectory();
     // 파일: 쓰고 읽으면 같다. 겹친 id·잘못된 id는 버린다
-    game::TableText text;
+    data::TableText text;
     text.ids = {"plain", "heavy"};
     text.rows = {{{"weight", "1"}, {"title", "Plain, \"basic\""}}, {{"weight", "4.5"}, {"title", "Heavy"}}};
-    TEST_CHECK(game::writeTableText(dir + "/test_kinds.table", text, "TestKind"));
+    TEST_CHECK(data::writeTableText(dir + "/test_kinds.table", text, "TestKind"));
     std::string body;
     TEST_CHECK(readTextFile(dir + "/test_kinds.table", body));
     TEST_CHECK(writeTextFile(dir + "/test_kinds.table", body + "\nrow heavy\nweight 9\nrow bad id\nweight 2\n"));
     sim::Table<TestKind> kinds;
-    TEST_CHECK(game::loadTable(kinds, "../build/does-not-exist.table") == false && kinds.size() == 0);
-    game::TableData data;
+    TEST_CHECK(data::loadTable(kinds, "../build/does-not-exist.table") == false && kinds.size() == 0);
+    data::TableData data;
     std::string warnings;
-    TEST_CHECK(game::loadTableData(reflect::typeOf<TestKind>(), dir + "/test_kinds.table", data, &warnings));
+    TEST_CHECK(data::loadTableData(reflect::typeOf<TestKind>(), dir + "/test_kinds.table", data, &warnings));
     TEST_CHECK(data.ids.size() == 2 && data.ids[1] == "heavy" && !warnings.empty());
     TEST_CHECK(static_cast<const TestKind*>(data.rows[1].data())->weight == 4.5f);
     TEST_CHECK(static_cast<const TestKind*>(data.rows[0].data())->title == "Plain, \"basic\"");
 
     // CSV: 내보내고 가져오면 같다 (쉼표·따옴표가 든 칸)
-    TEST_CHECK(game::exportTableCsv(data, dir + "/test_kinds.csv"));
-    game::TableData back;
+    TEST_CHECK(data::exportTableCsv(data, dir + "/test_kinds.csv"));
+    data::TableData back;
     back.rowType = &reflect::typeOf<TestKind>();
     std::string error;
-    TEST_CHECK(game::importTableCsv(back, dir + "/test_kinds.csv", &error));
+    TEST_CHECK(data::importTableCsv(back, dir + "/test_kinds.csv", &error));
     TEST_CHECK(back.ids == data.ids);
     for (size_t i = 0; i < back.rows.size(); ++i)
         TEST_CHECK(reflect::hashOf(*static_cast<const TestKind*>(back.rows[i].data())) ==
                    reflect::hashOf(*static_cast<const TestKind*>(data.rows[i].data())));
     // 열 순서가 달라도, 모르는 열이 있어도 이름으로 맞춘다
     TEST_CHECK(writeTextFile(dir + "/test_kinds2.csv", "\xEF\xBB\xBFid,title,extra,weight\r\nx,\"multi\nline\",1,7\r\n"));
-    TEST_CHECK(game::importTableCsv(back, dir + "/test_kinds2.csv", &error) && back.ids.size() == 1);
+    TEST_CHECK(data::importTableCsv(back, dir + "/test_kinds2.csv", &error) && back.ids.size() == 1);
     TEST_CHECK(static_cast<const TestKind*>(back.rows[0].data())->weight == 7.0f);
     TEST_CHECK(static_cast<const TestKind*>(back.rows[0].data())->title == "multi\nline");
-    TEST_CHECK(!game::importTableCsv(back, dir + "/test_kinds.table", &error)); // 첫 칸이 id가 아니다
+    TEST_CHECK(!data::importTableCsv(back, dir + "/test_kinds.table", &error)); // 첫 칸이 id가 아니다
 
     // 행 참조: id → 번호, 없는 id는 목록에
     sim::Table<TestKind> table;
@@ -492,13 +492,13 @@ TEST_CASE(tables) {
     table.rows.resize(2);
     TestItem item;
     std::vector<std::string> missing;
-    game::resolveRows(item, {game::tableIndex(table)}, &missing);
+    data::resolveRows(item, {data::tableIndex(table)}, &missing);
     TEST_CHECK(item.kind.index == 0 && missing.empty() && table.get(item.kind) == &table.rows[0]);
     TEST_CHECK(reflect::setFromText(reflect::typeOf<TestItem>(), &item, "kind", "heavy") && !item.kind.valid());
-    game::resolveRows(item, {game::tableIndex(table)}, &missing);
+    data::resolveRows(item, {data::tableIndex(table)}, &missing);
     TEST_CHECK(item.kind.index == 1 && table.find("heavy") == 1 && table.find("nope") == kNoRow);
     item.kind.id = "nope";
-    game::resolveRows(item, {game::tableIndex(table)}, &missing, "test: ");
+    data::resolveRows(item, {data::tableIndex(table)}, &missing, "test: ");
     TEST_CHECK(!item.kind.valid() && missing.size() == 1 && missing[0].rfind("test: kind -> nope", 0) == 0);
     // 해시는 id로 (행 번호가 아니라)
     TestItem a, b;

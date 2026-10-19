@@ -34,7 +34,7 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
   보이기만 하는 값(카메라, 색, 효과 시간)은 `source/view/ViewTuning.h`(`assets/view.tuning`, [튜닝] 패널 "화면" 탭)에 두고 화면 쪽에서 `ctx.viewTuning<ViewTuning>()`으로 읽는다. 콘텐츠 해시에 들어가지 않아 여러 명 플레이 중에도 바로 바뀐다.
   시간 값은 `MEALKIT_FIELD(mealkit::Ticks, 이름, mealkit::Ticks::seconds(0.5f), "설명 (초)")`로 선언한다(파일·에디터는 초, `sim/`은 정수 틱).
 - 같은 모양의 행이 여러 개인 데이터(무기, 아이템, 적 종류)는 정의 데이터 표: `source/sim/Tables.h`에 행 타입 `MEALKIT_STRUCT`와 `MEALKIT_TABLE(Row, "tables/x.table", 0)`,
-  값은 `assets/tables/x.table`(에디터 [표] 패널, CSV). 다른 데이터는 `mealkit::RowRef<Row>`(행 id)로 가리킨다. `app/Headless.cpp`의 `startWorld`가 `mealkit::game::loadTable`로 읽어 `World`에 넘기고, `sim/`은 행 번호로 읽는다.
+  값은 `assets/tables/x.table`(에디터 [표] 패널, CSV). 다른 데이터는 `mealkit::RowRef<Row>`(행 id)로 가리킨다. `app/Headless.cpp`의 `startWorld`가 `mealkit::data::loadTable`로 읽어 `World`에 넘기고, `sim/`은 행 번호로 읽는다.
 - 엔진을 올린 뒤 에디터가 "프로젝트 업그레이드"를 물으면 받아들인다(또는 `@MEALKIT_ROOT@\tools\upgrade_project.ps1 -Project .`).
   빌드 파일만 새로 바꾸고 직접 고친 파일은 `<파일>.new`로 남긴다. `.mealkit-template`은 지우지 않는다.
 - 폴더 구조는 엔진이 정한다: `assets/` 바로 밑은 종류 폴더(`scenes models textures sounds effects ui fonts tables strings lut`)와 정해진 파일만, 외부 도구 원본(`.blend`, `.psd`, Penpot)은 `art/`.

@@ -14,20 +14,20 @@ f32 stick(SHORT v) { return v < 0 ? static_cast<f32>(v) / 32768.0f : static_cast
 
 u16 buttons(WORD w) {
     u16 b = 0;
-    if (w & XINPUT_GAMEPAD_A) b |= input::pad::A;
-    if (w & XINPUT_GAMEPAD_B) b |= input::pad::B;
-    if (w & XINPUT_GAMEPAD_X) b |= input::pad::X;
-    if (w & XINPUT_GAMEPAD_Y) b |= input::pad::Y;
-    if (w & XINPUT_GAMEPAD_LEFT_SHOULDER) b |= input::pad::LeftShoulder;
-    if (w & XINPUT_GAMEPAD_RIGHT_SHOULDER) b |= input::pad::RightShoulder;
-    if (w & XINPUT_GAMEPAD_BACK) b |= input::pad::Back;
-    if (w & XINPUT_GAMEPAD_START) b |= input::pad::Start;
-    if (w & XINPUT_GAMEPAD_LEFT_THUMB) b |= input::pad::LeftThumb;
-    if (w & XINPUT_GAMEPAD_RIGHT_THUMB) b |= input::pad::RightThumb;
-    if (w & XINPUT_GAMEPAD_DPAD_UP) b |= input::pad::DPadUp;
-    if (w & XINPUT_GAMEPAD_DPAD_DOWN) b |= input::pad::DPadDown;
-    if (w & XINPUT_GAMEPAD_DPAD_LEFT) b |= input::pad::DPadLeft;
-    if (w & XINPUT_GAMEPAD_DPAD_RIGHT) b |= input::pad::DPadRight;
+    if (w & XINPUT_GAMEPAD_A) b |= pad::A;
+    if (w & XINPUT_GAMEPAD_B) b |= pad::B;
+    if (w & XINPUT_GAMEPAD_X) b |= pad::X;
+    if (w & XINPUT_GAMEPAD_Y) b |= pad::Y;
+    if (w & XINPUT_GAMEPAD_LEFT_SHOULDER) b |= pad::LeftShoulder;
+    if (w & XINPUT_GAMEPAD_RIGHT_SHOULDER) b |= pad::RightShoulder;
+    if (w & XINPUT_GAMEPAD_BACK) b |= pad::Back;
+    if (w & XINPUT_GAMEPAD_START) b |= pad::Start;
+    if (w & XINPUT_GAMEPAD_LEFT_THUMB) b |= pad::LeftThumb;
+    if (w & XINPUT_GAMEPAD_RIGHT_THUMB) b |= pad::RightThumb;
+    if (w & XINPUT_GAMEPAD_DPAD_UP) b |= pad::DPadUp;
+    if (w & XINPUT_GAMEPAD_DPAD_DOWN) b |= pad::DPadDown;
+    if (w & XINPUT_GAMEPAD_DPAD_LEFT) b |= pad::DPadLeft;
+    if (w & XINPUT_GAMEPAD_DPAD_RIGHT) b |= pad::DPadRight;
     return b;
 }
 
@@ -35,7 +35,7 @@ u16 buttons(WORD w) {
 
 void Gamepads::update(f64 dt) {
     for (u32 i = 0; i < kSlots; ++i) {
-        input::PadState& p = m_pads[i];
+        PadState& p = m_pads[i];
         if (!p.connected) {
             m_untilCheck[i] -= dt;
             if (m_untilCheck[i] > 0.0) continue;
@@ -60,16 +60,16 @@ void Gamepads::update(f64 dt) {
     }
 }
 
-const input::PadState& Gamepads::first() const {
-    static const input::PadState none{};
-    for (const input::PadState& p : m_pads)
+const PadState& Gamepads::first() const {
+    static const PadState none{};
+    for (const PadState& p : m_pads)
         if (p.connected) return p;
     return none;
 }
 
 u32 Gamepads::connectedCount() const {
     u32 n = 0;
-    for (const input::PadState& p : m_pads) n += p.connected ? 1u : 0u;
+    for (const PadState& p : m_pads) n += p.connected ? 1u : 0u;
     return n;
 }
 

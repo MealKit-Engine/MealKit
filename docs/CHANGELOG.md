@@ -3,6 +3,17 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.20 — 1단계 진행 중 (2026-10-19)
+
+### [x] 엔진 폴더 계층 정리 + 검사 (완료 2026-10-19, 로드맵 밖)
+- **왜**: "핵심만 두고 나머지는 모듈화"를 검토했다. 하위 시스템(소리·UI·설정·연출·온라인)을 켜고 끄는 빌드 모듈은 얻는 것이 작아(출시 exe 2.4 MB / 예산 5 MB, 범용 에디터는 `mealkit.dll` 하나, `GameContext`가 서비스를 참조로 들고 있음) 만들지 않고, 대신 폴더 사이 include 방향을 한쪽으로 정하고 검사로 고정했다 (`docs/DECISIONS.md` 2026-10-19). 게임 기능 모듈화는 계획대로 4단계 소스 모듈.
+- **순서** (`docs/CODING_MODEL.md` "엔진 폴더 사이 의존"): `core`·`platform` → `net` → `physics` → `sim` → `data` → `loc` → `scene` → `rhi`(2단계) → `render` → `asset` → `online` → `debug` → `input` → `audio` → `ui` → `feedback` → `settings` → `game` → `editor`. 폴더는 앞의 폴더만 include한다. `platform/<os>/` 구현 파일은 빼고 `check_platform.ps1`이 본다.
+- **거꾸로였던 곳 고침**:
+  - 표 파일 읽기 `mealkit/game/Tables.h` → 새 폴더 **`mealkit/data/Tables.h`**, 이름공간 `game::` → **`data::`**(`data::loadTable`, `data::resolveRows`, `data::TableText` …). 입력 바인딩·소리 이벤트·연출 표가 게임 경계(`game/`) 위로 올라가던 의존이 없어졌다. 게임 코드는 `mealkit::game::loadTable` 대신 `mealkit::data::loadTable`(sandbox `app/Headless.cpp`, 템플릿 CLAUDE.md, 문서 저장소 "Assets").
+  - 게임패드 상태 `input::PadState`·`input::pad::A …` → `platform/Gamepad.h`의 **`PadState`·`pad::A …`**(이름공간 `mealkit`, 키보드 `key::`와 같은 자리). 플랫폼 계층이 입력 액션 헤더를 include하던 순환이 없어졌다.
+- **검사**: `tools\check_layers.ps1` — 순서보다 뒤의 폴더를 include하거나 순서에 없는 폴더가 생기면 실패(check.ps1 "Engine layers", CI Windows 검사 단계). 지금 110개 파일, 폴더 사이 include 240개가 통과.
+- **영향**: 게임 DLL 경계(`kApiVersion`)는 그대로. 기존 프로젝트의 게임 코드는 `game::loadTable` → `data::loadTable`, `#include "mealkit/game/Tables.h"` → `"mealkit/data/Tables.h"`로 고친다.
+
 ## v0.4.19 — 1단계 진행 중 (2026-10-19)
 
 ### [x] 매치 시작 데이터 — 플레이어별 로드아웃 (완료 2026-10-19)

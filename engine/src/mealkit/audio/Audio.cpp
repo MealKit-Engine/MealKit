@@ -5,7 +5,7 @@
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Profile.h"
 #include "mealkit/core/Random.h"
-#include "mealkit/game/Tables.h"
+#include "mealkit/data/Tables.h"
 #include "mealkit/platform/Paths.h"
 
 #include <algorithm>
@@ -210,7 +210,7 @@ struct Engine::Impl {
         tablePath = findAsset(std::string("assets/") + kSoundTable);
         tableTime = tablePath.empty() ? 0 : fileWriteTime(tablePath);
         sim::Table<SoundEvent> table;
-        if (!tablePath.empty()) game::loadTable(table, kSoundTable);
+        if (!tablePath.empty()) data::loadTable(table, kSoundTable);
         std::vector<EventInfo> next;
         for (u32 i = 0; i < table.size(); ++i) {
             EventInfo e;

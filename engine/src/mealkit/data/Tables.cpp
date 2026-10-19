@@ -1,4 +1,4 @@
-#include "mealkit/game/Tables.h"
+#include "mealkit/data/Tables.h"
 
 #include "mealkit/platform/Paths.h"
 
@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <cstring>
 
-namespace mealkit::game {
+namespace mealkit::data {
 namespace {
 
 void trimRight(std::string& s) {
@@ -300,4 +300,4 @@ void hashTables(const reflect::TableList& tables, Hasher& h) {
     }
 }
 
-} // namespace mealkit::game
+} // namespace mealkit::data

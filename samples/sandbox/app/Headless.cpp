@@ -3,8 +3,8 @@
 #include "app/Loadout.h"
 #include "sim/Commands.h"
 
+#include "mealkit/data/Tables.h"
 #include "mealkit/game/Loadout.h"
-#include "mealkit/game/Tables.h"
 #include "mealkit/sim/Commands.h"
 
 #include <algorithm>
@@ -27,9 +27,9 @@ i8 quantize(f32 v) { return static_cast<i8>(std::lround(std::clamp(v, -1.0f, 1.0
 void Headless::startWorld(World& world, const game::MatchInfo& match, const Tuning& tuning,
                           const scene::Scene& flatScene, asset::ModelCache& models, u32 physicsThreads) {
     sim::Table<PropKind> propKinds;
-    game::loadTable(propKinds);
+    data::loadTable(propKinds);
     sim::Table<BodyKind> bodyKinds;
-    game::loadTable(bodyKinds);
+    data::loadTable(bodyKinds);
     std::vector<u32> bodies(match.playerCount, 0u); // 매치 시작 데이터 (보내지 않은 플레이어는 첫 몸)
     for (u32 p = 0; p < match.playerCount; ++p) {
         Loadout l;

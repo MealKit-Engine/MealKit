@@ -450,7 +450,7 @@ int main(int argc, char** argv) {
         if (ui.wantsMouse()) ctx.mouseAllowed = false;
         if (ui.wantsKeyboard()) ctx.keyboardAllowed = false;
         playerSettings.update(&input, dt); // 설정 화면의 액션 (게임 update 전)
-        actions.update(input, window.focused() ? pads.first() : mealkit::input::PadState{}, ctx.keyboardAllowed,
+        actions.update(input, window.focused() ? pads.first() : mealkit::PadState{}, ctx.keyboardAllowed,
                        ctx.mouseAllowed, dt);
         game.update(ctx, dt);
         audio.setMuted(opt.mute || (playerSettings.values().audio.muteUnfocused && !window.focused()));

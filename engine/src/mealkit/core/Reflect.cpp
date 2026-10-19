@@ -128,7 +128,7 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
         return true;
     }
     case Kind::String: *static_cast<std::string*>(data) = text; return true;
-    case Kind::RowRef: { // 행 id (번호는 game::resolveRows가 채운다)
+    case Kind::RowRef: { // 행 id (번호는 data::resolveRows가 채운다)
         const RowRefView r = rowRefOf(data);
         *r.id = text;
         *r.index = kNoRow;
