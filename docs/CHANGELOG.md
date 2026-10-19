@@ -3,6 +3,19 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.31 — 1단계 진행 중 (2026-10-19)
+
+### [x] 버전 표시와 접속 거부 이유 (완료 2026-10-19)
+- **왜**: 실행 파일·데이터가 다르면 접속이 거부됐지만 이유를 알 수 없었고, 실행 파일 id(컴파일 시각) 비교는 화면 코드만 다른 빌드끼리도 막았다.
+- **빌드 정보** (`cmake/BuildInfo.cmake` → `<게임>_build_info/mealkit_build_info.h`, 빌드마다, 바뀔 때만 다시 쓴다): 게임 버전(`mealkit.project` `version`, 기본 0.1.0), 프로젝트 폴더의 git 커밋(고친 파일이 있으면 `+`), **시뮬레이션 버전** = 게임 버전 + 시뮬레이션에 닿는 소스(게임 `sim/`·헤드리스 파일·엔진 `core`·`net`·`physics`·`sim`·`data`·`scene`·`asset`·`game`의 시뮬레이션 파일·Jolt `mealkit.txt`)의 SHA-1(줄바꿈 LF, 상대 경로). 같은 소스면 OS·컴파일러가 달라도 같다. `game::BuildInfo`와 `MEALKIT_THIS_BUILD`(게임 타깃에서만 헤더를 본다) → `GameMainSpec::build`, `GameModule::build`(`kApiVersion` 21), 헤드리스.
+- **보이기**: 창 제목 `게임 v0.1.0 | …`, 시작 로그 `Build: version …, commit …, simulation …, msvc-x64`, sandbox 타이틀(`v0.1.0 (커밋) · MealKit 0.4.31`)과 로비 구석.
+- **접속 비교** (`net/Lockstep.*`): 실행 파일 id 대신 결정론 그룹(`determinismGroup()`: `msvc-x64`·`clang-x64`·`clang-arm64` …, 실기기 결정론 확인 전까지 다르면 거부) → 시뮬레이션 버전(`setBuild`, 없으면 `buildId`) → 콘텐츠 해시(`setContentParts`로 씬·모델·튜닝·프로젝트·표 다섯 구성도 보낸다). 거부 패킷에 이유·다른 구성·방장의 게임 버전·그룹을 실어 클라이언트가 `rejectInfo()`로 안다. `--any-build`는 앞의 둘을 건너뛴다. `game::MatchData::contentParts`.
+- **LAN 방**: 알림에 시뮬레이션 버전·게임 버전·그룹(형식 버전 2), 참가 목록이 "버전이 다름 (1.3)"·"데이터가 다름"으로 표시.
+- **sandbox**: 알림 화면이 거부 이유를 문자열 표로("게임 버전이 방장과 다릅니다 (내 1.2 / 방장 1.3)", "게임 데이터가 방장과 다릅니다: 튜닝", 제목 "방에 들어갈 수 없습니다").
+- **출시 폴더**: `mealkit.project` `exportVersionFolder`(기본 끔)가 켜지면 `export\<이름>-<version>\`.
+- **검증**: 단위 테스트 `join_reject_reasons`(시뮬레이션 버전이 다르면 Version + 방장 버전, 튜닝·표가 다르면 Content + 그 구성). 두 창에서 다른 튜닝으로 참가 → "게임 데이터가 방장과 다릅니다: 튜닝" 캡처. check.ps1.
+- **영향**: 기존 프로젝트도 빌드 정보 헤더가 생긴다(`mealkit_add_game`). 엔진 코어 폴더를 고치면 시뮬레이션 버전이 바뀐다(보수적). `docs/DECISIONS.md` 2026-10-19.
+
 ## v0.4.30 — 1단계 진행 중 (2026-10-19)
 
 ### [x] 틱레이트를 프로젝트 설정으로 (완료 2026-10-19)

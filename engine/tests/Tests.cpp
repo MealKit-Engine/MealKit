@@ -1078,6 +1078,45 @@ TEST_CASE(input_delay_change) {
     host.shutdown();
 }
 
+// 접속 거부 이유: 시뮬레이션 버전이 다르면 버전 (방장의 게임 버전과 함께), 게임 데이터가 다르면 다른 구성
+TEST_CASE(join_reject_reasons) {
+    constexpr u16 kPort = 27939;
+    net::Address address;
+    net::startup();
+    TEST_CHECK(net::resolveAddress("127.0.0.1", kPort, address));
+    net::cleanup();
+    auto tryJoin = [&](u64 clientSim, const u64* clientParts, u64 clientContent) {
+        net::LockstepSession host, client;
+        const u64 hostParts[5] = {1, 2, 3, 4, 5};
+        host.setBuild(0xABCull, "1.3");
+        host.setContentParts(hostParts);
+        host.setContentHash(100);
+        client.setBuild(clientSim, "1.2");
+        client.setContentParts(clientParts);
+        client.setContentHash(clientContent);
+        TEST_CHECK(host.host(kPort, 2, 3, true) && client.join(address));
+        const f64 until = nowSeconds() + 5.0;
+        while (nowSeconds() < until && client.state() == net::SessionState::Connecting) {
+            host.update(nowSeconds());
+            client.update(nowSeconds());
+            sleepSeconds(0.001);
+        }
+        net::RejectInfo info = client.rejectInfo();
+        client.shutdown();
+        host.shutdown();
+        return info;
+    };
+    const u64 same[5] = {1, 2, 3, 4, 5};
+    const u64 otherTuning[5] = {1, 2, 9, 4, 8};
+    net::RejectInfo r = tryJoin(0xDEFull, same, 100);
+    TEST_CHECK(r.reason == net::RejectReason::Version && r.hostVersion == "1.3");
+    r = tryJoin(0xABCull, otherTuning, 101);
+    TEST_CHECK(r.reason == net::RejectReason::Content &&
+               r.contentMask == ((1u << static_cast<u32>(net::ContentPart::Tuning)) | (1u << static_cast<u32>(net::ContentPart::Tables))));
+    r = tryJoin(0xABCull, same, 100);
+    TEST_CHECK(r.reason == net::RejectReason::None); // 같으면 들어간다
+}
+
 TEST_CASE(project_file) {
     const std::string path = executableDirectory() + "\\test.project";
     // 예전 형식(키=값)과 새 형식(경로 값)이 섞여 있어도 읽는다

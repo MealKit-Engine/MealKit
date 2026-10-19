@@ -45,6 +45,7 @@ private:
                      mealkit::f64 dt);
     void fillChat(const mealkit::net::LockstepSession& session, ChatLineVm* lines, mealkit::u32& count, mealkit::u32 capacity);
     void fillResults(mealkit::game::GameContext& ctx, const World& world);
+    std::string endText(mealkit::game::GameContext& ctx) const;
 
     Screen m_screen = Screen::None;
     Screen m_menuScreen = Screen::Title; // 세션이 없을 때 (타이틀, 메뉴, 참가)
@@ -58,6 +59,7 @@ private:
     PauseVm m_pause;
     ResultsVm m_results;
     MessageVm m_message;
+    std::string m_version; // "v0.1.0 (커밋)"
     bool m_nameLoaded = false;
     bool m_saveChanged = false;
     bool m_paused = false;

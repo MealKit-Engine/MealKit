@@ -105,7 +105,9 @@ void Flow::update(game::GameContext& ctx, const World* world, SaveData& save, Hu
         m_nameLoaded = true;
         if (!save.playerName.empty()) session.setLocalName(save.playerName);
         m_menu.playerName = session.localName();
-        m_title.version = std::string("MealKit ") + MEALKIT_VERSION;
+        const game::BuildInfo& build = ctx.match.config().build;
+        m_version = build.gameVersion[0] ? std::string("v") + build.gameVersion + " (" + build.commit + ")" : std::string();
+        m_title.version = (m_version.empty() ? std::string() : m_version + "  ·  ") + "MealKit " + MEALKIT_VERSION;
     }
 
     // 지금 보일 화면: 세션 단계가 정한다 (세션이 없으면 메뉴 쪽에서 고른 화면)
@@ -137,7 +139,8 @@ void Flow::update(game::GameContext& ctx, const World* world, SaveData& save, Hu
         if (world) updateMatch(ctx, *world, hud, hudScreen, dt);
         break;
     case Screen::Message:
-        m_message.text = ctx.match.error();
+        m_message.text = endText(ctx);
+        m_message.title = ctx.strings.get(ctx.session.rejectInfo().reason != net::RejectReason::None ? "message.rejected" : "message.title");
         for (const ui::Action& a : ctx.ui.actions())
             if (a.name == "message.ok") {
                 ctx.match.leave();
@@ -147,6 +150,27 @@ void Flow::update(game::GameContext& ctx, const World* world, SaveData& save, Hu
     case Screen::Loading:
     case Screen::None: break;
     }
+}
+
+// 끊긴 이유: 접속 거부면 무엇이 다른지 (버전, 플랫폼, 게임 데이터), 아니면 세션의 이유
+std::string Flow::endText(game::GameContext& ctx) const {
+    const net::RejectInfo& r = ctx.session.rejectInfo();
+    switch (r.reason) {
+    case net::RejectReason::Version:
+        return ctx.strings.format("reject.version", {{"mine", ctx.match.config().build.gameVersion}, {"host", r.hostVersion}});
+    case net::RejectReason::Platform: return ctx.strings.format("reject.platform", {{"host", r.hostGroup}});
+    case net::RejectReason::Content: {
+        static const char* keys[] = {"content.scene", "content.models", "content.tuning", "content.project", "content.tables"};
+        std::string parts;
+        for (u32 i = 0; i < 5; ++i)
+            if (r.contentMask & (1u << i)) parts += (parts.empty() ? "" : ", ") + ctx.strings.get(keys[i]);
+        return ctx.strings.format("reject.content", {{"parts", parts}});
+    }
+    case net::RejectReason::Full: return ctx.strings.get("reject.full");
+    case net::RejectReason::InProgress: return ctx.strings.get("reject.started");
+    case net::RejectReason::None: break;
+    }
+    return ctx.match.error();
 }
 
 void Flow::updateMenu(game::GameContext& ctx, SaveData& save) {
@@ -186,6 +210,9 @@ void Flow::updateJoin(game::GameContext& ctx) {
         row.players = std::to_string(rooms[i].players) + "/" + std::to_string(rooms[i].maxPlayers);
         row.address = rooms[i].address;
         row.compatible = rooms[i].compatible;
+        row.note = rooms[i].compatible ? std::string()
+                   : rooms[i].sameBuild   ? ctx.strings.get("join.otherData")
+                                          : ctx.strings.format("join.otherVersion", {{"version", rooms[i].version}});
     }
     m_join.noRooms = m_join.roomsCount == 0;
     for (const ui::Action& a : ctx.ui.actions()) {
@@ -247,6 +274,7 @@ void Flow::updateLobby(game::GameContext& ctx, SaveData& save) {
     m_lobby.canStart = m_lobby.isHost && allReady;
     m_lobby.waiting = !m_lobby.isHost && !m_lobby.connecting;
     m_lobby.needReady = m_lobby.isHost && !m_lobby.offline && !allReady;
+    m_lobby.version = m_version;
     m_lobby.slowWarning.clear();
     if (const u32 slow = ctx.match.slowPlayers()) { // 입력 지연 상한(mealkit.project)보다 먼 사람
         std::string names;

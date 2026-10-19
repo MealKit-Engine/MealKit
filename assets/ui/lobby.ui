@@ -236,6 +236,16 @@ board lobby 1920 1080
         end
       end
     end
+    text version
+      pos 1200 812
+      size 300 hug
+      absolute
+      constraints right bottom
+      content {version}
+      fontSize 18
+      color $textDim
+      textAlign right
+    end
     frame chatPanel
       size 520 fill
       layout column

@@ -24,7 +24,7 @@ board message 1920 1080
     shadow 0 12 40 0 #000000AA
     text title
       size fill hug
-      key message.title
+      content {title}
       fontSize 36
       color $text
       textAlign center

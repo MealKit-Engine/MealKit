@@ -251,6 +251,33 @@ function(mealkit_add_game name)
         add_custom_target(${name}_simcheck DEPENDS "${sim_stamp}")
     endif()
 
+    # 빌드 정보 (cmake/BuildInfo.cmake, 빌드마다): 게임 버전(mealkit.project version), git 커밋, 시뮬레이션 버전 → mealkit_build_info.h.
+    # 시뮬레이션 버전은 시뮬레이션에 닿는 소스(게임 sim/ + 헤드리스 파일 + 엔진 코어 폴더 + Jolt 버전)의 해시다:
+    # 실행 파일이 달라도(다른 OS·컴파일러) 같은 소스면 같은 값이라, 접속할 때 실행 파일 대신 이것을 비교한다 (mealkit/game/BuildInfo.h)
+    set(build_info_dir "${CMAKE_CURRENT_BINARY_DIR}/${name}_build_info")
+    set(engine_src "${MEALKIT_ENGINE_DIR}/engine/src/mealkit")
+    file(GLOB_RECURSE engine_sim_sources CONFIGURE_DEPENDS
+        "${engine_src}/core/*.h" "${engine_src}/core/*.cpp" "${engine_src}/net/*.h" "${engine_src}/net/*.cpp"
+        "${engine_src}/physics/*.h" "${engine_src}/physics/*.cpp" "${engine_src}/sim/*.h"
+        "${engine_src}/data/*.h" "${engine_src}/data/*.cpp" "${engine_src}/scene/*.h" "${engine_src}/scene/*.cpp"
+        "${engine_src}/asset/*.h" "${engine_src}/asset/*.cpp")
+    list(SORT engine_sim_sources)
+    list(APPEND engine_sim_sources "${engine_src}/game/Simulation.h" "${engine_src}/game/GameData.h" "${engine_src}/game/GameData.cpp"
+        "${engine_src}/game/Loadout.h" "${engine_src}/game/InputRecord.h" "${engine_src}/game/InputRecord.cpp"
+        "${MEALKIT_ENGINE_DIR}/third_party/JoltPhysics/mealkit.txt")
+    set(build_info_sources ${sim_sources})
+    list(SORT build_info_sources)
+    list(APPEND build_info_sources "${ARG_HEADLESS}" ${engine_sim_sources})
+    string(REPLACE ";" "\n" build_info_list "${build_info_sources}")
+    file(CONFIGURE OUTPUT "${build_info_dir}/sim_sources.txt" CONTENT "${build_info_list}\n" @ONLY)
+    add_custom_target(${name}_buildinfo
+        COMMAND ${CMAKE_COMMAND} "-DOUT=${build_info_dir}/mealkit_build_info.h" "-DLIST=${build_info_dir}/sim_sources.txt"
+            "-DPROJECT_FILE=${project_dir}/mealkit.project" "-DPROJECT_DIR=${project_dir_abs}" "-DENGINE_DIR=${MEALKIT_ENGINE_DIR}"
+            -P "${MEALKIT_ENGINE_DIR}/cmake/BuildInfo.cmake"
+        BYPRODUCTS "${build_info_dir}/mealkit_build_info.h"
+        COMMENT "Build info ${name}: version, commit, simulation version"
+        VERBATIM)
+
     # 문자열 표(assets/strings/*.txt)의 글자가 assets/fonts의 글꼴에 다 있는지 (창 있는 빌드, mealkit_stringcheck)
     set(string_check "")
     if(NOT MEALKIT_HEADLESS_ONLY)
@@ -277,6 +304,8 @@ function(mealkit_add_game name)
             target_link_libraries(${name}_headless PRIVATE mealkit_core)
             target_include_directories(${name}_headless PRIVATE ${source_dir})
             target_compile_definitions(${name}_headless PRIVATE MEALKIT_GAME_NAME="${name}" MEALKIT_HEADLESS_TARGET=1)
+            target_include_directories(${name}_headless PRIVATE "${build_info_dir}")
+            add_dependencies(${name}_headless ${name}_buildinfo)
             if(sim_sources)
                 add_dependencies(${name}_headless ${name}_simcheck)
             endif()
@@ -295,6 +324,8 @@ function(mealkit_add_game name)
         target_include_directories(${name}_game PRIVATE ${source_dir})
         target_include_directories(${name}_game SYSTEM PRIVATE ${game_lib_includes})
         target_compile_definitions(${name}_game PRIVATE MEALKIT_GAME_NAME="${name}")
+        target_include_directories(${name}_game PRIVATE "${build_info_dir}")
+        add_dependencies(${name}_game ${name}_buildinfo)
         if(sim_sources)
             add_dependencies(${name}_game ${name}_simcheck)
         endif()
@@ -347,6 +378,8 @@ function(mealkit_add_game name)
     target_include_directories(${name} PRIVATE ${source_dir})
     target_include_directories(${name} SYSTEM PRIVATE ${game_lib_includes})
     target_compile_definitions(${name} PRIVATE MEALKIT_GAME_NAME="${name}")
+    target_include_directories(${name} PRIVATE "${build_info_dir}")
+    add_dependencies(${name} ${name}_buildinfo)
     if(sim_sources)
         add_dependencies(${name} ${name}_simcheck)
     endif()
@@ -363,6 +396,23 @@ function(mealkit_add_game name)
     # 출시 전 검사: 폴더 구조(tools/check_layout.ps1, 어기면 실패) → 고지문 합치기(MealKit + 게임 exe의 엔진 라이브러리 + 게임 라이브러리 + 글꼴)
     # → 출시 폴더 (MealKitExport.cmake가 exe 크기 예산도 본다)
     set(export_notices "${CMAKE_BINARY_DIR}/export_notices/THIRD_PARTY_NOTICES.txt")
+    # 출시 폴더: export/<이름>, mealkit.project의 exportVersionFolder가 켜져 있으면 export/<이름>-<version>
+    set(export_dir "${project_dir}/export/${name}")
+    if(EXISTS "${project_file}")
+        file(STRINGS "${project_file}" export_lines REGEX "^[ \t]*(version|exportVersionFolder)([ \t=]|$)" ENCODING UTF-8)
+        set(export_version "")
+        set(export_with_version FALSE)
+        foreach(line IN LISTS export_lines)
+            if(line MATCHES "^[ \t]*version[ \t]*=?[ \t]*(.*)$")
+                string(STRIP "${CMAKE_MATCH_1}" export_version)
+            elseif(line MATCHES "^[ \t]*exportVersionFolder[ \t]*=?[ \t]*(true|1)")
+                set(export_with_version TRUE)
+            endif()
+        endforeach()
+        if(export_with_version AND export_version)
+            set(export_dir "${project_dir}/export/${name}-${export_version}")
+        endif()
+    endif()
     add_custom_target(game_export
         COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/check_layout.ps1"
             -Project "${project_dir}"
@@ -372,7 +422,7 @@ function(mealkit_add_game name)
             -DGAME_EXE=$<TARGET_FILE:${name}>
             -DASSETS_DIR=${project_dir}/assets
             -DPROJECT_FILE=${project_dir}/mealkit.project
-            -DOUT_DIR=${project_dir}/export/${name}
+            -DOUT_DIR=${export_dir}
             -DSTEAM_DLL=${MEALKIT_STEAM_DLL}
             -DSTEAM_APP_ID=${ARG_STEAM_APP_ID}
             -DNOTICES=${export_notices}

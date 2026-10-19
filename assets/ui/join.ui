@@ -64,8 +64,8 @@ board join 1920 1080
             overflow ellipsis
           end
           text incompatible
-            key join.incompatible
-            visible !compatible
+            content {note}
+            visible note
             fontSize 20
             color #FF8A80
           end

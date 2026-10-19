@@ -26,6 +26,7 @@ MEALKIT_STRUCT(RoomRowVm) {
     MEALKIT_FIELD(std::string, players, {}, "인원 (2/4)");
     MEALKIT_FIELD(std::string, address, {}, "주소");
     MEALKIT_FIELD(bool, compatible, true, "같은 버전 (아니면 들어갈 수 없다)");
+    MEALKIT_FIELD(std::string, note, {}, "들어갈 수 없는 이유 (버전이 다름, 데이터가 다름)");
 };
 
 MEALKIT_VIEWMODEL(JoinVm) {
@@ -57,6 +58,7 @@ MEALKIT_VIEWMODEL(LobbyVm) {
     MEALKIT_FIELD(bool, waiting, false, "방장이 시작하기를 기다린다");
     MEALKIT_FIELD(bool, needReady, false, "방장: 모두 준비하기를 기다린다");
     MEALKIT_FIELD(std::string, slowWarning, {}, "핑이 입력 지연 상한보다 큰 사람 (매치가 멈칫거린다)");
+    MEALKIT_FIELD(std::string, version, {}, "게임 버전 (v0.1.0 (커밋))");
     MEALKIT_LIST(LobbyRowVm, players, mealkit::net::kMaxPlayers, "플레이어");
     MEALKIT_LIST(ChatLineVm, chat, 8, "채팅 (최근)");
     MEALKIT_FIELD(std::string, chatDraft, {}, "보낼 채팅 (글자 입력)");
@@ -83,6 +85,7 @@ MEALKIT_VIEWMODEL(ResultsVm) {
 };
 
 MEALKIT_VIEWMODEL(MessageVm) {
+    MEALKIT_FIELD(std::string, title, {}, "제목 (끊김 / 들어갈 수 없음)");
     MEALKIT_FIELD(std::string, text, {}, "알림 (끊긴 이유)");
 };
 
