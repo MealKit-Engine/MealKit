@@ -19,16 +19,17 @@ if(NOT MEALKIT_HEADLESS_ONLY)
         add_custom_command(
             OUTPUT ${out}
             COMMAND ${MEALKIT_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${out} ${MEALKIT_DXC_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
-            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/Bindless.hlsli
             COMMENT "DXC ${source} (${entry})"
             VERBATIM)
         set(MEALKIT_SHADER_HEADERS ${MEALKIT_SHADER_HEADERS} ${out} PARENT_SCOPE)
     endfunction()
 
-    mealkit_shader(shaders/Forward.hlsl VSMain vs_6_0 g_ForwardVS)
-    mealkit_shader(shaders/Forward.hlsl PSMain ps_6_0 g_ForwardPS)
-    mealkit_shader(shaders/Ui.hlsl VSMain vs_6_0 g_UiVS)
-    mealkit_shader(shaders/Ui.hlsl PSMain ps_6_0 g_UiPS)
+    # SM 6.6 = 최소 사양. 바인딩 모양은 shaders/Bindless.hlsli (mealkit/rhi/Rhi.h)
+    mealkit_shader(shaders/Forward.hlsl VSMain vs_6_6 g_ForwardVS)
+    mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardPS)
+    mealkit_shader(shaders/Ui.hlsl VSMain vs_6_6 g_UiVS)
+    mealkit_shader(shaders/Ui.hlsl PSMain ps_6_6 g_UiPS)
 endif()
 
 # --- meshoptimizer (모델 최적화/LOD) ---
@@ -104,6 +105,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/render/Mesh.h
     src/mealkit/render/Mesh.cpp
     src/mealkit/render/Renderer.h
+    src/mealkit/rhi/Rhi.h # 헤더만 (Renderer.h의 GpuInfo). 백엔드 구현은 화면 쪽
     src/mealkit/net/Socket.h
     src/mealkit/net/Socket.cpp
     src/mealkit/net/Transport.h
@@ -144,8 +146,11 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/game/GameMain.h
     src/mealkit/game/GameMain.cpp
     src/mealkit/render/Renderer.cpp
+    src/mealkit/rhi/dx12/Dx12.h
+    src/mealkit/rhi/dx12/Dx12Device.cpp
     shaders/Forward.hlsl
     shaders/Ui.hlsl
+    shaders/Bindless.hlsli
     ${MEALKIT_SHADER_HEADERS})
 
 # 플랫폼 계층 구현 (docs/CODING_MODEL.md "그래픽 API와 OS 기능"): OS API는 platform/<os>/ 안에서만 부른다.
@@ -173,7 +178,9 @@ endif()
 
 # 디버그 UI (MEALKIT_DEBUG_UI, cmake/MealKit.cmake): ImGui 연결 층. 에디터와 개발용 게임 exe의 오버레이가 같이 쓴다
 if(MEALKIT_DEBUG_UI)
-    list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/debug/ImGuiLayer.h src/mealkit/debug/ImGuiLayer.cpp)
+    list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/debug/ImGuiLayer.h src/mealkit/debug/ImGuiLayer.cpp
+        src/mealkit/platform/ImGuiPlatform.h src/mealkit/platform/win32/ImGuiPlatform.cpp
+        src/mealkit/rhi/dx12/Dx12ImGui.cpp)
 endif()
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")

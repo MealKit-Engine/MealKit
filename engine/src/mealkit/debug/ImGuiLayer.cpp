@@ -1,45 +1,18 @@
 #include "mealkit/debug/ImGuiLayer.h"
 
 #include "mealkit/core/Log.h"
+#include "mealkit/platform/ImGuiPlatform.h"
 #include "mealkit/platform/Paths.h"
 #include "mealkit/platform/Window.h"
 #include "mealkit/render/Renderer.h"
+#include "mealkit/rhi/Rhi.h"
 
 #include <cstring>
-#include <d3d12.h>
 #include <imgui.h>
 #include <imgui_internal.h> // RegisterUserTexture
-#include <imgui_impl_dx12.h>
-#include <imgui_impl_win32.h>
-#include <windows.h>
-
-extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 namespace mealkit::debug {
-
-constexpr u32 kSrvCapacity = 64;
-
-struct ImGuiLayerAccess {
-    static void alloc(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* cpu,
-                      D3D12_GPU_DESCRIPTOR_HANDLE* gpu) {
-        auto* self = static_cast<ImGuiLayer*>(info->UserData);
-        if (self->m_freeSlots.empty()) MEALKIT_FATAL("ImGui descriptor heap exhausted");
-        const u32 slot = self->m_freeSlots.back();
-        self->m_freeSlots.pop_back();
-        cpu->ptr = static_cast<SIZE_T>(self->m_srvCpuStart + static_cast<u64>(slot) * self->m_srvStride);
-        gpu->ptr = self->m_srvGpuStart + static_cast<u64>(slot) * self->m_srvStride;
-    }
-    static void free(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE cpu, D3D12_GPU_DESCRIPTOR_HANDLE) {
-        auto* self = static_cast<ImGuiLayer*>(info->UserData);
-        self->m_freeSlots.push_back(static_cast<u32>((cpu.ptr - self->m_srvCpuStart) / self->m_srvStride));
-    }
-};
-
 namespace {
-std::intptr_t messageHook(void*, void* hwnd, u32 msg, std::uintptr_t wparam, std::intptr_t lparam) {
-    return ImGui_ImplWin32_WndProcHandler(static_cast<HWND>(hwnd), msg, wparam, lparam);
-}
-
 void applyStyle(float scale) {
     ImGui::StyleColorsDark();
     ImGuiStyle& s = ImGui::GetStyle();
@@ -88,8 +61,7 @@ bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::str
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard | ImGuiConfigFlags_DockingEnable;
     io.IniFilename = m_iniPath.empty() ? nullptr : m_iniPath.c_str();
 
-    HWND hwnd = static_cast<HWND>(window.nativeHandle());
-    const float scale = ImGui_ImplWin32_GetDpiScaleForHwnd(hwnd);
+    const float scale = imguiDpiScale(window);
     applyStyle(scale);
 
     // 영문은 Segoe UI, 한글은 맑은 고딕을 합친다 (맑은 고딕만 쓰면 역슬래시가 ₩로 보인다).
@@ -113,34 +85,8 @@ bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::str
         break;
     }
 
-    if (!ImGui_ImplWin32_Init(hwnd)) return false;
-    window.setMessageHook(messageHook, nullptr);
-
-    const render::NativeHandles native = renderer.native();
-    auto* device = static_cast<ID3D12Device*>(native.device);
-    D3D12_DESCRIPTOR_HEAP_DESC hd{};
-    hd.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-    hd.NumDescriptors = kSrvCapacity;
-    hd.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-    ID3D12DescriptorHeap* heap = nullptr;
-    if (FAILED(device->CreateDescriptorHeap(&hd, IID_PPV_ARGS(&heap)))) return false;
-    m_srvHeap = heap;
-    m_srvCpuStart = heap->GetCPUDescriptorHandleForHeapStart().ptr;
-    m_srvGpuStart = heap->GetGPUDescriptorHandleForHeapStart().ptr;
-    m_srvStride = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-    for (u32 i = kSrvCapacity; i > 0; --i) m_freeSlots.push_back(i - 1);
-
-    ImGui_ImplDX12_InitInfo info;
-    info.Device = device;
-    info.CommandQueue = static_cast<ID3D12CommandQueue*>(native.queue);
-    info.NumFramesInFlight = static_cast<int>(native.framesInFlight);
-    info.RTVFormat = static_cast<DXGI_FORMAT>(native.overlayFormat);
-    info.DSVFormat = DXGI_FORMAT_UNKNOWN;
-    info.UserData = this;
-    info.SrvDescriptorHeap = heap;
-    info.SrvDescriptorAllocFn = ImGuiLayerAccess::alloc;
-    info.SrvDescriptorFreeFn = ImGuiLayerAccess::free;
-    if (!ImGui_ImplDX12_Init(&info)) return false;
+    if (!imguiPlatformInit(window)) return false;
+    if (!rhi::imguiInit(renderer.device())) return false;
 
     m_initialized = true;
     return true;
@@ -148,18 +94,14 @@ bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::str
 
 void ImGuiLayer::shutdown() {
     if (!m_initialized) return;
-    m_renderer->waitIdle();
-    ImGui_ImplDX12_Shutdown(); // 사용자 텍스처의 GPU 자원도 지운다
-    ImGui_ImplWin32_Shutdown();
+    rhi::imguiShutdown(m_renderer->device()); // 사용자 텍스처의 GPU 자원도 지운다
+    if (m_window) imguiPlatformShutdown(*m_window);
     for (ImTextureData* tex : m_textures) {
         ImGui::UnregisterUserTexture(tex);
         IM_DELETE(tex);
     }
     m_textures.clear();
     ImGui::DestroyContext();
-    if (m_window) m_window->setMessageHook(nullptr, nullptr);
-    if (m_srvHeap) static_cast<ID3D12DescriptorHeap*>(m_srvHeap)->Release();
-    m_srvHeap = nullptr;
     m_initialized = false;
 }
 
@@ -187,21 +129,16 @@ void ImGuiLayer::newFrame() {
             ++i;
         }
     }
-    ImGui_ImplDX12_NewFrame();
-    ImGui_ImplWin32_NewFrame();
+    rhi::imguiNewFrame();
+    imguiPlatformNewFrame();
     ImGui::NewFrame();
 }
 
 void ImGuiLayer::render(render::Renderer& renderer, bool frameActive) {
     ImGui::Render();
     if (!frameActive) return;
-    const render::NativeHandles native = renderer.native();
-    auto* cmd = static_cast<ID3D12GraphicsCommandList*>(native.commandList);
-    if (!cmd) return;
     renderer.beginOverlay();
-    ID3D12DescriptorHeap* heaps[] = {static_cast<ID3D12DescriptorHeap*>(m_srvHeap)};
-    cmd->SetDescriptorHeaps(1, heaps);
-    ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), cmd);
+    rhi::imguiRender(renderer.device());
 }
 
 } // namespace mealkit::debug

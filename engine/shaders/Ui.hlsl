@@ -3,7 +3,9 @@
 // 모서리별 둥근 사각형, 단색·선형·원형 그라디언트, 안쪽 테두리, 흐린 그림자, 회전, 이미지(RGBA 아틀라스), 글자(SDF 아틀라스).
 // 색은 sRGB 8비트 그대로(감마 변환 없는 오버레이 뷰), 출력은 미리 곱한 알파.
 
-struct UiQuad
+#include "Bindless.hlsli"
+
+struct UiQuad // 112바이트 (render::UiQuad)
 {
     float4 rect;     // x, y, w, h (픽셀, 회전 전 상자)
     float4 clip;     // x0, y0, x1, y1 (픽셀, 이 밖은 그리지 않는다)
@@ -20,16 +22,37 @@ struct UiQuad
     float sdfScale;  // 글자: 아틀라스 값 1당 화면 픽셀
 };
 
-cbuffer UiConstants : register(b0)
+struct PushConstants
 {
     float2 screenSize;
-    float2 pad;
+    uint ring;       // 업로드 링의 g_buffers[] 번호
+    uint quadOffset; // UiQuad 배열 위치
+    uint glyphAtlas; // g_textures[] 번호: 글자 SDF (R8)
+    uint imageAtlas; // g_textures[] 번호: 이미지 (RGBA8)
+    uint2 pad;
 };
+[[vk::push_constant]] ConstantBuffer<PushConstants> pc : register(b0);
 
-StructuredBuffer<UiQuad> quads : register(t0);
-Texture2D<float> glyphAtlas : register(t1);
-Texture2D<float4> imageAtlas : register(t2);
-SamplerState linearClamp : register(s0);
+UiQuad loadQuad(uint index)
+{
+    ByteAddressBuffer b = g_buffers[pc.ring];
+    uint o = pc.quadOffset + index * 112;
+    UiQuad q;
+    q.rect = loadFloat4(b, o);
+    q.clip = loadFloat4(b, o + 16);
+    q.radii = loadFloat4(b, o + 32);
+    q.uv = loadFloat4(b, o + 48);
+    q.gradient = loadFloat4(b, o + 64);
+    q.color0 = b.Load(o + 80);
+    q.color1 = b.Load(o + 84);
+    q.strokeColor = b.Load(o + 88);
+    q.flags = b.Load(o + 92);
+    q.strokeWidth = asfloat(b.Load(o + 96));
+    q.rotation = asfloat(b.Load(o + 100));
+    q.softness = asfloat(b.Load(o + 104));
+    q.sdfScale = asfloat(b.Load(o + 108));
+    return q;
+}
 
 struct VSOutput
 {
@@ -45,7 +68,7 @@ float4 unpack(uint c)
 
 VSOutput VSMain(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID)
 {
-    UiQuad q = quads[instanceId];
+    UiQuad q = loadQuad(instanceId);
     const float2 corners[6] = { float2(0, 0), float2(1, 0), float2(0, 1), float2(1, 0), float2(1, 1), float2(0, 1) };
     float2 c = corners[vertexId];
     float margin = q.softness * 2.0 + 1.0; // 테두리 바깥 반 픽셀 + 그림자 흐림
@@ -55,7 +78,7 @@ VSOutput VSMain(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID)
     float2 rotated = float2(local.x * co - local.y * s, local.x * s + local.y * co);
     float2 pixel = q.rect.xy + half + rotated;
     VSOutput o;
-    o.position = float4(pixel.x / screenSize.x * 2.0 - 1.0, 1.0 - pixel.y / screenSize.y * 2.0, 0.0, 1.0);
+    o.position = float4(pixel.x / pc.screenSize.x * 2.0 - 1.0, 1.0 - pixel.y / pc.screenSize.y * 2.0, 0.0, 1.0);
     o.local = local;
     o.quad = instanceId;
     return o;
@@ -72,7 +95,7 @@ float roundBox(float2 p, float2 half, float4 r)
 
 float4 PSMain(VSOutput input) : SV_Target
 {
-    UiQuad q = quads[input.quad];
+    UiQuad q = loadQuad(input.quad);
     float2 screen = input.position.xy;
     if (screen.x < q.clip.x || screen.y < q.clip.y || screen.x >= q.clip.z || screen.y >= q.clip.w) discard;
 
@@ -92,7 +115,7 @@ float4 PSMain(VSOutput input) : SV_Target
     if (kind == 2) // 글자 (SDF, 0.5 = 경계)
     {
         float2 uv = lerp(q.uv.xy, q.uv.zw, box01);
-        float s = glyphAtlas.SampleLevel(linearClamp, uv, 0);
+        float s = g_textures[pc.glyphAtlas].SampleLevel(g_linearClamp, uv, 0).r;
         float a = saturate((s - 0.5) * q.sdfScale + 0.5);
         float4 c = unpack(q.color0);
         return float4(c.rgb, 1.0) * (c.a * a);
@@ -102,7 +125,7 @@ float4 PSMain(VSOutput input) : SV_Target
     if (kind == 1) // 이미지 (색을 곱한다)
     {
         float2 uv = lerp(q.uv.xy, q.uv.zw, box01);
-        fill = imageAtlas.SampleLevel(linearClamp, uv, 0) * unpack(q.color0);
+        fill = g_textures[pc.imageAtlas].SampleLevel(g_linearClamp, uv, 0) * unpack(q.color0);
     }
     else
     {

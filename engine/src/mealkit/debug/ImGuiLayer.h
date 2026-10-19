@@ -16,7 +16,7 @@ class Renderer;
 
 namespace mealkit::debug {
 
-// Dear ImGui를 MealKit 창/렌더러에 연결한다 (Win32 + DX12 백엔드). 에디터와 개발용 게임 빌드의 디버그 UI(MEALKIT_DEBUG_UI)가 쓴다.
+// Dear ImGui를 MealKit 창/렌더러에 연결한다 (창 쪽은 platform/ImGuiPlatform.h, 그리기는 RHI). 에디터와 개발용 게임 빌드의 디버그 UI(MEALKIT_DEBUG_UI)가 쓴다.
 // 출시 빌드(Export)에는 들어가지 않는다.
 class ImGuiLayer {
 public:
@@ -42,14 +42,7 @@ private:
     Window* m_window = nullptr;
     render::Renderer* m_renderer = nullptr;
     std::string m_iniPath;
-    void* m_srvHeap = nullptr; // ID3D12DescriptorHeap*
-    u64 m_srvCpuStart = 0;
-    u64 m_srvGpuStart = 0;
-    u32 m_srvStride = 0;
-    std::vector<u32> m_freeSlots;
     std::vector<ImTextureData*> m_textures; // createTexture로 만든 것 (지워질 때까지)
-
-    friend struct ImGuiLayerAccess;
 };
 
 } // namespace mealkit::debug

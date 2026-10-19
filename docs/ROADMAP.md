@@ -171,7 +171,7 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
 - **3. 참가 창을 `runGame`으로** (중간): 에디터 여러 명 플레이의 참가 창(`runPlayer`)은 참가 모드 출시 exe의 축소 사본이다(창·렌더러·접속·`Frontend`·루프). 다른 점(에디터 프로젝트 읽기, DLL 모듈, 소리 끔, 설정 저장 안 함, 창 제목·색)을 `runGame` 옵션으로 받으면 에디터 시험이 출시 exe와 같은 경로를 탄다. 에디터 3명 플레이 시험이 민감해서 여유 있을 때.
 - **6. `ui/Ui.cpp`(1633줄)에서 글자 셰이핑 분리** (낮음): `ui/Text.cpp`로. 기능 영향 없음.
 - **7. 에디터 명령줄과 게임 옵션 공유** (낮음): `EditorMain.cpp`의 `--scene`·`--tuning`·`--players`·`--bot`. 2를 하면 일부를 같이 쓸 수 있지만 성격이 달라 꼭 하지 않아도 된다.
-- **하지 않는 것**: `render/Renderer.cpp`·`debug/ImGuiLayer.cpp`의 DX12 직접 호출은 2단계 RHI 층에서 통째로 바뀐다. `platform/Paths.cpp`의 프로젝트 루트 전역은 `CODING_MODEL.md`의 예외(프로세스 설정)이고, 검색한 가변 전역은 이것뿐이다.
+- **하지 않는 것**: `platform/Paths.cpp`의 프로젝트 루트 전역은 `CODING_MODEL.md`의 예외(프로세스 설정)이고, 검색한 가변 전역은 이것뿐이다.
 - **순서**: (1·2·4·5 끝) → 3 → 6·7. 끝낸 번호는 CHANGELOG로 옮기고 여기서 지운다.
 
 - [x] 기본 화면 흐름 템플릿 (타이틀 → 메뉴 → 로비 → 로딩 → 매치·일시정지 → 결과 → 로비, 엔진 `game::MatchService` + sandbox `app/Flow`, 세션 재경기, `.ui` 글자 입력) — v0.4.24, 상세는 `docs/CHANGELOG.md`
@@ -228,6 +228,7 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
   - 엔진이 직접 만드는 **얇은 층**: 장치·큐, 명령 목록, 버퍼·텍스처, bindless 디스크립터 힙, PSO, 배리어(명시적, 렌더 그래프 없음), 스왑체인, 타임스탬프 쿼리. 렌더러가 쓰는 만큼만 만들고 범용 그래픽 라이브러리를 목표로 하지 않는다.
   - 모양은 DX12를 따른다(명령 목록 기록, 명시적 배리어, bindless 인덱스). Vulkan·Metal은 같은 모양으로 옮기기 쉽고, WebGPU만 아래처럼 떨어진다.
   - 백엔드는 빌드 때 하나를 고른다(가상 함수 없이 백엔드별 `.cpp`). 한 빌드에서 API를 바꾸는 기능은 없다.
+  - **진행**: ① `rhi/` API + DX12 백엔드로 옮김(렌더러·디버그 UI는 RHI만 씀, 바인딩은 푸시 상수 + bindless 배열, `docs/DECISIONS.md` 2026-10-19) → ② Vulkan 백엔드·`build.bat Vulkan`·에디터 ImGui → ③ 백엔드 사이 캡처 비교·검증 레이어를 check.ps1에.
   - 지금 `render::Renderer`의 DX12 호출을 이 층으로 옮기고, **같은 항목에서 Vulkan 백엔드를 같이 만든다.** 그림이 같아야 한다(그래픽 회귀 테스트가 있으면 그것으로, 없으면 `--capture` 전후·백엔드 사이 비교).
 - **Vulkan을 처음부터 같이 하는 이유**: 구현이 하나뿐인 추상화는 DX12의 가정(힙·배리어·루트 시그니처 모양)이 그대로 새어 나와, 두 번째 백엔드를 붙일 때 층을 다시 짜게 된다. 2단계 그래픽 기능을 처음부터 두 API로 만들면 5단계 이식 때 렌더러를 다시 고치지 않는다.
   Vulkan 하나가 Linux·Steam Deck 네이티브, Android, (선택) Switch를 덮는다. Metal·WebGPU는 5단계에서 이 두 백엔드의 모양을 따라 만든다.
@@ -235,7 +236,7 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
   `check.ps1`이 두 빌드로 같은 장면을 캡처해 비교하고(허용 오차 있음), Vulkan 검증 레이어 오류가 0개인지 본다.
 - **최소 사양**: 11세대(Xe-LP)의 Vulkan 1.3·descriptor indexing 지원을 1단계 실기 측정 때 같이 기록한다.
 - **셰이더**: HLSL 하나가 원본. DXC로 DXIL(DX12)과 SPIR-V(Vulkan)를 **둘 다 빌드 때 만들고**(한쪽 컴파일 실패는 빌드 실패), Metal·WebGPU는 SPIR-V에서 변환(후보 SPIRV-Cross, Tint/Naga)한다. 변환은 빌드 때만, 게임은 결과만 싣는다.
-- **bindless**: DX12 SM 6.6 `ResourceDescriptorHeap[]` 기준. Vulkan은 descriptor indexing, Metal은 argument buffer tier 2로 옮긴다. WebGPU는 bindless가 없어 웹 백엔드는 머티리얼 묶음별 드로우로 떨어진다(웹 프리셋, 드로우 콜 예산을 따로 둔다).
+- **bindless**: 타입별 무한 배열(`ByteAddressBuffer[]`, `Texture2D[]`) + 푸시 상수 번호(`shaders/Bindless.hlsli`, `docs/DECISIONS.md` 2026-10-19 — 처음 계획한 `ResourceDescriptorHeap[]`은 Vulkan 변환에 확장이 더 필요해 바꿨다). Vulkan은 descriptor indexing, Metal은 argument buffer tier 2로 옮긴다. WebGPU는 bindless가 없어 웹 백엔드는 머티리얼 묶음별 드로우로 떨어진다(웹 프리셋, 드로우 콜 예산을 따로 둔다).
 - **외부 RHI 라이브러리를 쓰지 않는 이유**: SDL3 GPU·bgfx는 bindless가 없고, Diligent는 크고 렌더러 모양을 정해 버린다. 렌더러는 엔진이 맡는 영역(판단 기준 ④)이고, 우리가 쓰는 기능만 담은 층이 가장 가볍다.
 - **결정론**: 영향 없음 (화면 쪽).
 - **비용**: 큼. 렌더러 코드가 작은 지금(드로우 콜 4회)이 가장 싸다. 이후 2단계 그래픽 항목마다 백엔드 두 개 분량의 일이 들고, Vulkan 런타임은 OS가 주므로 출시 exe 예산에는 영향이 작다.
