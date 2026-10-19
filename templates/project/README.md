@@ -8,7 +8,7 @@
 | 폴더/파일 | 무엇 |
 |---|---|
 | `mealkit.project` | 프로젝트 설정: 이름, 엔진 위치(`engine`), 시작 씬(`scene`), 게임 항목(`game.*`). 에디터 [파일] > [프로젝트 설정]에서 고친다 |
-| `source/` | 게임 코드. `sim/`(결정론 게임 규칙, 빌드 때 SimCheck 검사), `view/`(카메라·조작·그리기), `app/`(`GameSession` 한 판 진행, `main.cpp` 출시용 exe, `GameModule.cpp` 에디터용 DLL 진입점) |
+| `source/` | 게임 코드. `sim/`(결정론 게임 규칙, 빌드 때 SimCheck 검사), `view/`(카메라·조작·그리기), `app/`(`GameSession` 한 판 진행, `main.cpp` 출시용 exe(`MEALKIT_GAME_MAIN` 한 줄, 나머지는 엔진), `GameModule.cpp` 에디터용 DLL 진입점) |
 | `assets/` | **출시에 들어가는 것만.** 바로 밑에는 종류 폴더(`scenes/ models/ textures/ sounds/ effects/ ui/ fonts/ tables/ strings/ lut/`)와 정해진 파일(`game.tuning`, `view.tuning`, `input.bindings`, `feedback.table`, `sounds.table`)만 둔다. 종류 폴더 안의 하위 폴더는 자유 |
 | `art/` | 외부 도구 원본(`.blend`, Penpot, PSD, 소리 프로젝트). 출시·콘텐츠 해시에 들어가지 않는다 |
 | `modules/` | 소스 모듈 (4단계) |

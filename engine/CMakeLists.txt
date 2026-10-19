@@ -130,6 +130,10 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/settings/Settings.cpp
     src/mealkit/game/FrameStats.h
     src/mealkit/game/FrameStats.cpp
+    src/mealkit/game/Frontend.h
+    src/mealkit/game/Frontend.cpp
+    src/mealkit/game/GameMain.h
+    src/mealkit/game/GameMain.cpp
     src/mealkit/render/Renderer.cpp
     shaders/Forward.hlsl
     shaders/Ui.hlsl

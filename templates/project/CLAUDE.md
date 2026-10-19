@@ -20,7 +20,7 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
   빌드 때 SimCheck가 검사해 어기면 `error SIMnnn`으로 빌드가 멈춘다(대신 쓸 것을 알려 준다). 규칙의 근거는 엔진의 `docs/CODING_MODEL.md`.
   시뮬레이션 코드를 바꾸면 결정론 테스트로 디싱크가 없는지 확인한다.
 - 게임 코드 폴더: `source/sim/`(규칙: 시스템별 파일, 시스템 함수는 `World&`만 받고 `World::step()`이 순서대로 호출),
-  `source/view/`(카메라·로컬 입력·그리기, sim 상태는 읽기만), `source/app/`(`GameSession` = `mealkit::game::GameInstance` 구현, `main.cpp`, `GameModule.cpp`의 `MEALKIT_GAME_MODULE`).
+  `source/view/`(카메라·로컬 입력·그리기, sim 상태는 읽기만), `source/app/`(`GameSession` = `mealkit::game::GameInstance` 구현, `main.cpp`의 `MEALKIT_GAME_MAIN`(출시 exe, main·창·세션은 엔진 `mealkit/game/GameMain.h`), `GameModule.cpp`의 `MEALKIT_GAME_MODULE`).
   `sim/`에서 매치 중 생기고 사라지는 객체는 `mealkit::sim::Pool<T>`, "N틱 뒤"는 `TickTimer`, 화면에 알릴 일은 `world.events`(`TickEvents`)로 한다.
   화면 쪽은 엔진 서비스를 `mealkit::game::GameContext&`로 받는다 (`docs/CODING_MODEL.md`).
 - 사람(`PlayerSlot`)과 몸(`Pawn`)은 나뉘고 `Controller`가 잇는다(플레이어 또는 AI). 리스폰·관전·탑승·AI는 Pawn을 새로 만들거나 `possess`/`unpossess`로 바꿔 구현한다 (`source/sim/Pawns.cpp`).

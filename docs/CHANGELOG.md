@@ -3,6 +3,18 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.22 — 1단계 진행 중 (2026-10-19)
+
+### [x] 프레임 루프 합치기 — `game::Frontend` + 엔진의 출시 exe main (완료 2026-10-19, 로드맵 밖)
+- **왜**: 창 있는 게임의 화면 쪽 루프가 세 곳에 복사되어 있었다. 출시 exe(sandbox `app/main.cpp` 558줄, 게임 코드라 프로젝트마다 사본), 에디터 플레이(`PlaySession::update`), 참가 창(`runPlayer`)이다. 서비스 하나(소리·연출·입력 액션·패드·문자열·UI·설정·성능 숫자)를 더할 때마다 세 곳과 모든 프로젝트의 `main.cpp`를 고쳐야 했고, 갱신 순서도 조금씩 달랐다. 다음 항목인 기본 화면 흐름이 네 번째 사본이 될 참이었다.
+- **서비스 묶음** (`mealkit/game/Frontend.h`, `docs/CODING_MODEL.md` "창 있는 게임을 돌리는 프레임 루프"): `game::Frontend`가 입력 액션·게임패드·문자열 표·게임 UI·플레이어 설정·화면용 튜닝(`LiveTuning`)을 갖는다. `init(FrontendConfig)`(바인딩·문자열·UI·설정 읽기, 화면 항목을 적용할 창, 설정 파일, 화면용 튜닝 타입), `context()`(`GameContext`), 매 프레임 `update(now, dt, input, padAllowed, ctx)`(문자열 → 화면용 튜닝 → 패드 → UI가 마우스·키보드를 먼저 → 설정 화면 → 액션), `afterBuildFrame(frame)`(월드 위 UI 카메라, 듣는 위치, 연출 화면 색), `renderUi`. 소리·연출은 주인이 만들어 빌려 준다(에디터는 [소리]·[연출] 미리보기와 같이 쓴다).
+  출시 exe·에디터 플레이·참가 창이 모두 이것을 쓴다. 에디터 플레이는 렌더러를 받는 첫 `update`에서 `init`하고(플레이마다 다시 읽는다), 패드는 UI가 키보드를 가져가도 넘긴다(전에는 막혀서 게임 UI를 패드로 조작할 수 없었다).
+- **엔진의 main** (`mealkit/game/GameMain.h`): `game::runGame(argc, argv, GameMainSpec)`이 sandbox `main.cpp`가 하던 일을 그대로 한다. 명령줄과 `--help`(이름은 exe 이름), `--system-info`, 프로젝트·씬·튜닝·콘텐츠 해시, 세션(혼자·호스트·참가·Steam 로비), `Frontend`, 디버그 UI(F1), 자동 시험 출력(`FINAL`, `SHADOW`, `REWIND`, `perf:`), 창 제목(`game.title`, `title.*` 문자열 키)이다. 게임 타입은 `GameModule`(에디터 DLL과 같은 정보, `gameModuleOf<GameClass>`로 두 매크로가 같이 만든다)로, 기본 포트·인원은 헤드리스 클래스의 `defaults()`로 받는다.
+  게임의 `app/main.cpp`는 `MEALKIT_GAME_MAIN(sandbox::GameSession, sandbox::Headless)` 한 줄이다(`--headless`도 이 매크로가 나눈다). 출시 exe도 `GameInstance` 가상 호출을 쓴다(프레임당 몇 번).
+- **바뀐 동작**: 디버그 UI 도움말 줄에서 sandbox 전용 `F8: shockwave`가 빠졌다(sandbox 디버그 UI의 버튼에 있다). `--bodies`는 `--match-data`의 다른 이름으로 남았다.
+- **영향**: `kApiVersion`은 그대로(`GameModule` 모양은 같다). 기존 프로젝트의 `main.cpp`는 그대로 빌드되지만, 엔진 기능을 따라가려면 sandbox처럼 한 줄로 바꾼다(`tools\upgrade_project.ps1 -Source`는 게임 코드 전체를 예제로 바꾼다). 템플릿 설명(CLAUDE.md, README, CMakeLists 주석)을 고쳐 버전을 올렸다.
+- **검증**: check.ps1(출시 exe의 결정론·그림자·되감기·캡처, 에디터 플레이 혼자·3명, 새 프로젝트 + 업그레이드).
+
 ## v0.4.21 — 1단계 진행 중 (2026-10-19)
 
 ### [x] 성능 숫자 하나로 모으기 — `game::FrameStats` (완료 2026-10-19, 로드맵 밖)
