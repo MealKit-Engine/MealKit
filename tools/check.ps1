@@ -30,17 +30,17 @@ function Invoke-Check([string]$name, [scriptblock]$body) {
     try {
         $r = & $body $log
         if ($r -is [array]) { $r = $r[-1] }
-        if ($r -is [string]) { $detail = $r; $ok = $false }
+        if ($r -is [string]) { $detail = $r; $ok = $r.StartsWith("SKIP") } # "SKIP: 이유" = 이 PC에서 할 수 없음 (실패 아님)
         else { $ok = [bool]$r }
     } catch {
         $detail = $_.Exception.Message
         Add-Content -Path $log -Value $detail
     }
     $watch.Stop()
-    $status = if ($ok) { "PASS" } else { "FAIL" }
-    $color = if ($ok) { "Green" } else { "Red" }
+    $status = if ($detail.StartsWith("SKIP")) { "SKIP" } elseif ($ok) { "PASS" } else { "FAIL" }
+    $color = if ($status -eq "SKIP") { "Yellow" } elseif ($ok) { "Green" } else { "Red" }
     Write-Host ("{0,-4} {1,-34} {2,7:N1}s  {3}" -f $status, $name, $watch.Elapsed.TotalSeconds, $detail) -ForegroundColor $color
-    $script:results += [pscustomobject]@{ Name = $name; Ok = $ok; Seconds = $watch.Elapsed.TotalSeconds; Log = $log }
+    $script:results += [pscustomobject]@{ Name = $name; Ok = $ok; Skipped = ($status -eq "SKIP"); Seconds = $watch.Elapsed.TotalSeconds; Log = $log }
 }
 
 # 프로그램을 실행하고 stdout/stderr를 로그에 남긴다 (cmd가 직접 파일로 보낸다). 종료 코드를 돌려준다.
@@ -168,6 +168,36 @@ if (-not $Quick) {
         $code = Run $log $editor "--project `"$root`" --frames 180 --play --bot --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and (Has $log "Play mode") -and -not (Has $log "Shadow simulation diverged")
     }
+    # RHI 백엔드 (ROADMAP 2단계 "RHI 층"): Vulkan 에디터가 같은 장면을 DX12와 같게 그리는가, 검증 레이어 오류가 없는가.
+    # 에디터 편집 화면은 실행마다 같다(게임 화면은 시간에 따라 바뀐다). 상태 표시줄(fps)은 뺀다.
+    $vkEditorBin = Join-Path $root "build\VulkanEditor\bin"
+    $vkEditor = Join-Path $vkEditorBin "MealKitEditor.exe"
+    Invoke-Check "Vulkan editor build" { param($log) Build $log "VulkanEditor" }
+    Invoke-Check "Vulkan = DX12 (editor capture)" {
+        param($log)
+        # 창 배치가 같아야 한다: DX12 에디터의 창 배치 파일을 쓴다
+        $ini = Join-Path $editorBin "mealkit_editor.ini"
+        if (Test-Path $ini) { Copy-Item $ini $vkEditorBin -Force }
+        $dx = Join-Path $out "backend-dx12.png"
+        $vk = Join-Path $out "backend-vulkan.png"
+        $common = "--project `"$root`" --frames 60 --select 25 --capture"
+        if ((Run "$log.dx12" $editor "$common `"$dx`"") -ne 0 -or -not (Test-Path $dx)) { return "DX12 capture failed" }
+        if ((Run "$log.vulkan" $vkEditor "$common `"$vk`"") -ne 0 -or -not (Test-Path $vk)) { return "Vulkan capture failed" }
+        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $dx -B $vk -IgnoreBottom 40 2>&1
+        $output | Out-File -Encoding utf8 $log
+        if ($LASTEXITCODE -ne 0) { return ($output | Select-Object -First 1) }
+        return $true
+    }
+    Invoke-Check "Vulkan validation layer (play)" {
+        param($log)
+        $png = Join-Path $out "vulkan-play.png"
+        $code = Run $log $vkEditor "--project `"$root`" --frames 180 --play --bot --debug --capture `"$png`""
+        if (Has $log "validation layer unavailable") { return "SKIP: Vulkan SDK not installed (validation layer)" }
+        if ($code -ne 0 -or -not (Has $log "Play mode")) { return "play failed" }
+        $issues = @(Select-String -Path $log -Pattern "\[Vulkan\]")
+        if ($issues.Count -gt 0) { return "$($issues.Count) validation message(s)" }
+        return $true
+    }
     Invoke-Check "Editor play (3 players)" {
         param($log)
         $png = Join-Path $out "editor-3p.png"
@@ -227,8 +257,9 @@ if (-not $Quick) {
 }
 
 $failed = @($results | Where-Object { -not $_.Ok })
+$skipped = @($results | Where-Object { $_.Skipped })
 $total = ($results | Measure-Object -Property Seconds -Sum).Sum
-Write-Host ("{0} passed, {1} failed, {2:N0}s total" -f ($results.Count - $failed.Count), $failed.Count, $total) `
+Write-Host ("{0} passed, {1} skipped, {2} failed, {3:N0}s total" -f ($results.Count - $failed.Count - $skipped.Count), $skipped.Count, $failed.Count, $total) `
     -ForegroundColor $(if ($failed.Count -eq 0) { "Green" } else { "Red" })
 if ($failed.Count -gt 0) { exit 1 }
 exit 0
