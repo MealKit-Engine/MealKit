@@ -337,6 +337,7 @@ Invert gamepad Y = 게임패드 Y축 반전
 Language (empty is the project default) = 언어 (비우면 프로젝트 기본)
 Interface scale = 인터페이스 크기
 Subtitles = 자막
+Show network status (ping, waiting for a player) = 네트워크 상태 표시 (핑, 기다리는 플레이어)
 Audio = 소리
 Controls = 조작
 Gameplay = 게임

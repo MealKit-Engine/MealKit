@@ -1003,6 +1003,19 @@ TEST_CASE(net_conditions) {
     }
     TEST_CHECK(next[0] == kTicks && next[1] == kTicks && sum[0] == sum[1] && !host.desynced());
     TEST_CHECK(host.stats().rttMs == 0.0f && client.stats().rttMs > 40.0f); // 클라이언트가 재는 왕복 시간에 지연이 보인다
+    TEST_CHECK(host.pingMs(1) > 40 && host.pingMs(0) == 0); // 호스트가 잰 플레이어별 왕복 시간
+    // 클라이언트가 입력을 멈추면 매치가 멈추고, 양쪽 모두 플레이어 1을 기다린다고 알린다
+    const f64 stallUntil = nowSeconds() + 3.0;
+    while (nowSeconds() < stallUntil && !((host.waitingFor() & 2u) && (client.waitingFor() & 2u))) {
+        for (net::LockstepSession* s : sessions) s->update(nowSeconds());
+        while (host.canExecute(next[0])) {
+            host.tickExecuted(next[0], 0);
+            host.submitLocalInput(next[0] + host.inputDelay(), {});
+            ++next[0];
+        }
+        sleepSeconds(0.001);
+    }
+    TEST_CHECK((host.waitingFor() & 2u) && !(host.waitingFor() & 1u) && (client.waitingFor() & 2u));
     client.shutdown();
     host.shutdown();
 }

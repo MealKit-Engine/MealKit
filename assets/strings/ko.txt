@@ -128,3 +128,6 @@ message.ok = 확인
 hud.go = 시작!
 action.menu.pause = 일시정지 메뉴
 action.chat.open = 채팅
+settings.gameplay.showNetwork = 네트워크 상태 표시 (핑, 기다리는 플레이어)
+hud.waiting = {names} 기다리는 중...
+hud.ping = {ping} ms

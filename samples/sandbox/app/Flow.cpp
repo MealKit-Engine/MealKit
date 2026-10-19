@@ -239,6 +239,9 @@ void Flow::updateLobby(game::GameContext& ctx, SaveData& save) {
         Loadout l;
         game::readLobbyLoadout(m, l);
         row.body = ctx.strings.get(bodyKey(l.body));
+        row.ping = m.host || !ctx.settings.values().gameplay.showNetwork
+                       ? std::string()
+                       : ctx.strings.format("hud.ping", {{"ping", std::to_string(m.pingMs)}});
         if (!m.host && !m.ready) allReady = false;
     }
     m_lobby.canStart = m_lobby.isHost && allReady;

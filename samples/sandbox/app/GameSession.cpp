@@ -7,6 +7,7 @@
 #include "mealkit/game/GameData.h"
 #include "mealkit/game/Loadout.h"
 #include "mealkit/game/Save.h"
+#include "mealkit/loc/Strings.h"
 #include "mealkit/platform/Window.h"
 #include "mealkit/settings/Settings.h"
 #include "mealkit/sim/Commands.h"
@@ -145,6 +146,21 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     if (m_saveTimer >= 30.0) {
         m_saveTimer = 0.0;
         game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
+    }
+    // 플레이어용 네트워크 표시 (플레이어 설정으로 끈다): 플레이어별 핑, 입력을 기다리며 멈추면 누구 때문인지
+    const bool showNet = ctx.settings.values().gameplay.showNetwork && !session.isOffline();
+    for (u32 i = 0; i < m_hudVm.playersCount; ++i) {
+        PlayerRowVm& row = m_hudVm.players[i];
+        row.ping = session.pingMs(i);
+        row.pingBad = showNet && i != 0 && row.ping >= look.badPingMs;
+        row.pingGood = showNet && i != 0 && !row.pingBad;
+    }
+    m_hudVm.waiting.clear();
+    if (const u32 mask = showNet ? session.waitingFor() : 0u) {
+        std::string list;
+        for (u32 i = 0; i < m_hudVm.playersCount; ++i)
+            if (mask & (1u << i)) list += (list.empty() ? "" : ", ") + names[i];
+        m_hudVm.waiting = ctx.strings.format("hud.waiting", {{"names", list}});
     }
     m_hudVm.totalFalls = m_save.falls;
     m_hudVm.playMinutes = static_cast<u32>(m_save.playSeconds / 60.0f);

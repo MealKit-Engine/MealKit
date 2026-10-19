@@ -39,9 +39,12 @@ board hud 1920 1080
           colorField color
         end
         text name
+          size fill hug
           content {name}
           fontSize 26
           color $text
+          maxLines 1
+          overflow ellipsis
         end
         text you
           key hud.you
@@ -49,13 +52,22 @@ board hud 1920 1080
           color $accent
           visible you
         end
-        frame spacer
-          size fill 1
-        end
         text falls
           key hud.falls
           fontSize 22
           color $textDim
+        end
+        text pingGood
+          key hud.ping
+          visible pingGood
+          fontSize 18
+          color #7CE38B
+        end
+        text pingBad
+          key hud.ping
+          visible pingBad
+          fontSize 18
+          color #FF8A80
         end
       end
     end
@@ -140,6 +152,16 @@ board hud 1920 1080
       fontSize 22
       color $text
     end
+  end
+  text waiting
+    pos 560 110
+    size 800 hug
+    constraints center top
+    visible waiting
+    content {waiting}
+    fontSize 30
+    color #FF8A80
+    textAlign center
   end
   text countdown
     pos 760 360

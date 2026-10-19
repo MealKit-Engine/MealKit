@@ -128,3 +128,6 @@ message.ok = OK
 hud.go = Go!
 action.menu.pause = Pause menu
 action.chat.open = Chat
+settings.gameplay.showNetwork = Show network status (ping, waiting players)
+hud.waiting = Waiting for {names}...
+hud.ping = {ping} ms

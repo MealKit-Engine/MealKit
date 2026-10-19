@@ -69,6 +69,12 @@ board lobby 1920 1080
             fontSize 22
             color $textDim
           end
+          text ping
+            content {ping}
+            visible ping
+            fontSize 20
+            color $textDim
+          end
           text host
             key lobby.host
             visible host

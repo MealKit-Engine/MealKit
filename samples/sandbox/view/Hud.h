@@ -17,6 +17,9 @@ MEALKIT_STRUCT(PlayerRowVm) {
     MEALKIT_FIELD(mealkit::u32, falls, 0, "떨어진 횟수");
     MEALKIT_FIELD(bool, you, false, "내 줄");
     MEALKIT_FIELD(mealkit::Color, color, {}, "플레이어 색");
+    MEALKIT_FIELD(mealkit::u32, ping, 0, "호스트와의 왕복 시간 (ms)");
+    MEALKIT_FIELD(bool, pingGood, false, "핑을 보인다 (좋음)");
+    MEALKIT_FIELD(bool, pingBad, false, "핑을 보인다 (나쁨)");
 };
 
 MEALKIT_STRUCT(ChatLineVm) {
@@ -35,6 +38,7 @@ MEALKIT_VIEWMODEL(HudVm) {
     MEALKIT_LIST(PlayerRowVm, players, mealkit::net::kMaxPlayers, "플레이어");
     MEALKIT_LIST(ChatLineVm, chat, 5, "채팅 (최근, 잠시 보인다)");
     MEALKIT_FIELD(bool, chatOpen, false, "채팅을 치는 중");
+    MEALKIT_FIELD(std::string, waiting, {}, "입력을 기다리는 플레이어 (멈췄을 때, 플레이어 설정으로 끈다)");
     MEALKIT_FIELD(std::string, chatDraft, {}, "보낼 채팅 (글자 입력)");
 };
 
