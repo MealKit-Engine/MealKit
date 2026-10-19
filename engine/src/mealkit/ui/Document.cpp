@@ -398,6 +398,21 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
         if (args == 3) n.action = t[3];
         return true;
     }
+    if (k == "textInput") { // 글자 노드: 뷰 모델 문자열 필드를 고친다. Enter면 액션 (비면 "submit")
+        if (args < 1 || args > 2) return fail("textInput <field> [action]");
+        if (n.kind != NodeKind::Text) return fail("textInput is for text nodes");
+        n.widget = WidgetKind::TextInput;
+        n.field = t[1];
+        if (args == 2) n.action = t[2];
+        return true;
+    }
+    if (k == "placeholder") return args == 1 ? (n.placeholderKey = t[1], true) : fail("placeholder <string key>");
+    if (k == "maxLength") {
+        f32 length = 0;
+        if (args != 1 || !num(1, length) || length < 1) return fail("maxLength <characters>");
+        n.maxLength = static_cast<u32>(length);
+        return true;
+    }
     if (k == "scroll") {
         n.widget = WidgetKind::Scroll;
         n.clip = true;

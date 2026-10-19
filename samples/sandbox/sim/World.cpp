@@ -128,6 +128,7 @@ void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tun
     state.props.endTick(); // 처음 만든 상자도 0틱부터 순회에 나온다
     sensePawns(*this);
     senseProps(*this);
+    startMatch(*this);
     events.clear(); // 시작 때 만든 Pawn의 스폰 이벤트는 보내지 않는다
 }
 
@@ -142,6 +143,7 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
     events.clear();
 
     applyCommands(*this, tickInputs); // 확정 명령 (디버그 치트 등): 플레이어 번호 → 보낸 순서
+    updateMatch(*this);               // 카운트다운 → 경기 → 끝
     respawnPawns(*this);
     controlPawns(*this);
     usePads(*this);

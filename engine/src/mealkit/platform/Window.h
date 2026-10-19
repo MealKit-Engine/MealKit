@@ -46,6 +46,7 @@ public:
     bool minimized() const { return m_minimized; }
     bool focused() const { return m_focused; }
     bool consumeResize(); // 크기가 바뀐 뒤 한 번만 true
+    void close();         // 다음 pumpMessages가 false (게임 메뉴의 [끝내기])
 
     void setTitle(const char* utf8);
     void setCursorCaptured(bool captured); // 커서 숨김 + 창 안에 가둠 (카메라 회전용)
@@ -70,6 +71,7 @@ private:
     bool m_resized = false;
     bool m_quit = false;
     bool m_captured = false;
+    u32 m_highSurrogate = 0; // WM_CHAR: 두 개로 오는 UTF-16 글자의 앞쪽
     WindowMode m_mode = WindowMode::Windowed;
     Input m_input;
     MessageHook m_hook = nullptr;

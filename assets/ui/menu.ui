@@ -1,0 +1,171 @@
+# MealKit UI (hand-written): main menu. View model: MenuVm (samples/sandbox/app/Screens.h). Actions: menu.* (app/Flow.cpp),
+# settings.open (engine). Text: assets/strings.
+board menu 1920 1080
+  navigation
+  firstFocus solo
+  back menu.back
+  frame panel
+    pos 660 170
+    size 600 hug
+    constraints center center
+    layout column
+    gap 14
+    padding 36 40
+    fill $panel
+    stroke 1 $panelStroke
+    radius 16
+    shadow 0 12 40 0 #000000AA
+    text title
+      size fill hug
+      key game.title
+      fontSize 44
+      color $text
+      textAlign center
+    end
+    frame nameRow
+      size fill hug
+      layout column
+      gap 6
+      text nameLabel
+        key menu.name
+        fontSize 20
+        color $textDim
+      end
+      frame nameBox
+        size fill 52
+        layout row
+        align center
+        padding 0 16
+        fill #00000055
+        stroke 1 $panelStroke
+        radius 10
+        text playerName
+          size fill hug
+          textInput playerName
+          placeholder menu.namePlaceholder
+          maxLength 16
+          fontSize 26
+          color $text
+          maxLines 1
+        end
+      end
+    end
+    frame gap1
+      size fill 6
+    end
+    frame solo
+      size fill 64
+      layout row
+      justify center
+      align center
+      fill $accent
+      radius $radius
+      button menu.solo
+      on hover fill #FFD86A
+      text label
+        key menu.solo
+        fontSize 28
+        color #141922
+      end
+    end
+    frame host
+      size fill 64
+      layout row
+      justify center
+      align center
+      fill $button
+      stroke 1 $panelStroke
+      radius $radius
+      button menu.host
+      on hover fill $buttonHover
+      on pressed fill $buttonPressed
+      text label
+        key menu.host
+        fontSize 28
+        color $text
+      end
+    end
+    frame join
+      size fill 64
+      layout row
+      justify center
+      align center
+      fill $button
+      stroke 1 $panelStroke
+      radius $radius
+      button menu.join
+      on hover fill $buttonHover
+      on pressed fill $buttonPressed
+      text label
+        key menu.join
+        fontSize 28
+        color $text
+      end
+    end
+    frame online
+      size fill 64
+      layout row
+      justify center
+      align center
+      fill $button
+      stroke 1 $panelStroke
+      radius $radius
+      visible onlineAvailable
+      button menu.online
+      on hover fill $buttonHover
+      on pressed fill $buttonPressed
+      text label
+        key menu.online
+        fontSize 28
+        color $text
+      end
+    end
+    frame bottom
+      size fill hug
+      layout row
+      gap 12
+      frame settings
+        size fill 56
+        layout row
+        justify center
+        align center
+        fill $button
+        stroke 1 $panelStroke
+        radius $radius
+        button settings.open
+        on hover fill $buttonHover
+        on pressed fill $buttonPressed
+        text label
+          key menu.settings
+          fontSize 24
+          color $text
+        end
+      end
+      frame quit
+        size fill 56
+        layout row
+        justify center
+        align center
+        fill $button
+        stroke 1 $panelStroke
+        radius $radius
+        button menu.quit
+        on hover fill $buttonHover
+        on pressed fill $buttonPressed
+        text label
+          key menu.quit
+          fontSize 24
+          color $text
+        end
+      end
+    end
+    text error
+      size fill hug
+      content {error}
+      visible error
+      fontSize 20
+      color #FF8A80
+      textAlign center
+    end
+  end
+end

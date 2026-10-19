@@ -22,7 +22,10 @@ void Effects::onEvent(const GameEvent& event, f64 now, const ShockwaveLook& look
     case EventKind::Spawn: shockwaves.push_back({feet, now, look.spawnRadius}); break;
     case EventKind::Fall:
     case EventKind::Jump:
-    case EventKind::Impact: break;
+    case EventKind::Impact:
+    case EventKind::Countdown:
+    case EventKind::MatchStart:
+    case EventKind::MatchEnd: break;
     }
 }
 

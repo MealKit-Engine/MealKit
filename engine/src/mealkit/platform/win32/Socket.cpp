@@ -87,6 +87,37 @@ bool UdpSocket::open(u16 port, bool loopbackOnly) {
     return true;
 }
 
+bool UdpSocket::openShared(u16 port) {
+    close();
+    SOCKET s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (s == INVALID_SOCKET) return false;
+    u_long nonBlocking = 1;
+    ioctlsocket(s, FIONBIO, &nonBlocking);
+    BOOL reuse = TRUE; // 브로드캐스트는 같은 포트에 묶인 모든 소켓이 받는다
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&reuse), sizeof(reuse));
+    BOOL reportReset = FALSE;
+    DWORD bytes = 0;
+    WSAIoctl(s, SIO_UDP_CONNRESET, &reportReset, sizeof(reportReset), nullptr, 0, &bytes, nullptr, nullptr);
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(port);
+    if (bind(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR) {
+        MEALKIT_WARN("bind(shared port %u) failed (%d)", port, WSAGetLastError());
+        closesocket(s);
+        return false;
+    }
+    m_socket = static_cast<u64>(s);
+    return true;
+}
+
+bool UdpSocket::enableBroadcast() {
+    if (!isOpen()) return false;
+    BOOL on = TRUE;
+    return setsockopt(static_cast<SOCKET>(m_socket), SOL_SOCKET, SO_BROADCAST, reinterpret_cast<const char*>(&on),
+                      sizeof(on)) == 0;
+}
+
 void UdpSocket::close() {
     if (isOpen()) {
         closesocket(static_cast<SOCKET>(m_socket));

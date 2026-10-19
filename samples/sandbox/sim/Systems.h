@@ -19,6 +19,11 @@ void usePads(World& world);           // 점프대 위의 Pawn을 튕겨 올린�
 void removeFallenPawns(World& world); // 떨어진 Pawn을 없애고 리스폰을 기다린다
 void sensePawns(World& world);        // 물리 결과 → 위치, 속도, 접지
 
+// Match.cpp
+void startMatch(World& world);         // 매치 시작: 카운트다운 (World::reset)
+void updateMatch(World& world);        // 단계 바꾸기 (step 맨 앞, 명령 다음)
+bool matchPlaying(const World& world); // 경기 중 (입력·AI·점수가 이때만)
+
 // Commands.cpp
 inline constexpr u32 kMaxShockwavePushes = 8; // 디버그 명령 하나가 밀 수 있는 횟수 (잘못된 값으로 멈추지 않게)
 void applyCommands(World& world, const mealkit::net::TickInputs& inputs); // 확정 명령 (step 맨 앞)

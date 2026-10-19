@@ -149,6 +149,13 @@ if (-not $Quick) {
         $code = Run $log $game "--bot --mute --seed 7 --exit-tick 300 --capture `"$png`" 240"
         return $code -eq 0 -and (Test-Path $png)
     }
+    # 화면 흐름: 타이틀 → 메뉴 → 혼자 하기 → 로비 → 시작 → 매치 (위젯을 이름으로 누른다, 프레임 수로 끝)
+    Invoke-Check "Game screen flow (title to match)" {
+        param($log)
+        $png = Join-Path $out "flow.png"
+        $code = Run $log $game "--mute --frames 240 --ui-press 20:start,50:solo,90:start --capture `"$png`""
+        return $code -eq 0 -and (Test-Path $png) -and (Has $log "Match 1 started") -and (Has $log "World ready") -and -not (Has $log "--ui-press: no widget")
+    }
     Invoke-Check "Editor capture (edit mode)" {
         param($log)
         $png = Join-Path $out "editor.png"

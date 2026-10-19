@@ -22,4 +22,7 @@ void showErrorDialog(const char* title, const char* message);
 
 u32 processId();
 
+// 이 컴퓨터의 사용자 이름 (플레이어 이름의 기본값). 모르면 빈 문자열.
+std::string userName();
+
 } // namespace mealkit

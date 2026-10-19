@@ -45,7 +45,15 @@ keys F8
 row menu.settings
 label Settings
 keys F10
+
+row menu.pause
+label Pause menu
+keys Escape
 pad Start
+
+row chat.open
+label Chat
+keys Enter
 
 row ui.up
 label Menu up

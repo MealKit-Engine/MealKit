@@ -1,0 +1,285 @@
+# MealKit UI (hand-written): lobby before a match (solo, hosted room, joined room, Steam lobby). View model: LobbyVm
+# (samples/sandbox/app/Screens.h). Inputs: ready (toggle), body (select), chatDraft (text input, chat.send).
+# Actions: lobby.start (host), lobby.leave, lobby.invite (Steam), chat.send. Text: assets/strings.
+board lobby 1920 1080
+  navigation
+  firstFocus readyButton
+  back lobby.leave
+  frame main
+    pos 200 120
+    size 1520 840
+    constraints center center
+    layout row
+    gap 24
+    frame left
+      size fill fill
+      layout column
+      gap 16
+      padding 32 36
+      fill $panel
+      stroke 1 $panelStroke
+      radius 16
+      shadow 0 12 40 0 #000000AA
+      text title
+        content {title}
+        fontSize 40
+        color $text
+      end
+      text playersLabel
+        key lobby.players
+        visible !connecting
+        fontSize 22
+        color $textDim
+      end
+      frame players
+        size fill fill
+        layout column
+        gap 8
+        visible !connecting
+        list players
+        frame row
+          size fill 56
+          layout row
+          align center
+          gap 14
+          padding 0 16
+          radius 10
+          fill #FFFFFF0A
+          frame swatch
+            size 18 18
+            radius 9
+            colorField color
+          end
+          text name
+            size fill hug
+            content {name}
+            fontSize 26
+            color $text
+            maxLines 1
+            overflow ellipsis
+          end
+          text you
+            key hud.you
+            visible you
+            fontSize 20
+            color $accent
+          end
+          text body
+            content {body}
+            fontSize 22
+            color $textDim
+          end
+          text host
+            key lobby.host
+            visible host
+            fontSize 22
+            color $accent
+          end
+          text ready
+            key lobby.readyTag
+            visible ready
+            fontSize 22
+            color #7CE38B
+          end
+          text notReady
+            key lobby.notReady
+            visible !ready
+            fontSize 22
+            color $textDim
+          end
+        end
+      end
+      frame mine
+        size fill hug
+        layout row
+        align center
+        gap 12
+        visible !connecting
+        text bodyLabel
+          key lobby.body
+          fontSize 22
+          color $textDim
+        end
+        frame bodyChoice
+          size 260 52
+          layout row
+          justify center
+          align center
+          gap 12
+          fill $button
+          stroke 1 $panelStroke
+          radius 10
+          select body body.normal,body.light,body.heavy
+          on hover fill $buttonHover
+          text arrowLeft
+            content <
+            fontSize 22
+            color $textDim
+          end
+          text value
+            size 150 hug
+            content {option}
+            fontSize 24
+            color $text
+            textAlign center
+          end
+          text arrowRight
+            content >
+            fontSize 22
+            color $textDim
+          end
+        end
+        frame spacer
+          size fill 1
+        end
+        frame readyButton
+          size 200 52
+          layout row
+          justify center
+          align center
+          fill $button
+          stroke 1 $panelStroke
+          radius 10
+          visible !isHost
+          toggle ready
+          on hover fill $buttonHover
+          on checked fill #2F8F4A
+          text label
+            key lobby.ready
+            fontSize 24
+            color $text
+          end
+        end
+      end
+      text status
+        size fill hug
+        key lobby.waitHost
+        visible waiting
+        fontSize 22
+        color $textDim
+      end
+      text needReady
+        size fill hug
+        key lobby.waitReady
+        visible needReady
+        fontSize 22
+        color $textDim
+      end
+      frame buttons
+        size fill hug
+        layout row
+        gap 12
+        frame start
+          size fill 64
+          layout row
+          justify center
+          align center
+          fill $accent
+          radius $radius
+          visible isHost
+          disabled !canStart
+          button lobby.start
+          on hover fill #FFD86A
+          on disabled opacity 0.4
+          text label
+            key lobby.start
+            fontSize 28
+            color #141922
+          end
+        end
+        frame invite
+          size 220 64
+          layout row
+          justify center
+          align center
+          fill $button
+          stroke 1 $panelStroke
+          radius $radius
+          visible online
+          button lobby.invite
+          on hover fill $buttonHover
+          text label
+            key lobby.invite
+            fontSize 24
+            color $text
+          end
+        end
+        frame leave
+          size 200 64
+          layout row
+          justify center
+          align center
+          fill $button
+          stroke 1 $panelStroke
+          radius $radius
+          button lobby.leave
+          on hover fill $buttonHover
+          on pressed fill $buttonPressed
+          text label
+            key lobby.leave
+            fontSize 24
+            color $text
+          end
+        end
+      end
+    end
+    frame chatPanel
+      size 520 fill
+      layout column
+      gap 12
+      padding 28 28
+      fill $panel
+      stroke 1 $panelStroke
+      radius 16
+      shadow 0 12 40 0 #000000AA
+      visible !offline
+      text chatTitle
+        key chat.title
+        fontSize 26
+        color $text
+      end
+      frame lines
+        size fill fill
+        layout column
+        justify end
+        gap 6
+        clip
+        list chat
+        frame line
+          size fill hug
+          layout row
+          gap 10
+          text from
+            content {name}
+            fontSize 20
+            color $accent
+          end
+          text said
+            size fill hug
+            content {text}
+            fontSize 20
+            color $text
+          end
+        end
+      end
+      frame chatBox
+        size fill 52
+        layout row
+        align center
+        padding 0 14
+        fill #00000055
+        stroke 1 $panelStroke
+        radius 10
+        text chatInput
+          size fill hug
+          textInput chatDraft chat.send
+          placeholder chat.placeholder
+          maxLength 80
+          fontSize 22
+          color $text
+          maxLines 1
+        end
+      end
+    end
+  end
+end

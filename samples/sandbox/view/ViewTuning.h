@@ -67,6 +67,9 @@ MEALKIT_STRUCT(ViewTuning) {
                                 Color::rgb(20, 184, 166), Color::rgb(249, 115, 22)}),
                   "플레이어 색");
     MEALKIT_FIELD(f32, nameTagHeight, 2.1f, "이름표 높이 (캐릭터 발 위, m)");
+    MEALKIT_FIELD(f32, menuOrbitSpeed, 0.08f, "메뉴 뒤 카메라가 도는 속도 (rad/s)");
+    MEALKIT_FIELD(f32, resultsSeconds, 20.0f, "결과 화면 뒤 방장이 자동으로 로비로 돌아가기까지 (초)");
+    MEALKIT_FIELD(f32, chatShowSeconds, 8.0f, "매치 중 새 채팅 줄을 보여 주는 시간 (초)");
     MEALKIT_FIELD(PropColors, propColors,
                   (PropColors{Color::rgb(232, 98, 82), Color::rgb(245, 176, 65), Color::rgb(92, 172, 238),
                               Color::rgb(120, 200, 120), Color::rgb(190, 120, 220), Color::rgb(236, 236, 230)}),

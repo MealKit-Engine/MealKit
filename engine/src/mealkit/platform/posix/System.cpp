@@ -14,4 +14,9 @@ void showErrorDialog(const char*, const char*) {}
 void exitProcess(int code) { std::_Exit(code); }
 u32 processId() { return static_cast<u32>(getpid()); }
 
+std::string userName() {
+    const char* name = std::getenv("USER");
+    return name ? std::string(name) : std::string();
+}
+
 } // namespace mealkit

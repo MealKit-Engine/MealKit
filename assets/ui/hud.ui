@@ -2,7 +2,7 @@
 board hud 1920 1080
   frame scoreboard
     pos 32 32
-    size 320 hug
+    size 440 hug
     layout column
     padding 16 20
     gap 8
@@ -139,6 +139,78 @@ board hud 1920 1080
       key hud.settings
       fontSize 22
       color $text
+    end
+  end
+  text countdown
+    pos 760 360
+    size 400 hug
+    constraints center center
+    visible countdown
+    content {countdown}
+    fontSize 180
+    color $accent
+    textAlign center
+  end
+  text go
+    pos 560 400
+    size 800 hug
+    constraints center center
+    visible go
+    key hud.go
+    fontSize 120
+    color $accent
+    textAlign center
+  end
+  frame chat
+    pos 32 600
+    size 620 hug
+    constraints left bottom
+    layout column
+    gap 8
+    frame chatLines
+      size fill hug
+      layout column
+      gap 4
+      list chat
+      frame line
+        size hug hug
+        layout row
+        gap 10
+        padding 4 12
+        fill #0A0D14A0
+        radius 8
+        text from
+          content {name}
+          fontSize 22
+          color $accent
+        end
+        text said
+          size hug hug
+          content {text}
+          fontSize 22
+          color $text
+          maxLines 2
+        end
+      end
+    end
+    frame chatBox
+      size fill 52
+      layout row
+      align center
+      padding 0 14
+      fill #0A0D14D0
+      stroke 1 $panelStroke
+      radius 10
+      visible chatOpen
+      text chatInput
+        size fill hug
+        textInput chatDraft chat.send
+        placeholder chat.placeholder
+        maxLength 80
+        fontSize 22
+        color $text
+        maxLines 1
+      end
     end
   end
   text respawn

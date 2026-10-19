@@ -6,6 +6,9 @@
 
 namespace mealkit::net {
 
+inline constexpr u32 kBroadcastIp = 0xFFFFFFFFu; // 255.255.255.255 (같은 네트워크 전체)
+inline constexpr u32 kLoopbackIp = 0x7F000001u;  // 127.0.0.1
+
 struct Address {
     u32 ip = 0; // 호스트 바이트 순서 IPv4
     u16 port = 0;
@@ -30,6 +33,9 @@ public:
     UdpSocket& operator=(const UdpSocket&) = delete;
 
     bool open(u16 port, bool loopbackOnly = false); // port 0 = 임의 포트, loopbackOnly = 127.0.0.1에만 바인딩
+    // 같은 포트를 여러 소켓이 같이 듣고(같은 PC의 여러 게임), 브로드캐스트를 받는다 (LAN 방 찾기)
+    bool openShared(u16 port);
+    bool enableBroadcast(); // kBroadcastIp로 보낼 수 있게
     void close();
     bool isOpen() const;
     bool sendTo(const Address& to, const void* data, u32 size);

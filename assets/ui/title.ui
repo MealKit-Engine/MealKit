@@ -1,0 +1,43 @@
+# MealKit UI (hand-written): title screen. View model: TitleVm (samples/sandbox/app/Screens.h). Text: assets/strings.
+# Any key (ui.confirm, jump) or a click goes to the main menu (app/Flow.cpp).
+board title 1920 1080
+  frame start
+    pos 0 0
+    size 1920 1080
+    constraints leftright topbottom
+    button title.start
+  end
+  frame shade
+    pos 0 0
+    size 1920 1080
+    constraints leftright topbottom
+    fill radial 0.5 0.45 0.7 0.6 #05070CA0 #05070C20
+  end
+  text name
+    pos 260 380
+    size 1400 hug
+    constraints center center
+    key game.title
+    fontSize 104
+    color $text
+    textAlign center
+  end
+  text press
+    pos 460 620
+    size 1000 hug
+    constraints center center
+    key title.press
+    fontSize 34
+    color $accent
+    textAlign center
+  end
+  text version
+    pos 1420 1016
+    size 480 hug
+    constraints right bottom
+    content {version}
+    fontSize 20
+    color $textDim
+    textAlign right
+  end
+end

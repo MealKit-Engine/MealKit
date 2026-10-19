@@ -44,3 +44,15 @@ shake 0.1
 shakeSeconds 0.15
 shakeFrequency 22
 shakeRange 8
+
+row Countdown
+sound ui_click
+
+row MatchStart
+sound ui_confirm
+flash 0.15
+flashSeconds 0.25
+flashColor #FFFFFF
+
+row MatchEnd
+sound ui_confirm

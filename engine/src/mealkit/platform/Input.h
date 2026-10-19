@@ -2,6 +2,8 @@
 
 #include "mealkit/core/Types.h"
 
+#include <string>
+
 namespace mealkit {
 
 // Win32 가상 키 코드. 글자 키는 'W' 처럼 대문자 문자를 그대로 쓴다.
@@ -44,6 +46,9 @@ public:
     f32 mouseX() const { return m_x; }
     f32 mouseY() const { return m_y; }
     bool mouseMoved() const { return m_moved; }
+    // 이번 프레임에 친 글자 (UTF-8, 한글 입력기 조합이 끝난 글자 포함, 제어 문자 없음)와 지우기 횟수 (키 반복 포함). 글자 입력 위젯용
+    const std::string& text() const { return m_text; }
+    u32 backspaces() const { return m_backspaces; }
 
     // --- Window 내부 사용 ---
     void beginFrame() {
@@ -51,6 +56,30 @@ public:
         for (int i = 0; i < 3; ++i) m_prevMouse[i] = m_mouse[i];
         m_dx = m_dy = m_wheel = 0.0f;
         m_moved = false;
+        m_text.clear();
+        m_backspaces = 0;
+    }
+    void addText(u32 codepoint) { // 글자 하나 (UTF-8로 붙인다)
+        if (codepoint == 8) {
+            ++m_backspaces;
+            return;
+        }
+        if (codepoint < 0x20 || codepoint == 0x7F || codepoint > 0x10FFFF) return;
+        if (codepoint < 0x80) {
+            m_text += static_cast<char>(codepoint);
+        } else if (codepoint < 0x800) {
+            m_text += static_cast<char>(0xC0 | (codepoint >> 6));
+            m_text += static_cast<char>(0x80 | (codepoint & 0x3F));
+        } else if (codepoint < 0x10000) {
+            m_text += static_cast<char>(0xE0 | (codepoint >> 12));
+            m_text += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+            m_text += static_cast<char>(0x80 | (codepoint & 0x3F));
+        } else {
+            m_text += static_cast<char>(0xF0 | (codepoint >> 18));
+            m_text += static_cast<char>(0x80 | ((codepoint >> 12) & 0x3F));
+            m_text += static_cast<char>(0x80 | ((codepoint >> 6) & 0x3F));
+            m_text += static_cast<char>(0x80 | (codepoint & 0x3F));
+        }
     }
     void setKey(u8 vk, bool down) { m_keys[vk] = down; }
     void setMouse(MouseButton b, bool down) { m_mouse[static_cast<u8>(b)] = down; }
@@ -77,6 +106,8 @@ private:
     f32 m_dx = 0.0f, m_dy = 0.0f, m_wheel = 0.0f;
     f32 m_x = -1.0f, m_y = -1.0f;
     bool m_moved = false;
+    std::string m_text;
+    u32 m_backspaces = 0;
 };
 
 } // namespace mealkit

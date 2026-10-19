@@ -66,6 +66,35 @@ bool UdpSocket::open(u16 port, bool loopbackOnly) {
     return true;
 }
 
+bool UdpSocket::openShared(u16 port) {
+    close();
+    const int s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if (s < 0) return false;
+    fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK);
+    int reuse = 1; // 브로드캐스트는 같은 포트에 묶인 모든 소켓이 받는다
+    setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
+#ifdef SO_REUSEPORT
+    setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse));
+#endif
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(INADDR_ANY);
+    addr.sin_port = htons(port);
+    if (bind(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) != 0) {
+        MEALKIT_WARN("bind(shared port %u) failed (%d)", port, errno);
+        ::close(s);
+        return false;
+    }
+    m_socket = static_cast<u64>(s);
+    return true;
+}
+
+bool UdpSocket::enableBroadcast() {
+    if (!isOpen()) return false;
+    int on = 1;
+    return setsockopt(static_cast<int>(m_socket), SOL_SOCKET, SO_BROADCAST, &on, sizeof(on)) == 0;
+}
+
 void UdpSocket::close() {
     if (isOpen()) {
         ::close(static_cast<int>(m_socket));

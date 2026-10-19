@@ -1,0 +1,18 @@
+# MealKit UI (hand-written): loading screen, drawn for one frame while the match world is built (no view model).
+board loading 1920 1080
+  frame dim
+    pos 0 0
+    size 1920 1080
+    constraints leftright topbottom
+    fill #05070CE6
+  end
+  text text
+    pos 560 500
+    size 800 hug
+    constraints center center
+    key loading.text
+    fontSize 44
+    color $text
+    textAlign center
+  end
+end

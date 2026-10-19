@@ -168,12 +168,13 @@ void respawnPawns(World& world) {
 
 void controlPawns(World& world) {
     WorldState& s = world.state;
+    const bool playing = matchPlaying(world); // 카운트다운·끝난 뒤에는 서서 기다린다 (AI 판단도 멈춘다)
     for (auto [id, c] : s.controllers) { // 컨트롤러 순서 = 플레이어 슬롯 순서, 그다음 AI
         Pawn* p = s.pawns.get(c.pawn);
         if (!p) continue;
         if (c.kind == ControllerKind::Player)
-            movePawn(world, *p, intentFromInput(world.inputs[c.slot]), static_cast<u8>(c.slot));
-        else if (c.kind == ControllerKind::AI) movePawn(world, *p, thinkAI(world, c, *p), kNoPlayer);
+            movePawn(world, *p, playing ? intentFromInput(world.inputs[c.slot]) : Intent{}, static_cast<u8>(c.slot));
+        else if (c.kind == ControllerKind::AI) movePawn(world, *p, playing ? thinkAI(world, c, *p) : Intent{}, kNoPlayer);
     }
 }
 
@@ -209,7 +210,7 @@ void removeFallenPawns(World& world) {
             c->respawn.start(s.tick, world.tuning.respawn);
             unpossess(world, p.owner);
         }
-        if (player != kNoPlayer) ++s.slots[player].falls;
+        if (player != kNoPlayer && matchPlaying(world)) ++s.slots[player].falls; // 점수는 경기 중에만
         world.events.push(makeEvent(EventKind::Fall, player, p.position, 0.0f));
         s.pawns.destroy(pawnId); // 바디는 틱 끝에 지운다 (World::step)
     }

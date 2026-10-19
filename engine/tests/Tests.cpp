@@ -15,6 +15,7 @@
 #include "mealkit/loc/Strings.h"
 #include "mealkit/core/Clock.h"
 #include "mealkit/net/Lockstep.h"
+#include "mealkit/net/Rooms.h"
 #include "mealkit/net/Socket.h"
 #include "mealkit/core/Reflect.h"
 #include "mealkit/physics/PhysicsWorld.h"
@@ -867,6 +868,99 @@ TEST_CASE(command_channel) {
         client.shutdown();
         host.shutdown();
     }
+}
+
+// 화면 흐름의 세션: 로비 이름·준비·로드아웃, 채팅 중계, 매치 → 로비 → 두 번째 매치, LAN 방 알림 (UDP 루프백)
+TEST_CASE(lobby_chat_rematch) {
+    TEST_CHECK(net::clampUtf8("abc", 2) == "ab");
+    TEST_CHECK(net::clampUtf8("\xEA\xB0\x80\xEA\xB0\x80", 4) == "\xEA\xB0\x80"); // 한글 한 글자(3바이트) 중간에서 자르지 않는다
+
+    constexpr u16 kPort = 27933;
+    net::LockstepSession host, client;
+    host.setLocalName("Host");
+    client.setLocalName("Guest");
+    TEST_CHECK(host.host(kPort, 4, 2, true));
+    TestCommand pick;
+    pick.value = 7;
+    TEST_CHECK(game::setLoadout(client, pick));
+    net::Address address;
+    net::startup();
+    TEST_CHECK(net::resolveAddress("127.0.0.1", kPort, address));
+    net::cleanup();
+    TEST_CHECK(client.join(address));
+    net::LockstepSession* sessions[2] = {&host, &client};
+    auto pump = [&](auto&& done, f64 seconds) {
+        const f64 until = nowSeconds() + seconds;
+        while (nowSeconds() < until && !done()) {
+            for (net::LockstepSession* s : sessions) s->update(nowSeconds());
+            sleepSeconds(0.001);
+        }
+        return done();
+    };
+    // 로비: 클라이언트가 호스트의 목록에서 자기 이름·준비·로드아웃을 본다
+    client.setLocalReady(true);
+    TEST_CHECK(pump([&] {
+        const auto& m = client.lobbyMembers();
+        return m.size() == 2 && m[0].host && m[0].name == "Host" && m[1].name == "Guest" && m[1].ready;
+    }, 5.0));
+    TestCommand seen;
+    TEST_CHECK(game::readLobbyLoadout(client.lobbyMembers()[1], seen) && seen.value == 7);
+    // 채팅: 양쪽이 같은 순서로 받는다 (클라이언트 것도 호스트를 거쳐 돌아온다)
+    TEST_CHECK(client.sendChat("hi") && host.sendChat("hello"));
+    TEST_CHECK(!host.sendChat("too fast")); // kChatInterval
+    TEST_CHECK(pump([&] { return host.chatLog().size() == 2 && client.chatLog().size() == 2; }, 5.0));
+    for (net::LockstepSession* s : sessions) {
+        TEST_CHECK(s->chatLog()[0].text == host.chatLog()[0].text && s->chatLog()[1].text == host.chatLog()[1].text);
+        TEST_CHECK(s->chatLog()[0].text == "hello" || s->chatLog()[1].text == "hello");
+    }
+    TEST_CHECK(host.chatLog()[0].name == (host.chatLog()[0].text == "hi" ? "Guest" : "Host"));
+    // 매치 두 번: 시작 → 몇 틱 → 로비로 (클라이언트도 돌아오고 준비가 풀린다) → 다시 시작
+    for (u32 match = 1; match <= 2; ++match) {
+        host.startMatch(match, 0);
+        TEST_CHECK(pump([&] { return client.state() == net::SessionState::Running; }, 5.0));
+        TEST_CHECK(host.matchIndex() == match && client.matchIndex() == match);
+        u32 next[2] = {0, 0};
+        TEST_CHECK(pump([&] {
+            for (u32 i = 0; i < 2; ++i)
+                while (next[i] < 20 && sessions[i]->canExecute(next[i])) {
+                    const u32 t = next[i]++;
+                    sessions[i]->tickExecuted(t, t);
+                    sessions[i]->submitLocalInput(t + sessions[i]->inputDelay(), {});
+                }
+            return next[0] == 20 && next[1] == 20;
+        }, 5.0));
+        TEST_CHECK(!host.desynced());
+        host.returnToLobby();
+        TEST_CHECK(pump([&] { return client.state() == net::SessionState::Lobby; }, 5.0));
+        TEST_CHECK(!client.localReady());
+        client.setLocalReady(true);
+        TEST_CHECK(pump([&] { return host.lobbyMembers().size() == 2 && host.lobbyMembers()[1].ready; }, 5.0));
+    }
+    client.reset();
+    TEST_CHECK(client.state() == net::SessionState::Idle && client.localName() == "Guest");
+    TEST_CHECK(pump([&] { return host.lobbyPlayerCount() == 1; }, 5.0)); // 나간 사람은 로비에서 빠진다
+    host.shutdown();
+
+    // LAN 방 알림: 127.0.0.1로만 보내도 찾는다, 다른 게임 이름은 무시한다
+    net::RoomFinder finder, other;
+    TEST_CHECK(finder.open("TestGame") && other.open("OtherGame"));
+    net::RoomAnnouncer announcer;
+    TEST_CHECK(announcer.open(false));
+    net::RoomAnnouncement room;
+    room.game = "TestGame";
+    room.hostName = "Host";
+    room.port = 12345;
+    room.players = 1;
+    room.maxPlayers = 4;
+    const f64 until = nowSeconds() + 3.0;
+    while (nowSeconds() < until && finder.rooms().empty()) {
+        announcer.update(nowSeconds(), room);
+        finder.update(nowSeconds());
+        other.update(nowSeconds());
+        sleepSeconds(0.01);
+    }
+    TEST_CHECK(finder.rooms().size() == 1 && finder.rooms()[0].hostName == "Host" &&
+               finder.rooms()[0].address.port == 12345 && other.rooms().empty());
 }
 
 TEST_CASE(project_file) {

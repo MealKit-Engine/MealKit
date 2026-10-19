@@ -105,7 +105,9 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/net/Socket.cpp
     src/mealkit/net/Transport.h
     src/mealkit/net/Lockstep.h
-    src/mealkit/net/Lockstep.cpp)
+    src/mealkit/net/Lockstep.cpp
+    src/mealkit/net/Rooms.h
+    src/mealkit/net/Rooms.cpp)
 set(MEALKIT_FRONT_SOURCES
     src/mealkit/platform/Input.h
     src/mealkit/platform/Gamepad.h
@@ -134,6 +136,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/game/FrameStats.cpp
     src/mealkit/game/Frontend.h
     src/mealkit/game/Frontend.cpp
+    src/mealkit/game/MatchService.h
+    src/mealkit/game/MatchService.cpp
     src/mealkit/game/GameMain.h
     src/mealkit/game/GameMain.cpp
     src/mealkit/render/Renderer.cpp

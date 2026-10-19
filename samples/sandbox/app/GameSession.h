@@ -1,5 +1,6 @@
 #pragma once
 
+#include "app/Flow.h"
 #include "app/ProjectSettings.h"
 #include "app/SaveData.h"
 #include "sim/World.h"
@@ -41,29 +42,36 @@ public:
     void start(mealkit::game::GameContext& ctx, const mealkit::scene::Scene& scene,
                const mealkit::game::PlayOptions& options) override;
     bool started() const override { return m_sim.started(); }
+    void stop(mealkit::game::GameContext& ctx) override;
+    bool menus() const override { return true; } // 타이틀·메뉴·로비·결과 화면 (app/Flow.cpp)
     void update(mealkit::game::GameContext& ctx, mealkit::f64 dt) override;
     void buildFrame(mealkit::game::GameContext& ctx, mealkit::f64 now, mealkit::render::FrameParams& frame,
                     mealkit::render::DrawList& out) override;
 
     u32 nextTick() const override { return m_sim.nextTick(); }
-    u64 stateHash() const override { return m_sim.world().hash(); }
-    u32 activeBodies() const override { return m_sim.world().activeBodies(); }
+    // 매치 전(메뉴·로비·로딩)에도 불린다
+    u64 stateHash() const override { return m_sim.started() ? m_sim.world().hash() : 0; }
+    u32 activeBodies() const override { return m_sim.started() ? m_sim.world().activeBodies() : 0; }
     bool finished() const override { return m_sim.finished(); }
     bool captureDue() override { return m_sim.captureDue(); }
     mealkit::f64 takeSimMsPerTick() override { return m_sim.takeSimMsPerTick(); }
     void setTuning(const void* tuning) override;
     mealkit::reflect::View stateView() const override {
+        if (!m_sim.started()) return {};
         return {&mealkit::reflect::typeOf<WorldState>(), &m_sim.world().state};
     }
     mealkit::game::SimDebug* debug() override { return &m_sim; }
     void lobby(mealkit::net::LockstepSession& session, const mealkit::game::PlayOptions& options,
                const std::string& userFolder) override;
+    void loadSave(const std::string& userFolder);
     void debugUi(mealkit::game::GameContext& ctx) override;
 
 private:
     // 고정 틱 실행, 보간용 직전 상태, 그림자 시뮬레이션, 기록·되감기 (엔진 mealkit/game/Simulation.h)
     mealkit::game::Simulation<World> m_sim;
-    mealkit::scene::Scene m_scene;
+    Flow m_flow; // 화면 흐름 (메뉴, 로비, 일시정지, 결과)
+    mealkit::scene::Scene m_scene;                       // 평평하게 펼친 매치 씬 (메뉴 뒤에도 그린다)
+    const mealkit::scene::Scene* m_sceneSource = nullptr; // m_scene을 만든 원본
     mealkit::game::PlayOptions m_options;
     OrbitCamera m_camera;
     LocalInput m_input;

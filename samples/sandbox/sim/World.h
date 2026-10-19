@@ -108,14 +108,14 @@ MEALKIT_STRUCT(Pad) {
 
 // 시뮬레이션 → 화면 알림 (소리·효과·흔들림). sim/은 쓰기만 하고 읽지 않는다.
 // 필드 선언이라 에디터 [연출] 패널이 종류 이름과 필드를 보여 주고, 연출 표(assets/feedback.table)가 종류 이름으로 연출을 고른다.
-MEALKIT_ENUM(EventKind, u8, Push, Bounce, Spawn, Fall, Jump, Impact);
+MEALKIT_ENUM(EventKind, u8, Push, Bounce, Spawn, Fall, Jump, Impact, Countdown, MatchStart, MatchEnd);
 inline constexpr u8 kNoPlayer = 0xFF;
 
 MEALKIT_STRUCT(GameEvent) {
     MEALKIT_FIELD(EventKind, kind, EventKind::Push, "종류");
     MEALKIT_FIELD(u8, player, kNoPlayer, "플레이어 슬롯 (AI면 255)");
     MEALKIT_FIELD(Vec3, position, {}, "위치");
-    MEALKIT_FIELD(f32, value, 0.0f, "밀치기: 범위 (m), 충돌: 다가오던 속도 (m/s)");
+    MEALKIT_FIELD(f32, value, 0.0f, "밀치기: 범위 (m), 충돌: 다가오던 속도 (m/s), 카운트다운: 남은 초");
 };
 
 inline GameEvent makeEvent(EventKind kind, u8 player, Vec3 position, f32 value) {
@@ -128,10 +128,15 @@ inline GameEvent makeEvent(EventKind kind, u8 player, Vec3 position, f32 value) 
 }
 inline constexpr u32 kMaxEventsPerTick = 64;
 
+// 매치 단계 (sim/Match.cpp): 카운트다운 동안과 끝난 뒤에는 아무도 움직이지 않는다. 화면 흐름은 Finished면 결과 화면을 연다
+MEALKIT_ENUM(MatchPhase, u8, Countdown, Playing, Finished);
+
 // 시뮬레이션 상태 전체 (물리 바디의 실제 상태는 PhysicsWorld 안에 있고, 위치·회전은 매 틱 여기로 옮겨 담는다).
 // 화면은 직전 틱과 이번 틱의 WorldState를 보간해 그린다.
 MEALKIT_STRUCT(WorldState) {
     MEALKIT_FIELD(u32, tick, 0, "틱");
+    MEALKIT_FIELD(MatchPhase, phase, MatchPhase::Countdown, "매치 단계");
+    MEALKIT_FIELD(TickTimer, phaseEnd, {}, "단계가 끝나는 틱 (카운트다운, 경기 시간)");
     MEALKIT_FIELD(u32, playerCount, 0, "플레이어 수");
     MEALKIT_ARRAY(PlayerSlot, mealkit::net::kMaxPlayers, slots, "플레이어 슬롯");
     MEALKIT_FIELD(mealkit::sim::Pool<Controller>, controllers, {}, "컨트롤러");

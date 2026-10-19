@@ -11,6 +11,9 @@
 namespace sandbox {
 
 MEALKIT_STRUCT(Tuning) {
+    // 매치
+    MEALKIT_FIELD(mealkit::Ticks, countdown, mealkit::Ticks::seconds(3.0f), "시작 카운트다운 (초, 0이면 없음)");
+    MEALKIT_FIELD(mealkit::Ticks, matchLength, mealkit::Ticks::seconds(120.0f), "경기 시간 (초, 0이면 끝나지 않음)");
     // 이동
     MEALKIT_FIELD(mealkit::f32, playerSpeed, 7.0f, "이동 속도 (m/s)");
     MEALKIT_FIELD(mealkit::f32, groundAccel, 12.0f, "지상 가속 (1/s)");

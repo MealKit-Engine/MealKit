@@ -3,6 +3,24 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.24 — 1단계 진행 중 (2026-10-19)
+
+### [x] 기본 화면 흐름 템플릿 + LAN 방 찾기 + 텍스트 채팅 (완료 2026-10-19)
+- **왜**: 호스트·참가를 명령줄로만 고를 수 있었고, 세션은 매치 한 번이면 끝이라 결과 뒤 로비로 돌아갈 수 없었다. v0.5 목표("기준 샘플이 타이틀 → 로비 → 매치 → 결과 → 로비를 끝까지 돈다")의 중심 항목.
+- **세션** (`net/Lockstep.*`): 세션 하나로 매치 여러 번 — `returnToLobby()`(호스트, 클라이언트는 로비 신호를 받고 돌아온다, 준비가 풀린다), `matchIndex()`(시작·로비 신호에 실려 지난 매치의 늦은 시작·입력·묶음 패킷을 버린다), `openOffline()`(혼자 하기도 로비부터), `reset()`(Idle로, 이름·콘텐츠 해시는 남는다). 로비 정보: `setLocalName`·`setLocalReady`, 호스트가 모은 `lobbyMembers()`(번호·이름·준비·방장·로드아웃, 로비 신호가 못 담으면 다음 신호가 이어서). 나간 사람의 번호를 다시 쓰고, 시작할 때 빈 번호 없이 다시 매긴다. `net::buildId()`·`clampUtf8` 공개.
+- **채팅**: `sendChat(줄)`/`chatLog()`(최근 50줄). 클라이언트 → 호스트(확인받을 때까지 0.1초마다 다시), 호스트가 번호를 붙여 모두에게 같은 순서로 중계(확인받을 때까지 다시). 120바이트, 0.5초에 한 줄. 틱 밖이라 입력 기록·리플레이에 들어가지 않는다.
+- **LAN 방 찾기** (`net/Rooms.h`): 호스트가 로비 동안 1초마다 방 알림(게임 이름, 빌드·콘텐츠 해시, 인원, 포트, 방장 이름)을 브로드캐스트와 127.0.0.1로(`--local`이면 127.0.0.1만), 참가 메뉴가 UDP 27199를 여럿이 같이 듣는다(`SO_REUSEADDR`). 같은 게임만, 버전·데이터가 다르면 회색. 플랫폼 계층에 `UdpSocket::openShared`·`enableBroadcast`, `userName()`.
+- **엔진 `game::MatchService`** (`mealkit/game/MatchService.h`, `GameContext::match`): 세션을 갖고 메뉴가 부르는 함수 `playOffline`·`host`·`hostOnline`(Steam)·`join`·`joinOnline`·`start`·`returnToLobby`·`leave`·`setBrowsing`/`rooms`, 단계 `phase()`. 출시 exe·에디터 플레이·참가 창이 하나씩 갖는다(명령줄도 같은 함수). Steam 로그인은 빌드에 들어 있으면 시작할 때(메뉴의 Steam 버튼, 친구 초대 수락 → 바로 참가). 기본 이름은 온라인 계정 → 컴퓨터 사용자 이름.
+- **`GameInstance`** (`kApiVersion` 20): `menus()`(true면 명령줄 없이 실행할 때 메뉴부터, 엔진이 Esc·Enter를 쓰지 않는다. false인 예전 게임은 동작 그대로), `stop(ctx)`(Running이 끝나면 한 번 — 로비로, 나감, 끊김). 엔진은 Running이 되면 한 프레임(로딩 화면) 뒤 `start`. 매치 전에도 `stateHash`·`activeBodies`·`stateView`가 불린다(0·빈 값). `GameContext::scene`(메뉴 뒤 배경). `Window::close()`.
+- **게임 UI**: 글자 입력 위젯 `textInput <필드> [액션]`(글자 노드, `placeholder`, `maxLength`): 키보드 글자(`Input::text`, `WM_CHAR` UTF-16 → UTF-8, 한글 입력기 조합 결과)·지우기, Enter면 액션(기본 `submit`), Esc면 그만, 치는 동안 게임은 키보드를 받지 않는다. `System::focusText`·`editingText`·`pressAny`.
+- **시험 옵션**: `--frames <n>`(그리고 끝, `--capture <png>`에 틱이 없으면 마지막 프레임), `--ui-press <프레임:노드,...>`(위젯을 이름으로 누른다). check.ps1 "Game screen flow (title to match)".
+- **sandbox** (템플릿): `app/Flow.*`(화면 고르기·버튼), `app/Screens.h`(뷰 모델), 화면 `assets/ui/{title,menu,join,lobby,loading,pause,results,message}.ui`, HUD에 카운트다운·"시작!"·남은 시간·채팅. 시뮬레이션 매치 단계 `MatchPhase`(카운트다운 3초 → 경기 120초 → 끝, 튜닝 `countdown`·`matchLength`, 그동안 입력·AI·점수 없음, 이벤트 Countdown·MatchStart·MatchEnd → 연출 표). 결과는 적게 떨어진 순, 방장은 버튼이나 20초 뒤 모두 로비로(`view.tuning` `resultsSeconds`). 로비: 이름(세이브 `playerName`), 몸 선택(로드아웃), 준비, 채팅, 방장 시작(모두 준비하면). 일시정지(Esc/Start): 혼자 하기는 매치가 멈추고 여러 명이면 메뉴만. 입력 액션 `menu.pause`(Esc, Start)·`chat.open`(Enter), `menu.settings`의 패드 Start를 뺐다.
+  상태 필드가 늘어 고정 기록을 다시 만들었다(`arena_4p_seed7.rec`, 최종 해시 `6f09aeef2d0059f3`).
+- **검증**: 단위 테스트 `lobby_chat_rematch`(UDP 루프백: 로비 목록·로드아웃, 채팅 순서, 매치 → 로비 → 두 번째 매치, 나간 사람, LAN 방 알림). 두 프로세스로 LAN 방 찾기 → 참가 → 준비 → 시작, 혼자 하기 결과 → 로비 → 두 번째 매치를 `--ui-press`로 확인. check.ps1 전체.
+- **남은 것**: Steam 로비 흐름은 컴파일만 확인했다(실접속은 2026-10-18 결정대로 가정). 채팅에 금칙어·신고 없음(로드맵대로). 게임패드로 글자 입력은 없다(화면 키보드는 콘솔 항목에서). 끊긴 이유는 아직 영어 로그 문장이다("버전 표시와 접속 거부 이유" 항목에서 문자열 키로).
+- **영향**: 기존 프로젝트는 그대로 빌드·동작한다(`menus()` 기본 false). 흐름을 쓰려면 sandbox의 `app/Flow.*`·`Screens.h`·화면 `.ui`·문자열·바인딩 줄을 가져간다(`tools\upgrade_project.ps1 -Source`).
+- **빌드 주의**: 에이전트 셸처럼 콘솔이 UTF-8이면 MSVC의 `/showIncludes` 줄이 ninja의 접두어(CP949)와 달라 헤더 의존이 기록되지 않는다. `cmd /c "chcp 949 >nul & build.bat"`로 빌드한다(그렇지 않으면 헤더만 바뀐 경우 오래된 오브젝트가 남는다).
+
 ## v0.4.23 — 1단계 진행 중 (2026-10-19)
 
 ### [x] 코드 정리 1·2 — 매치 데이터 한 곳, 매치 옵션 하나 (완료 2026-10-19)

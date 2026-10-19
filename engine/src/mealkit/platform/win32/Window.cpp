@@ -153,6 +153,8 @@ bool Window::pumpMessages() {
     return !m_quit;
 }
 
+void Window::close() { m_quit = true; }
+
 bool Window::consumeResize() {
     const bool r = m_resized;
     m_resized = false;
@@ -209,6 +211,18 @@ std::intptr_t Window::handleMessage(void* hwndPtr, u32 msg, std::uintptr_t wpara
             setCursorCaptured(false);
         }
         return 0;
+    case WM_CHAR: { // 글자 입력 위젯 (UTF-16, 두 개로 오는 글자는 합친다)
+        const u32 unit = static_cast<u32>(wparam);
+        if (unit >= 0xD800 && unit < 0xDC00) {
+            m_highSurrogate = unit;
+        } else if (unit >= 0xDC00 && unit < 0xE000) {
+            if (m_highSurrogate) m_input.addText(0x10000 + ((m_highSurrogate - 0xD800) << 10) + (unit - 0xDC00));
+            m_highSurrogate = 0;
+        } else {
+            m_input.addText(unit);
+        }
+        return 0;
+    }
     case WM_KEYDOWN: m_input.setKey(static_cast<u8>(wparam), true); return 0;
     case WM_KEYUP: m_input.setKey(static_cast<u8>(wparam), false); return 0;
     case WM_SYSKEYDOWN: m_input.setKey(static_cast<u8>(wparam), true); break; // Alt+F4 등은 기본 처리
