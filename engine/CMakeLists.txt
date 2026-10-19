@@ -65,6 +65,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/game/GameData.cpp
     src/mealkit/data/Tables.h
     src/mealkit/data/Tables.cpp
+    src/mealkit/game/GameOptions.h
+    src/mealkit/game/GameOptions.cpp
     src/mealkit/game/Headless.h
     src/mealkit/game/Headless.cpp
     src/mealkit/game/InputRecord.h

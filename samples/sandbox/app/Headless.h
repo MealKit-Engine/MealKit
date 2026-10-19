@@ -27,7 +27,7 @@ struct Headless {
     // 봇의 매치 시작 데이터: 플레이어마다 다른 몸 (로드아웃 경로를 결정론 시험에 넣는다)
     static void botLoadout(u8 player, mealkit::net::LockstepSession& session);
     // 프로젝트 설정의 기본 포트·인원
-    static void defaults(mealkit::game::HeadlessOptions& options, const ProjectSettings& project);
+    static void defaults(mealkit::game::MatchOptions& options, const ProjectSettings& project);
 };
 
 } // namespace sandbox

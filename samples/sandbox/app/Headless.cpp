@@ -62,7 +62,7 @@ void Headless::botLoadout(u8 player, net::LockstepSession& session) {
     game::setLoadout(session, l);
 }
 
-void Headless::defaults(game::HeadlessOptions& options, const ProjectSettings& project) {
+void Headless::defaults(game::MatchOptions& options, const ProjectSettings& project) {
     if (options.port == 0) options.port = project.defaultPort;
     if (options.maxPlayers == 0) options.maxPlayers = project.defaultMaxPlayers;
 }

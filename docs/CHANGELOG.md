@@ -3,6 +3,15 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.23 — 1단계 진행 중 (2026-10-19)
+
+### [x] 코드 정리 1·2 — 매치 데이터 한 곳, 매치 옵션 하나 (완료 2026-10-19)
+- **왜**: 출시 exe(`GameMain.cpp`), 헤드리스(`loadHeadlessData`), 에디터 플레이·참가 창(`playContentHash`)이 각자 씬·튜닝·게임 프로젝트 설정을 읽고 `contentHash`에 같은 일곱 가지를 넘겼다. 한 곳만 빠뜨려도 피어 해시나 기록 재생이 갈린다. 명령줄도 `parseArgs`와 `parseHeadlessArgs`, `--help` 두 벌이었다. 기본 화면 흐름이 메뉴에서 같은 값을 채우기 전에 하나로 모았다.
+- **매치 데이터** (`mealkit/game/GameData.h`): `game::loadMatchData(GameTypes, MatchDataOptions, models, MatchData&)` 하나가 프로젝트 설정(실행 파일 옆에서 찾거나 에디터가 넘긴 것) + 게임 `game.*` 값, 씬(넘긴 씬 / 파일 / 시작 씬, 없으면 기본 아레나), 튜닝, 콘텐츠 해시를 만든다. 게임 타입은 `GameTypes`(오브젝트 종류·튜닝·게임 프로젝트 설정·표): 출시 exe·에디터는 `gameTypes(module)`, 헤드리스는 게임 클래스에서. `contentHash`를 부르는 곳은 이제 이 함수뿐이다. `HeadlessData`·`loadHeadlessData`는 없어졌다.
+- **매치 옵션** (`mealkit/game/GameOptions.h`, 엔진 코어): `MatchOptions`(방 만들기·참가·Steam·인원·시드·자동 시험 출력, 예전 `HeadlessOptions`는 같은 타입의 다른 이름으로 남았다)와 `WindowOptions`(창·렌더러·화면 시험), 파서 `parseGameArgs(argc, argv, match, window)` 하나와 `printGameUsage`(매치·시험·창 묶음). 헤드리스는 `window`를 넘기지 않아 창 옵션을 받고 무시하고, Steam·`--replay-inputs`는 한쪽에서만 받는다. 게임 헤드리스 클래스의 `defaults`는 이제 `game::MatchOptions&`를 받는다(sandbox).
+- **영향**: `kApiVersion`은 그대로. 기존 프로젝트의 `defaults(game::HeadlessOptions&, …)`는 그대로 빌드된다. 출시 exe에서 잘못된 씬 파일은 창을 만들기 전이 아니라 렌더러를 만든 뒤에 실패한다.
+- **검증**: check.ps1 -Quick(결정론 1+3, 헤드리스 기록·재생, 고정 기록 해시 그대로).
+
 ## v0.4.22 — 1단계 진행 중 (2026-10-19)
 
 ### [x] 프레임 루프 합치기 — `game::Frontend` + 엔진의 출시 exe main (완료 2026-10-19, 로드맵 밖)
