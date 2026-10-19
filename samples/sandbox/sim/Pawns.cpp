@@ -62,7 +62,7 @@ void movePawn(World& world, Pawn& p, const Intent& intent, u8 player) {
     if (wishLen2 > 1.0f) wish = wish / std::sqrt(wishLen2);
 
     Vec3 v = world.physics.linearVelocity(p.body);
-    const f32 accel = std::min(1.0f, (p.grounded ? t.groundAccel : t.airAccel) * kTickDt);
+    const f32 accel = std::min(1.0f, (p.grounded ? t.groundAccel : t.airAccel) * world.tickDt);
     v.x += (wish.x * speed - v.x) * accel;
     v.z += (wish.z * speed - v.z) * accel;
     if (p.grounded && intent.jump && v.y < t.jumpMaxRise) {

@@ -14,7 +14,7 @@ void startMatch(World& world) {
 
 void updateMatch(World& world) {
     WorldState& s = world.state;
-    const u32 ticksPerSecond = static_cast<u32>(kTickRate);
+    const u32 ticksPerSecond = world.tickRate;
     switch (s.phase) {
     case MatchPhase::Countdown:
         if (s.phaseEnd.ready(s.tick)) {

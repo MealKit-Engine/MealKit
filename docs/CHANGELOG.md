@@ -3,6 +3,16 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.30 — 1단계 진행 중 (2026-10-19)
+
+### [x] 틱레이트를 프로젝트 설정으로 (완료 2026-10-19)
+- **왜**: 30 Hz 고정이었다. 물체가 적은 액션 게임은 60 Hz가 반응·충돌에 낫다.
+- **설정**: `mealkit.project` `tickRate`(30 기본, 60 선택, 10~120). 콘텐츠 해시에 들어간다(모두 같아야 한다). `game::applyTickRate`가 프로세스 틱레이트(`reflect::setTickRate`)로 정한다: `loadMatchData`(출시 exe·헤드리스·에디터 플레이·참가 창)가 시간 필드(튜닝·씬·표의 초)를 읽기 전에, 에디터는 프로젝트를 열 때와 프로젝트 설정을 저장할 때(다음 플레이부터).
+- **엔진**: `game::tickDt()`·`msToTicks()`(`mealkit/game/ProjectSettings.h`). 헤드리스 루프가 `Game::kTickDt` 대신 `tickDt()`를 쓰므로 헤드리스 클래스의 `kTickDt`는 더 필요 없다. `--delay`는 이제 **밀리초**(기본 100, 틱은 프로젝트를 읽은 뒤 계산), 에디터 플레이도 100 ms. 입력 지연 자동 조절은 이미 틱 길이로 계산한다.
+- **sandbox** (템플릿): `sim/World.h`의 `kTickRate`·`kTickDt` 상수를 없애고 `World::tickRate`·`tickDt`(매치 시작 때 `reset`이 받는다, `Headless::startWorld`가 `reflect::tickRate()`를 넘긴다). 이동 가속·물리 단계·카운트다운 초가 이것을 쓴다. 30 Hz 결과는 그대로(고정 기록 해시 그대로).
+- **영향**: 기존 프로젝트는 그대로 빌드된다(헤드리스 클래스의 `kTickDt`는 쓰이지 않는다). `tickRate`를 바꾸려면 게임 `sim/`의 틱 상수를 sandbox처럼 `World`로 옮긴다.
+- **검증**: `tickRate 60`으로 헤드리스 1+3 1800틱 PASS, 그림자 시뮬레이션 일치, HUD 남은 시간이 초 단위로 맞다(690틱 = 11.5초에서 1:51). 30 Hz check.ps1.
+
 ## v0.4.29 — 1단계 진행 중 (2026-10-19)
 
 ### [x] 접근성 기본 묶음 (완료 2026-10-19)

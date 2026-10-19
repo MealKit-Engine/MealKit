@@ -94,8 +94,10 @@ void overridePropCount(std::vector<World::PropSpawn>& spawns, u32 total) {
 void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuningValue,
                   const mealkit::sim::Table<PropKind>& propKindTable, const mealkit::sim::Table<BodyKind>& bodyKindTable,
                   const std::vector<u32>& playerBodies, const scene::Scene& scene, mealkit::asset::ModelCache& models,
-                  u32 physicsThreads) {
+                  u32 tickRateValue, u32 physicsThreads) {
     physics.init(16384, physicsThreads);
+    tickRate = tickRateValue ? tickRateValue : 30u;
+    tickDt = 1.0f / static_cast<f32>(tickRate);
     tuning = tuningValue;
     propKinds = propKindTable;
     bodyKinds = bodyKindTable;
@@ -147,7 +149,7 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
     respawnPawns(*this);
     controlPawns(*this);
     usePads(*this);
-    physics.step(kTickDt, 2); // 30Hz 틱을 물리 2단계로 나눠 안정성을 높인다
+    physics.step(tickDt, 2); // 틱을 물리 2단계로 나눠 안정성을 높인다
     for (const mealkit::physics::ContactEvent& c : physics.contacts()) // 센 것부터 (스레드 수와 무관한 순서)
         events.push(makeEvent(EventKind::Impact, kNoPlayer, c.point, c.speed));
     removeFallenPawns(*this);

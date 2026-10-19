@@ -18,7 +18,7 @@ void LocalPrediction::addInput(const World& world, u8 player, const net::PlayerI
     Vec3 wish{static_cast<f32>(g.moveX) / 127.0f, 0.0f, static_cast<f32>(g.moveZ) / 127.0f};
     const f32 len2 = lengthSq(wish);
     if (len2 > 1.0f) wish = wish / std::sqrt(len2);
-    m_target += wish * (speed * kTickDt); // 한 틱 동안 갈 거리
+    m_target += wish * (speed * world.tickDt); // 한 틱 동안 갈 거리
 }
 
 void LocalPrediction::update(f32 dt, const PredictionLook& look, bool active) {

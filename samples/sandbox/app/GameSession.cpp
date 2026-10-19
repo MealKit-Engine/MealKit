@@ -49,7 +49,7 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     Tuning tuning;
     game::loadTuning(reflect::typeOf<Tuning>(), &tuning, options.tuningPath);
     const game::MatchInfo match = game::matchInfo(session); // 시드, 인원, 매치 데이터, 플레이어별 로드아웃
-    m_sim.start(options, kTickDt, [&](World& world, u32 physicsThreads) {
+    m_sim.start(options, game::tickDt(), [&](World& world, u32 physicsThreads) {
         Headless::startWorld(world, match, tuning, m_scene, ctx.models, physicsThreads); // 헤드리스와 같은 매치 시작
     });
     m_input.clearLatches();

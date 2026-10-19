@@ -443,3 +443,4 @@ Hit stop (brief screen freeze) = 화면 정지 (잠깐 멈춤)
 Subtitle (game string key, empty is none) = 자막 (게임 문자열 키, 비면 없음)
 Subtitle shown for (s) = 자막을 보이는 시간 (초)
 Subtitle text = 자막 글자
+Simulation ticks per second (30 or 60) = 시뮬레이션 틱레이트 (초당 틱, 30 또는 60)

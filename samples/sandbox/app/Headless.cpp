@@ -36,7 +36,7 @@ void Headless::startWorld(World& world, const game::MatchInfo& match, const Tuni
         if (game::readLoadout(match, p, l)) bodies[p] = l.body;
     }
     world.reset(match.seed, match.playerCount, match.matchData, tuning, propKinds, bodyKinds, bodies, flatScene, models,
-                physicsThreads);
+                reflect::tickRate(), physicsThreads); // 틱레이트: mealkit.project (콘텐츠 해시에 들어간다)
 }
 
 // 시뮬레이션 밖이라 삼각함수를 써도 된다 (결과 바이트만 입력으로 들어간다)

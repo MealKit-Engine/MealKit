@@ -31,8 +31,6 @@ using mealkit::u64;
 using mealkit::u8;
 using mealkit::Vec3;
 
-inline constexpr f32 kTickRate = 30.0f; // const-ok: 1단계 "틱레이트를 프로젝트 설정으로"에서 옮긴다
-inline constexpr f32 kTickDt = 1.0f / kTickRate;
 inline constexpr u32 kPropColorCount = 6; // 상자 색 종류 수 (색 자체는 화면용 튜닝 view/ViewTuning.h)
 
 inline constexpr u8 kButtonJump = 1;
@@ -161,14 +159,16 @@ struct World {
     void reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuning,
                const mealkit::sim::Table<PropKind>& propKinds, const mealkit::sim::Table<BodyKind>& bodyKinds,
                const std::vector<u32>& playerBodies, const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models,
-               u32 physicsThreads = 0);
+               u32 tickRate, u32 physicsThreads = 0);
     // 매치 도중 튜닝을 바꾼다 (에디터 혼자 플레이 전용: 멀티플레이에서는 피어마다 달라지면 디싱크)
     void setTuning(const Tuning& value);
     void step(const mealkit::net::TickInputs& inputs);
     u64 hash() const;
     u32 activeBodies() const { return physics.activeBodyCount(); }
 
-    // 매치 시작 때 정해지는 데이터 (씬과 튜닝에서)
+    // 매치 시작 때 정해지는 데이터 (프로젝트 틱레이트, 씬과 튜닝에서)
+    u32 tickRate = 30;
+    f32 tickDt = 1.0f / 30.0f; // const-ok: 기본값 (reset이 프로젝트 틱레이트로 정한다)
     struct PropSpawn {
         Vec3 min, max; // 상자 생성 영역
         u32 count = 0;

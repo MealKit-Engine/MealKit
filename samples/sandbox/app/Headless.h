@@ -14,7 +14,6 @@ struct Headless {
     using World = sandbox::World;
     using TuningType = Tuning;
     using ProjectSettingsType = ProjectSettings;
-    static constexpr mealkit::f32 kTickDt = sandbox::kTickDt;
 
     // 매치 시작: 상자 수는 씬의 상자 생성 영역(matchData가 0이 아니면 그 수). 상자는 매치 중에 늘지 않으므로 Pool 용량 = 상자 수
     static void startWorld(World& world, const mealkit::game::MatchInfo& match, const Tuning& tuning,
