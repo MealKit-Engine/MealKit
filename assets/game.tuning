@@ -26,3 +26,5 @@ spawnSpacing 1.20000005
 solidFriction 0.800000012
 padBelow 0.300000012
 padAbove 0.400000006
+impactSpeed 3
+impactsPerTick 8
