@@ -56,6 +56,7 @@ MEALKIT_VIEWMODEL(LobbyVm) {
     MEALKIT_FIELD(bool, canStart, false, "시작할 수 있다 (모두 준비)");
     MEALKIT_FIELD(bool, waiting, false, "방장이 시작하기를 기다린다");
     MEALKIT_FIELD(bool, needReady, false, "방장: 모두 준비하기를 기다린다");
+    MEALKIT_FIELD(std::string, slowWarning, {}, "핑이 입력 지연 상한보다 큰 사람 (매치가 멈칫거린다)");
     MEALKIT_LIST(LobbyRowVm, players, mealkit::net::kMaxPlayers, "플레이어");
     MEALKIT_LIST(ChatLineVm, chat, 8, "채팅 (최근)");
     MEALKIT_FIELD(std::string, chatDraft, {}, "보낼 채팅 (글자 입력)");

@@ -434,3 +434,6 @@ Decoration (no collision) = 장식 (충돌 없음)
 Spawn point = 스폰 지점
 Sequence = 수열
 Ready tick = 준비되는 틱
+Choose the input delay from the players' ping = 플레이어들의 핑으로 입력 지연 정하기
+Shortest input delay (ms) = 가장 짧은 입력 지연 (ms)
+Longest input delay (ms, slower players are warned in the lobby) = 가장 긴 입력 지연 (ms, 더 느린 플레이어는 로비에서 경고)

@@ -171,6 +171,13 @@ board lobby 1920 1080
         fontSize 22
         color $textDim
       end
+      text slow
+        size fill hug
+        content {slowWarning}
+        visible slowWarning
+        fontSize 22
+        color #FF8A80
+      end
       frame buttons
         size fill hug
         layout row

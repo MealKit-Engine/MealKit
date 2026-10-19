@@ -1020,6 +1020,64 @@ TEST_CASE(net_conditions) {
     host.shutdown();
 }
 
+// 입력 지연 바꾸기: 매치 중에 늘리고 줄여도 두 피어가 같은 틱부터 바꾸고 같은 입력으로 끝까지 간다 (빈 틱 채우기, 겹친 틱 건너뛰기)
+TEST_CASE(input_delay_change) {
+    net::AutoDelay a;
+    a.tickMs = 1000.0f / 30.0f;
+    a.minTicks = 2;
+    a.maxTicks = 8;
+    TEST_CHECK(net::delayForRtt(0.0f, a) == 2 && net::delayForRtt(100.0f, a) == 5 && net::delayForRtt(2000.0f, a) == 8);
+
+    constexpr u16 kPort = 27937;
+    net::LockstepSession host, client;
+    TEST_CHECK(host.host(kPort, 2, 3, true));
+    net::Address address;
+    net::startup();
+    TEST_CHECK(net::resolveAddress("127.0.0.1", kPort, address));
+    net::cleanup();
+    TEST_CHECK(client.join(address));
+    net::LockstepSession* sessions[2] = {&host, &client};
+    const f64 deadline = nowSeconds() + 15.0;
+    while (nowSeconds() < deadline && host.lobbyPlayerCount() < 2) {
+        for (net::LockstepSession* s : sessions) s->update(nowSeconds());
+        sleepSeconds(0.001);
+    }
+    host.startMatch(3, 0);
+    constexpr u32 kTicks = 150;
+    u32 next[2] = {0, 0};
+    u64 sum[2] = {0, 0};
+    u32 delayAt[2][kTicks] = {};
+    bool raised = false, lowered = false;
+    while (nowSeconds() < deadline && (next[0] < kTicks || next[1] < kTicks)) {
+        for (u32 i = 0; i < 2; ++i) {
+            net::LockstepSession& s = *sessions[i];
+            s.update(nowSeconds());
+            while (next[i] < kTicks && s.canExecute(next[i])) {
+                const u32 t = next[i]++;
+                for (u32 p = 0; p < s.playerCount(); ++p) sum[i] = sum[i] * 31 + s.inputs(t).players[p].bytes[0] + 1;
+                s.tickExecuted(t, sum[i]);
+                delayAt[i][t] = s.inputDelay();
+                net::PlayerInput in;
+                in.bytes[0] = static_cast<u8>(t * 3 + i * 101);
+                s.submitLocalInput(t + s.inputDelay(), in);
+            }
+        }
+        if (!raised && next[0] >= 30) raised = host.requestInputDelay(7);
+        if (!lowered && next[0] >= 80) lowered = host.requestInputDelay(2);
+        sleepSeconds(0.001);
+    }
+    TEST_CHECK(raised && lowered && next[0] == kTicks && next[1] == kTicks && sum[0] == sum[1] && !host.desynced());
+    TEST_CHECK(host.inputDelay() == 2 && client.inputDelay() == 2);
+    bool sameSwitch = true, sawSeven = false;
+    for (u32 t = 0; t < kTicks; ++t) {
+        sameSwitch = sameSwitch && delayAt[0][t] == delayAt[1][t];
+        sawSeven = sawSeven || delayAt[0][t] == 7;
+    }
+    TEST_CHECK(sameSwitch && sawSeven); // 모두 같은 틱에 바꿨다
+    client.shutdown();
+    host.shutdown();
+}
+
 TEST_CASE(project_file) {
     const std::string path = executableDirectory() + "\\test.project";
     // 예전 형식(키=값)과 새 형식(경로 값)이 섞여 있어도 읽는다

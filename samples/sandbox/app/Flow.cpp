@@ -247,6 +247,13 @@ void Flow::updateLobby(game::GameContext& ctx, SaveData& save) {
     m_lobby.canStart = m_lobby.isHost && allReady;
     m_lobby.waiting = !m_lobby.isHost && !m_lobby.connecting;
     m_lobby.needReady = m_lobby.isHost && !m_lobby.offline && !allReady;
+    m_lobby.slowWarning.clear();
+    if (const u32 slow = ctx.match.slowPlayers()) { // 입력 지연 상한(mealkit.project)보다 먼 사람
+        std::string names;
+        for (const net::LobbyMember& m : members)
+            if (m.player < 32 && (slow & (1u << m.player))) names += (names.empty() ? "" : ", ") + m.name;
+        m_lobby.slowWarning = ctx.strings.format("lobby.slow", {{"names", names}});
+    }
     fillChat(session, m_lobby.chat.data(), m_lobby.chatCount, 8);
 
     for (const ui::Action& a : ctx.ui.actions()) {
