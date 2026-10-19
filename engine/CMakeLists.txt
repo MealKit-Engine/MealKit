@@ -128,6 +128,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/ui/StbImpl.cpp
     src/mealkit/settings/Settings.h
     src/mealkit/settings/Settings.cpp
+    src/mealkit/game/FrameStats.h
+    src/mealkit/game/FrameStats.cpp
     src/mealkit/render/Renderer.cpp
     shaders/Forward.hlsl
     shaders/Ui.hlsl

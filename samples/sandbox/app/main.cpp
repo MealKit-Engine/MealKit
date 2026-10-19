@@ -20,6 +20,7 @@
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Profile.h"
 #include "mealkit/core/Version.h"
+#include "mealkit/game/FrameStats.h"
 #include "mealkit/game/GameData.h"
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/input/Actions.h"
@@ -374,8 +375,8 @@ int main(int argc, char** argv) {
 #endif
     render::DrawList drawList;
     f64 lastTime = nowSeconds();
-    f64 titleTimer = 0.0, frameTimeSum = 0.0;
-    u32 frameCount = 0, perfLogCounter = 0;
+    game::FrameStats perf; // 성능 숫자 (창 제목·F1·perf 로그, mealkit/game/FrameStats.h)
+    u32 perfLogCounter = 0;
     int exitCode = 0;
     f64 exitDeadline = 0.0; // --exit-tick 도달 후 종료 시각
 
@@ -517,14 +518,8 @@ int main(int argc, char** argv) {
         MEALKIT_FRAME_MARK();
 
         // ---- 창 제목에 상태 표시 (4Hz) ----
-        frameTimeSum += dt;
-        ++frameCount;
-        titleTimer += dt;
-        if (titleTimer >= 0.25) {
+        if (perf.update(dt, {&renderer, &session, &audio, &game})) {
             // 플레이어에게 보이는 글자는 문자열 표(assets/strings), 성능 숫자는 개발용이라 영어 그대로
-            const f64 avgMs = frameTimeSum / std::max(frameCount, 1u) * 1000.0;
-            const f64 simMs = game.takeSimMsPerTick();
-            const net::SessionStats& st = session.stats();
             const net::SessionState state = session.state();
             const auto num = [](u32 v) { return std::to_string(v); };
             std::string status;
@@ -541,33 +536,14 @@ int main(int argc, char** argv) {
             } else if (state == net::SessionState::Ended) {
                 status = strings.format("title.ended", {{"reason", session.endReason()}});
             } else {
-                char perf[256];
-                snprintf(perf, sizeof(perf),
-                         "%.0f fps %.2f ms | sim %.2f ms/tick | tick %u | P%u of %u | rtt %.0f ms | "
-                         "net %.1f/%.1f KB/s | %u draws %u inst | audio %u+%u voices %.2f ms | %s%s",
-                         1000.0 / avgMs, avgMs, simMs, game.nextTick(), session.localPlayer() + 1,
-                         session.playerCount(), st.rttMs, st.sentBytesPerSec / 1024.0, st.recvBytesPerSec / 1024.0,
-                         renderer.stats().drawCalls, renderer.stats().instances, audio.stats().realVoices,
-                         audio.stats().virtualVoices, audio.stats().updateMs, session.desynced() ? "DESYNC" : "in sync",
-                         renderer.vsync() ? " | vsync" : "");
-                status = perf;
+                status = perf.line();
                 running = true;
             }
             window.setTitle((strings.get("game.title") + " | " + status).c_str());
 #if MEALKIT_DEBUG_UI
-            perfText.clear(); // " | " 항목을 한 줄씩
-            for (size_t i = 0; i < status.size(); ++i) {
-                if (status.compare(i, 3, " | ") == 0) {
-                    perfText += '\n';
-                    i += 2;
-                } else {
-                    perfText += status[i];
-                }
-            }
+            perfText = running ? perf.lines() : status;
 #endif
             if (automated && running && (perfLogCounter++ % 8) == 7) MEALKIT_INFO("perf: %s", status.c_str());
-            titleTimer = frameTimeSum = 0.0;
-            frameCount = 0;
         }
     }
 

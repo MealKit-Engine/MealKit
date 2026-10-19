@@ -26,6 +26,7 @@
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
 #if MEALKIT_TEST_UI
+#include "mealkit/game/FrameStats.h"
 #include "mealkit/settings/Settings.h"
 #include "mealkit/ui/Ui.h"
 #endif
@@ -720,6 +721,19 @@ TEST_CASE(settings_service) {
         TEST_CHECK(!again.values().display.vsync && again.values().audio.master == 1.0f);
     }
     setProjectRoot(oldRoot);
+}
+
+// 성능 숫자: 보고 주기마다 평균·최악 프레임, 없는 출처는 글자에서 빠진다
+TEST_CASE(frame_stats) {
+    game::FrameStats perf(0.25);
+    TEST_CHECK(!perf.update(0.1, {}) && !perf.update(0.1, {}));
+    TEST_CHECK(perf.update(0.1, {})); // 0.3초: 주기 끝
+    const game::FrameSample& s = perf.sample();
+    TEST_CHECK(s.frames == 3 && std::abs(s.frameMs - 100.0) < 1e-6 && std::abs(s.worstFrameMs - 100.0) < 1e-6);
+    TEST_CHECK(std::abs(s.fps - 10.0) < 1e-6 && !s.hasGame && !s.hasSession && !s.hasRenderer && !s.hasAudio);
+    TEST_CHECK(perf.line() == "10 fps 100.00 ms (worst 100.0)" && perf.lines() == perf.line());
+    TEST_CHECK(!perf.update(0.05, {}) && perf.update(0.4, {})); // 새 주기: 앞 주기 값은 남지 않는다
+    TEST_CHECK(perf.sample().frames == 2 && std::abs(perf.sample().worstFrameMs - 400.0) < 1e-6);
 }
 #endif
 

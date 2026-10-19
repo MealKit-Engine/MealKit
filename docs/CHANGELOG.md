@@ -3,6 +3,16 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.21 — 1단계 진행 중 (2026-10-19)
+
+### [x] 성능 숫자 하나로 모으기 — `game::FrameStats` (완료 2026-10-19, 로드맵 밖)
+- **왜**: 성능 숫자를 모으고 보여 주는 코드가 세 곳에 따로 있었다. 게임 exe(sandbox `app/main.cpp`: 0.25초 평균, 직접 만든 `snprintf` 한 줄, F1 오버레이는 그 글자를 `" | "`로 잘라 씀), 에디터 상태 표시줄(fps 지수 평균), 에디터 플레이 상태 줄(`takeSimMsPerTick` 직접 호출)이다. 같은 fps가 화면마다 다르게 계산되고, 읽으면 비워지는 `takeSimMsPerTick`을 두 곳이 부르면 값을 나눠 가진다. 벤치마크 보고서(2단계)·성능 패널(4단계)이 네 번째·다섯 번째 사본이 될 참이었다.
+- **방식** (`docs/CODING_MODEL.md` "성능 숫자 모으기와 보여 주기"): 측정은 그대로 각 하위 시스템의 `stats()`(`RenderStats`, `net::SessionStats`, `audio::Stats`, `GameInstance::takeSimMsPerTick`). `mealkit/game/FrameStats.h`의 `game::FrameStats`가 모은다. 엔진 루프가 매 프레임 `update(dt, FrameSources{renderer, session, audio, game})`를 부르고, 보고 주기(기본 0.25초)가 끝난 프레임에 `true`를 돌려준다. 그때 `sample()`(`FrameSample`: 평균·**최악** 프레임, fps, 틱·시뮬레이션 시간, 플레이어·rtt·대역폭·디싱크, 드로우 콜·인스턴스·vsync, 목소리·소리 시간), `line()`(" | " 구분), `lines()`(항목마다 한 줄)를 읽는다. `nullptr` 출처의 항목은 빠진다.
+  전역 등록소(`profiler::record`)는 읽어 가는 전역 상태라 쓰지 않았고(아래 계층이 위를 부르지 않음), 화면 쪽 모으기라 `game/`(front 소스, 헤드리스 코어 밖)에 둔다. 함수 안 시간 재기는 지금처럼 Tracy `MEALKIT_ZONE`.
+- **쓰는 곳**: sandbox 창 제목·F1 오버레이·자동 실행 `perf:` 로그(형식은 같고 `(worst N)`이 붙었다), 에디터 상태 표시줄 fps, 에디터 플레이 상태 줄의 틱·시뮬레이션 시간.
+- **검증**: 단위 테스트 `frame_stats`(주기, 평균·최악, 출처 없는 글자, 주기 사이 초기화). check.ps1.
+- **영향**: `kApiVersion`은 그대로(경계 함수는 바뀌지 않음). 기존 프로젝트의 `app/main.cpp`는 그대로 빌드되고, 같은 숫자를 쓰려면 sandbox처럼 `FrameStats`로 바꾼다.
+
 ## v0.4.20 — 1단계 진행 중 (2026-10-19)
 
 ### [x] 엔진 폴더 계층 정리 + 검사 (완료 2026-10-19, 로드맵 밖)
