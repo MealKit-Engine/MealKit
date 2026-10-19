@@ -228,7 +228,7 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
   - 엔진이 직접 만드는 **얇은 층**: 장치·큐, 명령 목록, 버퍼·텍스처, bindless 디스크립터 힙, PSO, 배리어(명시적, 렌더 그래프 없음), 스왑체인, 타임스탬프 쿼리. 렌더러가 쓰는 만큼만 만들고 범용 그래픽 라이브러리를 목표로 하지 않는다.
   - 모양은 DX12를 따른다(명령 목록 기록, 명시적 배리어, bindless 인덱스). Vulkan·Metal은 같은 모양으로 옮기기 쉽고, WebGPU만 아래처럼 떨어진다.
   - 백엔드는 빌드 때 하나를 고른다(가상 함수 없이 백엔드별 `.cpp`). 한 빌드에서 API를 바꾸는 기능은 없다.
-  - **진행**: ① `rhi/` API + DX12 백엔드로 옮김(렌더러·디버그 UI는 RHI만 씀, 바인딩은 푸시 상수 + bindless 배열, `docs/DECISIONS.md` 2026-10-19) → ② Vulkan 백엔드·`build.bat Vulkan`·에디터 ImGui → ③ 백엔드 사이 캡처 비교·검증 레이어를 check.ps1에.
+  - **진행**: ① `rhi/` API + DX12 백엔드로 옮김(렌더러·디버그 UI는 RHI만 씀, 바인딩은 푸시 상수 + bindless 배열, `docs/DECISIONS.md` 2026-10-19) → ② Vulkan 백엔드(`rhi/vulkan`, volk·VMA, SDK 없이 빌드)·`build.bat Vulkan`·`VulkanEditor`·에디터 ImGui·DXC 고정 버전 받기(모든 빌드가 DXIL+SPIR-V) — 에디터 캡처 3D 영역이 DX12와 최대 1/255 차이 → ③ 백엔드 사이 캡처 비교·검증 레이어를 check.ps1에.
   - 지금 `render::Renderer`의 DX12 호출을 이 층으로 옮기고, **같은 항목에서 Vulkan 백엔드를 같이 만든다.** 그림이 같아야 한다(그래픽 회귀 테스트가 있으면 그것으로, 없으면 `--capture` 전후·백엔드 사이 비교).
 - **Vulkan을 처음부터 같이 하는 이유**: 구현이 하나뿐인 추상화는 DX12의 가정(힙·배리어·루트 시그니처 모양)이 그대로 새어 나와, 두 번째 백엔드를 붙일 때 층을 다시 짜게 된다. 2단계 그래픽 기능을 처음부터 두 API로 만들면 5단계 이식 때 렌더러를 다시 고치지 않는다.
   Vulkan 하나가 Linux·Steam Deck 네이티브, Android, (선택) Switch를 덮는다. Metal·WebGPU는 5단계에서 이 두 백엔드의 모양을 따라 만든다.

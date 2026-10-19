@@ -66,6 +66,13 @@ else()
     endif()
 endif()
 
+# 그래픽 API 백엔드 (mealkit/rhi/<api>/, 빌드 때 하나). 출시 Windows 빌드는 DX12, Vulkan은 build.bat Vulkan·VulkanEditor.
+set(MEALKIT_RHI "DX12" CACHE STRING "RHI 백엔드: DX12 / Vulkan")
+set_property(CACHE MEALKIT_RHI PROPERTY STRINGS DX12 Vulkan)
+if(NOT MEALKIT_RHI MATCHES "^(DX12|Vulkan)$")
+    message(FATAL_ERROR "MEALKIT_RHI must be DX12 or Vulkan (got '${MEALKIT_RHI}')")
+endif()
+
 option(MEALKIT_PROFILE "Tracy 프로파일링 마커 켜기 (build.bat Profile)" OFF)
 # 디버그 UI (Dear ImGui): 개발 빌드(build\Release·Debug·Profile)와 에디터에 넣고, 출시 빌드(build.bat Export → build\Export)는 뺀다.
 # 켜지면 엔진 타깃이 MEALKIT_DEBUG_UI=1과 imgui.h 경로를 게임에 넘긴다. 게임 코드는 #if MEALKIT_DEBUG_UI로 감싼다.
@@ -78,9 +85,15 @@ endif()
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT MEALKIT_IS_ENGINE)
     # ---------------------------------------------------------------- 게임 프로젝트의 에디터 빌드: 엔진은 가져다 쓴다
-    set(MEALKIT_EDITOR_SDK "${MEALKIT_ENGINE_DIR}/build/Editor" CACHE PATH "엔진 에디터 빌드 폴더 (mealkit.dll, MealKitEditor.exe)")
+    # Vulkan 에디터(build.bat VulkanEditor)는 엔진의 build\VulkanEditor를 쓴다
+    if(MEALKIT_RHI STREQUAL "Vulkan")
+        set(mealkit_editor_build VulkanEditor)
+    else()
+        set(mealkit_editor_build Editor)
+    endif()
+    set(MEALKIT_EDITOR_SDK "${MEALKIT_ENGINE_DIR}/build/${mealkit_editor_build}" CACHE PATH "엔진 에디터 빌드 폴더 (mealkit.dll, MealKitEditor.exe)")
     if(NOT EXISTS "${MEALKIT_EDITOR_SDK}/MealKitTargets.cmake")
-        message(FATAL_ERROR "Engine editor build not found in ${MEALKIT_EDITOR_SDK}. Run ${MEALKIT_ENGINE_DIR}\\build.bat Editor first.")
+        message(FATAL_ERROR "Engine editor build not found in ${MEALKIT_EDITOR_SDK}. Run ${MEALKIT_ENGINE_DIR}\\build.bat ${mealkit_editor_build} first.")
     endif()
     include("${MEALKIT_EDITOR_SDK}/MealKitTargets.cmake")
     set(MEALKIT_STEAM_DLL "")

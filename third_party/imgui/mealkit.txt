@@ -8,5 +8,5 @@ source https://github.com/ocornut/imgui
 usedIn editor only
 inGame no
 note editor only
-kept core files + backends/imgui_impl_win32, imgui_impl_dx12
+kept core files + backends/imgui_impl_win32, imgui_impl_dx12, imgui_impl_vulkan
 why editor UI (never linked into the shipped game exe).

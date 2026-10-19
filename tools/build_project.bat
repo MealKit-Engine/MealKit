@@ -6,6 +6,8 @@ rem     Debug     Debug (D3D12 debug layer on)
 rem     Profile   Release + Tracy profiling (connect with the Tracy profiler app)
 rem     Export    Release game only, collected into <project>\export\<name>
 rem     ClangCL   Release built with clang-cl in <project>\build\ClangCL\bin (determinism comparison with MSVC, not shipped)
+rem     Vulkan    Release game with the Vulkan RHI backend in <project>\build\Vulkan\bin (backend comparison, not shipped on Windows)
+rem     VulkanEditor  editor build with the Vulkan backend in <project>\build\VulkanEditor\bin (like Editor)
 rem     Editor    editor build in <project>\build\Editor\bin:
 rem                 engine repository: mealkit.dll + MealKitEditor.exe + sample game DLL
 rem                 game project:      <name>_game.dll only (builds the engine editor first if needed)
@@ -34,6 +36,14 @@ if /I "%CONFIG%"=="Export" (
     set TARGET=--target game_export
 )
 if /I "%CONFIG%"=="ClangCL" set BUILD_TYPE=Release
+if /I "%CONFIG%"=="Vulkan" (
+    set BUILD_TYPE=Release
+    set EXTRA=-DMEALKIT_RHI=Vulkan
+)
+if /I "%CONFIG%"=="VulkanEditor" (
+    set BUILD_TYPE=RelWithDebInfo
+    set EXTRA=-DMEALKIT_BUILD_KIND=Editor -DMEALKIT_RHI=Vulkan
+)
 if /I "%CONFIG%"=="Editor" (
     set BUILD_TYPE=RelWithDebInfo
     set BUILD_NAME=Editor
@@ -48,8 +58,11 @@ if /I "%CONFIG%"=="ClangCL" (
 )
 
 rem A game project's editor build links against the engine editor build (mealkit.dll). Bring it up to date first.
-if /I "%CONFIG%"=="Editor" if /I not "%PROJECT_DIR%"=="%MEALKIT_ROOT%" (
-    call "%~f0" "%MEALKIT_ROOT%" Editor || (
+set EDITOR_KIND=
+if /I "%CONFIG%"=="Editor" set EDITOR_KIND=1
+if /I "%CONFIG%"=="VulkanEditor" set EDITOR_KIND=1
+if defined EDITOR_KIND if /I not "%PROJECT_DIR%"=="%MEALKIT_ROOT%" (
+    call "%~f0" "%MEALKIT_ROOT%" %CONFIG% || (
         echo [MealKit] Engine editor build failed. If MealKitEditor is running and the engine changed, close it and build again.
         exit /b 1
     )
@@ -57,7 +70,7 @@ if /I "%CONFIG%"=="Editor" if /I not "%PROJECT_DIR%"=="%MEALKIT_ROOT%" (
 
 set BUILD_DIR=%PROJECT_DIR%\build\%BUILD_NAME%
 rem Editor builds are rebuilt often (hot reload): configure only once, Ninja re-runs CMake when CMakeLists change.
-if /I "%CONFIG%"=="Editor" if exist "%BUILD_DIR%\build.ninja" if exist "%BUILD_DIR%\CMakeCache.txt" goto build
+if defined EDITOR_KIND if exist "%BUILD_DIR%\build.ninja" if exist "%BUILD_DIR%\CMakeCache.txt" goto build
 cmake -S "%PROJECT_DIR%" -B "%BUILD_DIR%" -G Ninja --no-warn-unused-cli -DCMAKE_BUILD_TYPE=%BUILD_TYPE% -DCMAKE_EXPORT_COMPILE_COMMANDS=ON "-DMEALKIT_ROOT=%MEALKIT_ROOT%" %EXTRA% || exit /b 1
 :build
 cmake --build "%BUILD_DIR%" %TARGET% || exit /b 1

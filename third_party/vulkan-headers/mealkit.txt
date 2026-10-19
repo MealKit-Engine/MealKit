@@ -1,0 +1,11 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+name Vulkan-Headers
+version vulkan-sdk-1.4.357.0
+license MIT
+licenseFile LICENSES/MIT.txt
+source https://github.com/KhronosGroup/Vulkan-Headers
+usedIn engine (Vulkan RHI backend)
+inGame yes
+kept include/vulkan/*.h, include/vk_video/*.h, LICENSE.md, LICENSES/MIT.txt (dual Apache-2.0 OR MIT, used under MIT; C++ headers and the registry left out)
+why the Vulkan API declarations for the Vulkan RHI backend (rhi/vulkan). The loader comes with the GPU driver (vulkan-1.dll), so no Vulkan SDK is needed to build or run.

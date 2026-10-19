@@ -1,0 +1,11 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+name volk
+version vulkan-sdk-1.4.357.0
+license MIT
+licenseFile LICENSE.md
+source https://github.com/zeux/volk
+usedIn engine (Vulkan RHI backend)
+inGame yes
+kept volk.h, volk.c
+why loads vulkan-1.dll at run time and fetches device-level function pointers (one call less per command), so builds need no Vulkan SDK import library and a PC without Vulkan gets a clear error instead of a missing-DLL failure.

@@ -1,28 +1,46 @@
 # 엔진 폴더가 최상위가 아닐 수도 있으므로(게임 프로젝트에서 include) CMAKE_SOURCE_DIR 대신 이 경로를 쓴다.
 get_filename_component(MEALKIT_THIRD_PARTY "${CMAKE_CURRENT_SOURCE_DIR}/../third_party" ABSOLUTE)
 
-# --- 셰이더: 빌드 시점에 DXC로 DXIL 바이트 배열 헤더를 만든다 (런타임 컴파일러 의존성 없음). Windows 화면 쪽만 ---
+# --- 셰이더: 빌드 시점에 DXC로 바이트 배열 헤더를 만든다 (런타임 컴파일러 의존성 없음). Windows 화면 쪽만 ---
+# 모든 빌드가 DXIL(DX12)과 SPIR-V(Vulkan)를 둘 다 만든다: 한쪽 컴파일 실패는 빌드 실패다 (ROADMAP 2단계 "RHI 층").
+# 이 빌드의 백엔드 것은 shaders/<이름>.h(렌더러가 include), 다른 쪽은 shaders/other/<이름>.h(검사용, exe에 들어가지 않는다).
 set(MEALKIT_SHADER_OUT ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 set(MEALKIT_SHADER_HEADERS "")
 if(NOT MEALKIT_HEADLESS_ONLY)
-    find_program(MEALKIT_DXC dxc HINTS "$ENV{WindowsSdkVerBinPath}/x64" REQUIRED)
-    file(MAKE_DIRECTORY ${MEALKIT_SHADER_OUT})
+    include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/Dxc.cmake)
+    file(MAKE_DIRECTORY ${MEALKIT_SHADER_OUT} ${MEALKIT_SHADER_OUT}/other)
 
     if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(MEALKIT_DXC_FLAGS -Zi -Qembed_debug -Od)
+        set(MEALKIT_DXIL_FLAGS -Zi -Qembed_debug -Od)
+        set(MEALKIT_SPIRV_FLAGS -Od)
     else()
-        set(MEALKIT_DXC_FLAGS -O3 -Qstrip_debug -Qstrip_reflect)
+        set(MEALKIT_DXIL_FLAGS -O3 -Qstrip_debug -Qstrip_reflect)
+        set(MEALKIT_SPIRV_FLAGS -O3)
     endif()
+    list(APPEND MEALKIT_SPIRV_FLAGS -spirv -fspv-target-env=vulkan1.3)
 
     function(mealkit_shader source entry profile name)
-        set(out ${MEALKIT_SHADER_OUT}/${name}.h)
+        if(MEALKIT_RHI STREQUAL "Vulkan")
+            set(dxil ${MEALKIT_SHADER_OUT}/other/${name}.h)
+            set(spirv ${MEALKIT_SHADER_OUT}/${name}.h)
+        else()
+            set(dxil ${MEALKIT_SHADER_OUT}/${name}.h)
+            set(spirv ${MEALKIT_SHADER_OUT}/other/${name}.h)
+        endif()
+        set(deps ${CMAKE_CURRENT_SOURCE_DIR}/${source} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/Bindless.hlsli)
         add_custom_command(
-            OUTPUT ${out}
-            COMMAND ${MEALKIT_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${out} ${MEALKIT_DXC_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
-            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${source} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/Bindless.hlsli
-            COMMENT "DXC ${source} (${entry})"
+            OUTPUT ${dxil}
+            COMMAND ${MEALKIT_SHADER_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${dxil} ${MEALKIT_DXIL_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+            DEPENDS ${deps}
+            COMMENT "DXC ${source} (${entry}, DXIL)"
             VERBATIM)
-        set(MEALKIT_SHADER_HEADERS ${MEALKIT_SHADER_HEADERS} ${out} PARENT_SCOPE)
+        add_custom_command(
+            OUTPUT ${spirv}
+            COMMAND ${MEALKIT_SHADER_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${spirv} ${MEALKIT_SPIRV_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+            DEPENDS ${deps}
+            COMMENT "DXC ${source} (${entry}, SPIR-V)"
+            VERBATIM)
+        set(MEALKIT_SHADER_HEADERS ${MEALKIT_SHADER_HEADERS} ${dxil} ${spirv} PARENT_SCOPE)
     endfunction()
 
     # SM 6.6 = 최소 사양. 바인딩 모양은 shaders/Bindless.hlsli (mealkit/rhi/Rhi.h)
@@ -146,8 +164,6 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/game/GameMain.h
     src/mealkit/game/GameMain.cpp
     src/mealkit/render/Renderer.cpp
-    src/mealkit/rhi/dx12/Dx12.h
-    src/mealkit/rhi/dx12/Dx12Device.cpp
     shaders/Forward.hlsl
     shaders/Ui.hlsl
     shaders/Bindless.hlsli
@@ -176,11 +192,25 @@ else()
         src/mealkit/platform/posix/System.cpp)
 endif()
 
+# RHI 백엔드 (MEALKIT_RHI, cmake/MealKit.cmake): 그래픽 API는 rhi/<api>/ 안에서만 부른다 (tools\check_platform.ps1)
+if(MEALKIT_RHI STREQUAL "Vulkan")
+    list(APPEND MEALKIT_FRONT_SOURCES
+        src/mealkit/rhi/vulkan/Vk.h
+        src/mealkit/rhi/vulkan/VkDevice.cpp
+        src/mealkit/rhi/vulkan/VkLibs.cpp) # volk + VMA 구현
+    set(mealkit_rhi_imgui src/mealkit/rhi/vulkan/VkImGui.cpp)
+else()
+    list(APPEND MEALKIT_FRONT_SOURCES
+        src/mealkit/rhi/dx12/Dx12.h
+        src/mealkit/rhi/dx12/Dx12Device.cpp)
+    set(mealkit_rhi_imgui src/mealkit/rhi/dx12/Dx12ImGui.cpp)
+endif()
+
 # 디버그 UI (MEALKIT_DEBUG_UI, cmake/MealKit.cmake): ImGui 연결 층. 에디터와 개발용 게임 exe의 오버레이가 같이 쓴다
 if(MEALKIT_DEBUG_UI)
     list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/debug/ImGuiLayer.h src/mealkit/debug/ImGuiLayer.cpp
         src/mealkit/platform/ImGuiPlatform.h src/mealkit/platform/win32/ImGuiPlatform.cpp
-        src/mealkit/rhi/dx12/Dx12ImGui.cpp)
+        ${mealkit_rhi_imgui})
 endif()
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
@@ -255,7 +285,18 @@ else()
     target_link_libraries(${mealkit_core_target} PUBLIC Threads::Threads)
 endif()
 if(NOT MEALKIT_HEADLESS_ONLY)
-    target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid windowscodecs uuid dwmapi comdlg32 xinput)
+    target_link_libraries(mealkit PUBLIC windowscodecs uuid dwmapi comdlg32 xinput)
+    if(MEALKIT_RHI STREQUAL "Vulkan")
+        # SDK 없이 빌드한다: 헤더는 third_party, 로더(vulkan-1.dll)는 volk가 실행 중에 불러온다
+        set(MEALKIT_VULKAN_INCLUDES ${MEALKIT_THIRD_PARTY}/vulkan-headers/include ${MEALKIT_THIRD_PARTY}/volk ${MEALKIT_THIRD_PARTY}/vma)
+        target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_VULKAN_INCLUDES})
+        target_compile_definitions(mealkit PRIVATE VK_NO_PROTOTYPES VK_USE_PLATFORM_WIN32_KHR)
+        if(MSVC)
+            set_source_files_properties(src/mealkit/rhi/vulkan/VkLibs.cpp PROPERTIES COMPILE_OPTIONS "/W0")
+        endif()
+    else()
+        target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid)
+    endif()
 endif()
 
 # --- SimCheck: 게임 sim/ 폴더의 결정론 규칙 검사 (빌드 도구, mealkit_add_game이 게임 코드보다 먼저 실행한다) ---
@@ -320,9 +361,13 @@ if(MEALKIT_DEBUG_UI)
         ${MEALKIT_THIRD_PARTY}/imgui/imgui_draw.cpp
         ${MEALKIT_THIRD_PARTY}/imgui/imgui_tables.cpp
         ${MEALKIT_THIRD_PARTY}/imgui/imgui_widgets.cpp
-        ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_win32.cpp
-        ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_dx12.cpp)
+        ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_win32.cpp)
     set(mealkit_imgui_includes ${MEALKIT_THIRD_PARTY}/imgui ${MEALKIT_THIRD_PARTY}/imgui/backends)
+    if(MEALKIT_RHI STREQUAL "Vulkan")
+        list(APPEND mealkit_imgui_sources ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_vulkan.cpp)
+    else()
+        list(APPEND mealkit_imgui_sources ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_dx12.cpp)
+    endif()
     if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         list(APPEND mealkit_imgui_sources ${MEALKIT_THIRD_PARTY}/imguizmo/ImGuizmo.cpp)
         list(APPEND mealkit_imgui_includes ${MEALKIT_THIRD_PARTY}/imguizmo)
@@ -331,12 +376,18 @@ if(MEALKIT_DEBUG_UI)
     add_library(mealkit_imgui OBJECT ${mealkit_imgui_sources})
     target_include_directories(mealkit_imgui PUBLIC ${mealkit_imgui_includes})
     target_compile_definitions(mealkit_imgui PRIVATE IMGUI_IMPL_WIN32_DISABLE_GAMEPAD NOMINMAX WIN32_LEAN_AND_MEAN)
+    if(MEALKIT_RHI STREQUAL "Vulkan")
+        target_include_directories(mealkit_imgui SYSTEM PRIVATE ${MEALKIT_VULKAN_INCLUDES})
+        target_compile_definitions(mealkit_imgui PRIVATE IMGUI_IMPL_VULKAN_USE_VOLK VK_NO_PROTOTYPES VK_USE_PLATFORM_WIN32_KHR)
+    endif()
     target_compile_options(mealkit_imgui PRIVATE /W0 /utf-8)
     target_sources(mealkit PRIVATE $<TARGET_OBJECTS:mealkit_imgui>)
     add_dependencies(mealkit mealkit_imgui)
     target_include_directories(mealkit SYSTEM PUBLIC ${mealkit_imgui_includes})
     target_compile_definitions(mealkit PUBLIC MEALKIT_DEBUG_UI=1 IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
-    target_link_libraries(mealkit PUBLIC d3dcompiler)
+    if(NOT MEALKIT_RHI STREQUAL "Vulkan")
+        target_link_libraries(mealkit PUBLIC d3dcompiler) # ImGui DX12 백엔드의 셰이더
+    endif()
 endif()
 
 # --- 범용 에디터 (Editor 빌드): MealKitEditor.exe = mealkit.dll(+ Dear ImGui + ImGuizmo). 출시 exe에는 들어가지 않는다 ---
