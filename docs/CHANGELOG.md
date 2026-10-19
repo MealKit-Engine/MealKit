@@ -3,6 +3,16 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.4.29 — 1단계 진행 중 (2026-10-19)
+
+### [x] 접근성 기본 묶음 (완료 2026-10-19)
+- **흔들림·번쩍임·화면 정지 줄이기**: 플레이어 설정 `gameplay.shakeScale`·`flashScale`(0~100 %, 설정 화면 [게임] 탭 슬라이더)·`hitStop`(토글). 설정 서비스가 `feedback::Player::setAccessibility`로 넘기고, 연출 표는 그대로 두고 결과(카메라 흔들림 값, 화면 색 양)에 곱한다. 화면 정지를 끄면 `hitStop()`이 늘 false. `settings::Service::Targets::feedback`.
+- **자막**: 소리 이벤트 표(`audio::SoundEvent`)에 `subtitle`(게임 문자열 키)·`subtitleSeconds`(2.5) 열. 재생하면 `audio::Engine::subtitles()`에 줄이 쌓이고(같은 키는 한 줄, 시간만 늘린다, 볼륨·음소거와 무관), `game::Frontend`가 플레이어 설정 `gameplay.subtitles`가 켜져 있고 프로젝트에 `assets/ui/subtitles.ui`가 있으면 표준 자막 화면(층 5, 뷰 모델 `SubtitlesVm` 최근 4줄)을 연다.
+- **sandbox**: 밀치기·점프대·나타나기·떨어지기 소리에 자막(`sub.*` 문자열), 템플릿에 `assets/ui/subtitles.ui`.
+- **남은 것**: 색맹 보정 LUT 세 개는 2단계 포스트 프로세싱 항목에서(로드맵대로).
+- **결정론**: 영향 없음(화면 쪽만).
+- **검증**: 봇 매치 캡처에서 "[밀치는 소리]" 자막, check.ps1.
+
 ## v0.4.28 — 1단계 진행 중 (2026-10-19)
 
 ### [x] 내 캐릭터 겉모습만 예측 (완료 2026-10-19)

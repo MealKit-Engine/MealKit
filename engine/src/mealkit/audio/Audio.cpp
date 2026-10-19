@@ -142,6 +142,7 @@ struct Engine::Impl {
     Stats stats;
     Pcg32 rng{0x5EEDu};
     f64 time = 0.0;
+    std::vector<Subtitle> subtitles;
     f64 tableCheck = 0.0;
     std::string tablePath;
     unsigned long long tableTime = 0;
@@ -427,6 +428,11 @@ struct Engine::Impl {
         if (!e) {
             cull(std::string(name), "missing event");
             return {};
+        }
+        if (!e->def.subtitle.empty()) { // 자막: 같은 키는 한 줄로
+            auto at = std::find_if(subtitles.begin(), subtitles.end(), [&](const Subtitle& s) { return s.key == e->def.subtitle; });
+            if (at != subtitles.end()) at->secondsLeft = std::max(at->secondsLeft, e->def.subtitleSeconds);
+            else subtitles.push_back({e->def.subtitle, e->def.subtitleSeconds});
         }
         for (u32 i = 0; i < kVoiceSlots; ++i) {
             Voice& v = voices[i];
@@ -715,12 +721,16 @@ void Engine::update(f64 dt) {
     MEALKIT_ZONE("Audio");
     const f64 begin = nowSeconds();
     m->time += dt;
+    for (Subtitle& s : m->subtitles) s.secondsLeft -= static_cast<f32>(dt);
+    std::erase_if(m->subtitles, [](const Subtitle& s) { return s.secondsLeft <= 0.0f; });
     m->stats.playsThisFrame = m->stats.culledThisFrame = 0;
     m->pollTable();
     m->startPending();
     m->manageVoices(dt);
     m->stats.updateMs = (nowSeconds() - begin) * 1000.0;
 }
+
+const std::vector<Subtitle>& Engine::subtitles() const { return m->subtitles; }
 
 void Engine::reloadEvents() {
     if (m->ready) m->loadEvents();

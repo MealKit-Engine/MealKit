@@ -43,6 +43,9 @@ MEALKIT_STRUCT(SoundEvent) {
     MEALKIT_FIELD(u32, maxInstances, 8, "Max instances at once");
     MEALKIT_FIELD(std::string, steal, "oldest", "When full (oldest, quietest, none)");
     MEALKIT_FIELD(f32, cooldown, 0.0f, "Cooldown (s)");
+    // 자막 (접근성, 플레이어 설정 gameplay.subtitles): 게임 문자열 표 키. 소리가 날 때 화면 아래 표준 자막(ui/subtitles.ui)에 보인다
+    MEALKIT_FIELD(std::string, subtitle, {}, "Subtitle (game string key, empty is none)");
+    MEALKIT_FIELD(f32, subtitleSeconds, 2.5f, "Subtitle shown for (s)");
 };
 
 inline constexpr const char* kSoundTable = "sounds.table"; // assets 기준
@@ -86,6 +89,12 @@ struct BusInfo {
     f32 volume = 1.0f;
     f32 peak = 0.0f; // 최근 출력 최댓값 (0..1+)
 };
+// 자막이 있는 소리가 났다 (같은 키는 한 줄로 합치고 시간을 늘린다)
+struct Subtitle {
+    std::string key;
+    f32 secondsLeft = 0.0f;
+};
+
 struct Stats {
     u32 realVoices = 0;
     u32 virtualVoices = 0;
@@ -121,6 +130,8 @@ public:
     void setBusVolume(std::string_view bus, f32 volume);
     f32 busVolume(std::string_view bus) const;
     void setMuted(bool muted); // 창이 포커스를 잃었을 때 (설정 "포커스를 잃으면 음소거")
+    // 지금 보여 줄 자막 (나온 순서, 소리가 실제로 들리는지와 무관하다: 음소거·볼륨 0이어도 보인다)
+    const std::vector<Subtitle>& subtitles() const;
     bool muted() const;
 
     // 매 프레임 한 번: 표 다시 읽기(파일이 바뀌면), 재생 요청 처리, 목소리 관리, 끝난 소리 정리

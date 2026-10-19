@@ -26,6 +26,7 @@ minDistance 4
 maxDistance 50
 priority 70
 maxInstances 4
+subtitle sub.push
 
 row jump
 clips sounds/jump.wav
@@ -44,6 +45,7 @@ minDistance 4
 maxDistance 50
 priority 60
 maxInstances 3
+subtitle sub.bounce
 
 row spawn
 clips sounds/spawn.wav
@@ -52,6 +54,7 @@ minDistance 4
 maxDistance 50
 priority 50
 maxInstances 4
+subtitle sub.spawn
 
 row fall
 clips sounds/fall.wav
@@ -60,6 +63,7 @@ minDistance 6
 maxDistance 80
 priority 60
 maxInstances 3
+subtitle sub.fall
 
 row music
 clips sounds/music_loop.wav
