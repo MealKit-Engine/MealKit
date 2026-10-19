@@ -61,6 +61,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/core/Profile.h
     src/mealkit/game/GameContext.h
     src/mealkit/game/GameInstance.h
+    src/mealkit/game/BuildInfo.h
     src/mealkit/game/GameData.h
     src/mealkit/game/GameData.cpp
     src/mealkit/data/Tables.h
@@ -93,6 +94,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/platform/Paths.cpp
     src/mealkit/platform/System.h
     src/mealkit/platform/System.cpp
+    src/mealkit/platform/Input.h   # 헤더만 (키·마우스 상태, 입력 액션이 읽는다)
+    src/mealkit/platform/Gamepad.h # PadState는 입력 액션이 읽는다. Gamepads 구현은 화면 쪽(win32/Gamepad.cpp)
     src/mealkit/scene/Scene.h
     src/mealkit/scene/Scene.cpp
     src/mealkit/asset/ModelCache.h
@@ -111,8 +114,6 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/net/Rooms.h
     src/mealkit/net/Rooms.cpp)
 set(MEALKIT_FRONT_SOURCES
-    src/mealkit/platform/Input.h
-    src/mealkit/platform/Gamepad.h
     src/mealkit/platform/Window.h
     src/mealkit/platform/Process.h
     src/mealkit/platform/DynamicLibrary.h
@@ -355,6 +356,12 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/FeedbackPanel.cpp
         src/mealkit/editor/UiPanel.h
         src/mealkit/editor/UiPanel.cpp
+        src/mealkit/editor/TuningPanel.h
+        src/mealkit/editor/TuningPanel.cpp
+        src/mealkit/editor/ProjectSettingsPanel.h
+        src/mealkit/editor/ProjectSettingsPanel.cpp
+        src/mealkit/editor/BuildPanel.h
+        src/mealkit/editor/BuildPanel.cpp
         src/mealkit/editor/Strings.h
         src/mealkit/editor/Strings.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit)

@@ -44,6 +44,29 @@ foreach ($f in $files) {
     }
 }
 
+# 코어 파일(engine/CMakeLists.txt의 MEALKIT_CORE_SOURCES, 헤드리스·Linux·macOS가 링크하는 것)은 코어 헤더만 include한다.
+# 폴더 순서만으로는 같은 폴더 안의 코어 → 화면 쪽 include(game/Headless.cpp → game/Frontend.h 등)를 못 잡는다.
+$cmake = [IO.File]::ReadAllText((Join-Path $root "engine\CMakeLists.txt")) -replace '#[^\r\n]*', '' # 주석의 괄호가 목록을 끊지 않게
+$core = @{}
+foreach ($block in [regex]::Matches($cmake, '(?s)(?:set|list\(APPEND)\s*\(?\s*MEALKIT_CORE_SOURCES\b(.*?)\)')) {
+    foreach ($m in [regex]::Matches($block.Groups[1].Value, 'src/(mealkit/[\w/]+\.(?:h|cpp))')) { $core[$m.Groups[1].Value] = $true }
+}
+$coreEdges = 0
+foreach ($f in $files) {
+    $key = "mealkit/" + $f.FullName.Substring($engineSrc.Length + 1).Replace('\', '/')
+    if (-not $core.ContainsKey($key)) { continue }
+    $rel = $f.FullName.Substring($root.Length + 1)
+    $n = 0
+    foreach ($line in [IO.File]::ReadAllLines($f.FullName)) {
+        $n++
+        $code = ($line -replace '//.*$', '')
+        if ($code -notmatch '^\s*#\s*include\s*["<](mealkit/[\w/]+\.h)[">]') { continue }
+        $coreEdges++
+        if (-not $core.ContainsKey($Matches[1])) { $problems += "${rel}:${n}: core file includes $($Matches[1]) (not in MEALKIT_CORE_SOURCES)" }
+    }
+}
+if ($core.Count -eq 0) { $problems += "engine\CMakeLists.txt: MEALKIT_CORE_SOURCES not found" }
+
 $order = ($layers | ForEach-Object { $_ -join "+" }) -join " < "
 if ($problems.Count -gt 0) {
     $problems | ForEach-Object { Write-Host $_ }
@@ -51,5 +74,5 @@ if ($problems.Count -gt 0) {
     Write-Host "FAIL: $($problems.Count) problem(s) with the engine layer order" -ForegroundColor Red
     exit 1
 }
-Write-Host "OK: $($files.Count) files, $edges cross-folder includes follow $order" -ForegroundColor Green
+Write-Host "OK: $($files.Count) files, $edges cross-folder includes follow $order; $($core.Count) core files include only core headers ($coreEdges includes)" -ForegroundColor Green
 exit 0

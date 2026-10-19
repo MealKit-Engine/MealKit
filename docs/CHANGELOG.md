@@ -3,6 +3,13 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
+
+### [x] 코드 정리 4·5 — 에디터 패널 나누기, 코어 include 검사 (완료 2026-10-19)
+- **4. `editor/Editor.cpp` 나누기** (1806 → 1500줄): 튜닝 문서·프로젝트 설정 창·프로젝트 빌드를 [표]·[연출]처럼 패널 클래스로 뺐다. `TuningPanel`(game.tuning·view.tuning 문서, 플레이 사본, 행 참조 풀기), `ProjectSettingsPanel`(고치는 중인 값만 갖고 저장할 때 에디터의 `ProjectInfo`를 바꾼다), `BuildPanel`(`build.bat`·`upgrade_project.ps1` 실행, 출력 모으기, [빌드 로그] 창, 상태 표시줄 "빌드 중"). 빌드 전 저장(출시본은 씬·프로젝트 설정)과 끝난 뒤 할 일(DLL 다시 읽기, 업그레이드 뒤 다시 빌드)은 에디터에 남았다. 패널 상태 문구는 `takeStatus()`로 에디터 상태 표시줄에 간다. Ctrl+S와 [파일] > [저장]이 같은 `Editor::saveAll()`을 쓴다. `BuildKind`는 `BuildPanel.h`로 옮겼다(`editor::BuildKind` 이름 그대로). 동작 변경 없음.
+- **5. 코어 → 화면 쪽 include 검사** (`tools\check_layers.ps1`): `engine/CMakeLists.txt`의 `MEALKIT_CORE_SOURCES` 파일이 같은 목록의 헤더만 include하는지 본다. 폴더 순서 검사로는 같은 `game/` 안의 코어 → `Frontend.h`·`GameMain.h`·`FrameStats.h` include를 못 잡아 Linux·macOS CI 링크에서야 드러났다. 이때 헤더만 있는 `game/BuildInfo.h`·`platform/Input.h`·`platform/Gamepad.h`(코어 입력 액션이 쓴다)를 코어 목록으로 옮겼다(빌드 결과는 같다). `docs/CODING_MODEL.md` 검사 7.
+- **검증**: check.ps1 23개 통과, 일부러 코어 파일에 `Frontend.h`를 넣으면 검사가 실패하는 것 확인, 에디터 캡처(프로젝트 설정 창·튜닝 패널).
+
 ## v0.5.0 — 1단계 완료 (2026-10-19)
 
 1단계("게임이 되게 하는 최소 기능")의 마지막 항목을 끝내 v0.5로 올린다(ROADMAP "버전": v0.n = n단계를 끝낸 엔진).

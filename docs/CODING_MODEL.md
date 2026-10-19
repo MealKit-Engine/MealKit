@@ -117,6 +117,7 @@
 5. **템플릿·쿡북·CLAUDE.md가 같은 답을 쓴다.** 새 프로젝트는 이 구조로 시작하고, AI가 코드를 짜도 같은 답을 고른다.
 6. **폴더 검사.** `tools\check_layout.ps1`(check.ps1, Export, 에디터가 프로젝트를 열 때)이 `assets/` 바로 밑의 알 수 없는 파일, 종류 폴더와 맞지 않는 확장자, `assets/` 안의 원본 형식(`.blend` 등), `mealkit.txt`·`LICENSE`가 없는 `third_party/` 폴더를 찾는다. 에디터는 같은 규칙으로 경고한다.
 7. **엔진 폴더 계층 검사.** `tools\check_layers.ps1`(check.ps1)이 `engine/src/mealkit/`의 `#include "mealkit/<폴더>/..."`를 보고, 위 "엔진 폴더 사이 의존" 순서보다 뒤의 폴더를 include하거나 순서에 없는 폴더가 생기면 실패한다. 순서는 이 스크립트 한 곳에 있고, 바꾸면 이 문서와 같이 고친다.
+   같은 스크립트가 코어 파일(`engine/CMakeLists.txt`의 `MEALKIT_CORE_SOURCES`, 헤드리스·Linux·macOS가 링크하는 것)이 코어 목록에 있는 헤더만 include하는지도 본다. 폴더 순서로는 같은 폴더(`game/`) 안의 코어 → 화면 쪽(`Frontend.h`, `GameMain.h`, `FrameStats.h`) include를 못 잡기 때문이다. 헤더만 있는 타입(`platform/Input.h` 등)을 코어가 쓰려면 코어 목록에 넣는다.
 
 ## 검토했지만 바꾸지 않은 것
 
