@@ -26,7 +26,7 @@ void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3&
 }
 
 void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, u8 localPlayer, f64 now,
-               const ViewTuning& look, render::MeshId box, WorldView& view, render::DrawList& out) {
+               const ViewTuning& look, render::MeshId box, WorldView& view, render::DrawList& out, const Vec3& localOffset) {
     const PawnLook& pl = look.pawn;
     for (auto [id, b] : current.props) {
         const Prop* before = previous.props.get(id); // 이번 틱에 생긴 상자는 직전 상태가 없다
@@ -38,13 +38,13 @@ void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha,
     for (auto [id, b] : current.pawns) {
         const Pawn* before = previous.pawns.get(id); // 이번 틱에 생긴 Pawn은 직전 상태가 없다
         const Pawn& a = before ? *before : b;
-        const Vec3 pos = lerp(a.position, b.position, alpha);
+        const u8 player = pawnPlayer(current, b);
+        const Vec3 pos = lerp(a.position, b.position, alpha) + (player == localPlayer ? localOffset : Vec3{});
         f32& yaw = view.facing[id.slot];
         if (!before) yaw = 0.0f;
         if (b.velocity.x * b.velocity.x + b.velocity.z * b.velocity.z > pl.turnMinSpeed * pl.turnMinSpeed)
             yaw = std::atan2(b.velocity.x, b.velocity.z);
         const Quat facing = quatFromAxisAngle({0, 1, 0}, yaw);
-        const u8 player = pawnPlayer(current, b);
         const Color color = player != kNoPlayer ? look.playerColors[player % net::kMaxPlayers] : pl.aiColor;
         out.add(box, {pos, color.value, facing, pl.bodySize, 0});
         out.add(box, {pos + rotate(facing, pl.visorOffset), pl.visorColor.value, facing, pl.visorSize, 0});

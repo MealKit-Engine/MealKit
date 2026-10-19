@@ -54,6 +54,13 @@ MEALKIT_STRUCT(ShockwaveLook) {
     MEALKIT_FIELD(Color, color, (Color::rgb(255, 240, 200)), "색");
 };
 
+// 내 캐릭터 겉모습만 미리 움직이기 (입력 지연을 가린다, 시뮬레이션은 그대로): 보냈지만 아직 실행되지 않은 내 입력만큼 앞서 그린다
+MEALKIT_STRUCT(PredictionLook) {
+    MEALKIT_FIELD(bool, enabled, true, "켜기");
+    MEALKIT_FIELD(f32, maxOffset, 1.5f, "확정 위치에서 가장 멀리 (m, 충돌로 어긋나도 크게 튀지 않게)");
+    MEALKIT_FIELD(f32, follow, 14.0f, "따라가는 빠르기 (1/s, 클수록 바로)");
+};
+
 using PlayerColors = std::array<Color, mealkit::net::kMaxPlayers>;
 using PropColors = std::array<Color, kPropColorCount>;
 
@@ -61,6 +68,7 @@ MEALKIT_STRUCT(ViewTuning) {
     MEALKIT_FIELD(CameraTuning, camera, {}, "카메라");
     MEALKIT_FIELD(PawnLook, pawn, {}, "캐릭터 겉모습");
     MEALKIT_FIELD(ShockwaveLook, shockwave, {}, "충격파 효과");
+    MEALKIT_FIELD(PredictionLook, prediction, {}, "내 캐릭터 미리 움직이기");
     MEALKIT_FIELD(PlayerColors, playerColors,
                   (PlayerColors{Color::rgb(66, 135, 245), Color::rgb(235, 64, 52), Color::rgb(52, 199, 89),
                                 Color::rgb(250, 204, 21), Color::rgb(168, 85, 247), Color::rgb(236, 72, 153),

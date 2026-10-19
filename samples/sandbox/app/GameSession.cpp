@@ -53,6 +53,7 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
         Headless::startWorld(world, match, tuning, m_scene, ctx.models, physicsThreads); // 헤드리스와 같은 매치 시작
     });
     m_input.clearLatches();
+    m_prediction.reset();
     m_effects = {};
     m_hudVm = {};
     ctx.audio.stop(m_music);
@@ -137,6 +138,13 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     };
     if (!m_flow.pausesSimulation()) m_sim.update(session, dt, sample, onTick); // 혼자 하기의 일시정지는 매치를 멈춘다
 
+    // 내 캐릭터 미리 움직이기: 보냈지만 아직 실행되지 않은 내 이동 입력만큼 (화면만, 경기 중에만)
+    const World& world = m_sim.world();
+    const u8 me = session.localPlayer();
+    m_prediction.begin();
+    m_sim.forEachPendingInput([&](u32, const net::PlayerInput& in) { m_prediction.addInput(world, me, in); });
+    m_prediction.update(static_cast<f32>(dt), look.prediction, world.state.phase == MatchPhase::Playing && playerPawn(world.state, me));
+
     // 게임 화면 UI: 상태 → 뷰 모델, 버튼 액션 (시뮬레이션을 바꾸는 것은 확정 명령으로)
     std::array<std::string, net::kMaxPlayers> names;
     for (u32 i = 0; i < names.size(); ++i) names[i] = Flow::playerName(session, i);
@@ -202,7 +210,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
         const Pawn* pawn = c ? current.pawns.get(c->pawn) : nullptr;
         if (pawn) {
             const Pawn* before = previous.pawns.get(c->pawn);
-            m_focus = lerp(before ? before->position : pawn->position, pawn->position, alpha) +
+            m_focus = lerp(before ? before->position : pawn->position, pawn->position, alpha) + m_prediction.offset +
                       Vec3{0, look.camera.focusHeight, 0};
         }
     }
@@ -212,14 +220,15 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     applyEnvironment(m_scene.environment, frame);
 
     drawScene(m_scene, ctx.models, frame.cameraPos, out);
-    drawWorld(previous, current, alpha, localPlayer, now, look, ctx.models.boxMesh(), m_view, out);
+    drawWorld(previous, current, alpha, localPlayer, now, look, ctx.models.boxMesh(), m_view, out, m_prediction.offset);
     // 캐릭터 위 이름표 (월드 위 UI): 보간한 위치 위에
     for (u32 slot = 0; slot < current.playerCount && slot < m_tagVms.size(); ++slot) {
         const Pawn* pawn = playerPawn(current, slot);
         if (!pawn) continue;
         const Controller* c = current.controllers.get(current.slots[slot].controller);
         const Pawn* before = c ? previous.pawns.get(c->pawn) : nullptr;
-        const Vec3 at = lerp(before ? before->position : pawn->position, pawn->position, alpha);
+        const Vec3 at = lerp(before ? before->position : pawn->position, pawn->position, alpha) +
+                        (slot == localPlayer ? m_prediction.offset : Vec3{});
         NameTagVm& tag = m_tagVms[slot];
         tag.name = Flow::playerName(ctx.session, slot);
         tag.you = slot == localPlayer;

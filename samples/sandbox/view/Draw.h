@@ -22,8 +22,9 @@ void applyEnvironment(const mealkit::scene::Environment& env, mealkit::render::F
 // 씬의 정적 물체 (스폰 지점과 영역은 그리지 않는다)
 void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, const Vec3& eye,
                mealkit::render::DrawList& out);
-// 직전 틱과 현재 틱 사이를 alpha로 보간해 상자와 Pawn을 그린다
+// 직전 틱과 현재 틱 사이를 alpha로 보간해 상자와 Pawn을 그린다. localOffset: 내 캐릭터만 더 옮겨 그린다 (미리 움직이기)
 void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, u8 localPlayer, mealkit::f64 now,
-               const ViewTuning& look, mealkit::render::MeshId box, WorldView& view, mealkit::render::DrawList& out);
+               const ViewTuning& look, mealkit::render::MeshId box, WorldView& view, mealkit::render::DrawList& out,
+               const Vec3& localOffset = {});
 
 } // namespace sandbox
