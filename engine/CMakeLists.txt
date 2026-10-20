@@ -151,6 +151,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/ui/Document.h
     src/mealkit/ui/Document.cpp
     src/mealkit/ui/Ui.h
+    src/mealkit/ui/Text.h
+    src/mealkit/ui/Text.cpp
     src/mealkit/ui/Ui.cpp
     src/mealkit/ui/StbImpl.cpp
     src/mealkit/settings/Settings.h

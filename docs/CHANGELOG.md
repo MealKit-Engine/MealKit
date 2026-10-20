@@ -5,6 +5,12 @@
 
 ## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 코드 정리 3·6·7 — 참가 창을 `runGame`으로, 글자 셰이핑 분리, 참가 창 명령줄 공유 (완료 2026-10-20)
+- **3. 참가 창을 `runGame`으로**: `game::runGame`을 명령줄 읽기(`runGame(argc, argv, spec)`)와 실행(`runGame(MatchOptions, WindowOptions, spec, GameRunOptions)`)으로 나눴다. 에디터 여러 명 플레이의 참가 창(`editor::runPlayer`)은 자기 루프(창·렌더러·접속·`Frontend`·프레임) 대신 참가 모드 출시 exe와 같은 함수를 부른다. 다른 점은 `game::GameRunOptions`로 받는다: 이미 읽은 프로젝트 설정, 창 제목·제목 표시줄 색, 화면용 튜닝 사본 경로, `playerFiles = false`(설정·바꾼 키·세이브를 읽고 쓰지 않음), `onlineService = false`, `exitWhenSessionEnds`(세션이 끝나거나 게임이 메뉴로 나가면 종료). 소리 끔은 `WindowOptions::mute`. 참가 창도 이제 F1 디버그 UI·V·F12·창 제목의 성능 숫자를 갖는다.
+- **6. `ui/Text.cpp`**: `ui/Ui.cpp`(1746 → 1517줄)에서 UTF-8 해석·스타일 구간 태그·커닝·줄 나누기·말줄임을 `ui/Text.h`·`Text.cpp`(`decodeUtf8`, `shapeGlyphs`, `breakLines`)로 옮겼다. 기능 변경 없음.
+- **7. 참가 창 명령줄**: 참가 창은 `--player-window` + 에디터 항목 셋(`--project`, `--player-index`, `--view-tuning`)만 직접 읽고 나머지는 출시 exe 파서 `game::parseGameArgs`로 읽는다(`--join`, `--scene`, `--tuning`, `--bot`, `--debug` 등). 에디터 `Options`에서 참가 창 전용 항목(`--player`, `--tuning`, `--view-tuning`, `--player-index`)을 지웠다. 에디터 본 창의 `--players`(플레이 인원)·`--bot`(에디터 창 봇)·`--scene`(편집할 씬)은 게임 옵션과 뜻이 달라 그대로 둔다.
+- **검증**: Editor 빌드 경고 없음, 에디터 `--play --players 3 --bot` 두 참가 창 접속·동기화, check.ps1.
+
 ### [x] RHI 층 — DX12 + Vulkan 백엔드 (완료 2026-10-20)
 - **왜**: 2단계는 bindless 텍스처·그림자·포스트·GPU 타임스탬프로 그래픽 API 호출이 가장 많이 늘어나는 단계라, 그 전에 호출을 한 층으로 모았다. 구현이 하나뿐인 추상화는 DX12의 가정이 새어 나오므로 Vulkan 백엔드를 같은 항목에서 만들었다(`docs/DECISIONS.md` 2026-10-16). Vulkan 하나가 5단계의 Linux·Steam Deck·Android를 덮는다.
 - **RHI** (`mealkit/rhi/Rhi.h`): `Device`(장치·스왑체인, 정적 버퍼, 텍스처, 파이프라인, 프레임 업로드 링 `allocUpload`, 캡처, `gpu()`), `CommandList`(`beginScene`/`beginOverlay`, 뷰포트, 파이프라인, 푸시 상수, 정점·인덱스 버퍼, 그리기, 텍스처 배리어·복사), 디버그 UI 그리기(`imguiInit`/`imguiRender`). 모양은 DX12를 따르고 백엔드는 빌드 때 하나(`MEALKIT_RHI`, 가상 함수 없이 `rhi/dx12/`·`rhi/vulkan/`의 `.cpp`). 렌더 그래프는 없다. 백버퍼 배치 전환은 `beginScene`/`beginOverlay`/`endFrame` 안에서, 텍스처 배리어는 부르는 쪽이 명시한다. 복사·배리어는 묶인 그리기 대상을 푼다(Vulkan dynamic rendering 규칙).
