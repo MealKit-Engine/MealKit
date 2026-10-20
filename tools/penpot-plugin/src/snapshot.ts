@@ -107,6 +107,12 @@ function shadowOf(s: PShadow): SNode['shadows'][number] {
   };
 }
 
+function rangeOr(t: Text, key: 'align', fallback: string | null): string | null {
+  if (t.characters.length === 0) return fallback;
+  const v = t.getRange(0, t.characters.length)[key];
+  return v && v !== 'mixed' ? v : fallback;
+}
+
 export interface SnapOptions {
   variants: boolean; // 컴포넌트 variants의 상태를 같이 (variants 안에서는 다시 하지 않는다)
 }
@@ -199,7 +205,8 @@ export function snapshot(shape: Shape, board: Shape, opt: SnapOptions = { varian
     n.text = {
       characters: t.characters,
       growType: t.growType,
-      align: String(t.align ?? 'left'),
+      // 정렬은 문단(글자 범위)에 있다: 도형의 align은 문단과 다를 수 있다
+      align: String(rangeOr(t, 'align', t.align) ?? 'left'),
       verticalAlign: String(t.verticalAlign ?? 'top'),
       runs: textRuns(t),
     };

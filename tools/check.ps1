@@ -156,6 +156,36 @@ if (-not $Quick) {
         $code = Run $log $game "--mute --frames 240 --ui-press 20:start,50:solo,90:start --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and (Has $log "Match 1 started") -and (Has $log "World ready") -and -not (Has $log "--ui-press: no widget")
     }
+    # Penpot 플러그인 (ROADMAP "게임 화면 UI 2부"): 변환기 시험(Node.js가 있을 때), Penpot에서 내보낸 화면의 배치 = Penpot 상자.
+    # 비교는 영어 표로 한다 (Penpot 원본 글자가 영어라 글자 노드도 같은 글자를 그린다)
+    Invoke-Check "Penpot plugin (converter tests)" {
+        param($log)
+        if (-not (Get-Command node -ErrorAction SilentlyContinue)) { return "SKIP: no Node.js" }
+        $code = Run $log "node" "--test `"$root\tools\penpot-plugin\test\convert.test.ts`""
+        return $code -eq 0
+    }
+    Invoke-Check "Penpot screens = engine layout" {
+        param($log)
+        $code = Run $log $editor "--project `"$root`" --ui-check --lang en"
+        return $code -eq 0 -and (Has $log "UI-CHECK .* -> ok") -and -not (Has $log "-> FAIL")
+    }
+    # 보조: Penpot이 그린 보드(art/ui/preview, 반 크기)와 엔진이 그린 같은 화면. 글자 래스터·안티에일리어싱이 달라 느슨하게
+    # (채널 차이 48 넘는 픽셀 1% 이하). 노드가 빠지거나 크게 어긋나는 것을 잡는다
+    Invoke-Check "Penpot screens = engine pixels" {
+        param($log)
+        $previews = @(Get-ChildItem (Join-Path $root "art\ui\preview") -Filter *.png -ErrorAction SilentlyContinue)
+        if ($previews.Count -eq 0) { return "SKIP: no art/ui/preview images" }
+        foreach ($p in $previews) {
+            $png = Join-Path $out ("engine-" + $p.Name)
+            $code = Run "$log.render" $editor "--project `"$root`" --lang en --ui-render ui/$($p.BaseName).ui `"$png`""
+            Get-Content "$log.render" | Add-Content $log
+            if ($code -ne 0) { return $false }
+            $diff = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $p.FullName -B $png -Threshold 48 -MaxBadPercent 1 -MaxDiff 255 2>&1
+            "$($p.Name): $diff" | Add-Content $log
+            if ($LASTEXITCODE -ne 0) { return $false }
+        }
+        return $true
+    }
     Invoke-Check "Editor capture (edit mode)" {
         param($log)
         $png = Join-Path $out "editor.png"

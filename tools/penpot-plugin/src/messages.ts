@@ -24,6 +24,7 @@ export interface ExportedScreen {
   images: { path: string; data: Uint8Array; logicalW: number; logicalH: number }[];
   strings: StringEntry[];
   boxes: Box[];
+  preview?: Uint8Array; // 보드 전체 PNG (배율 kPreviewScale, 픽셀 비교 art/ui/preview)
   warnings: string[];
   errors: string[];
   nodeCount: number;
@@ -48,4 +49,5 @@ export type ToPlugin =
   | { type: 'setData'; id: string; data: MealkitData }
   | { type: 'setFile'; id: string; file: string }
   | { type: 'select'; id: string }
+  | { type: 'example' }
   | { type: 'export'; boardIds: string[]; fonts: string[]; nodeBudget: number; theme: boolean; source: boolean };

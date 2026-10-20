@@ -210,9 +210,10 @@ async function finishExport(msg: Extract<ToUi, { type: 'exported' }>) {
     entries.push({ kind: 'clean', path: `ui/${screen}/`, data: new Uint8Array() });
     for (const img of s.images) entries.push({ kind: 'png', path: img.path, data: img.data });
     for (const kv of s.strings) strings.set(kv.key, kv.text);
-    const boxes = [`# Penpot layout boxes of assets/${s.file} (logical units from the board's top left): id x y w h name`];
-    for (const b of s.boxes) boxes.push(`${b.id} ${b.x} ${b.y} ${b.w} ${b.h} ${b.name}`);
+    const boxes = [`# Penpot layout boxes of assets/${s.file} (logical units from the board's top left): id x y w h name [tab text]`];
+    for (const b of s.boxes) boxes.push(`${b.id} ${b.x} ${b.y} ${b.w} ${b.h} ${b.name}${b.text !== undefined ? '\t' + b.text : ''}`);
     entries.push({ kind: 'boxes', path: screen + '.boxes', data: text(boxes.join('\n') + '\n') });
+    if (s.preview) entries.push({ kind: 'preview', path: screen + '.png', data: s.preview });
   }
   if (blocked) {
     log('Fix the errors above and export again (nothing was written for those screens).', 'err');
@@ -244,6 +245,7 @@ async function finishExport(msg: Extract<ToUi, { type: 'exported' }>) {
     if (e.kind === 'ui' || e.kind === 'png' || e.kind === 'theme') files.push({ path: 'assets/' + e.path, data: e.data });
     else if (e.kind === 'penpot') files.push({ path: 'art/ui/' + e.path, data: e.data });
     else if (e.kind === 'boxes') files.push({ path: 'art/ui/boxes/' + e.path, data: e.data });
+    else if (e.kind === 'preview') files.push({ path: 'art/ui/preview/' + e.path, data: e.data });
     else if (e.kind === 'strings') files.push({ path: 'penpot-strings.txt', data: e.data });
   }
   const blob = new Blob([buildZip(files) as BlobPart], { type: 'application/zip' });
@@ -304,6 +306,8 @@ $('export').addEventListener('click', () => {
     source: ($('source') as HTMLInputElement).checked,
   });
 });
+
+$('example').addEventListener('click', () => post({ type: 'example' }));
 
 document.body.dataset.theme = new URLSearchParams(location.search).get('theme') ?? 'light';
 post({ type: 'ready' });

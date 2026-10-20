@@ -157,7 +157,7 @@ function pauseBoard(): SNode {
     shadows: [{ style: 'drop-shadow', offsetX: 0, offsetY: 12, blur: 40, spread: 0, color: { hex: '#000000', opacity: 0.67 } }],
     backgroundBlur: true,
     layout: layout({ kind: 'flex', dir: 'column', rowGap: 14, columnGap: 14, padding: [32, 36, 32, 36] }),
-    children: [title, resume, grid, icon],
+    children: [icon, grid, resume, title], // 아래 레이어부터: Flex에서는 title이 맨 앞
   });
   const dim = node({ name: 'dim', type: 'rectangle', width: 1920, height: 1080, constraintsH: 'leftright', constraintsV: 'topbottom', fills: [{ color: { hex: '#05070c', opacity: 0.6 } }] });
   const photo = node({ name: 'photo', type: 'rectangle', x: 10, y: 20, width: 64, height: 64, fills: [{ image: true }], data: { slice: [8, 8, 8, 8] } });

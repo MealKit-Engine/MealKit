@@ -1,0 +1,133 @@
+# MealKit UI exported from Penpot: 새 파일 1 (file 65d5ee1e-9774-8045-8008-d180d675af37, board fe0e576e-f722-8016-8008-d18e6ce43329). Do not edit; change it in Penpot and export again.
+board pause 1920 1080
+  id fe0e576e-f722-8016-8008-d18e6ce43329
+  navigation
+  firstFocus resume
+  back pause.resume
+  clip
+  fill #202634
+  frame base-background
+    id fe0e576e-f722-8016-8008-d18e6daf9769
+    pos 940 240
+    size 24 24
+    hidden
+  end
+  image svg-path
+    id fe0e576e-f722-8016-8008-d18e6db08e85
+    pos 946 244
+    size 12 16
+    src ui/penpot_example/svg-path.png
+  end
+  frame dim
+    id fe0e576e-f722-8016-8008-d18e6cfe406e
+    pos 0 0
+    size 1920 1080
+    constraints leftright topbottom
+    fill #05070C99
+  end
+  frame panel
+    id fe0e576e-f722-8016-8008-d18e6d0f2a8b
+    pos 710 300
+    size 500 hug
+    constraints center center
+    clip
+    layout column
+    gap 14 0
+    padding 32 36 32 36
+    alignContent stretch
+    fill #10141CCC
+    stroke 1 #FFFFFF26
+    radius 16
+    shadow 0 12 40 0 #000000AB
+    text pause.title
+      id fe0e576e-f722-8016-8008-d18e6d293c87
+      size fill hug
+      key pause.title
+      font Pretendard-Medium
+      fontSize 40
+      color #F2F4F8
+      lineHeight 1.2
+    end
+    frame resume
+      id fe0e576e-f722-8016-8008-d18e6d3c7ce8
+      size fill 60
+      clip
+      layout row
+      justify center
+      align center
+      alignContent stretch
+      fill $accent
+      radius 12
+      button pause.resume
+      text pause.resume
+        id fe0e576e-f722-8016-8008-d18e6d505d38
+        size hug hug
+        key pause.resume
+        font Pretendard-Medium
+        fontSize 28
+        color #10141C
+        lineHeight 1.2
+      end
+    end
+    frame leave
+      id fe0e576e-f722-8016-8008-d18e6d5a171c
+      size fill 60
+      clip
+      layout row
+      justify center
+      align center
+      alignContent stretch
+      fill #2A3242
+      radius 12
+      button pause.leave
+      text pause.leave
+        id fe0e576e-f722-8016-8008-d18e6d683430
+        size hug hug
+        key pause.leave
+        font Pretendard-Medium
+        fontSize 28
+        color #F2F4F8
+        lineHeight 1.2
+      end
+    end
+    frame stats
+      id fe0e576e-f722-8016-8008-d18e6d70b084
+      size fill hug
+      clip
+      layout grid
+      columns 1fr 120
+      rows auto auto
+      justifyItems start
+      gap 8 16
+      justify stretch
+      alignContent stretch
+      frame a
+        id fe0e576e-f722-8016-8008-d18e6d8239d5
+        size fill 24
+        cell 1 1
+        fill #FFFFFF26
+        radius 4
+      end
+      frame b
+        id fe0e576e-f722-8016-8008-d18e6d8cfcda
+        size 60 24
+        cell 1 2
+        fill #FFFFFF26
+        radius 4
+      end
+      frame c
+        id fe0e576e-f722-8016-8008-d18e6d968682
+        size fill 24
+        cell 2 1
+        fill #FFFFFF26
+        radius 4
+      end
+      frame wide
+        id fe0e576e-f722-8016-8008-d18e6da3ff18
+        size 60 16
+        cell 2 2
+        fill #FFC83D
+      end
+    end
+  end
+end

@@ -174,7 +174,7 @@ export interface SNode {
   text?: SText;
   data?: MealkitData;
   states?: { state: string; node: SNode }[]; // 컴포넌트 variants의 상태 (hover, pressed ...)
-  children: SNode[];
+  children: SNode[]; // 아래 레이어(먼저 그리는 것)부터
 }
 
 // 내보내기 결과
@@ -197,6 +197,7 @@ export interface Box {
   y: number;
   w: number;
   h: number;
+  text?: string; // 글자 노드: Penpot의 글자 (태그 포함, 줄바꿈은 \n). 엔진이 같은 글자를 그릴 때만 비교한다
 }
 
 export interface Result {

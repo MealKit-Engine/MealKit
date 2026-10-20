@@ -2,6 +2,6 @@
   "name": "MealKit",
   "description": "Export game screens to a MealKit project (.ui files, baked images, strings, theme tokens).",
   "code": "__MEALKIT_BASE__plugin.js",
-  "icon": "__MEALKIT_BASE__icon.png",
+  "icon": "__MEALKIT_PATH__icon.png",
   "permissions": ["content:read", "content:write", "library:read", "allow:downloads"]
 }

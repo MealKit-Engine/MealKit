@@ -101,15 +101,15 @@
   function textContent(runs, base2, fonts, errors, nodeLabel) {
     const tags = /* @__PURE__ */ new Map();
     const spans = [];
-    let text = "";
+    let text2 = "";
     const baseKey = runStyleKey(base2);
     for (const r of runs) {
-      const font = fontFile(r);
-      if (!fonts.has(font)) errors.push(`${nodeLabel}: font '${font}' is not in assets/fonts`);
+      const font2 = fontFile(r);
+      if (!fonts.has(font2)) errors.push(`${nodeLabel}: font '${font2}' is not in assets/fonts`);
       const chars = r.characters.replace(/\r?\n/g, "\\n");
       const key = runStyleKey(r);
       if (key === baseKey || chars.trim().length === 0) {
-        text += chars;
+        text2 += chars;
         continue;
       }
       let tag = tags.get(key);
@@ -117,7 +117,7 @@
         tag = tags.size + 1;
         tags.set(key, tag);
         const parts = [];
-        if (font !== fontFile(base2)) parts.push("font " + font);
+        if (font2 !== fontFile(base2)) parts.push("font " + font2);
         if (r.fontSize !== base2.fontSize) parts.push("size " + num(r.fontSize));
         if (r.fill && color(r.fill) !== (base2.fill ? color(base2.fill) : "")) parts.push("color " + color(r.fill));
         if (r.letterSpacing !== base2.letterSpacing) parts.push("letterSpacing " + num(r.letterSpacing));
@@ -125,9 +125,12 @@
         if (r.textDecoration === "line-through" && base2.textDecoration !== "line-through") parts.push("strike");
         if (parts.length > 0) spans.push(`span ${tag} ${parts.join(" ")}`);
       }
-      text += `<${tag}>${chars}</${tag}>`;
+      text2 += `<${tag}>${chars}</${tag}>`;
     }
-    return { text, spans };
+    return { text: text2, spans };
+  }
+  function flowOrder(n) {
+    return n.layout ? [...n.children].reverse() : n.children;
   }
   function indentOf(depth) {
     return "  ".repeat(depth);
@@ -141,15 +144,17 @@
   }
   function sizeWord(n, horizontal, parentLayout) {
     const v = horizontal ? n.width : n.height;
+    if (n.type === "text" && n.text) {
+      const s = parentLayout && n.child && !n.child.absolute ? horizontal ? n.child.horizontalSizing : n.child.verticalSizing : "fix";
+      if (s === "fill") return "fill";
+      if (n.text.growType === "auto-width") return "hug";
+      if (n.text.growType === "auto-height" && !horizontal) return "hug";
+      return num(v);
+    }
     if (parentLayout && n.child && !n.child.absolute) {
       const s = horizontal ? n.child.horizontalSizing : n.child.verticalSizing;
       if (s === "fill") return "fill";
       if (s === "auto") return "hug";
-      return num(v);
-    }
-    if (n.type === "text" && n.text) {
-      if (n.text.growType === "auto-width") return "hug";
-      if (n.text.growType === "auto-height" && !horizontal) return "hug";
       return num(v);
     }
     if (n.layout && (horizontal ? n.boardSizingH : n.boardSizingV) === "auto") return "hug";
@@ -293,6 +298,8 @@
       return;
     }
     if (n.type === "text" && n.text) {
+      const box = ctx.boxes[ctx.boxes.length - 1];
+      if (box && box.id === n.id && n.text) box.text = n.text.characters.replace(/\r?\n/g, "\\n");
       ctx.lines.push(`${ind}text ${name}`);
       ctx.lines.push(`${ind}  id ${n.id}`);
       emitPlacement(ctx, n, props, parentLayout, rotated);
@@ -301,14 +308,14 @@
       if (!base2) {
         warn("empty text");
       } else {
-        const { text, spans } = textContent(t.runs, base2, ctx.fonts, ctx.errors, label);
+        const { text: text2, spans } = textContent(t.runs, base2, ctx.fonts, ctx.errors, label);
         const key = n.data?.key || (looksLikeKey(n.name) ? n.name.trim() : "");
         if (key) {
           props.push("key " + key);
-          ctx.strings.set(key, text);
+          ctx.strings.set(key, text2);
         } else {
           warn('the layer name is not a string key (like "menu.start"), so the text is not translated');
-          props.push("content " + text);
+          props.push("content " + text2);
         }
         props.push("font " + fontFile(base2));
         props.push("fontSize " + num(base2.fontSize));
@@ -375,10 +382,10 @@
       warn(`baked to ${bg.path} (${reason})`);
     }
     const layout = n.layout ? n.layout.kind : "none";
-    for (const c of n.children) convertNode(ctx, c, depth + 1, layout, isRotated, label);
+    for (const c of flowOrder(n)) convertNode(ctx, c, depth + 1, layout, isRotated, label);
     ctx.lines.push(`${ind}end`);
   }
-  function convertBoard(board, opt) {
+  function convertBoard(board2, opt) {
     const screen = opt.file.replace(/^ui\//, "").replace(/\.ui$/, "");
     const ctx = {
       opt,
@@ -393,41 +400,41 @@
       screen,
       usedImages: /* @__PURE__ */ new Set()
     };
-    const name = nodeName(board.name, screen);
-    ctx.lines.push(`${kHeader}: ${opt.fileName} (file ${opt.fileId}, board ${board.id}). Do not edit; change it in Penpot and export again.`);
-    ctx.lines.push(`board ${name} ${num(board.width)} ${num(board.height)}`);
-    ctx.lines.push(`  id ${board.id}`);
-    ctx.boxes.push({ id: board.id, name, x: 0, y: 0, w: board.width, h: board.height });
-    const d = board.data;
+    const name = nodeName(board2.name, screen);
+    ctx.lines.push(`${kHeader}: ${opt.fileName} (file ${opt.fileId}, board ${board2.id}). Do not edit; change it in Penpot and export again.`);
+    ctx.lines.push(`board ${name} ${num(board2.width)} ${num(board2.height)}`);
+    ctx.lines.push(`  id ${board2.id}`);
+    ctx.boxes.push({ id: board2.id, name, x: 0, y: 0, w: board2.width, h: board2.height });
+    const d = board2.data;
     if (d?.navigation) ctx.lines.push("  navigation");
     if (d?.firstFocus) ctx.lines.push("  firstFocus " + d.firstFocus);
     if (d?.back) ctx.lines.push("  back " + d.back);
     const props = [];
-    if (board.clip && board.children.length > 0) props.push("clip");
-    emitLayout(board, props);
-    const reason = bakeReason(board);
+    if (board2.clip && board2.children.length > 0) props.push("clip");
+    emitLayout(board2, props);
+    const reason = bakeReason(board2);
     if (reason) {
-      ctx.warnings.push(`${board.name}: the board background is baked (${reason})`);
+      ctx.warnings.push(`${board2.name}: the board background is baked (${reason})`);
       const path = imagePath(ctx, name + "_bg");
-      ctx.bakes.push({ id: board.id, path, scale: 1, skipChildren: true });
-      props.push(`image ${name}_bg`, `  absolute`, `  pos 0 0`, `  size ${num(board.width)} ${num(board.height)}`, `  constraints scale scale`, `  src ${path}`, `end`);
+      ctx.bakes.push({ id: board2.id, path, scale: 1, skipChildren: true });
+      props.push(`image ${name}_bg`, `  absolute`, `  pos 0 0`, `  size ${num(board2.width)} ${num(board2.height)}`, `  constraints scale scale`, `  src ${path}`, `end`);
       ctx.count++;
     } else {
-      for (const [prop, v] of visualLines(board, (m) => ctx.warnings.push(`${board.name}: ${m}`))) {
+      for (const [prop, v] of visualLines(board2, (m) => ctx.warnings.push(`${board2.name}: ${m}`))) {
         if (prop === "fill" && v[0] !== "fill none") props.push(...v);
-        if (prop === "opacity" && board.opacity !== 1) props.push(...v);
+        if (prop === "opacity" && board2.opacity !== 1) props.push(...v);
       }
     }
     emitData({ ...d, navigation: void 0, firstFocus: void 0, back: void 0 }, props);
     for (const p of props) ctx.lines.push("  " + p);
-    const layout = board.layout ? board.layout.kind : "none";
-    for (const c of board.children) convertNode(ctx, c, 1, layout, board.rotation !== 0, board.name);
+    const layout = board2.layout ? board2.layout.kind : "none";
+    for (const c of flowOrder(board2)) convertNode(ctx, c, 1, layout, board2.rotation !== 0, board2.name);
     ctx.lines.push("end");
     if (ctx.count > opt.nodeBudget) ctx.warnings.push(`${ctx.count} nodes, over the budget of ${opt.nodeBudget} per screen`);
     return {
       ui: ctx.lines.join("\n") + "\n",
       bakes: ctx.bakes,
-      strings: [...ctx.strings].map(([key, text]) => ({ key, text })),
+      strings: [...ctx.strings].map(([key, text2]) => ({ key, text: text2 })),
       boxes: ctx.boxes,
       warnings: ctx.warnings,
       errors: ctx.errors,
@@ -560,17 +567,22 @@
       color: { hex: s.color?.color ?? "#000000", opacity: s.color?.opacity ?? 1 }
     };
   }
-  function snapshot(shape, board, opt = { variants: true }) {
+  function rangeOr(t, key, fallback) {
+    if (t.characters.length === 0) return fallback;
+    const v = t.getRange(0, t.characters.length)[key];
+    return v && v !== "mixed" ? v : fallback;
+  }
+  function snapshot(shape, board2, opt = { variants: true }) {
     const tokens = shape.tokens ?? {};
     const fills = shape.fills === "mixed" ? [] : shape.fills;
     const n = {
       id: shape.id,
       name: shape.name,
       type: shape.type,
-      x: shape === board ? 0 : shape.parentX,
-      y: shape === board ? 0 : shape.parentY,
-      absX: shape.x - board.x,
-      absY: shape.y - board.y,
+      x: shape === board2 ? 0 : shape.parentX,
+      y: shape === board2 ? 0 : shape.parentY,
+      absX: shape.x - board2.x,
+      absY: shape.y - board2.y,
       width: shape.width,
       height: shape.height,
       rotation: shape.rotation ?? 0,
@@ -645,14 +657,15 @@
       n.text = {
         characters: t.characters,
         growType: t.growType,
-        align: String(t.align ?? "left"),
+        // 정렬은 문단(글자 범위)에 있다: 도형의 align은 문단과 다를 수 있다
+        align: String(rangeOr(t, "align", t.align) ?? "left"),
         verticalAlign: String(t.verticalAlign ?? "top"),
         runs: textRuns(t)
       };
     }
     if ("children" in shape && Array.isArray(shape.children)) {
       const kids = [...shape.children].sort((a, b) => a.parentIndex - b.parentIndex);
-      n.children = kids.map((c) => snapshot(c, board, { variants: opt.variants }));
+      n.children = kids.map((c) => snapshot(c, board2, { variants: opt.variants }));
     }
     if (opt.variants && shape.isComponentInstance()) {
       const comp = shape.component();
@@ -675,15 +688,139 @@
   }
 
   // src/encode.ts
-  var enc = new TextEncoder();
   function pngSize(data) {
     if (data.length < 24 || data[0] !== 137 || data[1] !== 80) return null;
     const v = new DataView(data.buffer, data.byteOffset, data.byteLength);
     return { w: v.getUint32(16), h: v.getUint32(20) };
   }
 
+  // src/example.ts
+  var font = "Pretendard";
+  function text(characters, name, size, color2) {
+    const t = penpot.createText(characters);
+    if (!t) throw new Error("createText failed");
+    t.name = name;
+    const f = penpot.fonts.findByName(font);
+    if (f) f.applyToText(t, f.variants.find((v) => v.fontWeight === "500") ?? void 0);
+    t.fontSize = String(size);
+    t.fills = [{ fillColor: color2, fillOpacity: 1 }];
+    t.growType = "auto-width";
+    return t;
+  }
+  function board(name, w, h, color2, opacity = 1) {
+    const b = penpot.createBoard();
+    b.name = name;
+    b.resize(w, h);
+    b.fills = color2 ? [{ fillColor: color2, fillOpacity: opacity }] : [];
+    return b;
+  }
+  function fillWidth(s) {
+    if (s.layoutChild) s.layoutChild.horizontalSizing = "fill";
+  }
+  function createExample() {
+    const root = board("pause", 1920, 1080, "#202634");
+    root.x = 0;
+    root.y = 0;
+    root.setPluginData(kDataKey, JSON.stringify({ navigation: true, firstFocus: "resume", back: "pause.resume" }));
+    const dim = penpot.createRectangle();
+    dim.name = "dim";
+    dim.resize(1920, 1080);
+    dim.fills = [{ fillColor: "#05070c", fillOpacity: 0.6 }];
+    root.appendChild(dim);
+    dim.x = root.x;
+    dim.y = root.y;
+    dim.constraintsHorizontal = "leftright";
+    dim.constraintsVertical = "topbottom";
+    const panel = board("panel", 500, 400, "#10141c", 0.8);
+    root.appendChild(panel);
+    panel.x = root.x + 710;
+    panel.y = root.y + 300;
+    panel.borderRadius = 16;
+    panel.strokes = [{ strokeColor: "#ffffff", strokeOpacity: 0.15, strokeWidth: 1, strokeAlignment: "inner", strokeStyle: "solid" }];
+    panel.shadows = [{ style: "drop-shadow", offsetX: 0, offsetY: 12, blur: 40, spread: 0, color: { color: "#000000", opacity: 0.67 } }];
+    panel.constraintsHorizontal = "center";
+    panel.constraintsVertical = "center";
+    const flex = panel.addFlexLayout();
+    flex.dir = "column";
+    flex.rowGap = 14;
+    flex.topPadding = flex.bottomPadding = 32;
+    flex.leftPadding = flex.rightPadding = 36;
+    panel.verticalSizing = "auto";
+    const title = text("Paused", "pause.title", 40, "#f2f4f8");
+    panel.appendChild(title);
+    fillWidth(title);
+    title.getRange(0, title.characters.length).align = "center";
+    for (const [name, label, action, color2] of [
+      ["resume", "Resume", "pause.resume", "#ffc83d"],
+      ["leave", "Leave", "pause.leave", "#2a3242"]
+    ]) {
+      const button = board(name, 428, 60, color2);
+      button.borderRadius = 12;
+      const row = button.addFlexLayout();
+      row.dir = "row";
+      row.justifyContent = "center";
+      row.alignItems = "center";
+      button.setPluginData(kDataKey, JSON.stringify({ widget: "button", action }));
+      panel.appendChild(button);
+      fillWidth(button);
+      const t = text(label, "pause." + name, 28, name === "resume" ? "#10141c" : "#f2f4f8");
+      button.appendChild(t);
+    }
+    const stats = board("stats", 428, 100, null);
+    panel.appendChild(stats);
+    fillWidth(stats);
+    const grid = stats.addGridLayout();
+    grid.addColumn("flex", 1);
+    grid.addColumn("fixed", 120);
+    grid.addRow("auto");
+    grid.addRow("auto");
+    grid.rowGap = 8;
+    grid.columnGap = 16;
+    stats.verticalSizing = "auto";
+    const cells = [
+      ["a", 1, 1],
+      ["b", 1, 2],
+      ["c", 2, 1]
+    ];
+    for (const [name, row, col] of cells) {
+      const r = penpot.createRectangle();
+      r.name = name;
+      r.resize(60, 24);
+      r.fills = [{ fillColor: "#ffffff", fillOpacity: 0.15 }];
+      r.borderRadius = 4;
+      grid.appendChild(r, row, col);
+      if (name !== "b") fillWidth(r);
+    }
+    const wide = penpot.createRectangle();
+    wide.name = "wide";
+    wide.resize(60, 16);
+    wide.fills = [{ fillColor: "#ffc83d", fillOpacity: 1 }];
+    grid.appendChild(wide, 2, 2);
+    const icon = penpot.createShapeFromSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="#ffffff"/></svg>'
+    );
+    if (icon) {
+      icon.name = "pause_icon";
+      root.appendChild(icon);
+      icon.x = root.x + 940;
+      icon.y = root.y + 240;
+    }
+    panel.bringToFront();
+    try {
+      const catalog = penpot.library.local.tokens;
+      const set = catalog.sets.find((s) => s.name === "mealkit") ?? catalog.addSet({ name: "mealkit", active: true });
+      if (!set.active) set.toggleActive();
+      const accent = set.tokens.find((t) => t.name === "accent") ?? set.addToken({ type: "color", name: "accent", value: "#ffc83d" });
+      const resume = panel.children.find((c) => c.name === "resume");
+      if (resume) resume.applyToken(accent, ["fill"]);
+    } catch {
+    }
+    return root;
+  }
+
   // src/plugin.ts
   var kFileKey = "mealkit.file";
+  var kPreviewScale = 0.5;
   var base = "__MEALKIT_BASE__";
   var uiUrl = base.startsWith("__") ? "ui.html" : base + "ui.html";
   penpot.ui.open("MealKit", `${uiUrl}?theme=${penpot.theme}`, { width: 380, height: 680 });
@@ -698,10 +835,10 @@
     if (!root || !("children" in root)) return [];
     return root.children.filter((s) => s.type === "board");
   }
-  function fileOf(board) {
-    const saved = board.getPluginData(kFileKey);
+  function fileOf(board2) {
+    const saved = board2.getPluginData(kFileKey);
     if (saved) return saved;
-    return "ui/" + nodeName(board.name, "screen").toLowerCase() + ".ui";
+    return "ui/" + nodeName(board2.name, "screen").toLowerCase() + ".ui";
   }
   function sendSelection() {
     const layers = penpot.selection.map((s) => ({
@@ -739,11 +876,11 @@
     const fileName = file?.name ?? "Penpot";
     const screens = [];
     for (const id of msg.boardIds) {
-      const board = findShape(id);
-      if (!board || board.type !== "board") continue;
-      send({ type: "progress", text: `Reading ${board.name}...` });
-      const snap = snapshot(board, board);
-      const path = fileOf(board);
+      const board2 = findShape(id);
+      if (!board2 || board2.type !== "board") continue;
+      send({ type: "progress", text: `Reading ${board2.name}...` });
+      const snap = snapshot(board2, board2);
+      const path = fileOf(board2);
       const r = convertBoard(snap, { file: path, fileName, fileId: file?.id ?? "", fonts: msg.fonts, nodeBudget: msg.nodeBudget });
       const images = [];
       for (const b of r.bakes) {
@@ -761,7 +898,13 @@
           r.errors.push(`${shape.name}: could not export the PNG (${String(e)})`);
         }
       }
-      screens.push({ board: board.name, file: path, ui: r.ui, images, strings: r.strings, boxes: r.boxes, warnings: r.warnings, errors: r.errors, nodeCount: r.nodeCount });
+      let preview;
+      try {
+        preview = await board2.export({ type: "png", scale: kPreviewScale });
+      } catch (e) {
+        r.warnings.push(`could not export the preview image (${String(e)})`);
+      }
+      screens.push({ board: board2.name, file: path, ui: r.ui, images, strings: r.strings, boxes: r.boxes, preview, warnings: r.warnings, errors: r.errors, nodeCount: r.nodeCount });
     }
     let theme;
     if (msg.theme) {
@@ -769,14 +912,17 @@
       if (tokens.length > 0) theme = convertTheme(tokens, fileName);
     }
     let source;
+    let saveWarning = "";
     if (msg.source && file) {
       send({ type: "progress", text: "Saving the Penpot file..." });
       try {
-        source = { name: nodeName(fileName, "ui") + ".penpot", data: await file.export("penpot") };
+        source = { name: nodeName(fileName, "ui") + ".penpot", data: await file.export("penpot", "all") };
       } catch (e) {
-        send({ type: "error", message: `Could not export the Penpot file: ${String(e)}` });
+        send({ type: "progress", text: "" });
+        saveWarning = `Could not save the Penpot file from the plugin (${String(e)}). Save it by hand: main menu > File > Export as .penpot, into art/ui/ of the project.`;
       }
     }
+    if (saveWarning && screens.length > 0) screens[0].warnings.unshift(saveWarning);
     send({ type: "exported", screens, theme, source, fileName });
   }
   penpot.ui.onMessage((msg) => {
@@ -807,6 +953,15 @@
       }
       case "export":
         exportBoards(msg).catch((e) => send({ type: "error", message: String(e) }));
+        break;
+      case "example":
+        try {
+          const b = createExample();
+          penpot.selection = [b];
+          sendBoards();
+        } catch (e) {
+          send({ type: "error", message: `Could not create the example: ${String(e)}` });
+        }
         break;
     }
   });

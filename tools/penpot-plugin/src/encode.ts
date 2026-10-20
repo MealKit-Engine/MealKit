@@ -1,15 +1,16 @@
 // 내보낸 파일 묶기: 에디터 가져오기 서버에 보내는 요청 본문(editor/ImportServer.cpp)과, 에디터가 없을 때 내려받는 zip.
 
 export interface ImportEntry {
-  kind: 'ui' | 'png' | 'clean' | 'theme' | 'strings' | 'penpot' | 'boxes';
-  path: string; // ui·png·theme·clean: assets 기준, penpot·boxes: art/ui 기준 파일 이름, strings: "-"
+  kind: 'ui' | 'png' | 'clean' | 'theme' | 'strings' | 'penpot' | 'boxes' | 'preview';
+  path: string; // ui·png·theme·clean: assets 기준, penpot·boxes·preview: art/ui 기준 파일 이름, strings: "-"
   data: Uint8Array;
   force?: boolean; // ui: 손으로 쓴 파일도 바꾼다
 }
 
-const enc = new TextEncoder();
-
+// 플러그인 샌드박스(SES)에는 TextEncoder가 없다: 패널(iframe)에서만 쓴다
+let enc: TextEncoder | null = null;
 export function text(s: string): Uint8Array {
+  enc ??= new TextEncoder();
   return enc.encode(s);
 }
 

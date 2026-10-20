@@ -64,16 +64,16 @@ board pause 1920 1080
       justifyItems stretch
       gap 8 16
       align center
+      frame b
+        id id-b
+        size 50 20
+        cell 2 1 1 2
+      end
       frame a
         id id-a
         size fill 20
         cell 1 1
         fill #FFFFFF26
-      end
-      frame b
-        id id-b
-        size 50 20
-        cell 2 1 1 2
       end
     end
     image Pause_Icon

@@ -155,6 +155,12 @@ function textContent(runs: STextRun[], base: STextRun, fonts: Set<string>, error
   return { text, spans };
 }
 
+// .ui의 자식 순서는 배치 순서이자 그리는 순서(먼저 쓴 것이 아래)다. 스냅샷 자식은 Penpot의 아래 레이어부터인데,
+// Penpot의 Flex·Grid는 위 레이어(레이어 목록의 위)부터 배치한다: 레이아웃이 있으면 거꾸로 쓴다 (겹치는 자식의 앞뒤만 바뀐다)
+function flowOrder(n: SNode): SNode[] {
+  return n.layout ? [...n.children].reverse() : n.children;
+}
+
 interface Ctx {
   opt: Options;
   fonts: Set<string>;
@@ -183,15 +189,18 @@ function imagePath(ctx: Ctx, name: string): string {
 
 function sizeWord(n: SNode, horizontal: boolean, parentLayout: boolean): string {
   const v = horizontal ? n.width : n.height;
+  if (n.type === 'text' && n.text) {
+    // 글자는 Penpot의 grow type이 크기를 정한다 (레이아웃 안에서도 layoutChild는 fix로 온다). 채우기만 부모 기준
+    const s = parentLayout && n.child && !n.child.absolute ? (horizontal ? n.child.horizontalSizing : n.child.verticalSizing) : 'fix';
+    if (s === 'fill') return 'fill';
+    if (n.text.growType === 'auto-width') return 'hug';
+    if (n.text.growType === 'auto-height' && !horizontal) return 'hug';
+    return num(v);
+  }
   if (parentLayout && n.child && !n.child.absolute) {
     const s = horizontal ? n.child.horizontalSizing : n.child.verticalSizing;
     if (s === 'fill') return 'fill';
     if (s === 'auto') return 'hug';
-    return num(v);
-  }
-  if (n.type === 'text' && n.text) {
-    if (n.text.growType === 'auto-width') return 'hug';
-    if (n.text.growType === 'auto-height' && !horizontal) return 'hug';
     return num(v);
   }
   if (n.layout && (horizontal ? n.boardSizingH : n.boardSizingV) === 'auto') return 'hug';
@@ -342,6 +351,8 @@ function convertNode(ctx: Ctx, n: SNode, depth: number, parentLayout: 'none' | '
   }
 
   if (n.type === 'text' && n.text) {
+    const box = ctx.boxes[ctx.boxes.length - 1];
+    if (box && box.id === n.id && n.text) box.text = n.text.characters.replace(/\r?\n/g, '\\n');
     ctx.lines.push(`${ind}text ${name}`);
     ctx.lines.push(`${ind}  id ${n.id}`);
     emitPlacement(ctx, n, props, parentLayout, rotated);
@@ -427,7 +438,7 @@ function convertNode(ctx: Ctx, n: SNode, depth: number, parentLayout: 'none' | '
     warn(`baked to ${bg.path} (${reason})`);
   }
   const layout: 'none' | 'flex' | 'grid' = n.layout ? n.layout.kind : 'none';
-  for (const c of n.children) convertNode(ctx, c, depth + 1, layout, isRotated, label);
+  for (const c of flowOrder(n)) convertNode(ctx, c, depth + 1, layout, isRotated, label);
   ctx.lines.push(`${ind}end`);
 }
 
@@ -475,7 +486,7 @@ export function convertBoard(board: SNode, opt: Options): Result {
   emitData({ ...d, navigation: undefined, firstFocus: undefined, back: undefined }, props);
   for (const p of props) ctx.lines.push('  ' + p);
   const layout: 'none' | 'flex' | 'grid' = board.layout ? board.layout.kind : 'none';
-  for (const c of board.children) convertNode(ctx, c, 1, layout, board.rotation !== 0, board.name);
+  for (const c of flowOrder(board)) convertNode(ctx, c, 1, layout, board.rotation !== 0, board.name);
   ctx.lines.push('end');
   if (ctx.count > opt.nodeBudget) ctx.warnings.push(`${ctx.count} nodes, over the budget of ${opt.nodeBudget} per screen`);
   return {

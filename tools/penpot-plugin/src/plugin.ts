@@ -7,8 +7,10 @@ import type { ExportedScreen, LayerInfo, ToPlugin, ToUi } from './messages.ts';
 import type { MealkitData } from './model.ts';
 import { kDataKey, readData, snapshot } from './snapshot.ts';
 import { pngSize } from './encode.ts';
+import { createExample } from './example.ts';
 
 const kFileKey = 'mealkit.file'; // 화면 보드의 .ui 경로
+const kPreviewScale = 0.5; // 픽셀 비교용 보드 그림 (엔진 --ui-render도 보드의 반 크기로 그린다)
 
 // 에디터 서버가 plugin.js를 줄 때 자기 주소로 바꾼다 (zip 모드처럼 다른 곳에서 줄 때는 상대 경로)
 const base = '__MEALKIT_BASE__';
@@ -99,7 +101,13 @@ async function exportBoards(msg: Extract<ToPlugin, { type: 'export' }>) {
         r.errors.push(`${shape.name}: could not export the PNG (${String(e)})`);
       }
     }
-    screens.push({ board: board.name, file: path, ui: r.ui, images, strings: r.strings, boxes: r.boxes, warnings: r.warnings, errors: r.errors, nodeCount: r.nodeCount });
+    let preview: Uint8Array | undefined;
+    try {
+      preview = await board.export({ type: 'png', scale: kPreviewScale });
+    } catch (e) {
+      r.warnings.push(`could not export the preview image (${String(e)})`);
+    }
+    screens.push({ board: board.name, file: path, ui: r.ui, images, strings: r.strings, boxes: r.boxes, preview, warnings: r.warnings, errors: r.errors, nodeCount: r.nodeCount });
   }
   let theme: { ui: string; warnings: string[] } | undefined;
   if (msg.theme) {
@@ -107,14 +115,18 @@ async function exportBoards(msg: Extract<ToPlugin, { type: 'export' }>) {
     if (tokens.length > 0) theme = convertTheme(tokens, fileName);
   }
   let source: { name: string; data: Uint8Array } | undefined;
+  let saveWarning = '';
   if (msg.source && file) {
     send({ type: 'progress', text: 'Saving the Penpot file...' });
     try {
-      source = { name: nodeName(fileName, 'ui') + '.penpot', data: await file.export('penpot') };
+      source = { name: nodeName(fileName, 'ui') + '.penpot', data: await file.export('penpot', 'all') };
     } catch (e) {
-      send({ type: 'error', message: `Could not export the Penpot file: ${String(e)}` });
+      // Penpot의 플러그인 파일 내보내기가 실패하는 버전이 있다 (2.18: "No matching clause"): 손으로 저장하게 알린다
+      send({ type: 'progress', text: '' });
+      saveWarning = `Could not save the Penpot file from the plugin (${String(e)}). Save it by hand: main menu > File > Export as .penpot, into art/ui/ of the project.`;
     }
   }
+  if (saveWarning && screens.length > 0) screens[0].warnings.unshift(saveWarning);
   send({ type: 'exported', screens, theme, source, fileName });
 }
 
@@ -146,6 +158,15 @@ penpot.ui.onMessage<ToPlugin>((msg) => {
     }
     case 'export':
       exportBoards(msg).catch((e) => send({ type: 'error', message: String(e) }));
+      break;
+    case 'example':
+      try {
+        const b = createExample();
+        penpot.selection = [b];
+        sendBoards();
+      } catch (e) {
+        send({ type: 'error', message: `Could not create the example: ${String(e)}` });
+      }
       break;
   }
 });
