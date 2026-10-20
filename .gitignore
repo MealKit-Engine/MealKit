@@ -11,3 +11,4 @@
 mealkit_editor.ini
 # Steamworks SDK: Valve 약관상 공개 저장소에 올리지 않는다 (문서 저장소 "매뉴얼 > 멀티플레이와 결정론 > Steamworks")
 third_party/steamworks/
+tools/penpot-plugin/node_modules/

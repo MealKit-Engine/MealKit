@@ -29,6 +29,7 @@
 #if MEALKIT_TEST_UI
 #include "mealkit/game/FrameStats.h"
 #include "mealkit/settings/Settings.h"
+#include "mealkit/ui/Document.h"
 #include "mealkit/ui/Ui.h"
 #endif
 
@@ -678,11 +679,59 @@ TEST_CASE(ui_layout) {
     TEST_CHECK(sys.actions().size() == 1 && sys.actions()[0].name == "changed" && sys.actions()[0].field == "sound");
     TEST_CHECK(sys.info(menu).errors.empty() && sys.info(menu).nodes == 1 + 4 + 2 + 1 + 4 + 1);
 
+    // Grid: 고정·fr·auto·% 트랙, 칸 합치기, 자동 배치, 칸 안 정렬, 내용에 맞춘 크기
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/grid.ui",
+                             "board grid 1000 500\n"
+                             "  frame g\n    pos 0 0\n    size 1000 400\n    layout grid\n"
+                             "    columns 100 1fr 2fr 10%\n    rows auto 1fr\n    gap 10 20\n    padding 10\n"
+                             "    frame a\n      id p-a\n      size fill fill\n      cell 1 1\n    end\n"
+                             "    frame tall\n      size 30 60\n      cell 1 2\n      justifySelf center\n    end\n"
+                             "    frame wide\n      size fill 20\n      cell 2 2 1 2\n      alignSelf end\n    end\n"
+                             "    frame autoPlaced\n      size 5 5\n    end\n"
+                             "  end\n"
+                             "  frame hug\n    pos 0 450\n    size hug hug\n    layout grid\n    columns auto auto\n    rows auto\n    gap 4\n"
+                             "    frame x\n      size 40 10\n    end\n    frame y\n      size 60 30\n    end\n"
+                             "  end\n"
+                             "end\n"));
+    const ui::ScreenId gridScreen = sys.open("ui/grid.ui");
+    sys.layout({0, 0, 1000, 500});
+    auto gbox = [&](const char* name) {
+        for (const ui::NodeBox& b : sys.boxes(gridScreen))
+            if (b.name == name) return b;
+        return ui::NodeBox{};
+    };
+    // 안쪽 980×380, 열: 100, 10% = 98, 남는 980 - 100 - 98 - 60 = 722 → 1fr 240.67, 2fr 481.33. 행: auto = 60 (tall), 1fr = 380 - 60 - 10 = 310
+    const ui::NodeBox ga = gbox("a"), tall = gbox("tall"), wide = gbox("wide"), autoPlaced = gbox("autoPlaced");
+    TEST_CHECK(sys.info(gridScreen).errors.empty());
+    TEST_CHECK(ga.id == "p-a" && ga.x == 10 && ga.y == 10 && ga.w == 100 && ga.h == 60);
+    TEST_CHECK(std::fabs(tall.x - (10 + 100 + 20 + (722.0f / 3.0f - 30) * 0.5f)) < 0.01f && tall.y == 10);
+    TEST_CHECK(std::fabs(wide.w - (722.0f + 20)) < 0.01f && wide.y == 10 + 60 + 10 + 310 - 20); // 두 열 + 사이 간격, 아래 정렬
+    TEST_CHECK(std::fabs(autoPlaced.x - (10 + 100 + 20 + 722.0f / 3.0f + 20)) < 0.01f && autoPlaced.y == 10); // 첫 빈 칸 (1행 3열)
+    TEST_CHECK(gbox("hug").w == 40 + 4 + 60 && gbox("hug").h == 30 && gbox("y").x == 44);
+
     const ui::ScreenId bad = sys.open("ui/bad.ui");
     const ui::ScreenInfo info = sys.info(bad);
     TEST_CHECK(info.errors.size() == 2 && info.errors[0].find("(3)") != std::string::npos && info.errors[1].find("(4)") != std::string::npos);
     setProjectRoot(oldRoot);
 }
+// Penpot 플러그인 변환기의 기대 파일(tools/penpot-plugin/test/expected, node --test가 만든다)을 엔진 파서가 오류 없이 읽는다
+TEST_CASE(penpot_expected) {
+    const std::string dir = std::string(MEALKIT_ENGINE_DIR) + "/tools/penpot-plugin/test/expected/";
+    ui::Theme theme;
+    std::string themeText;
+    TEST_CHECK(readTextFile(dir + "theme.ui", themeText));
+    // theme.ui는 테마 형식이다: 줄마다 color·number
+    TEST_CHECK(themeText.rfind("# MealKit UI exported from Penpot", 0) == 0 && themeText.find("color accent #FFC83D") != std::string::npos);
+    theme.colors.emplace_back("accent", 0xFF3DC8FFu);
+    std::string text;
+    TEST_CHECK(readTextFile(dir + "pause.ui", text));
+    ui::Document doc;
+    const bool ok = ui::parseDocument(text, "ui/pause.ui", doc, &theme);
+    for (const std::string& e : doc.errors) std::printf("  %s\n", e.c_str());
+    TEST_CHECK(ok && doc.exported && doc.navigation && doc.firstFocus == "resume" && doc.nodes.size() == 12);
+    TEST_CHECK(doc.nodes[0].id == "id-pause");
+}
+
 TEST_CASE(settings_service) {
     const std::string oldRoot = projectRoot();
     const std::string dir = executableDirectory() + "/test_settings";

@@ -446,3 +446,5 @@ Subtitle text = 자막 글자
 Simulation ticks per second (30 or 60) = 시뮬레이션 틱레이트 (초당 틱, 30 또는 60)
 Game version (shown to players, compared when joining) = 게임 버전 (플레이어에게 보이고, 접속할 때 비교한다)
 Put the version in the export folder name (export/<name>-<version>) = 출시 폴더 이름에 버전 넣기 (export/<이름>-<버전>)
+The import server is not running (see the log). = 가져오기 서버가 꺼져 있습니다 (로그를 보세요).
+Plugin address (paste it into the plugin manager in Penpot, Ctrl+Alt+P). It changes every time the editor starts. = 플러그인 주소 (Penpot의 플러그인 관리자 Ctrl+Alt+P에 붙여 넣습니다). 에디터를 켤 때마다 바뀝니다.

@@ -243,8 +243,45 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
     if (k == "opacity") return num(1, v.opacity) || fail("0 to 1");
     if (k == "hidden") return n.hidden = true;
     if (k == "clip") return n.clip = true;
+    if (k == "layout" && args >= 1 && t[1] == "grid") {
+        n.layout = LayoutKind::Grid;
+        if (args == 2 && (t[2] == "row" || t[2] == "column")) n.gridColumnFlow = t[2] == "column";
+        else if (args != 1) return fail("layout grid [row|column]");
+        return true;
+    }
+    if (k == "rows" || k == "columns") {
+        std::vector<Track>& out = k == "rows" ? n.rows : n.columns;
+        out.clear();
+        for (size_t i = 1; i < t.size(); ++i) {
+            Track tr;
+            std::string word = t[i];
+            if (word == "auto") tr.kind = TrackKind::Auto;
+            else {
+                if (word.size() > 2 && word.compare(word.size() - 2, 2, "fr") == 0) tr.kind = TrackKind::Flex, word.resize(word.size() - 2);
+                else if (word.size() > 1 && word.back() == '%') tr.kind = TrackKind::Percent, word.pop_back();
+                else tr.kind = TrackKind::Fixed;
+                if (!parseNumber(word, theme, tr.value) || tr.value < 0.0f) return fail("tracks: <number> | <n>fr | <n>% | auto");
+            }
+            out.push_back(tr);
+        }
+        return !out.empty() || fail("at least one track");
+    }
+    if (k == "cell") {
+        f32 cell[4] = {0, 0, 1, 1};
+        if (args != 2 && args != 4) return fail("cell <row> <column> [<rowSpan> <columnSpan>]");
+        for (size_t i = 0; i < args; ++i)
+            if (!num(i + 1, cell[i]) || cell[i] < 1.0f) return fail("numbers from 1");
+        n.cellRow = static_cast<u16>(cell[0]);
+        n.cellColumn = static_cast<u16>(cell[1]);
+        n.rowSpan = static_cast<u16>(cell[2]);
+        n.columnSpan = static_cast<u16>(cell[3]);
+        return true;
+    }
+    if (k == "justifyItems") return (args == 1 && parseAlign(t[1], n.justifyItems)) || fail("start|center|end|stretch");
+    if (k == "justifySelf") return (args == 1 && parseAlign(t[1], n.justifySelf)) || fail("auto|start|center|end|stretch");
+    if (k == "id") return args == 1 ? (n.id = t[1], true) : fail("id <penpot shape id>");
     if (k == "layout") {
-        if (args < 1 || (t[1] != "row" && t[1] != "column")) return fail("layout row|column [reverse] [wrap]");
+        if (args < 1 || (t[1] != "row" && t[1] != "column")) return fail("layout row|column [reverse] [wrap] or layout grid [row|column]");
         n.layout = LayoutKind::Flex;
         n.column = t[1] == "column";
         for (size_t i = 2; i < t.size(); ++i) {
@@ -259,7 +296,11 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
         n.columnGap = n.rowGap;
         return args < 2 || num(2, n.columnGap) || fail("number");
     }
-    if (k == "justify") return (args == 1 && parseJustify(t[1], n.justify)) || fail("start|center|end|space-between|space-around|space-evenly");
+    if (k == "justify") {
+        n.justifyStretch = args == 1 && t[1] == "stretch"; // Grid: auto 트랙이 남는 자리를 나눠 갖는다
+        return n.justifyStretch || (args == 1 && parseJustify(t[1], n.justify)) ||
+               fail("start|center|end|space-between|space-around|space-evenly (grid: also stretch)");
+    }
     if (k == "align") return (args == 1 && parseAlign(t[1], n.alignItems)) || fail("start|center|end|stretch");
     if (k == "alignSelf") return (args == 1 && parseAlign(t[1], n.alignSelf)) || fail("auto|start|center|end|stretch");
     if (k == "alignContent") {

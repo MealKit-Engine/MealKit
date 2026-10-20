@@ -322,6 +322,7 @@ endif()
 if(MEALKIT_IS_ENGINE)
     add_executable(mealkit_tests tests/Tests.cpp tests/TestRegistry.h)
     target_link_libraries(mealkit_tests PRIVATE ${mealkit_core_target})
+    target_compile_definitions(mealkit_tests PRIVATE MEALKIT_ENGINE_DIR="${MEALKIT_ENGINE_DIR}") # Penpot 플러그인 기대 파일
     if(NOT MEALKIT_HEADLESS_ONLY AND NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
         target_link_libraries(mealkit_tests PRIVATE mealkit) # 게임 화면 UI 배치 시험 (창 없이)
         target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1)
@@ -416,6 +417,10 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/FeedbackPanel.cpp
         src/mealkit/editor/UiPanel.h
         src/mealkit/editor/UiPanel.cpp
+        src/mealkit/editor/ImportServer.h
+        src/mealkit/editor/ImportServer.cpp
+        src/mealkit/editor/UiCheck.h
+        src/mealkit/editor/UiCheck.cpp
         src/mealkit/editor/TuningPanel.h
         src/mealkit/editor/TuningPanel.cpp
         src/mealkit/editor/ProjectSettingsPanel.h

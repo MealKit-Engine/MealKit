@@ -158,4 +158,92 @@ u16 UdpSocket::localPort() const {
     return ntohs(addr.sin_port);
 }
 
+// ---------------------------------------------------------------- TCP
+
+TcpStream::~TcpStream() { close(); }
+TcpStream::TcpStream(TcpStream&& other) noexcept : m_socket(other.m_socket) { other.m_socket = ~0ull; }
+TcpStream& TcpStream::operator=(TcpStream&& other) noexcept {
+    if (this != &other) {
+        close();
+        m_socket = other.m_socket;
+        other.m_socket = ~0ull;
+    }
+    return *this;
+}
+
+bool TcpStream::isOpen() const { return m_socket != ~0ull; }
+
+void TcpStream::close() {
+    if (isOpen()) {
+        closesocket(static_cast<SOCKET>(m_socket));
+        m_socket = ~0ull;
+    }
+}
+
+i32 TcpStream::receive(void* buffer, u32 capacity) {
+    if (!isOpen()) return -1;
+    const int got = recv(static_cast<SOCKET>(m_socket), static_cast<char*>(buffer), static_cast<int>(capacity), 0);
+    if (got > 0) return got;
+    if (got == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK) return 0;
+    return -1; // 0 = 상대가 닫았다
+}
+
+i32 TcpStream::send(const void* data, u32 size) {
+    if (!isOpen()) return -1;
+    const int sent = ::send(static_cast<SOCKET>(m_socket), static_cast<const char*>(data), static_cast<int>(size), 0);
+    if (sent >= 0) return sent;
+    return WSAGetLastError() == WSAEWOULDBLOCK ? 0 : -1;
+}
+
+TcpListener::~TcpListener() { close(); }
+
+bool TcpListener::open(u16 port, bool loopbackOnly) {
+    close();
+    SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s == INVALID_SOCKET) return false;
+    u_long nonBlocking = 1;
+    ioctlsocket(s, FIONBIO, &nonBlocking);
+    BOOL exclusive = TRUE; // 다른 프로그램이 같은 포트를 가로채지 못하게
+    setsockopt(s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, reinterpret_cast<const char*>(&exclusive), sizeof(exclusive));
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(loopbackOnly ? INADDR_LOOPBACK : INADDR_ANY);
+    addr.sin_port = htons(port);
+    if (bind(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) == SOCKET_ERROR || listen(s, 16) == SOCKET_ERROR) {
+        MEALKIT_WARN("TCP listen on port %u failed (%d)", port, WSAGetLastError());
+        closesocket(s);
+        return false;
+    }
+    m_socket = static_cast<u64>(s);
+    return true;
+}
+
+void TcpListener::close() {
+    if (isOpen()) {
+        closesocket(static_cast<SOCKET>(m_socket));
+        m_socket = ~0ull;
+    }
+}
+
+bool TcpListener::isOpen() const { return m_socket != ~0ull; }
+
+bool TcpListener::accept(TcpStream& out) {
+    if (!isOpen()) return false;
+    const SOCKET c = ::accept(static_cast<SOCKET>(m_socket), nullptr, nullptr);
+    if (c == INVALID_SOCKET) return false;
+    u_long nonBlocking = 1;
+    ioctlsocket(c, FIONBIO, &nonBlocking);
+    out.close();
+    out.m_socket = static_cast<u64>(c);
+    return true;
+}
+
+u16 TcpListener::localPort() const {
+    if (!isOpen()) return 0;
+    sockaddr_in addr{};
+    int len = sizeof(addr);
+    getsockname(static_cast<SOCKET>(m_socket), reinterpret_cast<sockaddr*>(&addr), &len);
+    return ntohs(addr.sin_port);
+}
+
 } // namespace mealkit::net

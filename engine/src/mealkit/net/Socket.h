@@ -46,4 +46,41 @@ private:
     u64 m_socket = ~0ull;
 };
 
+// 논블로킹 TCP 연결 (에디터의 localhost 가져오기 서버, mealkit/editor/ImportServer.h). 받은 연결만 쓴다.
+class TcpStream {
+public:
+    TcpStream() = default;
+    ~TcpStream();
+    TcpStream(TcpStream&& other) noexcept;
+    TcpStream& operator=(TcpStream&& other) noexcept;
+    TcpStream(const TcpStream&) = delete;
+    TcpStream& operator=(const TcpStream&) = delete;
+
+    bool isOpen() const;
+    void close();
+    i32 receive(void* buffer, u32 capacity); // 받은 바이트, 아직 없으면 0, 끊겼거나 오류면 -1
+    i32 send(const void* data, u32 size);    // 보낸 바이트 (일부일 수 있다), 지금 못 보내면 0, 오류면 -1
+
+private:
+    friend class TcpListener;
+    u64 m_socket = ~0ull;
+};
+
+class TcpListener {
+public:
+    TcpListener() = default;
+    ~TcpListener();
+    TcpListener(const TcpListener&) = delete;
+    TcpListener& operator=(const TcpListener&) = delete;
+
+    bool open(u16 port, bool loopbackOnly); // port 0 = 임의 포트
+    void close();
+    bool isOpen() const;
+    bool accept(TcpStream& out); // 기다리는 연결이 있으면 논블로킹 연결로
+    u16 localPort() const;
+
+private:
+    u64 m_socket = ~0ull;
+};
+
 } // namespace mealkit::net
