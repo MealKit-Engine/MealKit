@@ -30,9 +30,14 @@ get_filename_component(MEALKIT_ENGINE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUT
 # 엔진 버전 (저장소 루트 VERSION). 프로젝트의 mealkit.project engineVersion과 비교한다.
 file(STRINGS "${MEALKIT_ENGINE_DIR}/VERSION" MEALKIT_VERSION LIMIT_COUNT 1)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${MEALKIT_ENGINE_DIR}/VERSION")
-# 엔진 메시지가 가리키는 문서 주소: 엔진 MINOR 버전의 문서 브랜치 (문서 저장소 MealKit-docs, 공개 전에는 아직 열리지 않는다)
+# 엔진 메시지가 가리키는 문서 주소 (문서 저장소 MealKit-docs, 공개 전에는 아직 열리지 않는다).
+# 1.0 전에는 문서 가지가 master 하나라 latest, 1.0부터 엔진 MINOR 버전의 문서 가지 (docs/DECISIONS.md 2026-10-21)
 string(REGEX MATCH "^[0-9]+\.[0-9]+" MEALKIT_VERSION_MINOR "${MEALKIT_VERSION}")
-set(MEALKIT_DOCS_URL "https://mealkit.readthedocs.io/en/${MEALKIT_VERSION_MINOR}/")
+if(MEALKIT_VERSION VERSION_LESS 1.0)
+    set(MEALKIT_DOCS_URL "https://mealkit.readthedocs.io/en/latest/")
+else()
+    set(MEALKIT_DOCS_URL "https://mealkit.readthedocs.io/en/${MEALKIT_VERSION_MINOR}/")
+endif()
 get_filename_component(mealkit_source_dir "${CMAKE_SOURCE_DIR}" ABSOLUTE)
 if(mealkit_source_dir STREQUAL MEALKIT_ENGINE_DIR)
     set(MEALKIT_IS_ENGINE ON)

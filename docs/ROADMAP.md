@@ -126,7 +126,7 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
 
 - [x] 저장소 공개 범위: 사용자가 요청할 때 공개, 기여는 DCO, 샘플 에셋은 CC0 — `docs/DECISIONS.md` 2026-10-18
 
-- [x] 문서 저장소 (`MealKit-docs`: Sphinx + MyST, 영어 원문 + 한국어 gettext, `tools/build.py check`, 엔진 MINOR 브랜치) — v0.4.4, 상세는 `docs/CHANGELOG.md`. Read the Docs·버전 붙은 주소 열기는 저장소 공개 때, `--dump-reference` 레퍼런스 생성과 Weblate는 나중에
+- [x] 문서 저장소 (`MealKit-docs`: Sphinx + MyST, 영어 원문 + 한국어 gettext, `tools/build.py check`, 1.0 전에는 `master` 하나·1.0부터 엔진 MINOR 브랜치 — `docs/DECISIONS.md` 2026-10-21) — v0.4.4, 상세는 `docs/CHANGELOG.md`. Read the Docs 열기는 저장소 공개 때, `--dump-reference` 레퍼런스 생성과 Weblate는 나중에
 
 - [x] 화면용 튜닝 (`ViewTuning`, `assets/view.tuning`, 파일이 바뀌면 다시 읽음) + 시간 값은 초로(`Ticks`) + 색 필드(`Color`) — v0.4.5, 상세는 `docs/CHANGELOG.md`
 - [x] 프로젝트 폴더 구조 강제 (`tools\check_layout.ps1`: check.ps1·Export·에디터, `third_party/<lib>/mealkit.txt` → `tools\gen_notices.ps1`, 게임 라이브러리·SIM011, exe 예산) — v0.4.6, 상세는 `docs/CHANGELOG.md`
