@@ -28,6 +28,7 @@
 #include "mealkit/sim/TickTimer.h"
 #if MEALKIT_TEST_UI
 #include "mealkit/game/FrameStats.h"
+#include "mealkit/render/Culling.h"
 #include "mealkit/settings/Settings.h"
 #include "mealkit/ui/Document.h"
 #include "mealkit/ui/Ui.h"
@@ -771,6 +772,22 @@ TEST_CASE(settings_service) {
         TEST_CHECK(!again.values().display.vsync && again.values().audio.master == 1.0f);
     }
     setProjectRoot(oldRoot);
+}
+
+// 프러스텀 컬링: 카메라 (0,0,-10)이 원점을 본다 (reversed-Z, 가까운 면 0.1, 먼 면 100)
+TEST_CASE(frustum_culling) {
+    const Mat4 vp = lookAtLH({0, 0, -10}, {0, 0, 0}, {0, 1, 0}) * perspectiveReversedZ(1.0f, 1.0f, 0.1f, 100.0f);
+    const render::Frustum f = render::Frustum::fromViewProj(vp);
+    TEST_CHECK(f.count == 6);
+    TEST_CHECK(f.sphereVisible({0, 0, 0}, 1.0f));
+    TEST_CHECK(!f.sphereVisible({100, 0, 0}, 1.0f));  // 옆
+    TEST_CHECK(!f.sphereVisible({0, 0, -20}, 1.0f));  // 뒤
+    TEST_CHECK(!f.sphereVisible({0, 0, 200}, 1.0f));  // 먼 면 너머
+    TEST_CHECK(f.sphereVisible({0, 0, 200}, 120.0f)); // 먼 면에 걸친다
+    TEST_CHECK(f.sphereVisible({8, 0, 0}, 3.0f));     // 옆 면에 걸친다 (화면 가장자리 약 5.5)
+    const Vec3 pts[] = {{-1, 0, 0}, {3, 0, 0}, {1, 2, 0}};
+    const render::BoundingSphere b = render::boundingSphere(pts, 3);
+    TEST_CHECK(std::abs(b.center.x - 1.0f) < 1e-6f && std::abs(b.center.y - 1.0f) < 1e-6f && std::abs(b.radius - std::sqrt(5.0f)) < 1e-5f);
 }
 
 // 성능 숫자: 보고 주기마다 평균·최악 프레임, 없는 출처는 글자에서 빠진다

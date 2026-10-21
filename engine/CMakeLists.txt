@@ -120,6 +120,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/asset/ModelCache.h
     src/mealkit/asset/ModelCache.cpp
     src/mealkit/render/DrawList.h
+    src/mealkit/render/Culling.h
     src/mealkit/render/Mesh.h
     src/mealkit/render/Mesh.cpp
     src/mealkit/render/Renderer.h

@@ -5,6 +5,13 @@
 
 ## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 프러스텀 컬링 (완료 2026-10-21)
+- **왜**: 화면 밖 물체도 모두 업로드 링에 복사하고 그렸다. 맵이 커지면 바로 CPU 복사·GPU 정점 비용이 된다.
+- **방식** (`render/Culling.h`): `createMesh`가 메시 로컬 바운딩 구(정점 상자 가운데 + 가장 먼 정점)를 남기고, `beginFrame`이 `viewProj`에서 평면 6개(`Frustum::fromViewProj`, 행 벡터·클립 z 0..w라 reversed-Z도 같다, 법선이 없는 평면은 건너뜀)를 뽑는다. `DrawList::submit`이 인스턴스마다 구를 위치·회전·가장 큰 배율 축으로 옮겨 평면과 비교하고 보이는 것만 `drawInstances`에 넘긴다. 로드맵의 "`add` 전에"는 `submit` 때로 바꿨다: 게임이 `viewProj`를 정하기 전에 `add`할 수 있고, 게임·에디터 코드를 고칠 필요가 없다(같은 CPU 일). 그림자 등 다른 시점의 패스는 그 항목에서 자기 프러스텀으로.
+- **통계**: `RenderStats::culled`, `FrameSample::culled`, 창 제목·`perf:` 로그 `... inst (N culled)`.
+- **검증**: 단위 테스트 `frustum_culling`(옆·뒤·먼 면 너머는 빠지고 걸친 구는 남음, 바운딩 구). 예제 매치(상자 2,000개)에서 인스턴스 약 55~65%가 빠지고 캡처 가장자리에 빠진 물체 없음. check.ps1.
+- **남은 것**: 물체가 수만 개가 되면 메시별 묶음(공간 덩어리) 단위로 먼저 거르기. GPU 컬링·가림 컬링은 계획 없음.
+
 ### [x] 셰이더 핫 리로드 (완료 2026-10-21)
 - **왜**: 셰이더는 빌드 때 바이트 배열 헤더로 exe에 들어가, 그래픽 기능을 넣는 동안 셰이더를 고칠 때마다 엔진을 다시 빌드해야 했다.
 - **`render::ShaderReloader`** (`render/ShaderReload.h`): 렌더러가 프로그램(`Forward.hlsl`, `Ui.hlsl`의 VSMain + PSMain)마다 "바이트코드 → 파이프라인 다시 만들기" 함수를 등록하고, `beginFrame` 앞(프레임 밖)에서 `update()`. 0.5초마다 파일 시각을 보고(`Bindless.hlsli`가 바뀌면 모두), 바뀐 것을 `ChildProcess`로 DXC에 넘겨 기다리지 않는다. VS·PS가 모두 되면 `rhi::Device::recreatePipeline`(GPU를 기다리고 같은 핸들 자리의 PSO·VkPipeline을 바꾼다)으로 끼우고 `Shader reloaded: ...` 로그. 컴파일 오류는 DXC 출력을 `ERROR` 로그로 남기고 이전 셰이더를 계속 쓴다.
