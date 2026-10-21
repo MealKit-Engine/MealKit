@@ -5,6 +5,13 @@
 
 ## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 셰이더 핫 리로드 (완료 2026-10-21)
+- **왜**: 셰이더는 빌드 때 바이트 배열 헤더로 exe에 들어가, 그래픽 기능을 넣는 동안 셰이더를 고칠 때마다 엔진을 다시 빌드해야 했다.
+- **`render::ShaderReloader`** (`render/ShaderReload.h`): 렌더러가 프로그램(`Forward.hlsl`, `Ui.hlsl`의 VSMain + PSMain)마다 "바이트코드 → 파이프라인 다시 만들기" 함수를 등록하고, `beginFrame` 앞(프레임 밖)에서 `update()`. 0.5초마다 파일 시각을 보고(`Bindless.hlsli`가 바뀌면 모두), 바뀐 것을 `ChildProcess`로 DXC에 넘겨 기다리지 않는다. VS·PS가 모두 되면 `rhi::Device::recreatePipeline`(GPU를 기다리고 같은 핸들 자리의 PSO·VkPipeline을 바꾼다)으로 끼우고 `Shader reloaded: ...` 로그. 컴파일 오류는 DXC 출력을 `ERROR` 로그로 남기고 이전 셰이더를 계속 쓴다.
+- **같은 컴파일**: DXC 경로·이 백엔드의 옵션(DXIL `-O3 -Qstrip_debug -Qstrip_reflect`, SPIR-V `-O3 -spirv -fspv-target-env=vulkan1.3`, Debug 빌드는 그 옵션)·엔진 셰이더 폴더·출력 폴더(`build/<설정>/engine/shaders/hot`)를 CMake가 `ShaderReload.cpp` 하나에만 정의로 넘긴다. 디버그 UI가 있는 빌드(Release·Debug·Profile·Editor·Vulkan)만 켜지고, 출시 빌드(`build.bat Export`)에는 코드가 없다. 엔진 폴더나 DXC가 없는 PC에서 돌리면 조용히 꺼진다.
+- **검증**: 게임을 돌리는 중 `Forward.hlsl`에 문법 오류 → `ERROR` 로그 + 그림 그대로, 픽셀 셰이더를 빨강으로 → `Shader reloaded` + 캡처가 빨강. DX12와 Vulkan(검증 레이어 켬, 메시지 없음) 모두. check.ps1.
+- **남은 것**: 셰이더 파일을 새로 더하면 지금처럼 CMake `mealkit_shader`와 렌더러 등록을 같이 쓴다. 게임·머티리얼 셰이더가 생기면(텍스처와 머티리얼 항목) 같은 장치에 등록한다.
+
 ### [x] 벤치마크 모드 + GPU 예산 나누기 + 메모리 숫자 (완료 2026-10-21)
 - **왜**: 그래픽 기능을 넣을 때마다 같은 조건으로 비교할 기준이 필요하고, 성능 예산의 "현재" 값을 최소 사양 실기에서 다시 재야 한다. 공유 메모리 내장 그래픽이라 메모리도 프레임 시간만큼 본다.
 - **`--benchmark [초]`** (`game/Benchmark.h`, `GameMain.cpp`): 혼자, 고정 시드(주지 않으면 1), 봇 입력, 수직동기 끔(`--vsync`를 주면 그것), 소리 끔, 자동 실행(플레이어 설정 안 읽음). 매치가 시작된 뒤 3초 데우기를 버리고 기본 30초 재서 `benchmark.txt`(`--benchmark-out`)를 쓰고 끝난다. 콘솔에 `BENCHMARK frames= avg= p99= worst= sim= gpu=` 한 줄. 보고서: 게임 버전·커밋·시뮬레이션 버전·결정론 그룹, CPU, GPU·드라이버·UMA, 화면, 씬·시드, 평균·1% 최악(99번째 백분위, 실행 전체 프레임)·최악 프레임, 틱당 시뮬레이션, 드로우 콜·인스턴스 평균, 프로세스·GPU 메모리 최대와 GPU 예산, 패스별 GPU 시간과 예산(넘으면 `OVER`). `FrameStats` 묶음을 주기 길이로 가중해 쌓는다(`takeSimMsPerTick`을 읽는 곳은 계속 하나).

@@ -168,6 +168,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/game/GameMain.h
     src/mealkit/game/GameMain.cpp
     src/mealkit/render/Renderer.cpp
+    src/mealkit/render/ShaderReload.h
+    src/mealkit/render/ShaderReload.cpp
     shaders/Forward.hlsl
     shaders/Ui.hlsl
     shaders/Bindless.hlsli
@@ -230,6 +232,16 @@ else()
 endif()
 if(NOT MEALKIT_HEADLESS_ONLY)
     set_source_files_properties(shaders/Forward.hlsl shaders/Ui.hlsl PROPERTIES HEADER_FILE_ONLY ON)
+    # 셰이더 핫 리로드 (render/ShaderReload.cpp): 개발 빌드만. 빌드와 같은 DXC·옵션으로 이 백엔드 형식을 다시 만든다
+    if(MEALKIT_DEBUG_UI)
+        if(MEALKIT_RHI STREQUAL "Vulkan")
+            list(JOIN MEALKIT_SPIRV_FLAGS " " mealkit_hot_flags)
+        else()
+            list(JOIN MEALKIT_DXIL_FLAGS " " mealkit_hot_flags)
+        endif()
+        set_source_files_properties(src/mealkit/render/ShaderReload.cpp PROPERTIES COMPILE_DEFINITIONS
+            "MEALKIT_SHADER_HOT_RELOAD=1;MEALKIT_SHADER_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/shaders\";MEALKIT_SHADER_HOT_DIR=\"${MEALKIT_SHADER_OUT}/hot\";MEALKIT_SHADER_DXC_PATH=\"${MEALKIT_SHADER_DXC}\";MEALKIT_SHADER_HOT_FLAGS=\"${mealkit_hot_flags}\"")
+    endif()
 endif()
 
 # mealkit.dll: 엔진 함수와 클래스를 모두 내보낸다 (__declspec 표시 없이). 게임 코드가 엔진 전역 변수에 직접 접근하지 않는 한 충분하다.
