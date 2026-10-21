@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "blender": "5.2",
+  "model": {
+    "format": "glb",
+    "folder": "models",
+    "attributes": ["POSITION", "NORMAL", "COLOR_0"],
+    "mergesMeshes": true,
+    "maxLods": 3,
+    "material": {"baseColorFactor": true, "vertexColor": true, "textures": false},
+    "skinning": false,
+    "animation": false
+  },
+  "materialFeatures": []
+}

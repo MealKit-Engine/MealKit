@@ -27,6 +27,7 @@
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
 #if MEALKIT_TEST_UI
+#include "mealkit/asset/ModelCache.h"
 #include "mealkit/game/FrameStats.h"
 #include "mealkit/render/Culling.h"
 #include "mealkit/settings/Settings.h"
@@ -774,6 +775,16 @@ TEST_CASE(settings_service) {
     setProjectRoot(oldRoot);
 }
 
+// Blender 애드온의 지원 범위 스키마가 엔진 불러오기와 같다. 다르면 mealkit_tests --write-asset-schema로 파일을 다시 쓴다
+TEST_CASE(asset_schema) {
+    const std::string path = std::string(MEALKIT_ENGINE_DIR) + "/tools/blender-addon/mealkit/schema.json";
+    const std::string expected = asset::modelSchemaJson();
+    std::string text;
+    TEST_CHECK(readTextFile(path, text));
+    std::erase(text, ''); // git autocrlf
+    TEST_CHECK(text == expected);
+}
+
 // 프러스텀 컬링: 카메라 (0,0,-10)이 원점을 본다 (reversed-Z, 가까운 면 0.1, 먼 면 100)
 TEST_CASE(frustum_culling) {
     const Mat4 vp = lookAtLH({0, 0, -10}, {0, 0, 0}, {0, 1, 0}) * perspectiveReversedZ(1.0f, 1.0f, 0.1f, 100.0f);
@@ -1491,7 +1502,14 @@ TEST_CASE(simulation_shadow_and_rewind) {
 
 } // namespace
 
-int main() {
+int main(int argc, char** argv) {
     log::setDialogs(false);
+#if MEALKIT_TEST_UI
+    if (argc > 1 && std::string(argv[1]) == "--write-asset-schema") // Blender 애드온의 schema.json (asset_schema 시험)
+        return writeTextFile(std::string(MEALKIT_ENGINE_DIR) + "/tools/blender-addon/mealkit/schema.json", asset::modelSchemaJson()) ? 0 : 1;
+#else
+    (void)argc;
+    (void)argv;
+#endif
     return test::runAll();
 }

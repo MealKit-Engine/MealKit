@@ -1,0 +1,17 @@
+schema_version = "1.0.0"
+
+id = "mealkit"
+version = "0.1.0"
+name = "MealKit"
+tagline = "Check and export models for the MealKit engine"
+maintainer = "MealKit"
+type = "add-on"
+website = "https://github.com/KingProtea99/MealKit"
+
+# 엔진이 맞추는 Blender LTS (docs/DECISIONS.md 2026-10-21). 다음 LTS로 옮길 때 같이 올린다
+blender_version_min = "5.2.0"
+
+license = ["SPDX:MIT"]
+
+[permissions]
+files = "Write exported models into the MealKit project's assets folder"

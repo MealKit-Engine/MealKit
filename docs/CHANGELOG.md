@@ -5,6 +5,15 @@
 
 ## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] Blender 내보내기 애드온 (완료 2026-10-21)
+- **왜**: 그래픽 콘텐츠를 Blender에서 만들기로 했으므로, 아티스트가 엔진 규칙(지원 범위, 내보내기 설정, 나중의 머티리얼 extras 키)을 Blender 안에서 알고 버튼 하나로 프로젝트에 넣어야 한다. Penpot 플러그인과 같은 역할.
+- **애드온** (`tools/blender-addon/mealkit`, Blender 확장 형식 `blender_manifest.toml`, Blender 5.2 LTS, `docs/DECISIONS.md` 2026-10-21): 3D 뷰 사이드바 [MealKit] 패널 — 프로젝트(`.blend` 폴더에서 위로 `mealkit.project`를 찾는다, 보통 `art/`에 둔다. 직접 고를 수도 있다), 이름(기본 `.blend` 이름), 선택한 것만, [Check]·[Export to MealKit], 검사 결과 목록. 내보내기는 검사에 오류가 없을 때 `assets/models/<이름>.glb`로 엔진이 읽는 것만(GLB, +Y 위, 모디파이어 적용, 법선, 활성 정점 색, 재질, extras. 텍스처 좌표·이미지·애니메이션·스킨·모프·카메라·빛 끔). 에디터의 에셋 핫 리로드가 받아 바로 보인다.
+- **검사** (`checks.py`): 내보낼 메시가 없음(오류), 이미지 텍스처(아직 안 읽음), Principled BSDF 없음, 기본 색이 정점 색·값이 아닌 노드에서 옴, 아마추어·애니메이션·셰이프 키(경고), 색 속성 여러 개·합쳐지는 물체 수와 삼각형 수(참고).
+- **엔진 스키마** (`asset::modelSchemaJson`, `ModelCache.h`): 불러오기가 읽는 범위(형식, 폴더, 속성, 메시 합치기, LOD 수, 재질, 스킨·애니메이션 여부, 머티리얼 기능 목록)를 JSON으로. 애드온은 자기 폴더의 `schema.json`을 읽고, 단위 테스트 `asset_schema`가 그 파일이 엔진 것과 같은지 본다(`mealkit_tests --write-asset-schema`로 다시 쓴다). 로드맵의 "엔진이 내보낸 스키마"를 애드온이 실행 중 에디터에 묻는 대신 파일로 들고 다니게 했다: 에디터 없이 Blender만 켜도 되고, 어긋나면 엔진 테스트가 실패한다.
+- **머티리얼 패널**: 스키마의 `materialFeatures`마다 커스텀 속성 `mealkit_<키>`를 더하고 지우는 줄(glTF extras로 나간다). 지금 목록은 비어 있다(엔진 머티리얼 기능이 아직 없다).
+- **검증**: `tools/blender-addon/test/test_export.py`를 check.ps1 "Blender add-on export"가 Blender를 창 없이 돌린다(`MEALKIT_BLENDER`, 기본 `Program Files\Blender Foundation\Blender 5.2`, 없으면 SKIP): 임시 프로젝트의 `art/props.blend`에서 프로젝트 찾기, 텍스처 경고, 정점 색 재질 통과, GLB·`COLOR_0`·텍스처 좌표·이미지 없음, 빈 장면 거절. 내보낸 파일을 에디터가 읽는 것(972 삼각형) 확인. check.ps1 30개 통과(한 번은 "Vulkan = DX12" 캡처 비교가 0.37% 차이로 실패했고 다시 돌리면 통과 — 이번 변경과 무관한 흔들림, 지켜볼 것).
+- **남은 것**: 머티리얼 기능(스타일 프리셋)과 에셋 예산 검사가 같은 스키마에 들어온다. 애드온 설치 파일(zip)은 `blender --command extension build`로 만든다(문서).
+
 ### [x] 에셋 핫 리로드 — 모델·씬 (완료 2026-10-21)
 - **왜**: 그래픽 콘텐츠를 외부 도구(Blender)에서 만들기로 했으므로, 내보내면 에디터에 바로 보여야 아티스트가 혼자 작업할 수 있다.
 - **모델** (`asset::ModelCache::reloadChanged`): 불러올 때 파일 시각을 남기고, 다시 볼 때 바뀐 것(없던 파일이 생긴 것 포함)을 다시 읽는다. `Model` 주소는 그대로 두고 내용(LOD 메시, 경계, 껍질 점, 파일 해시)만 바꿔 씬·게임이 가진 포인터가 계속 맞다. 읽기에 실패하면 이전 내용을 지킨다. 옛 GPU 메시는 지우지 않는다(렌더러에 메시 지우기가 없다. 개발 중에만 쌓이고, 에디터를 다시 열면 없어진다).

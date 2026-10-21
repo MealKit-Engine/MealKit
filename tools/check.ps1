@@ -164,6 +164,20 @@ if (-not $Quick) {
         $code = Run $log "node" "--test `"$root\tools\penpot-plugin\test\convert.test.ts`""
         return $code -eq 0
     }
+    # Blender 애드온 (ROADMAP "Blender 내보내기 애드온"): Blender LTS를 창 없이 돌려 검사·내보내기 시험 (없으면 SKIP).
+    # 지원 범위 스키마가 엔진과 같은지는 단위 테스트 asset_schema가 본다
+    Invoke-Check "Blender add-on export" {
+        param($log)
+        $blender = $env:MEALKIT_BLENDER
+        if (-not $blender) { $blender = "$env:ProgramFiles\Blender Foundation\Blender 5.2\blender.exe" }
+        if (-not (Test-Path $blender)) { return "SKIP: no Blender 5.2 (set MEALKIT_BLENDER)" }
+        $dir = Join-Path $out "blender-addon"
+        if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
+        # Run(cmd /s /c)은 공백 있는 exe 경로(Program Files)를 감싸지 못해 직접 부른다
+        $ErrorActionPreference = "Continue" # Blender가 stderr에 쓰는 줄을 오류로 보지 않는다
+        & $blender -b --factory-startup --python "$root\tools\blender-addon\test\test_export.py" -- $dir 2>&1 | Out-File $log -Encoding utf8
+        return $LASTEXITCODE -eq 0 -and (Has $log "BLENDER ADDON ok")
+    }
     Invoke-Check "Penpot screens = engine layout" {
         param($log)
         $code = Run $log $editor "--project `"$root`" --ui-check --lang en"
