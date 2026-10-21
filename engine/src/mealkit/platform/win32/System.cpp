@@ -2,6 +2,7 @@
 #include "mealkit/platform/System.h"
 
 #include <windows.h>
+#include <psapi.h>
 
 #pragma comment(lib, "advapi32.lib") // GetUserNameW
 
@@ -18,6 +19,13 @@ void showErrorDialog(const char* title, const char* message) {
 void exitProcess(int code) { ExitProcess(static_cast<UINT>(code)); }
 
 u32 processId() { return static_cast<u32>(GetCurrentProcessId()); }
+
+ProcessMemory processMemory() {
+    PROCESS_MEMORY_COUNTERS c{};
+    c.cb = sizeof(c);
+    if (!K32GetProcessMemoryInfo(GetCurrentProcess(), &c, sizeof(c))) return {}; // kernel32 (psapi.lib 필요 없음)
+    return {static_cast<u64>(c.WorkingSetSize), static_cast<u64>(c.PeakWorkingSetSize)};
+}
 
 std::string userName() {
     wchar_t name[256];

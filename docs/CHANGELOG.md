@@ -5,6 +5,18 @@
 
 ## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 벤치마크 모드 + GPU 예산 나누기 + 메모리 숫자 (완료 2026-10-21)
+- **왜**: 그래픽 기능을 넣을 때마다 같은 조건으로 비교할 기준이 필요하고, 성능 예산의 "현재" 값을 최소 사양 실기에서 다시 재야 한다. 공유 메모리 내장 그래픽이라 메모리도 프레임 시간만큼 본다.
+- **`--benchmark [초]`** (`game/Benchmark.h`, `GameMain.cpp`): 혼자, 고정 시드(주지 않으면 1), 봇 입력, 수직동기 끔(`--vsync`를 주면 그것), 소리 끔, 자동 실행(플레이어 설정 안 읽음). 매치가 시작된 뒤 3초 데우기를 버리고 기본 30초 재서 `benchmark.txt`(`--benchmark-out`)를 쓰고 끝난다. 콘솔에 `BENCHMARK frames= avg= p99= worst= sim= gpu=` 한 줄. 보고서: 게임 버전·커밋·시뮬레이션 버전·결정론 그룹, CPU, GPU·드라이버·UMA, 화면, 씬·시드, 평균·1% 최악(99번째 백분위, 실행 전체 프레임)·최악 프레임, 틱당 시뮬레이션, 드로우 콜·인스턴스 평균, 프로세스·GPU 메모리 최대와 GPU 예산, 패스별 GPU 시간과 예산(넘으면 `OVER`). `FrameStats` 묶음을 주기 길이로 가중해 쌓는다(`takeSimMsPerTick`을 읽는 곳은 계속 하나).
+- **"고정 카메라 경로"**: 카메라는 게임 `view/`가 갖고 있어 엔진이 따로 경로를 두지 않았다. 고정 시드 + 봇이면 같은 빌드·데이터에서 봇 캐릭터를 따라가는 카메라가 같은 길을 간다(프레임 시간에 따른 보간 차이는 남는다). 게임이 정하는 카메라 경로가 필요해지면 4단계 가상 카메라에서.
+- **RHI GPU 시간** (`rhi/Rhi.h`): `CommandList::beginTimer`/`endTimer`(구간 8개) + 명령 목록 전체, `Device::gpuTimes()`(2프레임 전, 기다리지 않음). DX12는 타임스탬프 쿼리 힙 + 계속 매핑한 readback 버퍼, 쓴 쿼리만 resolve. Vulkan은 쿼리 풀(프레임 처음에 `vkCmdResetQueryPool`), `timestampValidBits`·`timestampPeriod`, 쓴 쿼리만 읽는다. 타임스탬프가 없으면 `valid = false`.
+- **GPU 메모리** (`Device::gpuMemory()`): DX12 `IDXGIAdapter3::QueryVideoMemoryInfo`(로컬 세그먼트), Vulkan은 `VK_EXT_memory_budget`이 있으면 켜고 VMA `vmaGetHeapBudgets`를 장치 로컬 힙만 더한다(없으면 VMA 어림). **프로세스 메모리**는 플랫폼 계층 `processMemory()`(Windows 작업 집합 `K32GetProcessMemoryInfo`, Linux `/proc/self/statm` + `getrusage`, macOS `task_info`).
+- **렌더러 패스** (`render::GpuPass`: opaque, shadow, post, vfx, ui): 3D는 `beginFrame` → `beginOverlay`, UI(게임 UI + 디버그 UI)는 그 뒤. 그림자·포스트·VFX는 그 기능이 들어올 때 재기 시작한다(지금 0). `RenderStats`에 `gpuValid`·`gpuFrameMs`·`gpuPassMs`, `Renderer::gpuMemory()`.
+- **GPU 예산**: `mealkit.project` `gpuBudgetOpaqueMs` 3 / `gpuBudgetShadowMs` 1.5 / `gpuBudgetPostMs` 1 / `gpuBudgetVfxMs` 1 / `gpuBudgetUiMs` 0.5 / `gpuBudgetSpareMs` 1(패스 밖 `other`와 비교) — `MEALKIT_VIEW_FIELD`라 콘텐츠 해시 밖, [프로젝트 설정] 창에 나온다. 템플릿 파일은 바꾸지 않았다(없는 줄은 기본값).
+- **FrameStats**: `FrameSample`에 `p99FrameMs`, `hasGpuTime`·`gpuMs`·`gpuPassMs`, `gpuMemoryUsed`·`gpuMemoryBudget`, `processMemory`·`processMemoryPeak`(렌더러가 출처일 때). 창 제목·F1·`perf:` 로그에 `gpu ... ms`, `mem ... MB`, `vram .../... MB`. 단위 테스트 `frame_stats`에 백분위.
+- **검증**: Core Ultra 5 125U(Xe-LPG)에서 DX12 8초: 평균 0.35 ms, 1% 최악 1.57 ms, GPU 0.24 ms(opaque 0.20), 시뮬레이션 1.13 ms/틱, 프로세스 230 MB, GPU 59 MB / 8,318 MB. Vulkan 5초: GPU 0.51 ms(opaque 0.46), GPU 97 MB. `--debug`로 D3D12 디버그 레이어·Vulkan 검증 레이어 메시지 없음. check.ps1.
+- **남은 것**: 최소 사양(11세대 Xe-LP) 실기에서 재고 ROADMAP 성능 예산 표와 GPU 예산 기본값을 고친다. 에디터 성능 패널(4단계)에서 같은 표.
+
 ### [x] 게임 화면 UI 2부 — Penpot 플러그인, 가져오기 서버, Grid, 배치·픽셀 비교 (완료 2026-10-20)
 - **왜**: 프로그래머가 아닌 사람이 Penpot에서 화면을 그리고 그대로 게임에 넣는다(`docs/DECISIONS.md` 2026-10-15). 1부(`.ui` 런타임 + [UI] 미리보기)는 v0.4.16.
 - **런타임 Grid** (`ui/Ui.cpp`, `Document`): `layout grid [row|column]`, `columns`·`rows`(고정·`fr`·`auto`·`%`), `cell <행> <열> [합치기]`, 자동 배치, `justifyItems`·`justifySelf`, `justify stretch`(auto 트랙이 남는 자리). 열 먼저 정하고 그 너비로 행 높이(글자 줄바꿈). 노드 `id`(Penpot 도형 id, 배치 비교가 찾는다), `NodeBox::id`·`text`. 글자 셰이핑은 1부 뒤 `ui/Text.cpp`(코드 정리 6).

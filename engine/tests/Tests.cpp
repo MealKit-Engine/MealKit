@@ -784,6 +784,15 @@ TEST_CASE(frame_stats) {
     TEST_CHECK(perf.line() == "10 fps 100.00 ms (worst 100.0)" && perf.lines() == perf.line());
     TEST_CHECK(!perf.update(0.05, {}) && perf.update(0.4, {})); // 새 주기: 앞 주기 값은 남지 않는다
     TEST_CHECK(perf.sample().frames == 2 && std::abs(perf.sample().worstFrameMs - 400.0) < 1e-6);
+    // 1% 최악 프레임: 가장 가까운 순위 (200프레임 중 긴 2개가 1%)
+    std::vector<f64> times(200, 0.010);
+    times[7] = 0.050;
+    times[90] = 0.040;
+    TEST_CHECK(std::abs(game::frameMsPercentile(times, 99.0) - 10.0) < 1e-6);
+    times[3] = 0.030;
+    TEST_CHECK(std::abs(game::frameMsPercentile(times, 99.0) - 30.0) < 1e-6);
+    std::vector<f64> none;
+    TEST_CHECK(game::frameMsPercentile(none, 99.0) == 0.0);
 }
 #endif
 

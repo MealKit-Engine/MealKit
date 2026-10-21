@@ -22,6 +22,14 @@ void showErrorDialog(const char* title, const char* message);
 
 u32 processId();
 
+// 이 프로세스가 쓰는 실제 메모리 (RAM에 올라 있는 바이트, Windows 작업 집합). peak는 시작부터 가장 컸던 값. 모르면 0.
+// 벤치마크 보고서·성능 숫자용 (game::FrameStats).
+struct ProcessMemory {
+    u64 resident = 0;
+    u64 peakResident = 0;
+};
+ProcessMemory processMemory();
+
 // 이 컴퓨터의 사용자 이름 (플레이어 이름의 기본값). 모르면 빈 문자열.
 std::string userName();
 
