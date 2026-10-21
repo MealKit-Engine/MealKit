@@ -29,6 +29,13 @@ if(EXISTS "${ASSETS_DIR}")
 else()
     message(WARNING "MealKitExport: no assets folder at ${ASSETS_DIR}")
 endif()
+# 모델 텍스처 캐시 (asset/TextureCache.h): 출시 빌드는 압축하지 않고 exe 옆 cache/textures의 BC 파일만 읽는다.
+# 캐시는 에디터나 개발 빌드가 모델을 불러올 때 만든다 (없으면 그 텍스처는 흰색으로 나오고 로그에 남는다)
+get_filename_component(project_dir "${PROJECT_FILE}" DIRECTORY)
+if(EXISTS "${project_dir}/build/cache/textures")
+    file(REMOVE_RECURSE "${OUT_DIR}/cache")
+    file(COPY "${project_dir}/build/cache/textures" DESTINATION "${OUT_DIR}/cache")
+endif()
 file(COPY "${NOTICES}" DESTINATION "${OUT_DIR}")
 
 # 프로젝트 설정 (게임이 시작 씬 등을 읽는다). 개발 PC 경로가 든 engine·engineVersion 줄은 뺀다.

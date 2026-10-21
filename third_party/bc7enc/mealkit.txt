@@ -1,0 +1,11 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+name bc7enc_rdo (bc7enc, rgbcx)
+version b943862 (2026-07-30)
+license MIT
+licenseFile LICENSE
+source https://github.com/richgel999/bc7enc_rdo
+usedIn engine (texture cache: BC7 for color, BC5 for normal maps, editor and development builds)
+inGame no
+kept bc7enc.cpp, bc7enc.h, rgbcx.cpp, rgbcx.h, rgbcx_table4.h, rgbcx_table4_small.h (the RDO encoder, the ISPC kernel, the decoders and the command line tool are left out)
+why small portable BC7/BC5 block encoders (MIT or public domain) for compressing model textures once when they are loaded; the shipped game reads only the compressed cache.

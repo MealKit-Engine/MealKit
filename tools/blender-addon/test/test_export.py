@@ -36,6 +36,9 @@ def main():
     cube = bpy.context.active_object
     textured = bpy.data.materials.new("Textured")
     tex = textured.node_tree.nodes.new("ShaderNodeTexImage")
+    tex.image = bpy.data.images.new("checker", 64, 64, alpha=False)
+    tex.image.generated_type = "COLOR_GRID"
+    tex.image.pack()
     bsdf = textured.node_tree.nodes["Principled BSDF"]
     textured.node_tree.links.new(tex.outputs["Color"], bsdf.inputs["Base Color"])
     cube.data.materials.append(textured)
@@ -62,7 +65,7 @@ def main():
     texts = [(p.level, p.text) for p in bpy.context.scene.mealkit.problems]
     for t in texts:
         print("     ", t)
-    expect(any(l == "WARNING" and "Textured" in t and "image textures" in t for l, t in texts), "texture warning")
+    expect(not any("Textured" in t for _, t in texts), "base color image texture is supported")
     expect(not any("Painted" in t for _, t in texts), "vertex color material is supported")
     expect(not any(l == "ERROR" for l, _ in texts), "no errors")
 
@@ -79,8 +82,8 @@ def main():
         expect(magic == b"glTF" and kind == b"JSON", "binary glTF")
         expect(len(prims) == 2, "two primitives")
         expect(any("COLOR_0" in p["attributes"] for p in prims), "vertex colors exported as COLOR_0")
-        expect(not any("TEXCOORD_0" in p["attributes"] for p in prims), "no texture coordinates")
-        expect(not gltf.get("images"), "no images")
+        expect(any("TEXCOORD_0" in p["attributes"] for p in prims), "texture coordinates exported")
+        expect(len(gltf.get("images", [])) == 1, "the texture image is in the .glb")
 
     # 에셋 예산: 이름의 첫 폴더가 종류, 한도는 mealkit.project (소품 삼각형 500으로 낮춘다)
     with open(os.path.join(root, "mealkit.project"), "a", encoding="utf-8") as f:

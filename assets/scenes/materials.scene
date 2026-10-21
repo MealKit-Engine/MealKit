@@ -1,0 +1,55 @@
+# MealKit scene
+version 2
+
+sun 0.400000006 0.800000012 0.300000012
+sunColor 1 0.949999988 0.850000024
+sky 0.300000012 0.379999995 0.5
+groundColor 0.200000003 0.170000002 0.140000001
+fog 0.5 0.620000005 0.779999971 0.00400000019
+
+entity
+id 1
+name Ground
+kind solid
+position 0 -0.5 0
+rotation 0 0 0 1
+scale 30 1 30
+color FF609676
+flags 1
+end
+
+entity
+id 2
+name Crate
+kind solid
+position 0 0.75 0
+rotation 0 0.382683456 0 0.923879504
+scale 1.5 1.5 1.5
+model models/props/crate.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 3
+name Crate Small
+kind solid
+position 1.8 0.4 -0.6
+rotation 0 0.130526185 0 0.991444886
+scale 0.8 0.8 0.8
+model models/props/crate.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 4
+name Fence
+kind solid
+position -0.5 0 1.8
+rotation 0 0 0 1
+scale 1.5 1.5 1.5
+model models/props/fence.glb
+color FFFFFFFF
+flags 0
+end

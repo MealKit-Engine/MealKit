@@ -4,10 +4,11 @@
   "model": {
     "format": "glb",
     "folder": "models",
-    "attributes": ["POSITION", "NORMAL", "COLOR_0"],
+    "attributes": ["POSITION", "NORMAL", "COLOR_0", "TEXCOORD_0"],
     "mergesMeshes": true,
     "maxLods": 3,
-    "material": {"baseColorFactor": true, "vertexColor": true, "textures": false},
+    "material": {"baseColorFactor": true, "vertexColor": true, "textures": true,
+                 "textureInputs": ["Base Color", "Normal", "Metallic", "Roughness", "Emission Color"], "alphaClip": true},
     "skinning": false,
     "animation": false
   },

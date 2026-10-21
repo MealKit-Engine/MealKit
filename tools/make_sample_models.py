@@ -1,6 +1,9 @@
 """MealKit 샘플 모델 생성기: 표준 라이브러리만으로 glTF 2.0 바이너리(.glb)를 만든다.
 
-    python tools/make_sample_models.py            -> assets/models/{tree,rock,ring}.glb
+    python tools/make_sample_models.py            -> assets/models/{tree,rock,ring}.glb, models/props/{crate,fence}.glb
+
+tree·rock·ring은 정점 색 없이 재질 색만 쓰고(씬·고정 기록이 쓴다, 바꾸면 콘텐츠 해시가 바뀐다), crate·fence는 텍스처
+예제다 (glTF PBR: 기본 색·법선·금속/거칠기 텍스처, 알파 마스크. assets/scenes/materials.scene, 그래픽 회귀 테스트).
 
 glTF 규칙(오른손 좌표계, y 위, 앞면 = 반시계)으로 저장한다. MealKit이 불러올 때 왼손 좌표계로 바꾼다.
 """
@@ -9,6 +12,7 @@ import json
 import math
 import os
 import struct
+import zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "assets", "models")
@@ -198,8 +202,174 @@ def make_ring():
     write_glb(os.path.join(OUT_DIR, "ring.glb"), "ring", [ring])
 
 
+# ---------------------------------------------------------------- 텍스처 예제 (crate, fence)
+
+def png_bytes(width, height, pixel):
+    """pixel(x, y) -> (r, g, b, a) 0..255 로 RGBA PNG를 만든다 (zlib만 쓴다)."""
+    rows = bytearray()
+    for y in range(height):
+        rows.append(0)
+        for x in range(width):
+            rows.extend(bytes(pixel(x, y)))
+
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data) & 0xFFFFFFFF)
+
+    return (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", width, height, 8, 6, 0, 0, 0)) +
+            chunk(b"IDAT", zlib.compress(bytes(rows), 9)) + chunk(b"IEND", b""))
+
+
+def hash01(x, y, seed):
+    """좌표마다 정해진 0..1 값 (나뭇결 잡음)."""
+    h = (x * 374761393 + y * 668265263 + seed * 2147483647) & 0xFFFFFFFF
+    h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
+    return ((h ^ (h >> 16)) & 0xFFFF) / 65535.0
+
+
+def crate_textures(size=256):
+    """나무 판자 + 금속 테두리. 기본 색, 법선(판자 홈·테두리 경사), 금속/거칠기 (G = 거칠기, B = 금속)."""
+    border = size // 10
+    plank = size // 4
+
+    def frame(x, y):
+        return min(x, y, size - 1 - x, size - 1 - y) < border
+
+    def base(x, y):
+        if frame(x, y):
+            v = 150 + int(20 * hash01(x, y, 3))
+            return (v, v, v + 8, 255)
+        grain = 0.8 + 0.2 * math.sin(y * 0.22 + 0.6 * math.sin(x * 0.15) + 6 * hash01(x // 64, 0, 1))
+        v = 0.85 + 0.15 * hash01(x, y, 2)
+        return (int(170 * grain * v), int(110 * grain * v), int(60 * grain * v), 255)
+
+    def height(x, y):
+        if frame(x, y):
+            return 1.0
+        groove = (x % plank)
+        return 0.0 if groove < 3 else 0.5
+
+    def normal(x, y):
+        dx = height(min(x + 1, size - 1), y) - height(max(x - 1, 0), y)
+        dy = height(x, min(y + 1, size - 1)) - height(x, max(y - 1, 0))
+        n = normalize((-dx * 2.0, -dy * 2.0, 1.0))
+        return (int((n[0] * 0.5 + 0.5) * 255), int((n[1] * 0.5 + 0.5) * 255), int((n[2] * 0.5 + 0.5) * 255), 255)
+
+    def metal_rough(x, y):
+        return (255, 90, 255, 255) if frame(x, y) else (255, 215, 0, 255)
+
+    return png_bytes(size, size, base), png_bytes(size, size, normal), png_bytes(size, size, metal_rough)
+
+
+def fence_texture(size=128):
+    """격자 철망: 알파 마스크로 구멍을 뚫는다."""
+    cell = size // 8
+
+    def pixel(x, y):
+        wire = (x % cell) < 3 or (y % cell) < 3
+        return (90, 95, 100, 255) if wire else (0, 0, 0, 0)
+
+    return png_bytes(size, size, pixel)
+
+
+def write_textured_glb(path, name, positions, normals, uvs, indices, material, images):
+    """정점 하나에 위치·법선·UV가 있는 메시 하나와 텍스처 머티리얼 하나. images: PNG 바이트 목록 (텍스처 번호 순)."""
+    blob = bytearray()
+    views, accessors = [], []
+
+    def add_view(data, target=None):
+        while len(blob) % 4:
+            blob.append(0)
+        view = {"buffer": 0, "byteOffset": len(blob), "byteLength": len(data)}
+        if target:
+            view["target"] = target
+        views.append(view)
+        blob.extend(data)
+        return len(views) - 1
+
+    def add_accessor(fmt, values, count, kind, comp=5126, extra=None):
+        accessors.append(dict({"bufferView": add_view(struct.pack("<%d%s" % (len(values), fmt), *values),
+                                                       34963 if fmt == "H" else 34962),
+                               "componentType": comp, "count": count, "type": kind}, **(extra or {})))
+        return len(accessors) - 1
+
+    flat = [c for p in positions for c in p]
+    lo = [min(p[k] for p in positions) for k in range(3)]
+    hi = [max(p[k] for p in positions) for k in range(3)]
+    pos = add_accessor("f", flat, len(positions), "VEC3", extra={"min": lo, "max": hi})
+    nrm = add_accessor("f", [c for n in normals for c in n], len(normals), "VEC3")
+    uv = add_accessor("f", [c for t in uvs for c in t], len(uvs), "VEC2")
+    idx = add_accessor("H", indices, len(indices), "SCALAR", comp=5123)
+    image_list = [{"bufferView": add_view(png), "mimeType": "image/png"} for png in images]
+    while len(blob) % 4:
+        blob.append(0)
+    gltf = {
+        "asset": {"version": "2.0", "generator": "MealKit make_sample_models.py"},
+        "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": name}],
+        "meshes": [{"name": name, "primitives": [{"attributes": {"POSITION": pos, "NORMAL": nrm, "TEXCOORD_0": uv},
+                                                  "indices": idx, "material": 0}]}],
+        "materials": [material], "images": image_list,
+        "samplers": [{"magFilter": 9729, "minFilter": 9987, "wrapS": 10497, "wrapT": 10497}],
+        "textures": [{"sampler": 0, "source": i} for i in range(len(images))],
+        "buffers": [{"byteLength": len(blob)}], "bufferViews": views, "accessors": accessors,
+    }
+    js = json.dumps(gltf, separators=(",", ":")).encode("utf-8")
+    js += b" " * ((4 - len(js) % 4) % 4)
+    total = 12 + 8 + len(js) + 8 + len(blob)
+    with open(path, "wb") as f:
+        f.write(struct.pack("<III", 0x46546C67, 2, total))
+        f.write(struct.pack("<II", len(js), 0x4E4F534A))
+        f.write(js)
+        f.write(struct.pack("<II", len(blob), 0x004E4942))
+        f.write(blob)
+    print("wrote %s (%d triangles, %d bytes)" % (os.path.relpath(path, ROOT), len(indices) // 3, total))
+
+
+def make_crate():
+    """한 변 1 m 상자, 면마다 텍스처 전체 (glTF: 오른손, 반시계 앞면)."""
+    positions, normals, uvs, indices = [], [], [], []
+    faces = [((1, 0, 0), (0, 0, -1)), ((-1, 0, 0), (0, 0, 1)), ((0, 1, 0), (1, 0, 0)),
+             ((0, -1, 0), (1, 0, 0)), ((0, 0, 1), (1, 0, 0)), ((0, 0, -1), (-1, 0, 0))]
+    for n, u in faces:
+        v = cross(n, u)  # 오른손: u × v = n 이면 반시계가 앞면
+        c = (n[0] * 0.5, n[1] * 0.5, n[2] * 0.5)
+        base = len(positions)
+        for su, sv, tu, tv in ((-1, -1, 0, 1), (1, -1, 1, 1), (1, 1, 1, 0), (-1, 1, 0, 0)):
+            positions.append((c[0] + (u[0] * su + v[0] * sv) * 0.5, c[1] + (u[1] * su + v[1] * sv) * 0.5,
+                              c[2] + (u[2] * su + v[2] * sv) * 0.5))
+            normals.append(n)
+            uvs.append((tu, tv))
+        indices += [base, base + 1, base + 2, base, base + 2, base + 3]
+    base_png, normal_png, mr_png = crate_textures()
+    material = {"name": "crate", "pbrMetallicRoughness": {"baseColorTexture": {"index": 0}, "metallicFactor": 1.0,
+                                                          "roughnessFactor": 1.0, "metallicRoughnessTexture": {"index": 2}},
+                "normalTexture": {"index": 1}}
+    out = os.path.join(OUT_DIR, "props")
+    os.makedirs(out, exist_ok=True)
+    write_textured_glb(os.path.join(out, "crate.glb"), "crate", positions, normals, uvs, indices, material,
+                       [base_png, normal_png, mr_png])
+
+
+def make_fence():
+    """폭 2 m, 높이 1 m 철망 판 (앞뒤 두 면, 알파 마스크)."""
+    positions, normals, uvs, indices = [], [], [], []
+    for n in ((0, 0, 1), (0, 0, -1)):
+        base = len(positions)
+        x = 1.0 if n[2] > 0 else -1.0
+        for px, py, tu, tv in ((-x, 0, 0, 1), (x, 0, 2, 1), (x, 1, 2, 0), (-x, 1, 0, 0)):
+            positions.append((px, py, n[2] * 0.01))
+            normals.append(n)
+            uvs.append((tu, tv))
+        indices += [base, base + 1, base + 2, base, base + 2, base + 3]
+    material = {"name": "fence", "alphaMode": "MASK", "alphaCutoff": 0.5,
+                "pbrMetallicRoughness": {"baseColorTexture": {"index": 0}, "metallicFactor": 0.8, "roughnessFactor": 0.4}}
+    write_textured_glb(os.path.join(OUT_DIR, "props", "fence.glb"), "fence", positions, normals, uvs, indices, material,
+                       [fence_texture()])
+
+
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
     make_tree()
     make_rock()
     make_ring()
+    make_crate()
+    make_fence()

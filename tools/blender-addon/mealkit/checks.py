@@ -23,6 +23,13 @@ def check_material(material, model):
     if tree and not model["material"]["textures"]:
         if any(n.type == "TEX_IMAGE" for n in tree.nodes):
             out.append(("WARNING", f"Material '{name}': image textures are not supported yet (only the base color value)"))
+    if tree and model["material"]["textures"]:
+        # 엔진이 읽는 텍스처 입력 (glTF로 나가는 Principled BSDF 입력) 밖에 연결된 이미지는 쓰이지 않는다
+        bsdf_inputs = set(model["material"].get("textureInputs", []))
+        bsdf = _principled(material)
+        for inp in (bsdf.inputs if bsdf is not None else []):
+            if inp.is_linked and inp.name not in bsdf_inputs and inp.name not in ("Alpha",) and inp.links[0].from_node.type == "TEX_IMAGE":
+                out.append(("WARNING", f"Material '{name}': a texture on '{inp.name}' is not used by the engine"))
     bsdf = _principled(material)
     if tree and bsdf is None:
         out.append(("WARNING", f"Material '{name}': no Principled BSDF, the engine shows it white"))
@@ -30,9 +37,9 @@ def check_material(material, model):
         base = bsdf.inputs.get("Base Color")
         if base is not None and base.is_linked:
             source = base.links[0].from_node
-            if source.type not in VERTEX_COLOR_NODES and source.type != "TEX_IMAGE":  # 텍스처는 위에서 알렸다
+            if source.type not in VERTEX_COLOR_NODES and source.type != "TEX_IMAGE":  # 이미지·정점 색은 엔진이 읽는다
                 out.append(("WARNING", f"Material '{name}': base color comes from a '{source.bl_label}' node; "
-                                       "the engine uses only a color value or the vertex color"))
+                                       "the engine uses a color value, an image texture or the vertex color"))
     return out
 
 

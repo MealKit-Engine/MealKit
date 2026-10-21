@@ -1,6 +1,8 @@
 // MealKit forward shading.
 // 인스턴스 데이터(위치/회전/스케일/색)를 업로드 링에서 읽어 정점 셰이더에서 변환한다.
-// CPU는 행렬을 만들지 않고 48바이트 인스턴스만 쓴다. 조명은 하프 램버트 태양광 + 반구 환경광 + 지수 안개.
+// CPU는 행렬을 만들지 않고 48바이트 인스턴스만 쓴다. 머티리얼은 glTF PBR metallic-roughness(정점의 material 번호 →
+// 업로드 링의 머티리얼 표 → bindless 텍스처). 조명: 태양 (감싼 확산 + GGX 정반사) + 반구 환경광 + 지수 안개.
+// 확산은 예전처럼 하프 램버트를 제곱해 부드럽게 감싼다 (조명 모델은 "텍스처와 머티리얼" 2부에서 프로젝트 설정으로)
 
 #include "Bindless.hlsli"
 
@@ -13,7 +15,7 @@ struct Instance // 48바이트 (render::InstanceData)
     uint flags;      // bit0: 체커 패턴, bit1: 선택 강조, bit2: 예산 초과, bit8~9: LOD (에디터 보기 모드)
 };
 
-struct FrameConstants // 176바이트 (Renderer.cpp FrameConstants)
+struct FrameConstants // 192바이트 (Renderer.cpp FrameConstants)
 {
     float4x4 viewProj;
     float4 cameraPos;
@@ -23,6 +25,19 @@ struct FrameConstants // 176바이트 (Renderer.cpp FrameConstants)
     float4 groundColor;
     float4 fogColor;    // a = 안개 밀도
     float4 screenTint;  // 화면 번쩍임 (rgb 선형 색, a = 세기): 연출 표의 flash
+    uint4 materials;    // x = 머티리얼 표의 링 위치, y = 개수
+};
+
+static const uint kNoTexture = 0xFFFFFFFFu;
+struct Material // 64바이트 (Renderer.cpp MaterialGpu)
+{
+    float4 baseColor;
+    float3 emissive;
+    float alphaCutoff;
+    float metallic;
+    float roughness;
+    float normalScale;
+    uint4 textures; // baseColor, normal, metallicRoughness, emissive
 };
 
 struct PushConstants
@@ -48,7 +63,25 @@ FrameConstants loadFrame()
     f.groundColor = loadFloat4(b, o + 128);
     f.fogColor = loadFloat4(b, o + 144);
     f.screenTint = loadFloat4(b, o + 160);
+    f.materials = b.Load4(o + 176);
     return f;
+}
+
+Material loadMaterial(FrameConstants frame, uint index)
+{
+    ByteAddressBuffer b = g_buffers[pc.ring];
+    uint o = frame.materials.x + min(index, frame.materials.y - 1) * 64;
+    Material m;
+    m.baseColor = loadFloat4(b, o);
+    float4 e = loadFloat4(b, o + 16);
+    m.emissive = e.xyz;
+    m.alphaCutoff = e.w;
+    float4 p = loadFloat4(b, o + 32);
+    m.metallic = p.x;
+    m.roughness = p.y;
+    m.normalScale = p.z;
+    m.textures = b.Load4(o + 48);
+    return m;
 }
 
 Instance loadInstance(uint index)
@@ -68,7 +101,9 @@ struct VSInput
 {
     float3 position : POSITION;
     float3 normal : NORMAL;
-    float4 color : COLOR; // 정점 색 (sRGB, glTF 재질 색)
+    float4 color : COLOR; // 정점 색 (sRGB, glTF COLOR_0)
+    float2 uv : TEXCOORD;
+    uint2 material : MATERIAL; // x = 머티리얼 표 번호
     uint instanceId : SV_InstanceID;
 };
 
@@ -77,8 +112,10 @@ struct VSOutput
     float4 position : SV_Position;
     float3 worldPos : WORLDPOS;
     float3 normal : NORMAL;
-    float3 albedo : COLOR;
+    float3 albedo : COLOR; // 인스턴스 색 × 정점 색 (머티리얼 기본 색은 픽셀 셰이더에서)
+    float2 uv : TEXCOORD;
     nointerpolation uint flags : FLAGS;
+    nointerpolation uint material : MATERIAL;
 };
 
 float3 rotateByQuat(float4 q, float3 v)
@@ -104,15 +141,49 @@ VSOutput VSMain(VSInput input)
     o.worldPos = world;
     o.normal = rotateByQuat(inst.rotation, input.normal / inst.scale);
     o.albedo = unpackAlbedo(inst.color) * (input.color.rgb * input.color.rgb);
+    o.uv = input.uv;
     o.flags = inst.flags;
+    o.material = input.material.x;
     return o;
+}
+
+float4 sampleTexture(uint index, float2 uv, float4 fallback)
+{
+    return index == kNoTexture ? fallback : g_textures[NonUniformResourceIndex(index)].Sample(g_linearWrap, uv);
+}
+
+// 접선 없이 화면 미분으로 접선 공간을 만든다 (정점에 접선을 두지 않는다, docs/DECISIONS.md 2026-10-21 "정점 형식")
+float3 perturbNormal(float3 n, float3 worldPos, float2 uv, float3 mapNormal)
+{
+    float3 dp1 = ddx(worldPos), dp2 = ddy(worldPos);
+    float2 duv1 = ddx(uv), duv2 = ddy(uv);
+    float3 dp2perp = cross(dp2, n), dp1perp = cross(n, dp1);
+    float3 t = dp2perp * duv1.x + dp1perp * duv2.x;
+    float3 b = dp2perp * duv1.y + dp1perp * duv2.y;
+    float invmax = rsqrt(max(max(dot(t, t), dot(b, b)), 1e-20));
+    // 왼손 좌표계로 z를 뒤집었으므로 b가 glTF와 반대 방향이다
+    return normalize(mapNormal.x * t * invmax - mapNormal.y * b * invmax + mapNormal.z * n);
 }
 
 float4 PSMain(VSOutput input) : SV_Target
 {
     FrameConstants frame = loadFrame();
+    Material mat = loadMaterial(frame, input.material);
+    float4 base = mat.baseColor * sampleTexture(mat.textures.x, input.uv, float4(1, 1, 1, 1));
+    if (mat.alphaCutoff > 0.0 && base.a < mat.alphaCutoff)
+        discard;
     float3 n = normalize(input.normal);
-    float3 albedo = input.albedo;
+    if (mat.textures.y != kNoTexture)
+    {
+        float2 xy = (sampleTexture(mat.textures.y, input.uv, float4(0.5, 0.5, 1, 1)).xy * 2.0 - 1.0) * mat.normalScale;
+        float3 mapNormal = float3(xy, sqrt(saturate(1.0 - dot(xy, xy))));
+        n = perturbNormal(n, input.worldPos, input.uv, mapNormal);
+    }
+    float4 mr = sampleTexture(mat.textures.z, input.uv, float4(1, 1, 1, 1));
+    float roughness = clamp(mat.roughness * mr.g, 0.04, 1.0);
+    float metallic = saturate(mat.metallic * mr.b);
+    float3 emissive = mat.emissive * sampleTexture(mat.textures.w, input.uv, float4(1, 1, 1, 1)).rgb;
+    float3 albedo = input.albedo * base.rgb;
 
     if (input.flags & 1u)
     {
@@ -121,7 +192,8 @@ float4 PSMain(VSOutput input) : SV_Target
         albedo *= lerp(1.0, 0.85, checker);
     }
 
-    float halfLambert = dot(n, frame.sunDir.xyz) * 0.5 + 0.5;
+    float3 l = frame.sunDir.xyz;
+    float halfLambert = dot(n, l) * 0.5 + 0.5;
 
     // 에디터 보기 모드 (안개·번쩍임 없이)
     if (pc.debugView == 2)
@@ -137,7 +209,22 @@ float4 PSMain(VSOutput input) : SV_Target
     }
 
     float3 ambient = lerp(frame.groundColor.rgb, frame.skyColor.rgb, n.y * 0.5 + 0.5);
-    float3 color = albedo * (frame.sunColor.rgb * (halfLambert * halfLambert) + ambient);
+
+    // GGX 정반사 (태양 하나) + 금속은 확산 없이 색이 정반사로. 환경 반사는 하늘 HDRI 항목에서
+    float3 v = normalize(frame.cameraPos.xyz - input.worldPos);
+    float3 h = normalize(l + v);
+    float ndl = saturate(dot(n, l)), ndv = max(dot(n, v), 1e-4), ndh = saturate(dot(n, h)), vdh = saturate(dot(v, h));
+    float a = roughness * roughness, a2 = a * a;
+    float d = a2 / (3.14159265 * pow(ndh * ndh * (a2 - 1.0) + 1.0, 2.0));
+    float k = a * 0.5;
+    float vis = 1.0 / ((ndl * (1.0 - k) + k) * (ndv * (1.0 - k) + k) * 4.0);
+    float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
+    float3 fresnel = f0 + (1.0 - f0) * pow(1.0 - vdh, 5.0);
+    float3 specular = d * vis * fresnel * ndl;
+    float3 diffuse = albedo * (1.0 - metallic);
+    float3 ambientSpecular = f0 * ambient * (1.0 - roughness * 0.7); // 반사 프로브 전까지의 어림
+    float3 color = diffuse * (frame.sunColor.rgb * (halfLambert * halfLambert) + ambient) + specular * frame.sunColor.rgb +
+                   ambientSpecular + emissive;
 
     if (input.flags & 2u) // 에디터 선택 강조
         color = lerp(color, float3(1.0, 0.45, 0.05), 0.45) + float3(0.08, 0.03, 0.0);

@@ -118,6 +118,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/scene/Scene.h
     src/mealkit/scene/Scene.cpp
     src/mealkit/asset/Budget.h
+    src/mealkit/asset/TextureCache.h # 헤더만 (ModelCache.h의 텍스처 올리기). 구현은 화면 쪽
     src/mealkit/asset/ModelCache.h
     src/mealkit/asset/ModelCache.cpp
     src/mealkit/render/DrawList.h
@@ -170,6 +171,7 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/game/GameMain.h
     src/mealkit/game/GameMain.cpp
     src/mealkit/render/Renderer.cpp
+    src/mealkit/asset/TextureCache.cpp
     src/mealkit/render/ShaderReload.h
     src/mealkit/rhi/GpuCapture.h
     src/mealkit/rhi/GpuCapture.cpp
@@ -220,7 +222,9 @@ endif()
 if(MEALKIT_DEBUG_UI)
     list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/debug/ImGuiLayer.h src/mealkit/debug/ImGuiLayer.cpp
         src/mealkit/platform/ImGuiPlatform.h src/mealkit/platform/win32/ImGuiPlatform.cpp
-        ${mealkit_rhi_imgui})
+        ${mealkit_rhi_imgui}
+        # 텍스처 압축 (asset/TextureCache.cpp): 개발 빌드만 만들고, 출시 빌드는 압축된 캐시만 읽는다
+        ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp)
 endif()
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
@@ -270,9 +274,11 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     target_include_directories(mealkit PRIVATE ${MEALKIT_SHADER_OUT})
     # 소리: miniaudio + stb_vorbis (audio/Miniaudio.h). 외부 코드 구현 파일은 경고를 끈다
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/miniaudio ${MEALKIT_THIRD_PARTY}/stb
-                               ${MEALKIT_THIRD_PARTY}/renderdoc) # renderdoc_app.h: rhi/GpuCapture.cpp
+                               ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp
+                               ${MEALKIT_THIRD_PARTY}/bc7enc)   # asset/TextureCache.cpp
     if(MSVC)
-        set_source_files_properties(src/mealkit/audio/MiniaudioImpl.cpp src/mealkit/ui/StbImpl.cpp PROPERTIES COMPILE_OPTIONS "/W0")
+        set_source_files_properties(src/mealkit/audio/MiniaudioImpl.cpp src/mealkit/ui/StbImpl.cpp
+            ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp PROPERTIES COMPILE_OPTIONS "/W0")
     endif()
 endif()
 

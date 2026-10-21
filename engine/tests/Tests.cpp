@@ -785,6 +785,24 @@ TEST_CASE(asset_schema) {
     TEST_CHECK(text == expected);
 }
 
+// 텍스처 캐시의 밉맵: 크기가 반씩 줄고, sRGB는 선형으로 평균하고, 법선은 다시 길이 1. half 변환
+TEST_CASE(texture_mips) {
+    std::vector<u8> rgba(4 * 2 * 4); // 4x2: 왼쪽 반 흰색, 오른쪽 반 검정
+    for (u32 y = 0; y < 2; ++y)
+        for (u32 x = 0; x < 4; ++x)
+            for (u32 c = 0; c < 4; ++c) rgba[(y * 4 + x) * 4 + c] = (x < 2 || c == 3) ? 255 : 0;
+    std::vector<std::vector<u8>> mips;
+    asset::buildMips(rgba.data(), 4, 2, true, false, mips);
+    TEST_CHECK(mips.size() == 3 && mips[1].size() == 2 * 1 * 4 && mips[2].size() == 4);
+    TEST_CHECK(mips[2][0] == 188 && mips[2][3] == 255); // 흰색·검정의 선형 평균 0.5 = sRGB 188
+    asset::buildMips(rgba.data(), 4, 2, false, false, mips);
+    TEST_CHECK(mips[2][0] == 128);
+    std::vector<u8> normals = {255, 128, 128, 255, 0, 128, 128, 255}; // +x, -x → 평균은 z 쪽
+    asset::buildMips(normals.data(), 2, 1, false, true, mips);
+    TEST_CHECK(mips.size() == 2 && mips[1][0] == 128);
+    TEST_CHECK(render::packHalf2(1.0f, 0.5f) == (0x3C00u | (0x3800u << 16)) && render::packHalf2(0.0f, -2.0f) == (0xC000u << 16));
+}
+
 // 에셋 예산: 종류는 models/ 아래 첫 폴더, 넘은 항목만 문장으로
 TEST_CASE(asset_budget) {
     TEST_CHECK(asset::modelKind("models/characters/hero.glb") == asset::ModelKind::Character);

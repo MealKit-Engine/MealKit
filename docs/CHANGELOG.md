@@ -5,6 +5,18 @@
 
 ## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 텍스처와 머티리얼 1부 — 텍스처 캐시, glTF PBR 머티리얼 (완료 2026-10-21)
+- **범위** (사용자와 정함): 항목을 3부로 나눴다 — 1부 텍스처·glTF PBR(이것), 2부 스타일 프리셋 셰이더, 3부 룩데브 미리보기 (`docs/DECISIONS.md` 2026-10-21).
+- **RHI**: `Format`에 `Rgba8Srgb`·`Bc7Unorm`·`Bc7Srgb`·`Bc5Unorm`, `textureMipBytes`, `Device::createTexture(TextureInit)`(밉 전체를 한 번에 올리고 기다린다: DX12 `GetCopyableFootprints` + 업로드 버퍼, Vulkan 스테이징 + `vkCmdCopyBufferToImage`). 두 번째 고정 샘플러 `g_linearWrap`(s1 / 바인딩 3, 반복, 이방성 8). `VertexFormat`에 `Half2`·`Uint16x2`. Vulkan은 `textureCompressionBC`·`shaderSampledImageArrayNonUniformIndexing`(최소 사양에 더함)·`samplerAnisotropy`(있으면)를 켠다.
+- **텍스처 캐시** (`asset/TextureCache.h`, 화면 쪽): glTF 이미지(PNG·JPEG, stb_image에 JPEG를 켰다)를 디코드 → 2×2 상자 필터 밉맵(색은 선형 공간, 법선은 다시 길이 1) → 4×4 블록마다 BC7(bc7enc, 색은 sRGB·지각 가중) 또는 BC5(rgbcx `encode_bc5_hq`) → `<프로젝트>/build/cache/textures/<인코딩된 이미지·쓰임·버전 해시>.mktex`. 읽을 때는 그 폴더, 다음 exe 옆 `cache/textures`. 압축은 디버그 UI 빌드만(`MEALKIT_DEBUG_UI`), 출시 빌드는 캐시에 없으면 로그와 흰색. Export(`MealKitExport.cmake`)가 캐시 폴더를 복사한다. 256² 텍스처 하나 압축 약 10 ms.
+- **외부 라이브러리**: bc7enc_rdo b943862(MIT/퍼블릭 도메인, `third_party/bc7enc`: bc7enc.cpp·rgbcx.cpp만, 개발 빌드만 링크).
+- **모델** (`ModelCache`): `TEXCOORD_0`, 프리미티브의 머티리얼 → 렌더러 머티리얼(기본 색·발광·금속·거칠기 계수와 텍스처, 법선 세기, 알파 마스크 → 클립, `KHR_materials_emissive_strength`). 같은 이미지는 한 번만 올린다. 지원 범위 밖(스펙큘러-글로시니스, 클리어코트, 투과·볼륨, 쉰, 무지개, 이방성, 스펙큘러·IOR, unlit, 알파 블렌드, 양면, 오클루전, 두 번째 UV·텍스처 변환, data URI)은 경고. 예전에 정점 색에 곱하던 baseColorFactor는 머티리얼 표로. `Model::textures`·`textureSize`(예산 검사에 들어간다). 헤드리스는 머티리얼·텍스처를 읽지 않는다(올리는 함수가 없다).
+- **정점 36바이트** (`render/Mesh.h`, `docs/DECISIONS.md` 2026-10-21): + `uv`(half2, `packHalf2`) + `material`(u16, 렌더러 머티리얼 번호). 껍질 점·경계·파일 해시는 그대로라 시뮬레이션·콘텐츠 해시·고정 기록이 바뀌지 않는다.
+- **렌더러·셰이더**: 머티리얼 표(64바이트 기록, 0번 흰색)를 프레임마다 업로드 링에 쓰고 `FrameConstants.materials`(192바이트)로 위치를 넘긴다. `Forward.hlsl`: 기본 색 텍스처 × 계수 × 정점 색 × 인스턴스 색, 알파 클립, BC5 법선 맵(화면 미분 접선 공간), 금속/거칠기(G·B), 발광, 태양 GGX 정반사(Smith·Schlick, F0 0.04/알베도) + 환경 정반사 어림. 확산은 예전의 감싼 하프 램버트(기존 장면 그림 차이 최대 5/255).
+- **예제·시험**: `tools/make_sample_models.py`가 `models/props/crate.glb`(나무 판자 + 금속 테두리: 기본 색·법선·금속/거칠기 텍스처)와 `fence.glb`(철망, 알파 마스크)를 만든다(tree·rock·ring 파일은 바이트 그대로). `scenes/materials.scene`, 기준 그림 `materials_crate`·`materials_close`. Vulkan(검증 레이어)과 DX12 그림 차이 최대 1/255. 단위 테스트 `texture_mips`(sRGB 평균, 법선 다시 길이 1, half 변환).
+- **Blender 애드온·스키마**: `textures true`, `TEXCOORD_0`, `textureInputs`(Base Color·Normal·Metallic·Roughness·Emission Color), `alphaClip`. 내보내기에 텍스처 좌표와 이미지(AUTO)를 켜고, 엔진이 읽지 않는 BSDF 입력의 텍스처만 경고한다. 애드온 시험이 텍스처 이미지가 .glb에 들어가는지 본다.
+- **남은 것**: 2부 스타일 프리셋(조명 모델 PBR/툰/없음, 외곽선·바람·림·디졸브, PSO 미리 만들기), 3부 룩데브. 오클루전 텍스처, 양면 머티리얼, 알파 블렌드(반투명 패스와 같이). 하늘 HDRI가 오면 환경 반사. 텍스처 핫 리로드는 모델 핫 리로드가 같이 한다(캐시 키가 내용 해시).
+
 ### [x] GPU 캡처 버튼과 에디터 보기 모드 (완료 2026-10-21)
 - **GPU 캡처** (`rhi/GpuCapture.h`, 그래픽 프로그래머용): 디버그 UI가 있는 빌드(에디터·개발 exe)에서 `--gpu-capture`로 시작하면, 장치를 만들기 전에(`DeviceDesc::gpuCapture`, 두 도구 모두 장치 생성 때 API를 가로챈다) `%ProgramFiles%\RenderDocenderdoc.dll`(DX12·Vulkan) 또는 `%ProgramFiles%\Microsoft PIX\<가장 새 버전>\WinPixGpuCapturer.dll`(DX12)을 불러온다. 에디터 [보기] > GPU 캡처(도구가 없으면 숨김)·F11, 게임 exe F11이 다음 프레임을 캡처하고 RenderDoc 창을 연다. 캡처는 `%LOCALAPPDATA%\MealKit\gpu-captures`. 자동 시험용 `--gpu-capture-at <프레임>`(창 없이). 항상 불러오지 않고 시작 옵션으로 둔 것은 도구가 API를 가로채 성능·검증 레이어에 끼어들기 때문. 출시 빌드에는 코드가 없다(빈 함수).
 - **외부 라이브러리**: RenderDoc in-application API 헤더 `third_party/renderdoc/renderdoc_app.h`(1.46, MIT, 헤더만. DLL은 사용자의 RenderDoc 설치에서). PIX는 `PIXGpuCaptureNextFrames`를 DLL에서 찾는다(WinPixEventRuntime 없이).
