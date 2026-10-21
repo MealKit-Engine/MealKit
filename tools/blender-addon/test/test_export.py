@@ -82,6 +82,18 @@ def main():
         expect(not any("TEXCOORD_0" in p["attributes"] for p in prims), "no texture coordinates")
         expect(not gltf.get("images"), "no images")
 
+    # 에셋 예산: 이름의 첫 폴더가 종류, 한도는 mealkit.project (소품 삼각형 500으로 낮춘다)
+    with open(os.path.join(root, "mealkit.project"), "a", encoding="utf-8") as f:
+        f.write("budgetPropsTriangles 500\n")
+    bpy.context.scene.mealkit.model_name = "props/heavy"
+    expect(mealkit.model_kind("props/heavy")["folder"] == "props" and mealkit.model_kind("characters/hero")["folder"] == "characters"
+           and mealkit.model_kind("crate")["folder"] == "props", "budget kind from the folder")
+    bpy.ops.mealkit.check()
+    texts = [p.text for p in bpy.context.scene.mealkit.problems]
+    expect(any("over the props budget (500)" in t for t in texts), "triangle budget warning from mealkit.project")
+    bpy.ops.mealkit.export()
+    expect(os.path.isfile(os.path.join(root, "assets", "models", "props", "heavy.glb")), "exported into models/props/")
+
     # 아무것도 없으면 내보내지 않는다
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete()

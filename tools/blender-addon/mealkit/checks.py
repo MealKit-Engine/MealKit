@@ -36,7 +36,7 @@ def check_material(material, model):
     return out
 
 
-def check_objects(objects, schema, depsgraph):
+def check_objects(objects, schema, depsgraph, kind="props", budget=None):
     model = schema["model"]
     out = []
     if not objects:
@@ -66,4 +66,11 @@ def check_objects(objects, schema, depsgraph):
         out += check_material(material, model)
     if model.get("mergesMeshes"):
         out.append(("INFO", f"{len(objects)} object(s) become one model, {triangles} triangles"))
+    # 에셋 예산 (mealkit.project budget*, 종류는 폴더). 엔진도 불러올 때 같은 값으로 경고한다
+    if budget:
+        if triangles > budget["triangles"]:
+            out.append(("WARNING", f"{triangles} triangles is over the {kind} budget ({budget['triangles']})"))
+        used = len(materials) or 1  # 재질 없는 메시는 기본 재질 하나
+        if used > budget["materials"]:
+            out.append(("WARNING", f"{used} materials is over the {kind} budget ({budget['materials']})"))
     return out

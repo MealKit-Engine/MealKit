@@ -11,5 +11,13 @@
     "skinning": false,
     "animation": false
   },
-  "materialFeatures": []
+  "materialFeatures": [],
+  "budgets": {
+    "kinds": [
+      {"folder": "characters", "key": "budgetCharacters", "triangles": 15000, "textureSize": 2048, "bones": 64, "materials": 4},
+      {"folder": "props", "key": "budgetProps", "triangles": 3000, "textureSize": 1024, "bones": 0, "materials": 2},
+      {"folder": "environment", "key": "budgetEnvironment", "triangles": 20000, "textureSize": 2048, "bones": 0, "materials": 4}
+    ],
+    "otherFolders": "props"
+  }
 }

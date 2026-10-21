@@ -5,6 +5,17 @@
 
 ## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 에셋 예산 경고 (완료 2026-10-21)
+- **왜**: 아티스트가 내장 그래픽에서 얼마나 무거운 모델을 써도 되는지 알 수 없다.
+- **종류** (`asset/Budget.h`, `docs/CODING_MODEL.md` "모델 예산 종류", 사용자와 정함): `assets/models/` 아래 첫 폴더 — `characters/` 캐릭터, `environment/` 배경, 그 밖은 소품. `asset::modelKind`(역슬래시도).
+- **한도**: `mealkit.project`의 `budget{Characters,Props,Environment}{Triangles,TextureSize,Bones,Materials}`(`MEALKIT_VIEW_FIELD`, 해시 밖, [프로젝트 설정] 창). 기본값 `asset::kDefaultBudgets`(사용자와 정함): 캐릭터 15,000 삼각형·2048 px·뼈 64·머티리얼 4, 소품 3,000·1024·0·2, 배경 20,000·2048·0·4. 템플릿 파일에는 줄을 넣지 않았다(없는 줄 = 기본값, 템플릿 버전을 올리지 않는다).
+- **엔진**: `Model`에 `kind`·`materials`(메시가 쓰는 서로 다른 glTF 재질 수)·`bones`·`textureSize`(아직 0: 스킨·텍스처를 읽지 않는다)·`budgetProblems`. `ModelCache::setBudgets`(불러온 모델도 다시 검사)를 `loadMatchData`와 에디터 시작이 부르고, 에디터는 프로젝트 설정 값이 바뀌면 다시 넘긴다. 넘으면 `Model ... is over the props budget: 3072 triangles (budget 3000)` 경고.
+- **에디터 인스펙터**: 모델 줄 아래 "예산: 소품", 삼각형·머티리얼 사용량/한도(넘으면 빨강).
+- **Blender 애드온**: 이름에 폴더를 쓸 수 있다(`props/crate` → `assets/models/props/crate.glb`). 패널에 종류와 한도, 검사가 `mealkit.project` 값(없으면 스키마 `budgets`의 엔진 기본값)으로 삼각형·머티리얼을 넘으면 경고. 스키마에 `budgets`(폴더, 키 접두사, 기본값)를 더했다.
+- **예제**: `models/ring.glb`(3,072 삼각형)가 소품 예산을 조금 넘어 경고가 하나 나온다. 일부러 두었다(경고 예시). 옮기면 씬 경로·콘텐츠 해시·고정 기록이 바뀐다.
+- **검증**: 단위 테스트 `asset_budget`(종류, 넘은 항목 문장), `asset_schema`, 애드온 시험(폴더 종류, `budgetPropsTriangles 500`으로 낮춘 경고, `models/props/` 내보내기), 에디터 캡처(Ring 선택: 삼각형 3072 / 3000 빨강). check.ps1.
+- **남은 것**: 텍스처 크기·뼈 수는 텍스처와 머티리얼·스켈레탈 애니메이션 항목에서 세기 시작한다. 에셋 브라우저(4단계)의 예산 열.
+
 ### [x] Blender 내보내기 애드온 (완료 2026-10-21)
 - **왜**: 그래픽 콘텐츠를 Blender에서 만들기로 했으므로, 아티스트가 엔진 규칙(지원 범위, 내보내기 설정, 나중의 머티리얼 extras 키)을 Blender 안에서 알고 버튼 하나로 프로젝트에 넣어야 한다. Penpot 플러그인과 같은 역할.
 - **애드온** (`tools/blender-addon/mealkit`, Blender 확장 형식 `blender_manifest.toml`, Blender 5.2 LTS, `docs/DECISIONS.md` 2026-10-21): 3D 뷰 사이드바 [MealKit] 패널 — 프로젝트(`.blend` 폴더에서 위로 `mealkit.project`를 찾는다, 보통 `art/`에 둔다. 직접 고를 수도 있다), 이름(기본 `.blend` 이름), 선택한 것만, [Check]·[Export to MealKit], 검사 결과 목록. 내보내기는 검사에 오류가 없을 때 `assets/models/<이름>.glb`로 엔진이 읽는 것만(GLB, +Y 위, 모디파이어 적용, 법선, 활성 정점 색, 재질, extras. 텍스처 좌표·이미지·애니메이션·스킨·모프·카메라·빛 끔). 에디터의 에셋 핫 리로드가 받아 바로 보인다.

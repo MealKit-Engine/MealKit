@@ -57,6 +57,36 @@ def target_path(context):
     return os.path.join(project, "assets", model["folder"], name + "." + model["format"])
 
 
+def model_kind(name):
+    """예산 종류: assets/models/ 아래 첫 폴더 (엔진 asset::modelKind와 같다). 종류 폴더가 아니면 otherFolders."""
+    budgets = schema()["budgets"]
+    first = name.replace("\\", "/").split("/")[0] if "/" in name.replace("\\", "/") else ""
+    for kind in budgets["kinds"]:
+        if kind["folder"] == first:
+            return kind
+    return next(k for k in budgets["kinds"] if k["folder"] == budgets["otherFolders"])
+
+
+def project_budget(context, kind):
+    """mealkit.project의 budget<종류><항목> (없으면 엔진 기본값)."""
+    budget = {k: kind[k] for k in ("triangles", "textureSize", "bones", "materials")}
+    project = project_folder(context)
+    path = os.path.join(project, "mealkit.project") if project else ""
+    if path and os.path.isfile(path):
+        with open(path, encoding="utf-8") as f:
+            for line in f:
+                parts = line.split()
+                if len(parts) < 2:
+                    continue
+                for item in budget:
+                    if parts[0] == kind["key"] + item[0].upper() + item[1:]:
+                        try:
+                            budget[item] = int(parts[1])
+                        except ValueError:
+                            pass
+    return budget
+
+
 def export_objects(context):
     use_selection = context.scene.mealkit.selection_only
     objects = context.selected_objects if use_selection else context.visible_objects
@@ -69,7 +99,9 @@ def run_checks(context):
         problems.append(("ERROR", "No MealKit project: save the .blend inside a project folder, or set the project"))
     if not model_name(context):
         problems.append(("ERROR", "No model name: save the .blend or type a name"))
-    problems += checks.check_objects(export_objects(context), schema(), context.evaluated_depsgraph_get())
+    kind = model_kind(model_name(context))
+    problems += checks.check_objects(export_objects(context), schema(), context.evaluated_depsgraph_get(),
+                                     kind["folder"], project_budget(context, kind))
     return problems
 
 
@@ -81,7 +113,9 @@ class MealKitProblem(bpy.types.PropertyGroup):
 class MealKitSceneSettings(bpy.types.PropertyGroup):
     project: bpy.props.StringProperty(name="Project", subtype="DIR_PATH",
                                       description="MealKit project folder (empty: found from the .blend location)")
-    model_name: bpy.props.StringProperty(name="Name", description="File name under assets/models (empty: the .blend name)")
+    model_name: bpy.props.StringProperty(name="Name", description="Path under assets/models without .glb, e.g. props/crate. "
+                                         "The first folder sets the budget: characters, props, environment "
+                                         "(empty: the .blend name)")
     selection_only: bpy.props.BoolProperty(name="Selected only", default=False,
                                            description="Export only the selected objects (otherwise all visible objects)")
     problems: bpy.props.CollectionProperty(type=MealKitProblem)
@@ -173,6 +207,10 @@ class MEALKIT_PT_export(bpy.types.Panel):
         path = target_path(context)
         if path:
             layout.label(text=os.path.relpath(path, project), icon="EXPORT")
+            kind = model_kind(model_name(context))
+            b = project_budget(context, kind)
+            layout.label(text=f"Budget ({kind['folder']}): {b['triangles']} triangles, {b['materials']} materials",
+                         icon="INFO")
         row = layout.row()
         row.operator("mealkit.check", icon="CHECKMARK")
         row.operator("mealkit.export", icon="EXPORT")

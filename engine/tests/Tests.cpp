@@ -785,6 +785,21 @@ TEST_CASE(asset_schema) {
     TEST_CHECK(text == expected);
 }
 
+// 에셋 예산: 종류는 models/ 아래 첫 폴더, 넘은 항목만 문장으로
+TEST_CASE(asset_budget) {
+    TEST_CHECK(asset::modelKind("models/characters/hero.glb") == asset::ModelKind::Character);
+    TEST_CHECK(asset::modelKind("models/environment/cliff.glb") == asset::ModelKind::Environment);
+    TEST_CHECK(asset::modelKind("models/tree.glb") == asset::ModelKind::Prop);
+    TEST_CHECK(asset::modelKind("models\\environment\\rock.glb") == asset::ModelKind::Environment); // 역슬래시
+    TEST_CHECK(asset::modelKind("models/other/x.glb") == asset::ModelKind::Prop);
+    asset::Model m;
+    m.triangles[0] = 3200;
+    m.materials = 2;
+    const std::vector<std::string> over = asset::budgetProblems(m, asset::kDefaultBudgets[1]);
+    TEST_CHECK(over.size() == 1 && over[0] == "3200 triangles (budget 3000)");
+    TEST_CHECK(asset::budgetProblems(m, asset::kDefaultBudgets[0]).empty());
+}
+
 // 프러스텀 컬링: 카메라 (0,0,-10)이 원점을 본다 (reversed-Z, 가까운 면 0.1, 먼 면 100)
 TEST_CASE(frustum_culling) {
     const Mat4 vp = lookAtLH({0, 0, -10}, {0, 0, 0}, {0, 1, 0}) * perspectiveReversedZ(1.0f, 1.0f, 0.1f, 100.0f);

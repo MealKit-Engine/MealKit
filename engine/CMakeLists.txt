@@ -117,6 +117,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/platform/Gamepad.h # PadState는 입력 액션이 읽는다. Gamepads 구현은 화면 쪽(win32/Gamepad.cpp)
     src/mealkit/scene/Scene.h
     src/mealkit/scene/Scene.cpp
+    src/mealkit/asset/Budget.h
     src/mealkit/asset/ModelCache.h
     src/mealkit/asset/ModelCache.cpp
     src/mealkit/render/DrawList.h
