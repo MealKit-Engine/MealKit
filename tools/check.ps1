@@ -1,10 +1,12 @@
 ﻿# MealKit 엔진 검증: 엔진을 고친 뒤 한 번에 돌린다. 항목별 PASS/FAIL과 걸린 시간을 출력하고, 하나라도 실패하면 종료 코드 1.
 #   powershell -ExecutionPolicy Bypass -File tools\check.ps1          전체
 #   powershell -ExecutionPolicy Bypass -File tools\check.ps1 -Quick   빌드 + 단위 테스트 + 결정론 테스트만
+#   ... -UpdateGolden   그래픽 회귀 테스트의 기준 그림(engine\tests\golden)을 이번 그림으로 바꾼다 (그림을 일부러 바꿨을 때)
 # 로그와 스크린샷: build\check\  (항목마다 <번호>-<이름>.log)
 # 실행 중인 에디터는 먼저 닫는다 (mealkit.dll을 다시 빌드한다).
 param(
-    [switch]$Quick
+    [switch]$Quick,
+    [switch]$UpdateGolden
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -206,6 +208,28 @@ if (-not $Quick) {
         $code = Run $log $editor "--project `"$root`" --frames 60 --select 25 --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]")
     }
+    # 그래픽 회귀 테스트 (ROADMAP "그래픽 회귀 테스트"): 고정 장면(engine\tests\golden\shots.txt)을 UI 없이 그려 기준 그림과 비교.
+    # 다르면 build\check\golden\<이름>-diff.png (빨강 = 다른 픽셀). GPU·드라이버가 다르면 조금 다를 수 있어 문턱을 둔다
+    $goldenDir = Join-Path $root "engine\tests\golden"
+    function Compare-Golden([string]$log, [string]$exe, [string]$suffix) {
+        $dir = Join-Path $out "golden$suffix"
+        $code = Run $log $exe "--project `"$root`" --render-golden `"$goldenDir\shots.txt`" `"$dir`""
+        if ($code -ne 0) { return "render failed" }
+        $problems = @()
+        foreach ($png in Get-ChildItem $dir -Filter *.png | Where-Object { $_.Name -notlike "*-diff.png" }) {
+            $golden = Join-Path $goldenDir $png.Name
+            if ($UpdateGolden -and $suffix -eq "") { Copy-Item $png.FullName $golden -Force; continue }
+            if (-not (Test-Path $golden)) { $problems += "$($png.BaseName): no golden image (run check.ps1 -UpdateGolden)"; continue }
+            $diff = Join-Path $dir ($png.BaseName + "-diff.png")
+            $r = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $golden -B $png.FullName -Threshold 8 -MaxBadPercent 0.5 -MaxDiff 255 -DiffOut $diff 2>&1
+            Add-Content $log "$($png.Name): $($r | Select-Object -First 1)"
+            if ($LASTEXITCODE -ne 0) { $problems += "$($png.BaseName): $($r | Select-Object -First 1)" }
+        }
+        if ($UpdateGolden -and $suffix -eq "") { return "SKIP: golden images updated in engine\tests\golden" }
+        if ($problems.Count -gt 0) { return ($problems -join "; ") }
+        return $true
+    }
+    Invoke-Check "Graphics regression (golden images)" { param($log) Compare-Golden $log $editor "" }
     Invoke-Check "Editor play (solo, shadow)" {
         param($log)
         $png = Join-Path $out "editor-play.png"
@@ -227,11 +251,12 @@ if (-not $Quick) {
         $common = "--project `"$root`" --frames 60 --select 25 --capture"
         if ((Run "$log.dx12" $editor "$common `"$dx`"") -ne 0 -or -not (Test-Path $dx)) { return "DX12 capture failed" }
         if ((Run "$log.vulkan" $vkEditor "$common `"$vk`"") -ne 0 -or -not (Test-Path $vk)) { return "Vulkan capture failed" }
-        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $dx -B $vk -IgnoreBottom 40 2>&1
+        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $dx -B $vk -IgnoreBottom 40 -DiffOut (Join-Path $out "backend-diff.png") 2>&1
         $output | Out-File -Encoding utf8 $log
         if ($LASTEXITCODE -ne 0) { return ($output | Select-Object -First 1) }
         return $true
     }
+    Invoke-Check "Graphics regression (Vulkan)" { param($log) Compare-Golden $log $vkEditor "-vulkan" }
     Invoke-Check "Vulkan validation layer (play)" {
         param($log)
         $png = Join-Path $out "vulkan-play.png"

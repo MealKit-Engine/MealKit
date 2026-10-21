@@ -5,6 +5,14 @@
 
 ## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 그래픽 회귀 테스트 (완료 2026-10-21)
+- **왜**: 셰이더·포스트를 고치다 그림이 깨져도 사람이 보기 전에는 모른다. 기존 캡처 비교는 DX12 = Vulkan(백엔드 사이)뿐이라 두 쪽이 같이 깨지면 못 잡았다.
+- **장면** (`engine/tests/golden/shots.txt`): `이름 씬 x y z yaw pitch`(도) 줄. 지금 셋 — 전경(에디터 기본 카메라), 모델 가까이(링), 낮은 각도(물체·안개·영역 모서리). 기준 그림은 같은 폴더의 `<이름>.png`(DX12, 1600×900).
+- **그리기** (`MealKitEditor --render-golden <shots.txt> <폴더>`, `EditorMain.cpp`): 에디터를 평소처럼 열고(게임 DLL의 씬 종류가 필요) 메인 루프에서 UI 없이 `Editor::buildShot`(카메라·창 전체 뷰포트·선택 없음 → `buildSceneView`)으로 장면마다 4프레임 그리고 마지막을 저장. 편집 화면 그대로라 시간·보간에 따라 바뀌는 것이 없다.
+- **비교** (check.ps1 "Graphics regression (golden images)", "(Vulkan)"): `compare_images.ps1` 채널 차이 8 초과 픽셀 0.5% 이하(GPU·드라이버 차이 허용). 다르면 `-DiffOut`(새 옵션)으로 `build\check\golden[-vulkan]\<이름>-diff.png`(어둡게 한 기준 + 다른 픽셀 빨강). `check.ps1 -UpdateGolden`은 DX12 그림으로 기준을 바꾸고 그 단계를 SKIP. "Vulkan = DX12" 단계도 이제 `backend-diff.png`를 남긴다(가끔 흔들리는 원인을 보려고).
+- **검증**: 정점 색을 10% 어둡게 한 셰이더로 `arena_low`가 DIFFERENT(2.5% 픽셀), 되돌리면 SAME. check.ps1 32개 통과. 같은 날 `-UpdateGolden` 실행에서 "Vulkan = DX12"가 한 번 더 흔들렸다(최대 차이 90, 0.74%) — 다음에 `backend-diff.png`로 본다.
+- **남은 것**: 다른 PC·GPU에서는 문턱을 넘을 수 있다(그때 문턱 또는 PC별 기준을 정한다). 조명 모델·포스트 프로세싱 장면.
+
 ### [x] 에셋 예산 경고 (완료 2026-10-21)
 - **왜**: 아티스트가 내장 그래픽에서 얼마나 무거운 모델을 써도 되는지 알 수 없다.
 - **종류** (`asset/Budget.h`, `docs/CODING_MODEL.md` "모델 예산 종류", 사용자와 정함): `assets/models/` 아래 첫 폴더 — `characters/` 캐릭터, `environment/` 배경, 그 밖은 소품. `asset::modelKind`(역슬래시도).
