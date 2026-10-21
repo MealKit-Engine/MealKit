@@ -171,6 +171,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/game/GameMain.cpp
     src/mealkit/render/Renderer.cpp
     src/mealkit/render/ShaderReload.h
+    src/mealkit/rhi/GpuCapture.h
+    src/mealkit/rhi/GpuCapture.cpp
     src/mealkit/render/ShaderReload.cpp
     shaders/Forward.hlsl
     shaders/Ui.hlsl
@@ -267,7 +269,8 @@ target_include_directories(${mealkit_core_target} SYSTEM PRIVATE ${MEALKIT_THIRD
 if(NOT MEALKIT_HEADLESS_ONLY)
     target_include_directories(mealkit PRIVATE ${MEALKIT_SHADER_OUT})
     # 소리: miniaudio + stb_vorbis (audio/Miniaudio.h). 외부 코드 구현 파일은 경고를 끈다
-    target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/miniaudio ${MEALKIT_THIRD_PARTY}/stb)
+    target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/miniaudio ${MEALKIT_THIRD_PARTY}/stb
+                               ${MEALKIT_THIRD_PARTY}/renderdoc) # renderdoc_app.h: rhi/GpuCapture.cpp
     if(MSVC)
         set_source_files_properties(src/mealkit/audio/MiniaudioImpl.cpp src/mealkit/ui/StbImpl.cpp PROPERTIES COMPILE_OPTIONS "/W0")
     endif()

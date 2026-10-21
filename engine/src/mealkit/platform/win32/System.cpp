@@ -4,6 +4,8 @@
 #include <windows.h>
 #include <psapi.h>
 
+#include <cstring>
+
 #pragma comment(lib, "advapi32.lib") // GetUserNameW
 
 namespace mealkit {
@@ -25,6 +27,20 @@ ProcessMemory processMemory() {
     c.cb = sizeof(c);
     if (!K32GetProcessMemoryInfo(GetCurrentProcess(), &c, sizeof(c))) return {}; // kernel32 (psapi.lib 필요 없음)
     return {static_cast<u64>(c.WorkingSetSize), static_cast<u64>(c.PeakWorkingSetSize)};
+}
+
+std::string environmentVariable(const char* name) {
+    std::wstring wname(name, name + std::strlen(name)); // 이름은 ASCII
+    const DWORD size = GetEnvironmentVariableW(wname.c_str(), nullptr, 0);
+    if (size == 0) return {};
+    std::wstring value(size, L'\0');
+    const DWORD got = GetEnvironmentVariableW(wname.c_str(), value.data(), size);
+    value.resize(got);
+    const int bytes = WideCharToMultiByte(CP_UTF8, 0, value.c_str(), -1, nullptr, 0, nullptr, nullptr);
+    if (bytes <= 1) return {};
+    std::string out(static_cast<size_t>(bytes - 1), '\0');
+    WideCharToMultiByte(CP_UTF8, 0, value.c_str(), -1, out.data(), bytes, nullptr, nullptr);
+    return out;
 }
 
 std::string userName() {

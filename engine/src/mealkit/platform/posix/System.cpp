@@ -40,6 +40,11 @@ ProcessMemory processMemory() {
     return out;
 }
 
+std::string environmentVariable(const char* name) {
+    const char* value = std::getenv(name);
+    return value ? std::string(value) : std::string();
+}
+
 std::string userName() {
     const char* name = std::getenv("USER");
     return name ? std::string(name) : std::string();

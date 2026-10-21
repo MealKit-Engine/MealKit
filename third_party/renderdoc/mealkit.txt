@@ -1,0 +1,11 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+name RenderDoc in-application API
+version 1.46
+license MIT
+licenseFile LICENSE
+source https://github.com/baldurk/renderdoc (renderdoc/api/app/renderdoc_app.h, copied from the RenderDoc 1.46 install)
+usedIn engine (GPU capture button in development builds, rhi/)
+inGame no
+kept renderdoc_app.h (header only; renderdoc.dll is loaded from the user's RenderDoc install at run time)
+why one header to trigger a GPU capture of the next frame from the editor or a development exe when RenderDoc is installed; nothing is linked or shipped.

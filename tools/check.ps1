@@ -152,6 +152,17 @@ if (-not $Quick) {
         return $code -eq 0 -and (Test-Path $png)
     }
     # 화면 흐름: 타이틀 → 메뉴 → 혼자 하기 → 로비 → 시작 → 매치 (위젯을 이름으로 누른다, 프레임 수로 끝)
+    # GPU 캡처 (ROADMAP "GPU 캡처 버튼과 에디터 보기 모드"): RenderDoc이 있으면 --gpu-capture-at으로 한 프레임을 캡처해 .rdc가 생기는지
+    Invoke-Check "GPU capture (RenderDoc)" {
+        param($log)
+        if (-not (Test-Path "$env:ProgramFiles\RenderDoc\renderdoc.dll")) { return "SKIP: RenderDoc not installed" }
+        $dir = Join-Path $env:LOCALAPPDATA "MealKit\gpu-captures"
+        $before = @(Get-ChildItem $dir -Filter *.rdc -ErrorAction SilentlyContinue).Count
+        $code = Run $log $game "--bot --mute --vsync 0 --exit-tick 120 --gpu-capture-at 30"
+        $after = @(Get-ChildItem $dir -Filter *.rdc -ErrorAction SilentlyContinue)
+        if ($after.Count -gt $before) { Remove-Item ($after | Sort-Object LastWriteTime | Select-Object -Last 1).FullName } # 시험 캡처는 지운다
+        return $code -eq 0 -and $after.Count -gt $before -and (Has $log "RenderDoc loaded")
+    }
     Invoke-Check "Game screen flow (title to match)" {
         param($log)
         $png = Join-Path $out "flow.png"

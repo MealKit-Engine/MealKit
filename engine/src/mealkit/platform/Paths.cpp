@@ -93,4 +93,13 @@ std::vector<std::string> listFiles(const std::string& directory, const char* ext
     return out;
 }
 
+std::vector<std::string> listDirectories(const std::string& directory) {
+    std::vector<std::string> out;
+    std::error_code ec;
+    for (const auto& entry : fs::directory_iterator(fromUtf8(directory), ec))
+        if (entry.is_directory(ec)) out.push_back(toUtf8(entry.path().filename()));
+    std::sort(out.begin(), out.end());
+    return out;
+}
+
 } // namespace mealkit

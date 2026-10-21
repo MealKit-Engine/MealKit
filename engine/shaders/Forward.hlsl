@@ -10,7 +10,7 @@ struct Instance // 48바이트 (render::InstanceData)
     uint color;      // RGBA8 (sRGB), A는 사용 안 함
     float4 rotation; // 쿼터니언
     float3 scale;
-    uint flags;      // bit0: 체커 패턴, bit1: 선택 강조
+    uint flags;      // bit0: 체커 패턴, bit1: 선택 강조, bit2: 예산 초과, bit8~9: LOD (에디터 보기 모드)
 };
 
 struct FrameConstants // 176바이트 (Renderer.cpp FrameConstants)
@@ -30,7 +30,7 @@ struct PushConstants
     uint ring;           // 업로드 링의 g_buffers[] 번호
     uint frameOffset;    // FrameConstants 위치
     uint instanceOffset; // 이번 드로우의 Instance 배열 위치
-    uint pad;
+    uint debugView;      // render::DebugView: 0 없음, 1 와이어프레임, 2 법선, 3 LOD, 4 오버드로, 5 예산
 };
 [[vk::push_constant]] ConstantBuffer<PushConstants> pc : register(b0);
 
@@ -122,6 +122,20 @@ float4 PSMain(VSOutput input) : SV_Target
     }
 
     float halfLambert = dot(n, frame.sunDir.xyz) * 0.5 + 0.5;
+
+    // 에디터 보기 모드 (안개·번쩍임 없이)
+    if (pc.debugView == 2)
+        return float4(n * 0.5 + 0.5, 1.0);
+    if (pc.debugView == 4) // 더하기 섞기 (선형 색): 한 겹은 어두운 갈색, 열 겹 넘으면 밝은 주황
+        return float4(0.02, 0.008, 0.002, 1.0);
+    if (pc.debugView == 3 || pc.debugView == 5)
+    {
+        uint lod = (input.flags >> 8) & 3u;
+        float3 lodColor = lod == 0 ? float3(0.2, 0.8, 0.25) : (lod == 1 ? float3(0.95, 0.8, 0.15) : float3(0.95, 0.25, 0.2));
+        float3 tint = pc.debugView == 3 ? lodColor : ((input.flags & 4u) ? float3(0.95, 0.2, 0.15) : float3(0.6, 0.6, 0.6));
+        return float4(tint * (0.35 + 0.65 * halfLambert), 1.0);
+    }
+
     float3 ambient = lerp(frame.groundColor.rgb, frame.skyColor.rgb, n.y * 0.5 + 0.5);
     float3 color = albedo * (frame.sunColor.rgb * (halfLambert * halfLambert) + ambient);
 

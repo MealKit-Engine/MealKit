@@ -30,6 +30,9 @@ struct ProcessMemory {
 };
 ProcessMemory processMemory();
 
+// 환경 변수 (UTF-8). 없으면 빈 문자열
+std::string environmentVariable(const char* name);
+
 // 이 컴퓨터의 사용자 이름 (플레이어 이름의 기본값). 모르면 빈 문자열.
 std::string userName();
 

@@ -32,6 +32,8 @@ bool createDirectories(const std::string& path);
 bool removeFile(const std::string& path);
 // 폴더 안 파일 이름들 (하위 폴더 제외, 이름 순). extension(".txt")을 주면 그 확장자만
 std::vector<std::string> listFiles(const std::string& directory, const char* extension = nullptr);
+// 폴더 안 하위 폴더 이름들 (이름 순)
+std::vector<std::string> listDirectories(const std::string& directory);
 // UTF-8 경로로 fopen (mode는 "rb", "wb" 등). 실패하면 nullptr.
 FILE* openFile(const std::string& path, const char* mode);
 // 마지막 수정·만든 시각 (OS 단위, 비교와 formatFileTime용, 없으면 0)

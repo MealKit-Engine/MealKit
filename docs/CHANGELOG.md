@@ -5,6 +5,14 @@
 
 ## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] GPU 캡처 버튼과 에디터 보기 모드 (완료 2026-10-21)
+- **GPU 캡처** (`rhi/GpuCapture.h`, 그래픽 프로그래머용): 디버그 UI가 있는 빌드(에디터·개발 exe)에서 `--gpu-capture`로 시작하면, 장치를 만들기 전에(`DeviceDesc::gpuCapture`, 두 도구 모두 장치 생성 때 API를 가로챈다) `%ProgramFiles%\RenderDocenderdoc.dll`(DX12·Vulkan) 또는 `%ProgramFiles%\Microsoft PIX\<가장 새 버전>\WinPixGpuCapturer.dll`(DX12)을 불러온다. 에디터 [보기] > GPU 캡처(도구가 없으면 숨김)·F11, 게임 exe F11이 다음 프레임을 캡처하고 RenderDoc 창을 연다. 캡처는 `%LOCALAPPDATA%\MealKit\gpu-captures`. 자동 시험용 `--gpu-capture-at <프레임>`(창 없이). 항상 불러오지 않고 시작 옵션으로 둔 것은 도구가 API를 가로채 성능·검증 레이어에 끼어들기 때문. 출시 빌드에는 코드가 없다(빈 함수).
+- **외부 라이브러리**: RenderDoc in-application API 헤더 `third_party/renderdoc/renderdoc_app.h`(1.46, MIT, 헤더만. DLL은 사용자의 RenderDoc 설치에서). PIX는 `PIXGpuCaptureNextFrames`를 DLL에서 찾는다(WinPixEventRuntime 없이).
+- **플랫폼 계층**: `environmentVariable`(Windows `GetEnvironmentVariableW`, POSIX `getenv`), `listDirectories`.
+- **보기 모드** (`render::DebugView`, 에디터 [보기] > 보기 모드, `--view-mode <n>`): 와이어프레임, 법선, LOD 단계(초록·노랑·빨강), 오버드로(깊이 없이 더하기, 검정 바탕), 예산 초과(빨강/회색). 셰이더는 푸시 상수의 빈칸이던 `debugView`로 고르고, 에디터는 보기 모드일 때만 인스턴스 플래그(LOD 비트 8~9, `kInstanceOverBudget`)를 채운다. RHI `PipelineDesc`에 `wireframe`·`additiveBlend`·`depthTest`(DX12 FillMode·블렌드·깊이, Vulkan polygonMode LINE — `fillModeNonSolid`가 있으면 켠다 — ·블렌드·깊이). 보기 모드 파이프라인은 디버그 UI 빌드만 만들고 셰이더 핫 리로드도 같이 바꾼다. `Renderer::supportsDebugView`.
+- **검증**: RenderDoc 1.46(winget으로 설치)으로 DX12·Vulkan 게임 exe에서 `capture_frame61.rdc` 생성, `renderdoccmd thumb`로 캡처 그림 확인. check.ps1 "GPU capture (RenderDoc)"(없으면 SKIP). 보기 모드 다섯 개 에디터 캡처(와이어프레임, LOD에서 링이 1단계 노랑, 예산 초과에서 링 빨강, 오버드로). check.ps1.
+- **남은 것**: PIX 경로는 PIX 설치 후 확인. 머티리얼 기능 보기 모드는 머티리얼 기능(스타일 프리셋)이 생길 때. 오버드로는 지금 불투명뿐이라 의미가 작다(파티클·반투명이 생기면 쓸모).
+
 ### [x] 그래픽 회귀 테스트 (완료 2026-10-21)
 - **왜**: 셰이더·포스트를 고치다 그림이 깨져도 사람이 보기 전에는 모른다. 기존 캡처 비교는 DX12 = Vulkan(백엔드 사이)뿐이라 두 쪽이 같이 깨지면 못 잡았다.
 - **장면** (`engine/tests/golden/shots.txt`): `이름 씬 x y z yaw pitch`(도) 줄. 지금 셋 — 전경(에디터 기본 카메라), 모델 가까이(링), 낮은 각도(물체·안개·영역 모서리). 기준 그림은 같은 폴더의 `<이름>.png`(DX12, 1600×900).
