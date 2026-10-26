@@ -5,6 +5,14 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 텍스처와 머티리얼 3부 — 룩데브 미리보기 (완료 2026-10-26)
+- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 룩데브): HDRI 전에 조명 프리셋으로, 별도 창 + 오프스크린 대상.
+- **RHI 오프스크린 대상** (`rhi::RenderTarget`, `Device::createRenderTarget`·`renderTargetTexture`, `CommandList::beginTarget`·`endTarget`): 색 + 깊이(D32), 형식이 장면과 같아 장면 파이프라인을 그대로 쓴다. DX12는 TYPELESS 자원에 sRGB RTV + UNORM SRV(bindless 칸), 대상마다 RTV·DSV 힙. Vulkan은 형식을 바꿀 수 있는 이미지(스왑체인 UNORM + 장면 sRGB 뷰), dynamic rendering, 끝나면 SHADER_READ. 지우는 색이 그때마다 달라 DX12 최적 지우기 값은 주지 않고 그 성능 안내 메시지는 디버그 로그에서 거른다. `rhi::imguiTextureId`(DX12 GPU 서술자, Vulkan `ImGui_ImplVulkan_AddTexture` 세트를 텍스처마다 한 번)로 `ImGui::Image`에 띄운다.
+- **렌더러** `Renderer::createRenderTarget`·`renderTargetTexture`·`drawToTarget(target, params, drawList, lightingModel)`: 본 화면 3D 다음 UI 전에, 프레임 상수(`Impl::writeFrameConstants`로 나눔, 머티리얼 표는 프레임에 한 번)·프러스텀·조명 모델을 잠시 바꿔 그리고 되돌린다. 보기 모드는 쓰지 않는다.
+- **에디터 [룩데브] 창** (`editor/LookdevPanel`, [보기] > [룩데브], `--lookdev`): 고른 물체의 모델(LOD 0)을 경계 상자에 맞춘 카메라로 회전 받침대 위에 그린다. 조명 프리셋 넷(중립 스튜디오·낮·노을·밤: 태양 방향·색, 하늘·땅 환경광, 배경), 조명 모델(프로젝트 설정·Pbr·Toon·Unlit), 돌리기·확대, 번쩍임·디졸브 미리보기 값, 그림을 끌어 돌리고 높이각, 휠로 확대. 바람은 에디터 시간으로 흔들린다. 한국어 글자 14개.
+- **시험**: check.ps1 "Editor look dev (offscreen, DX12 debug layer)"(디버그 레이어 메시지 없음), "Vulkan validation layer (look dev)"(검증 메시지 없음). 받침대가 시간에 따라 돌아 기준 그림 비교는 하지 않는다.
+- **남은 것**: HDRI 프리셋(다음 항목), 모델을 고르는 상자(지금은 씬에서 고른 물체), 받침대 위 그림자(그림자 항목), 머티리얼별 보기(기능 보기 모드처럼).
+
 ### [x] 텍스처와 머티리얼 2부 — 스타일 프리셋 셰이더 (완료 2026-10-26)
 - **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 스타일 프리셋 구현): 조명 모델만 셰이더 변형(셋) + 머티리얼 기능은 머티리얼 표 비트로 셰이더 안 분기 + 외곽선은 파이프라인 하나 더 / 인스턴스 값은 flags 위 16비트(48바이트 그대로) / 바람 세기는 정점 색 알파 / 툰은 램프 PNG + 엔진 기본 3단계.
 - **조명 모델** (`render::LightingModel`, 프로젝트 설정 `lightingModel` = `game::LightingModelSetting` Pbr·Toon·Unlit, 해시 밖): `Forward.hlsl`을 `LIGHTING_MODEL=0/1/2`로 세 번 컴파일(`g_ForwardPbrPS`·`g_ForwardToonPS`·`g_ForwardUnlitPS`, CMake `mealkit_shader`가 나머지 인자를 `-D` 정의로 받는다). `Renderer::init`이 셋 + 외곽선 + 보기 모드 파이프라인을 모두 만들고 `setLightingModel`은 고르기만 한다(플레이 중 PSO를 만들지 않는다). PBR은 1부 그대로(기준 그림 5장이 같다). 툰은 하프 램버트로 램프 텍스처(256×1, `setToonRamp`: 프로젝트 `toonRamp` 그림의 첫 줄을 가장 가까운 픽셀로, 없으면 3단계 0.35·0.72·1.0)를 읽고 하이라이트는 끊어진 점 하나. 조명 없음은 albedo + 발광(안개·번쩍임·림은 받는다).

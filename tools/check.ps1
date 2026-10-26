@@ -248,6 +248,13 @@ if (-not $Quick) {
         $code = Run $log $editor "--project `"$root`" --frames 60 --select 25 --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]")
     }
+    # 룩데브 창 (ROADMAP "텍스처와 머티리얼 3부"): 오프스크린 대상에 그려 창에 띄운다. 디버그 레이어 메시지 없이
+    Invoke-Check "Editor look dev (offscreen, DX12 debug layer)" {
+        param($log)
+        $png = Join-Path $out "editor-lookdev.png"
+        $code = Run $log $editor "--project `"$root`" assets\scenes\styles.scene --frames 60 --select 3 --lookdev --debug --capture `"$png`""
+        return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]") -and -not (Has $log "\[D3D12\]")
+    }
     # 그래픽 회귀 테스트 (ROADMAP "그래픽 회귀 테스트"): 고정 장면(engine\tests\golden\shots.txt)을 UI 없이 그려 기준 그림과 비교.
     # 다르면 build\check\golden\<이름>-diff.png (빨강 = 다른 픽셀). GPU·드라이버가 다르면 조금 다를 수 있어 문턱을 둔다
     $goldenDir = Join-Path $root "engine\tests\golden"
@@ -303,6 +310,16 @@ if (-not $Quick) {
         $code = Run $log $vkEditor "--project `"$root`" --frames 180 --play --bot --debug --capture `"$png`""
         if (Has $log "validation layer unavailable") { return "SKIP: Vulkan SDK not installed (validation layer)" }
         if ($code -ne 0 -or -not (Has $log "Play mode")) { return "play failed" }
+        $issues = @(Select-String -Path $log -Pattern "\[Vulkan\]")
+        if ($issues.Count -gt 0) { return "$($issues.Count) validation message(s)" }
+        return $true
+    }
+    Invoke-Check "Vulkan validation layer (look dev)" {
+        param($log)
+        $png = Join-Path $out "vulkan-lookdev.png"
+        $code = Run $log $vkEditor "--project `"$root`" assets\scenes\styles.scene --frames 60 --select 3 --lookdev --debug --capture `"$png`""
+        if (Has $log "validation layer unavailable") { return "SKIP: Vulkan SDK not installed (validation layer)" }
+        if ($code -ne 0 -or -not (Test-Path $png)) { return "capture failed" }
         $issues = @(Select-String -Path $log -Pattern "\[Vulkan\]")
         if ($issues.Count -gt 0) { return "$($issues.Count) validation message(s)" }
         return $true

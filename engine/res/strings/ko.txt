@@ -279,6 +279,20 @@ Stick and trigger dead zone (0 to 1) = 스틱·트리거 데드존 (0~1)
 
 # ---- 게임 화면 UI ([UI] 패널)
 UI = UI
+Look Dev = 룩데브
+Light = 조명
+Neutral studio = 중립 스튜디오
+Daylight = 낮
+Sunset = 노을
+Night = 밤
+Project setting = 프로젝트 설정
+Lighting model = 조명 모델
+Turn = 돌리기
+Zoom = 확대
+Flash = 번쩍임
+Dissolve = 디졸브
+Select an object with a model in the scene. = 씬에서 모델이 있는 물체를 고르세요.
+Cannot load %s = %s를 불러올 수 없습니다
 No .ui files in assets/ui. = assets/ui에 .ui 파일이 없습니다.
 Refresh = 새로 고침
 Screen preview = 화면 미리보기
