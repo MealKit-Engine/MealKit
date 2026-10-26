@@ -10,7 +10,8 @@
 //   # MealKit table (SoundEvent). Edit it in the editor's [Tables] panel or import a CSV there.
 //   @format table 1
 // 줄이 없으면 버전 1. 쓰는 쪽은 항상 최신 버전으로 쓰고, 형식을 바꾸면 N을 올리고 읽는 쪽에 migrate를 더한다.
-// 다른 저장소의 MealKit 도구도 이 줄로 파일을 알아본다(확장자가 같은 sounds.table·input.bindings도).
+// 다른 저장소의 MealKit 도구도 이 줄로 파일을 알아본다(확장자가 같은 feedback.table·input.bindings도).
+// 도구가 정하는 형식(MealKit Audio의 assets/sounds.events = "audio-events")은 그 도구의 런타임이 같은 규칙으로 읽고 쓴다.
 namespace mealkit::text {
 
 struct Format {
@@ -21,7 +22,7 @@ struct Format {
 inline constexpr Format kProject{"project", 1};   // mealkit.project
 inline constexpr Format kTuning{"tuning", 1};     // game.tuning, view.tuning
 inline constexpr Format kSettings{"settings", 1}; // 플레이어 설정 settings.ini
-inline constexpr Format kTable{"table", 1};       // *.table, input.bindings, feedback.table, sounds.table
+inline constexpr Format kTable{"table", 1};       // *.table, input.bindings, feedback.table
 inline constexpr Format kScene{"scene", 2};       // *.scene (버전 2: 부모 기준 값. 예전 "version N" 줄도 읽는다)
 inline constexpr Format kUi{"ui", 1};             // *.ui, theme.ui
 inline constexpr Format kStrings{"strings", 1};   // strings/<언어>.txt

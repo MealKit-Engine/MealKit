@@ -1,7 +1,7 @@
-# MealKit table (SoundEvent). Edit it in the editor's [Tables] panel or import a CSV there.
-@format table 1
+# MealKit audio events. Edit them in MealKit Audio or by hand: "event <name>" or "bus <name>", then "key value" lines.
+@format audio-events 1
 
-row hit
+event hit
 clips sounds/hit_1.wav sounds/hit_2.wav sounds/hit_3.wav
 container random
 param speed
@@ -20,7 +20,7 @@ priority 30
 maxInstances 6
 steal quietest
 
-row push
+event push
 clips sounds/push.wav
 pitchRandom 0.05
 minDistance 4
@@ -29,7 +29,7 @@ priority 70
 maxInstances 4
 subtitle sub.push
 
-row jump
+event jump
 clips sounds/jump.wav
 volume 0.6
 pitchRandom 0.06
@@ -39,7 +39,7 @@ priority 60
 maxInstances 4
 cooldown 0.05
 
-row bounce
+event bounce
 clips sounds/bounce.wav
 volume 0.8
 minDistance 4
@@ -48,7 +48,7 @@ priority 60
 maxInstances 3
 subtitle sub.bounce
 
-row spawn
+event spawn
 clips sounds/spawn.wav
 volume 0.7
 minDistance 4
@@ -57,7 +57,7 @@ priority 50
 maxInstances 4
 subtitle sub.spawn
 
-row fall
+event fall
 clips sounds/fall.wav
 volume 0.7
 minDistance 6
@@ -66,7 +66,7 @@ priority 60
 maxInstances 3
 subtitle sub.fall
 
-row music
+event music
 clips sounds/music_loop.wav
 volume 0.45
 spatial false
@@ -77,21 +77,21 @@ priority 100
 maxInstances 1
 steal none
 
-row ui_click
+event ui_click
 clips sounds/ui_click.wav
 spatial false
 bus ui
 priority 90
 maxInstances 2
 
-row ui_confirm
+event ui_confirm
 clips sounds/ui_confirm.wav
 spatial false
 bus ui
 priority 90
 maxInstances 2
 
-row ui_back
+event ui_back
 clips sounds/ui_back.wav
 spatial false
 bus ui

@@ -3,6 +3,17 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.5.2 — 오디오 저작 도구
+
+### [x] 오디오 3: 저작 도구 (완료 2026-10-26)
+- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 오디오 저작 도구): MealKit-Audio 저장소 안 `tool/`, Dear ImGui + SDL3, 런타임이 읽는 텍스트 하나 `assets/sounds.events`, 첫 버전부터 도구 안 미리 듣기 + 저장 즉시 반영 + 게임에서 재생.
+- **런타임 0.2.0** (MealKit-Audio 커밋 0914bba, 태그 `v0.2.0`): 이벤트 파일 `mkaudio/Events.h`(`parseEvents`·`writeEvents`·`loadEventFile`·`saveEventFile`·`resolveClips`, `@format audio-events 1`, `event <이름>`·`mixbus <이름>` 블록, 키는 `EventDef`·`BusDef` 필드 이름, 기본값은 쓰지 않는다, 틀린 줄은 줄 번호가 있는 메시지). 버스 정의 `BusDef`(부모·믹스 볼륨) + `Mixer::setBuses`(부모가 돌고 돌면 master), 버스 볼륨 = 믹스 × 플레이어. 시험에 파일 왕복·버스를 더했다.
+- **저작 도구 `MealKitAudio`** (`tool/`, SDL 3.4.18 + Dear ImGui v1.92.9b-docking, `third_party/`에 넣었다): 도킹 창 Events(찾기·추가·복제·지우기, 클립이 없으면 빨갛게, 두 번 누르면 재생) · Event(이름 바꾸기, 컨테이너, `assets/`의 .wav·.ogg에서 클립 고르기·순서, 볼륨·피치·무작위, 파라미터와 볼륨·피치·로우패스 곡선(끝점을 끌어 고친다, 미리 듣기 위치 표시), 3D 거리와 감쇠 그림, 버스, 루프·스트림·우선순위·상한·넘칠 때·쿨다운, 자막) · Buses(부모·믹스 볼륨·레벨) · Preview(런타임으로 재생, 파라미터·거리 슬라이더, 목소리, 끊긴 소리) · Live(프로젝트 `build/live/`의 게임·에디터, "Play in game", 게임의 목소리·버스). 되돌리기(Ctrl+Z·Y), 저장(Ctrl+S, 저장하면 실행 중인 게임에 `audio/reload`), 밖에서 바뀐 파일 다시 읽기, 저장 안 한 채 닫기 확인, [File] > `sounds.table` 불러오기. `--project`·`--select`·`--frames N --capture <png>`(문서·시험). 빌드하면 `build/bin/`에 실행 파일과 매니페스트 `mealkit-tool.txt`가 같이 놓이고, 에디터 `--tool-path`나 `%LOCALAPPDATA%\MealKit\tools\audio\`에서 [도구] 메뉴에 나온다. CI에 Linux SDL 패키지와 ninja를 더했다.
+- **엔진** (`mealkit/audio`): `assets/sounds.events`를 런타임으로 읽고(클립은 `findAsset`), 없고 `sounds.table`이 있으면 `row`→`event`로 바꿔 읽으며 경고한다. `SoundEvent` 행 타입과 엔진 표 등록을 지웠다([표] 패널에서 빠짐), `Engine::event()`는 `mkaudio::EventDef`, `listener()`를 더했다. 라이브 연결 서비스 `audio::addLiveService`(`POST audio/play` 본문 `event=<이름>&p.<파라미터>=<값>` → 리스너 자리에서, `POST audio/reload`, `GET audio/state`)를 개발 빌드 게임과 에디터가 연다. [소리] 패널은 미리 듣기·값 확인만, "MealKit Audio에서 고친다" 안내. 에디터 글자에서 소리 표 필드 설명을 지웠다.
+- **옮기기**: 예제 `assets/sounds.table` → `assets/sounds.events`. `tools\upgrade_project.ps1`이 프로젝트마다 같은 일을 하고(표는 백업에 남긴다), `check_layout.ps1`의 정해진 단일 파일이 `sounds.events`로 바뀌었다. 엔진 버전 0.5.2.
+- **검증**: 런타임 시험(Windows), 게임·에디터가 이벤트 10개를 경고 없이 읽음, 예전 표 대체 읽기, 게임·에디터의 `audio/play`·`reload`·`state`, 도구 화면 캡처(편집 화면, 실행 중인 게임을 찾아 상태 보기), 에디터 `--list-tools`가 도구를 찾음. check.ps1 전체.
+- **남은 것**: MealKit-Audio를 push하고 CI(Linux·macOS 빌드는 아직 돌지 않았다). 도구 설치 묶음(릴리스 zip), 공간 음향·인터랙티브 음악(4단계), 에셋 브라우저의 "이 도구로 열기"(`opens`).
+
 ## v0.5.1 — 도구 제품군 시작
 
 ### [x] 오디오 2: 런타임을 별도 저장소로 (완료 2026-10-26)

@@ -54,7 +54,7 @@ void SoundPanel::draw(audio::Engine& audio, bool* open) {
         ImGui::EndCombo();
     }
     ImGui::SameLine();
-    const audio::SoundEvent* def = audio.event(m_event);
+    const audio::EventDef* def = audio.event(m_event);
     if (ImGui::Button(tr("Play")) && def) {
         audio.stop(m_preview);
         m_preview = audio.play2D(m_event, {{def->param.c_str(), m_param}});
@@ -67,8 +67,12 @@ void SoundPanel::draw(audio::Engine& audio, bool* open) {
                                std::max(def->paramMin, def->paramMax)))
             audio.setParam(m_preview, def->param, m_param);
     }
-    if (def)
-        ImGui::TextDisabled("%s", trf("%s | bus %s%s", def->clips.c_str(), def->bus.c_str(), def->loop ? " | loop" : "").c_str());
+    if (def) {
+        std::string clips;
+        for (const mkaudio::ClipRef& c : def->clips) clips += (clips.empty() ? "" : " ") + c.name;
+        ImGui::TextDisabled("%s", trf("%s | bus %s%s", clips.c_str(), def->bus.c_str(), def->loop ? " | loop" : "").c_str());
+    }
+    ImGui::TextDisabled("%s", tr("Edit sound events in MealKit Audio (Tools menu)."));
 
     // ---- 버스
     ImGui::SeparatorText(tr("Buses"));

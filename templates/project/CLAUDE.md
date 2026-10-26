@@ -50,6 +50,6 @@ MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSV
 - 플레이어에게 보이는 글자는 코드에 쓰지 않고 `assets/strings/ko.txt`(`키 = 문자열`, 언어마다 파일 하나)에 두고 `ctx.strings.get("키")`, 값이 들어가면 `ctx.strings.format("키", {{"이름", 값}})`. 표의 글자가 `assets/fonts`의 글꼴에 없으면 빌드가 멈춘다(STR001).
 - 조작은 키가 아니라 입력 액션으로 읽는다: `ctx.actions.axis2("move")`, `ctx.actions.pressed("jump")`. 액션과 키·마우스·게임패드 바인딩은 `assets/input.bindings`(에디터 [표] 패널)에 두고, 코드에서 키(`window.input()`)를 직접 보지 않는다.
 - 틱 이벤트(`world.events`, `GameEvent`의 종류는 `MEALKIT_ENUM`)에 붙는 소리·흔들림·번쩍임·화면 정지는 코드가 아니라 연출 표 `assets/feedback.table`(에디터 [연출] 패널)에 둔다. 게임 코드는 `ctx.feedback.trigger(e, localPlayer)`만 부른다.
-- 소리는 `source/view/`에서 `ctx.audio.play("이벤트", 위치, {{"파라미터", 값}})`(`mealkit/audio/Audio.h`)로만 낸다. 이벤트(클립, 볼륨, 감쇠, 동시 재생 상한)는 `assets/sounds.table`(에디터 [표] 패널, [소리] 패널에서 미리듣기),
+- 소리는 `source/view/`에서 `ctx.audio.play("이벤트", 위치, {{"파라미터", 값}})`(`mealkit/audio/Audio.h`)로만 낸다. 이벤트(클립, 볼륨, 감쇠, 동시 재생 상한)와 버스는 `assets/sounds.events`(저작 도구 MealKit Audio, 에디터 [도구] 메뉴. [소리] 패널에서 미리듣기),
   클립은 `assets/sounds/`의 WAV(배경음은 `stream true`). `sim/`은 소리를 모르고 `world.events`에 틱 이벤트만 남긴다.
 - 씬 충돌 데이터, 모델 파일, 튜닝 값이 바뀌면 콘텐츠 해시가 바뀌어, 다른 데이터를 쓰는 피어는 접속이 거부된다.

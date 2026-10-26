@@ -4,7 +4,7 @@
 # - 가져오는 것: CMakeLists.txt, include/, src/, LICENSE (시험·CI·저장소의 miniaudio·stb는 빼고 엔진의 것을 쓴다)
 # - third_party/mkaudio/mealkit.txt의 version을 "<태그 또는 CMake 버전> (<커밋>)"으로 바꾸고 tools\gen_notices.ps1을 돌린다
 # 런타임과 엔진을 같이 고치는 동안에는 가져오지 않고 CMake 변수 MEALKIT_MKAUDIO_DIR로 체크아웃을 가리킨다:
-#   cmake ... -DMEALKIT_MKAUDIO_DIR=D:/MealKit-Audio   (끝나면 런타임 저장소에 태그를 달고 이 스크립트로 가져온다)
+#   cmake ... -DMEALKIT_MKAUDIO_DIR=D:/MealKit-Engine/MealKit-Audio   (끝나면 런타임 저장소에 태그를 달고 이 스크립트로 가져온다)
 param(
     [Parameter(Mandatory = $true)][string]$From,
     [string]$Ref = "HEAD"

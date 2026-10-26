@@ -112,6 +112,29 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
     }
 }
 
+# ---------------------------------------------------------------- 형식 옮기기
+# 0.5.2: 소리 이벤트 assets/sounds.table(엔진 표) → assets/sounds.events(오디오 런타임 mkaudio 형식, MealKit Audio가 고친다).
+# 키 이름이 같아 "row <이름>"을 "event <이름>"으로, 머리말·형식 줄을 바꾸면 된다. 표는 백업에 남기고 지운다
+$oldSounds = Join-Path $Project "assets\sounds.table"
+$newSounds = Join-Path $Project "assets\sounds.events"
+if ((Test-Path $oldSounds) -and -not (Test-Path $newSounds)) {
+    $out = [Collections.Generic.List[string]]::new()
+    $out.Add('# MealKit audio events. Edit them in MealKit Audio or by hand: "event <name>" or "bus <name>", then "key value" lines.')
+    $out.Add("@format audio-events 1")
+    foreach ($line in [IO.File]::ReadAllLines($oldSounds, $MealKitUtf8)) {
+        if ($line -match '^\s*(#|@format)') { continue }
+        if ($line -match '^\s*row\s+(.*)$') { $out.Add("event $($Matches[1].Trim())"); continue }
+        $out.Add($line)
+    }
+    Report "converted" "assets\sounds.table -> assets\sounds.events" Green
+    if (-not $DryRun) {
+        Write-TextFile $newSounds (($out -join "`n") + "`n")
+        Backup "assets\sounds.table"
+        Remove-Item $oldSounds -Force
+    }
+    $changed++
+}
+
 # ---------------------------------------------------------------- 게임 코드 (-Source)
 if ($Source) {
     $sample = Get-SampleSource $name

@@ -287,6 +287,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     set(MKAUDIO_MINIAUDIO_DIR ${MEALKIT_THIRD_PARTY}/miniaudio)
     set(MKAUDIO_STB_DIR ${MEALKIT_THIRD_PARTY}/stb)
     set(MKAUDIO_BUILD_TESTS OFF)
+    set(MKAUDIO_BUILD_TOOL OFF) # 저작 도구는 MealKit-Audio 저장소에서 빌드한다
     add_subdirectory(${mealkit_mkaudio_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkaudio)
     target_link_libraries(mealkit PRIVATE mkaudio)
     target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${mealkit_mkaudio_dir}/include>)

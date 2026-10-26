@@ -221,7 +221,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ==============================================================================
-mkaudio (MealKit Audio runtime) v0.1.0 (8982b8a)
+mkaudio (MealKit Audio runtime) v0.2.0 (0914bba)
 ==============================================================================
 MIT License
 

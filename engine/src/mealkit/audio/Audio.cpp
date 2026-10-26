@@ -2,28 +2,35 @@
 
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Profile.h"
-#include "mealkit/data/Tables.h"
+#include "mealkit/live/Server.h"
 #include "mealkit/platform/Paths.h"
 
-#include <algorithm>
+#include <mkaudio/Events.h>
 
-// 접착층: 섞기·목소리 관리는 런타임 mkaudio::Mixer (engine/libs/mkaudio). 여기서는 표를 읽어 넘기고, 에셋 경로·로그·프로파일을 잇는다.
+#include <algorithm>
+#include <cstdio>
+#include <cstdlib>
+
+// 접착층: 섞기·목소리 관리·이벤트 파일 형식은 런타임 mkaudio (third_party/mkaudio). 여기서는 파일을 찾아 넘기고, 에셋 경로·로그·프로파일·라이브 연결을 잇는다.
 namespace mealkit::audio {
 namespace {
 
-constexpr f64 kTableCheckSeconds = 0.25;
+constexpr f64 kFileCheckSeconds = 0.25;
 
 mkaudio::Vec3 toMk(Vec3 v) { return {v.x, v.y, v.z}; }
 
-std::vector<std::string> splitClips(const std::string& text) {
-    std::vector<std::string> out;
-    size_t i = 0;
-    while (i < text.size()) {
-        while (i < text.size() && (text[i] == ' ' || text[i] == '\t')) ++i;
-        size_t j = i;
-        while (j < text.size() && text[j] != ' ' && text[j] != '\t') ++j;
-        if (j > i) out.push_back(text.substr(i, j - i));
-        i = j;
+// 0.5.1까지의 assets/sounds.table: 키 이름이 같아 "row <이름>"만 "event <이름>"으로 바꾸면 이벤트 형식이다
+std::string tableToEvents(const std::string& table) {
+    std::string out = std::string("@format ") + mkaudio::kEventsFormatKind + " 1\n";
+    size_t pos = 0;
+    while (pos < table.size()) {
+        size_t end = table.find('\n', pos);
+        if (end == std::string::npos) end = table.size();
+        std::string line = table.substr(pos, end - pos);
+        pos = end + 1;
+        if (line.rfind("@format", 0) == 0) continue;
+        if (line.rfind("row ", 0) == 0) line = "event " + line.substr(4);
+        out += line + "\n";
     }
     return out;
 }
@@ -32,83 +39,62 @@ std::vector<std::string> splitClips(const std::string& text) {
 
 struct Engine::Impl {
     mkaudio::Mixer mixer;
-    sim::Table<SoundEvent> table; // event()가 돌려주는 행
+    mkaudio::EventFile file; // event()가 돌려주는 정의 (클립 파일은 찾은 경로)
     std::vector<std::string> missingClips; // 이미 경고한 클립 (다시 읽을 때 또 쓰지 않는다)
     f64 time = 0.0;
-    f64 tableCheck = 0.0;
-    std::string tablePath;
-    unsigned long long tableTime = 0;
+    f64 fileCheck = 0.0;
+    std::string path; // 읽은 파일
+    unsigned long long fileTime = 0;
+    bool oldTable = false;
+    Vec3 listener;
 
-    // 표 행 → 런타임 이벤트. 클립은 assets 기준 경로를 파일로 찾아 넘긴다
-    mkaudio::EventDef convert(const std::string& name, const SoundEvent& d) {
-        mkaudio::EventDef e;
-        e.name = name;
-        for (const std::string& path : splitClips(d.clips)) {
-            mkaudio::ClipRef c{path, findAsset("assets/" + path)};
-            if (c.file.empty() && std::find(missingClips.begin(), missingClips.end(), path) == missingClips.end()) {
-                MEALKIT_WARN("Audio: clip assets/%s not found", path.c_str());
-                missingClips.push_back(path);
-            }
-            e.clips.push_back(std::move(c));
-        }
-        e.container = d.container == "blend" ? mkaudio::Container::Blend
-                      : d.container == "switch" ? mkaudio::Container::Switch
-                                                : mkaudio::Container::Random;
-        if (d.container != "random" && d.container != "blend" && d.container != "switch")
-            MEALKIT_WARN("Audio: event %s: unknown container '%s' (random, switch, blend)", name.c_str(), d.container.c_str());
-        e.param = d.param;
-        e.paramMin = d.paramMin;
-        e.paramMax = d.paramMax;
-        e.volume = d.volume;
-        e.volumeRandom = d.volumeRandom;
-        e.pitch = d.pitch;
-        e.pitchRandom = d.pitchRandom;
-        e.volumeAtMin = d.volumeAtMin;
-        e.volumeAtMax = d.volumeAtMax;
-        e.pitchAtMin = d.pitchAtMin;
-        e.pitchAtMax = d.pitchAtMax;
-        e.lowpassAtMin = d.lowpassAtMin;
-        e.lowpassAtMax = d.lowpassAtMax;
-        e.spatial = d.spatial;
-        e.minDistance = d.minDistance;
-        e.maxDistance = d.maxDistance;
-        e.bus = d.bus.empty() ? "sfx" : d.bus;
-        e.loop = d.loop;
-        e.stream = d.stream;
-        e.priority = d.priority;
-        e.maxInstances = d.maxInstances;
-        e.steal = d.steal == "quietest" ? mkaudio::Steal::Quietest : d.steal == "none" ? mkaudio::Steal::None : mkaudio::Steal::Oldest;
-        e.cooldown = d.cooldown;
-        e.subtitle = d.subtitle;
-        e.subtitleSeconds = d.subtitleSeconds;
-        return e;
+    std::string findFile(bool& old) const {
+        old = false;
+        const std::string events = findAsset(std::string("assets/") + kEventsFile);
+        if (!events.empty()) return events;
+        const std::string table = findAsset(std::string("assets/") + kOldSoundTable);
+        old = !table.empty();
+        return table;
     }
 
     void loadEvents() {
-        tablePath = findAsset(std::string("assets/") + kSoundTable);
-        tableTime = tablePath.empty() ? 0 : fileWriteTime(tablePath);
-        table = {};
-        if (!tablePath.empty()) data::loadTable(table, kSoundTable);
-        std::vector<mkaudio::EventDef> defs;
-        for (u32 i = 0; i < table.size(); ++i) defs.push_back(convert(table.ids[i], table.rows[i]));
-        mixer.setEvents(std::move(defs));
-        MEALKIT_INFO("Audio: %zu sound event(s) from %s", static_cast<size_t>(table.size()),
-                     tablePath.empty() ? "(no sounds.table)" : tablePath.c_str());
+        path = findFile(oldTable);
+        fileTime = path.empty() ? 0 : fileWriteTime(path);
+        file = {};
+        std::vector<mkaudio::ParseMessage> messages;
+        if (oldTable) {
+            std::string text;
+            readTextFile(path, text);
+            mkaudio::parseEvents(tableToEvents(text), file, &messages);
+            MEALKIT_WARN("Audio: %s is the old format - tools\\upgrade_project.ps1 converts it to assets/%s (MealKit Audio edits that)",
+                         path.c_str(), kEventsFile);
+        } else if (!path.empty()) {
+            mkaudio::loadEventFile(path, file, &messages);
+        }
+        for (const mkaudio::ParseMessage& msg : messages)
+            MEALKIT_WARN("%s:%u: %s%s", path.c_str(), msg.line, msg.error ? "" : "(warning) ", msg.text.c_str());
+        mkaudio::resolveClips(file, [this](const std::string& name) {
+            std::string found = findAsset("assets/" + name);
+            if (found.empty() && std::find(missingClips.begin(), missingClips.end(), name) == missingClips.end()) {
+                MEALKIT_WARN("Audio: clip assets/%s not found", name.c_str());
+                missingClips.push_back(name);
+            }
+            return found;
+        });
+        mixer.setBuses(file.buses);
+        mixer.setEvents(file.events);
+        MEALKIT_INFO("Audio: %zu sound event(s) from %s", file.events.size(), path.empty() ? "(no sounds.events)" : path.c_str());
     }
 
-    void pollTable() {
-        if (time < tableCheck) return;
-        tableCheck = time + kTableCheckSeconds;
-        const std::string path = findAsset(std::string("assets/") + kSoundTable);
-        const unsigned long long t = path.empty() ? 0 : fileWriteTime(path);
-        if (path != tablePath || t != tableTime) loadEvents();
+    void pollFile() {
+        if (time < fileCheck) return;
+        fileCheck = time + kFileCheckSeconds;
+        bool old = false;
+        const std::string p = findFile(old);
+        const unsigned long long t = p.empty() ? 0 : fileWriteTime(p);
+        if (p != path || t != fileTime) loadEvents();
     }
 };
-
-const reflect::TableList& engineTables() {
-    static const reflect::TableList list{{&reflect::typeOf<SoundEvent>(), kSoundTable, reflect::kTableView}};
-    return list;
-}
 
 Engine::Engine() : m(new Impl()) {}
 
@@ -134,7 +120,7 @@ bool Engine::init(const EngineDesc& desc) {
 
 void Engine::shutdown() {
     m->mixer.shutdown();
-    m->table = {};
+    m->file = {};
 }
 
 bool Engine::ready() const { return m->mixer.ready(); }
@@ -157,7 +143,12 @@ bool Engine::playing(Handle h) const { return m->mixer.playing(h); }
 
 void Engine::setGlobalParam(std::string_view name, f32 value) { m->mixer.setGlobalParam(name, value); }
 
-void Engine::setListener(Vec3 position, Vec3 forward) { m->mixer.setListener(toMk(position), toMk(forward)); }
+void Engine::setListener(Vec3 position, Vec3 forward) {
+    m->listener = position;
+    m->mixer.setListener(toMk(position), toMk(forward));
+}
+
+Vec3 Engine::listener() const { return m->listener; }
 
 void Engine::setBusVolume(std::string_view name, f32 volume) { m->mixer.setBusVolume(name, volume); }
 
@@ -171,7 +162,7 @@ void Engine::update(f64 dt) {
     if (!m->mixer.ready()) return;
     MEALKIT_ZONE("Audio");
     m->time += dt;
-    m->pollTable();
+    m->pollFile();
     m->mixer.update(dt);
 }
 
@@ -181,13 +172,11 @@ void Engine::reloadEvents() {
     if (m->mixer.ready()) m->loadEvents();
 }
 
+const std::string& Engine::eventsPath() const { return m->path; }
+
 std::vector<std::string> Engine::eventNames() const { return m->mixer.eventNames(); }
 
-const SoundEvent* Engine::event(std::string_view name) const {
-    for (u32 i = 0; i < m->table.size(); ++i)
-        if (m->table.ids[i] == name) return &m->table.rows[i];
-    return nullptr;
-}
+const EventDef* Engine::event(std::string_view name) const { return m->mixer.event(name); }
 
 void Engine::voices(std::vector<VoiceInfo>& out) const { m->mixer.voices(out); }
 
@@ -196,5 +185,105 @@ const std::deque<CullInfo>& Engine::culls() const { return m->mixer.culls(); }
 void Engine::buses(std::vector<BusInfo>& out) const { m->mixer.buses(out); }
 
 const Stats& Engine::stats() const { return m->mixer.stats(); }
+
+// ---------------------------------------------------------------- 라이브 연결 audio/
+
+namespace {
+
+// "a=b&c=d" (값은 %XX와 + 풀기)
+std::vector<std::pair<std::string, std::string>> formFields(const std::string& body) {
+    auto decode = [](const std::string& s) {
+        std::string out;
+        for (size_t i = 0; i < s.size(); ++i) {
+            if (s[i] == '+') out += ' ';
+            else if (s[i] == '%' && i + 2 < s.size()) {
+                out += static_cast<char>(std::strtol(s.substr(i + 1, 2).c_str(), nullptr, 16));
+                i += 2;
+            } else out += s[i];
+        }
+        return out;
+    };
+    std::vector<std::pair<std::string, std::string>> out;
+    size_t pos = 0;
+    while (pos < body.size()) {
+        size_t end = body.find('&', pos);
+        if (end == std::string::npos) end = body.size();
+        const std::string part = body.substr(pos, end - pos);
+        pos = end + 1;
+        const size_t eq = part.find('=');
+        if (eq != std::string::npos) out.emplace_back(decode(part.substr(0, eq)), decode(part.substr(eq + 1)));
+    }
+    return out;
+}
+
+std::string number(f64 v) {
+    char buf[32];
+    std::snprintf(buf, sizeof(buf), "%.4g", v);
+    return buf;
+}
+
+} // namespace
+
+void addLiveService(live::Server& server, std::function<Engine*()> engineOf) {
+    live::Service s;
+    s.name = "audio";
+    s.handle = [engineOf](const live::Request& req) {
+        live::Response r;
+        Engine* audio = engineOf ? engineOf() : nullptr;
+        if (!audio || !audio->ready()) {
+            r.status = 503;
+            r.body = "{\"ok\":false,\"error\":\"no audio\"}";
+            return r;
+        }
+        Engine& engine = *audio;
+        if (req.method == "POST" && req.path == "play") {
+            std::string event;
+            std::vector<std::pair<std::string, f32>> params;
+            for (const auto& [key, value] : formFields(req.body)) {
+                if (key == "event") event = value;
+                else if (key.rfind("p.", 0) == 0) params.emplace_back(key.substr(2), static_cast<f32>(std::strtod(value.c_str(), nullptr)));
+            }
+            if (!engine.event(event)) {
+                r.status = 404;
+                r.body = "{\"ok\":false,\"error\":" + live::jsonString("no event '" + event + "' (saved?)") + "}";
+                return r;
+            }
+            const Handle h = engine.play(event, engine.listener()); // 리스너 자리: 3D 이벤트도 가까이에서 들린다
+            for (const auto& [name, value] : params) engine.setParam(h, name, value);
+            MEALKIT_INFO("Audio: live play %s", event.c_str());
+            r.body = "{\"ok\":true}";
+            return r;
+        }
+        if (req.method == "POST" && req.path == "reload") {
+            engine.reloadEvents();
+            r.body = "{\"ok\":true}";
+            return r;
+        }
+        if (req.method == "GET" && req.path == "state") {
+            const Stats& st = engine.stats();
+            std::string out = "{\"file\":" + live::jsonString(engine.eventsPath()) + ",\"events\":" + std::to_string(engine.eventNames().size());
+            out += ",\"stats\":{\"realVoices\":" + std::to_string(st.realVoices) + ",\"virtualVoices\":" + std::to_string(st.virtualVoices) +
+                   ",\"updateMs\":" + number(st.updateMs) + "},\"voices\":[";
+            std::vector<VoiceInfo> voices;
+            engine.voices(voices);
+            for (size_t i = 0; i < voices.size(); ++i)
+                out += std::string(i ? "," : "") + "{\"event\":" + live::jsonString(voices[i].event) + ",\"virtual\":" +
+                       (voices[i].virtualVoice ? "true" : "false") + ",\"loop\":" + (voices[i].loop ? "true" : "false") +
+                       ",\"audibility\":" + number(voices[i].audibility) + ",\"distance\":" + number(voices[i].distance) + "}";
+            out += "],\"buses\":[";
+            std::vector<BusInfo> buses;
+            engine.buses(buses);
+            for (size_t i = 0; i < buses.size(); ++i)
+                out += std::string(i ? "," : "") + "{\"name\":" + live::jsonString(buses[i].name) + ",\"volume\":" + number(buses[i].volume) +
+                       ",\"mix\":" + number(buses[i].mix) + ",\"peak\":" + number(buses[i].peak) + "}";
+            r.body = out + "]}";
+            return r;
+        }
+        r.status = 404;
+        r.body = "{\"error\":\"not found\"}";
+        return r;
+    };
+    server.addService(std::move(s));
+}
 
 } // namespace mealkit::audio
