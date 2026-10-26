@@ -1,4 +1,5 @@
 # MealKit UI (hand-written): sandbox HUD. View model: HudVm (samples/sandbox/view/Hud.h). Text: assets/strings.
+@format ui 1
 board hud 1920 1080
   frame scoreboard
     pos 32 32

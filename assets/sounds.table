@@ -1,4 +1,5 @@
 # MealKit table (SoundEvent). Edit it in the editor's [Tables] panel or import a CSV there.
+@format table 1
 
 row hit
 clips sounds/hit_1.wav sounds/hit_2.wav sounds/hit_3.wav

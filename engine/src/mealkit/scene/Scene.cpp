@@ -2,6 +2,7 @@
 
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
+#include "mealkit/core/TextFormat.h"
 #include "mealkit/platform/Paths.h"
 
 #include <algorithm>
@@ -151,7 +152,7 @@ bool save(const Scene& scene, const std::string& path) {
         return false;
     }
     const Environment& env = scene.environment;
-    fprintf(f, "# MealKit scene\nversion 2\n\n");
+    fprintf(f, "# MealKit scene\n%s\n\n", text::formatLine(text::kScene).c_str());
     writeVec3(f, "sun", env.sunDirection);
     writeVec3(f, "sunColor", env.sunColor);
     writeVec3(f, "sky", env.skyColor);
@@ -194,6 +195,8 @@ bool load(Scene& out, const std::string& path, std::string* error) {
         char* p = line;
         while (*p == ' ' || *p == '\t') ++p;
         if (*p == '\0' || *p == '#') continue;
+        u32 version = text::kScene.version; // 버전 1·2 모두 지금 모양 그대로 읽는다 (migrate 없음)
+        if (text::readFormatLine(p, text::kScene, path, version)) continue;
 
         char* rest = p;
         while (*rest && *rest != ' ') ++rest;
@@ -201,9 +204,9 @@ bool load(Scene& out, const std::string& path, std::string* error) {
         const char* key = p;
 
         bool ok = true;
-        if (std::strcmp(key, "version") == 0) {
-            const int version = std::atoi(rest);
-            ok = version >= 1 && version <= 2;
+        if (std::strcmp(key, "version") == 0) { // @format 전의 형식 줄
+            const int old = std::atoi(rest);
+            ok = old >= 1 && old <= 2;
         } else if (std::strcmp(key, "entity") == 0) {
             ok = !inEntity;
             e = Entity{};

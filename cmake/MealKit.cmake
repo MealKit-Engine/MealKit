@@ -87,6 +87,12 @@ if(MEALKIT_HEADLESS_ONLY)
 elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
     set(MEALKIT_DEBUG_UI ON) # 에디터는 ImGui로 그린다
 endif()
+# 라이브 연결 (mealkit/live/Server.h, 도구 사이 약속): 개발 빌드 게임 exe가 127.0.0.1 서버를 연다. 출시 빌드(Export)는 뺀다.
+# 에디터는 이 값과 상관없이 연다. 켜지면 엔진 타깃이 MEALKIT_LIVE=1을 넘긴다
+option(MEALKIT_LIVE "라이브 연결 서버 넣기 (build.bat Export는 OFF)" ON)
+if(MEALKIT_HEADLESS_ONLY)
+    set(MEALKIT_LIVE OFF)
+endif()
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT MEALKIT_IS_ENGINE)
     # ---------------------------------------------------------------- 게임 프로젝트의 에디터 빌드: 엔진은 가져다 쓴다

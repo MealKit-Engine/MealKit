@@ -1,4 +1,5 @@
 # MealKit UI exported from Penpot: Sandbox UI (file file-1, board id-pause). Do not edit; change it in Penpot and export again.
+@format ui 1
 board pause 1920 1080
   id id-pause
   navigation

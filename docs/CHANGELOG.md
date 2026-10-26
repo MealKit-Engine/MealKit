@@ -3,6 +3,19 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.5.1 — 도구 제품군 시작
+
+### [x] 도구 사이 약속 (완료 2026-10-26)
+- **왜**: MealKit을 엔진 + 담당별 작은 도구(별도 저장소, MIT)로 나누기 전에, 도구와 엔진이 이어지는 면을 하나로 정한다(`docs/DECISIONS.md` 2026-10-26 두 행). 세 가지는 사용자와 정했다: 모든 형식에 형식 줄, 새 `live/` 층, 매니페스트로 도구 찾기.
+- **형식 줄** (`core/TextFormat.h`: `text::Format`, `formatLine`, `readFormatLine`, 종류별 상수 `kProject`·`kTuning`·`kSettings`·`kTable`·`kScene`·`kUi`·`kStrings`·`kTool`): 주석 머리 다음 첫 줄 `@format <종류> <N>`. 없으면 버전 1, 다른 종류·더 새 버전·틀린 모양은 경고. `version N`이 아니라 `@format`인 것은 `mealkit.project`(게임 `version` 필드)·튜닝처럼 필드 이름이 키인 파일과 겹치지 않게. 쓰는 곳: `reflect::saveTextFile/loadTextFile`(형식 인자를 받는다: 튜닝·화면용 튜닝·플레이어 설정), 표(`data/Tables`), `mealkit.project`(형식 줄은 머리말에 넣지 않는다), 씬(`version 2` → `@format scene 2`, 예전 줄도 읽는다), `.ui`·`theme.ui`(Penpot 플러그인 `convert.ts`가 쓰고 dist 다시 빌드, 가져오기의 테마 합치기가 새 파일의 머리말·형식 줄을 그대로), 문자열 표(`loc/Strings`, `mealkit_stringcheck`). 저장소의 예제 데이터 27개와 템플릿 `mealkit.project`에 줄을 넣었다(콘텐츠 해시는 읽은 값으로 계산해 바뀌지 않는다, 리플레이 그대로). 세이브는 게임 데이터 버전이 따로 있어 그대로. 플레이어 설정 머리말의 `# #` 겹침도 고쳤다.
+- **라이브 연결** (`live/Server.h`, 새 엔진 층 `data` 다음 `live`, `tools\check_layers.ps1`): 127.0.0.1 HTTP 서버. 접속 정보 `<프로젝트>/build/live/<종류>-<pid>.json`(`protocol`·`kind`·`pid`·`port`·`token`·`project`·`engine`·`url`, 닫을 때 지우고, 열 때 죽은 pid의 파일을 지운다: `platform::processRunning`). 경로 `/<토큰>/api/hello`(약속 버전 `live::kProtocol` 1, 서비스·주제 목록), `/<토큰>/api/events?topics=a,b`(SSE, 못 읽어 가는 연결은 4 MB에서 닫는다), `/<토큰>/<서비스>/...`(`addService`, 서비스마다 브라우저 Origin 허용 함수. 기본은 Origin이 있으면 이 서버 자신만). 요청은 메인 스레드 `update()`. 주제 `stats` = `game::FrameStats::json()`(보고 주기마다, 듣는 연결이 있을 때만 만든다).
+  게임 exe(`game::runGame`)는 `MEALKIT_LIVE`(CMake 옵션, Export는 `-DMEALKIT_LIVE=OFF`)일 때 아무 포트로, 에디터는 프로젝트를 열면 27220부터 10개 포트로 연다.
+- **Penpot 가져오기를 라이브 연결로**: `editor::ImportServer`는 소켓을 버리고 서버의 `penpot/` 서비스가 됐다. 플러그인 주소 `http://127.0.0.1:27220/<토큰>/penpot/manifest.json`(토큰은 원래 실행마다 바뀌었다), Penpot 출처 규칙·패널만 쓰기 규칙은 그대로. `--penpot-token`은 라이브 서버 토큰을 정한다.
+- **[도구] 메뉴** (`editor/Tools.h`): 매니페스트 `mealkit-tool.txt`(`@format tool 1`, `name`·`exe`·`version`·`protocol`·`opens`)를 `--tool-path` 폴더 → `%LOCALAPPDATA%\MealKit\tools\*` → 에디터 설정 `toolPath` 줄 순으로 찾는다(폴더 자체 또는 한 단계 아래). 약속 버전이 다르거나 실행 파일이 없으면 흐리게 + 이유 툴팁, 고르면 `"<exe>" --project "<프로젝트>"`. [도구 폴더 열기]·[도구 다시 찾기]. `MealKitEditor --list-tools [--tool-path <폴더>]`는 창 없이 찾은 것을 출력한다. 에디터 설정 파일은 언어를 바꿔도 다른 줄을 지우지 않는다.
+- **예시 클라이언트** `tools\live_probe.ps1 [-Project] [-Kind game|editor] [-Wait 초] [-Events N] [-Topics stats]`: 접속 정보 → hello → 이벤트 N개. 다른 언어의 도구도 같은 순서로 붙는다.
+- **검증**: 단위 테스트 `text_format`, `live_server`(토큰·Origin·서비스 경로·접속 정보 파일·죽은 pid 정리), `frame_stats`(JSON). check.ps1 "Live connection (game)"(실제 소켓: 게임을 띄워 hello + stats 2개, 끝나면 접속 정보 파일 없음), "Editor tool discovery (manifest)", "Export build"가 출시 exe에 라이브 서버가 없는지. 에디터의 Penpot 경로(매니페스트 주소 바꾸기, `api/project`, 다른 출처 403)는 손으로 확인.
+- **남은 것**: 도구의 런타임 조각을 로컬 체크아웃으로 가리키는 CMake 변수는 처음 떼는 오디오 2에서. 라이브 연결의 값 바꾸기 서비스(튜닝·표·소리)는 그것을 쓰는 도구 항목에서 서비스로 더한다. [도구] 메뉴는 화면 캡처로 확인하지 않았다(메뉴를 여는 자동화가 없다), `opens` 확장자는 에셋 브라우저(4단계)가 생기면 "이 도구로 열기"에 쓴다.
+
 ## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
 ### [x] 텍스처와 머티리얼 1부 — 텍스처 캐시, glTF PBR 머티리얼 (완료 2026-10-21)

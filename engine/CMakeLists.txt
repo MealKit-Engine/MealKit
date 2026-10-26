@@ -75,6 +75,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/core/DetMath.h
     src/mealkit/core/Reflect.h
     src/mealkit/core/Reflect.cpp
+    src/mealkit/core/TextFormat.h
+    src/mealkit/core/TextFormat.cpp
     src/mealkit/core/Random.h
     src/mealkit/core/Hash.h
     src/mealkit/core/Profile.h
@@ -160,6 +162,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/ui/StbImpl.cpp
     src/mealkit/settings/Settings.h
     src/mealkit/settings/Settings.cpp
+    src/mealkit/live/Server.h
+    src/mealkit/live/Server.cpp
     src/mealkit/game/FrameStats.h
     src/mealkit/game/FrameStats.cpp
     src/mealkit/game/Benchmark.h
@@ -292,6 +296,12 @@ endif()
 # MEALKIT_ASSERT는 Editor 빌드(에디터 + 게임 DLL)에서도 켠다. PUBLIC이라 MealKitTargets.cmake로 게임 DLL에도 넘어간다.
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     target_compile_definitions(mealkit PUBLIC MEALKIT_ASSERTS=1)
+endif()
+# 라이브 연결 (cmake/MealKit.cmake MEALKIT_LIVE): 개발 빌드 게임 exe가 서버를 연다. 출시 빌드(Export)는 0
+if(MEALKIT_LIVE)
+    target_compile_definitions(mealkit PUBLIC MEALKIT_LIVE=1)
+else()
+    target_compile_definitions(mealkit PUBLIC MEALKIT_LIVE=0)
 endif()
 
 # 부동소수점 결정론 (docs/CODING_MODEL.md "결정론 규칙"): /fp:fast, /fp:contract, /arch:AVX2, -ffast-math를 쓰지 않는다.
@@ -444,6 +454,8 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/UiPanel.cpp
         src/mealkit/editor/ImportServer.h
         src/mealkit/editor/ImportServer.cpp
+        src/mealkit/editor/Tools.h
+        src/mealkit/editor/Tools.cpp
         src/mealkit/editor/UiCheck.h
         src/mealkit/editor/UiCheck.cpp
         src/mealkit/editor/TuningPanel.h

@@ -1,6 +1,7 @@
 # MealKit UI (hand-written): standard settings screen. The engine opens it (action settings.open) and fills the view model
 # SettingsVm (mealkit/settings/Settings.cpp): tabs, rows built from the settings declaration, display confirmation.
 # A game may restyle this file freely; keep the bindings (tabs, rows, row fields) and the settings.* actions.
+@format ui 1
 board settings 1920 1080
   navigation
   back settings.close

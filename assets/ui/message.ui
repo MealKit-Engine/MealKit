@@ -1,5 +1,6 @@
 # MealKit UI (hand-written): the session ended (host left, connection lost, refused). View model: MessageVm
 # (samples/sandbox/app/Screens.h). message.ok leaves to the main menu. Text: assets/strings.
+@format ui 1
 board message 1920 1080
   navigation
   firstFocus ok

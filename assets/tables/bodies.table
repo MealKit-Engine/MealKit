@@ -1,4 +1,5 @@
 # MealKit table (BodyKind). Edit it in the editor's [Tables] panel or import a CSV there.
+@format table 1
 
 row normal
 speedScale 1

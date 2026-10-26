@@ -1,4 +1,5 @@
 # MealKit tuning (ViewTuning). Edit it in the editor's [Tuning] panel.
+@format tuning 1
 camera.fovDegrees 60
 camera.orbitSensitivity 0.00499999989
 camera.zoomStep 2

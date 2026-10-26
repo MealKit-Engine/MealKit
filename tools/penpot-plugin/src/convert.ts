@@ -5,6 +5,8 @@
 import type { Bake, Box, MealkitData, Options, Result, SColor, SFill, SNode, STextRun, SShadow } from './model.ts';
 
 export const kHeader = '# MealKit UI exported from Penpot';
+// 형식 줄 (엔진 mealkit/core/TextFormat.h kUi, 도구 사이 약속): 머리 주석 다음 첫 줄
+export const kFormatLine = '@format ui 1';
 
 const weightNames: Record<string, string> = {
   '100': 'Thin',
@@ -460,6 +462,7 @@ export function convertBoard(board: SNode, opt: Options): Result {
   };
   const name = nodeName(board.name, screen);
   ctx.lines.push(`${kHeader}: ${opt.fileName} (file ${opt.fileId}, board ${board.id}). Do not edit; change it in Penpot and export again.`);
+  ctx.lines.push(kFormatLine);
   ctx.lines.push(`board ${name} ${num(board.width)} ${num(board.height)}`);
   ctx.lines.push(`  id ${board.id}`);
   ctx.boxes.push({ id: board.id, name, x: 0, y: 0, w: board.width, h: board.height });
@@ -508,7 +511,7 @@ export interface TokenEntry {
 }
 
 export function convertTheme(tokens: TokenEntry[], fileName: string): { ui: string; warnings: string[] } {
-  const lines = [`${kHeader}: design tokens of ${fileName}. Do not edit; change the tokens in Penpot and export again.`];
+  const lines = [`${kHeader}: design tokens of ${fileName}. Do not edit; change the tokens in Penpot and export again.`, kFormatLine];
   const warnings: string[] = [];
   const numberTypes = new Set(['dimension', 'spacing', 'borderRadius', 'sizing', 'number', 'opacity', 'borderWidth', 'fontSizes', 'letterSpacing', 'rotation']);
   for (const t of [...tokens].sort((a, b) => a.name.localeCompare(b.name))) {

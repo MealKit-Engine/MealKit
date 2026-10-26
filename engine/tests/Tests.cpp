@@ -29,6 +29,7 @@
 #if MEALKIT_TEST_UI
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/game/FrameStats.h"
+#include "mealkit/live/Server.h"
 #include "mealkit/render/Culling.h"
 #include "mealkit/settings/Settings.h"
 #include "mealkit/ui/Document.h"
@@ -854,6 +855,58 @@ TEST_CASE(frame_stats) {
     TEST_CHECK(std::abs(game::frameMsPercentile(times, 99.0) - 30.0) < 1e-6);
     std::vector<f64> none;
     TEST_CHECK(game::frameMsPercentile(none, 99.0) == 0.0);
+    // 라이브 연결 "stats" 주제: 없는 출처의 묶음은 빠진다
+    const std::string json = perf.json();
+    TEST_CHECK(json.rfind("{\"seconds\":", 0) == 0 && json.find("\"frames\":2") != std::string::npos && json.back() == '}');
+    TEST_CHECK(json.find("\"game\"") == std::string::npos && json.find("\"render\"") == std::string::npos);
+}
+
+// 라이브 연결 (mealkit/live/Server.h): 접속 정보 파일, 토큰 경로, Origin, 서비스 경로 (소켓 왕복은 check.ps1의 live_probe)
+TEST_CASE(live_server) {
+    const std::string project = executableDirectory() + "/live_test";
+    live::Server server;
+    live::ServerConfig c;
+    c.kind = "game";
+    c.projectDir = project;
+    c.projectName = "Test";
+    c.token = "tok";
+    TEST_CHECK(server.start(c) && server.port() != 0 && server.baseUrl() == server.origin() + "/tok/");
+    std::string info;
+    TEST_CHECK(readTextFile(server.infoPath(), info) && info.find("\"token\":\"tok\"") != std::string::npos &&
+               info.find("\"port\":" + std::to_string(server.port())) != std::string::npos && info.find("\"protocol\":1") != std::string::npos);
+
+    live::Response r = server.handle("GET", "/tok/api/hello", "", "");
+    TEST_CHECK(r.status == 200 && r.body.find("\"kind\":\"game\"") != std::string::npos && r.body.find("\"project\":\"Test\"") != std::string::npos);
+    TEST_CHECK(server.handle("GET", "/other/api/hello", "", "").status == 404);
+    TEST_CHECK(server.handle("GET", "/tok/api/hello", "https://example.com", "").status == 403); // 웹 페이지는 못 부른다
+    TEST_CHECK(server.handle("GET", "/tok/api/hello", server.origin(), "").status == 200);
+
+    live::Service echo;
+    echo.name = "echo";
+    echo.allowOrigin = [](const std::string& origin) { return origin == "https://design.penpot.app"; };
+    echo.handle = [](const live::Request& req) {
+        live::Response out;
+        out.body = req.method + " " + req.path + " " + req.query + " " + req.body;
+        return out;
+    };
+    server.addService(echo);
+    std::string allow;
+    r = server.handle("POST", "/tok/echo/a/b?x=1", "https://design.penpot.app", "hi", &allow);
+    TEST_CHECK(r.status == 200 && r.body == "POST a/b x=1 hi" && allow == "https://design.penpot.app");
+    TEST_CHECK(server.handle("GET", "/tok/echo/a", "https://example.com", "").status == 403);
+    TEST_CHECK(server.handle("GET", "/tok/api/hello", "", "").body.find("\"services\":[\"echo\"]") != std::string::npos);
+    TEST_CHECK(!server.listening("stats"));
+    server.publish("stats", "{}"); // 듣는 연결이 없어도 된다. hello의 주제 목록에 들어간다
+    TEST_CHECK(server.handle("GET", "/tok/api/hello", "", "").body.find("\"topics\":[\"stats\"]") != std::string::npos);
+
+    const std::string path = server.infoPath();
+    server.stop();
+    TEST_CHECK(!fileExists(path));
+    // 비정상 종료로 남은 파일(없는 pid)은 다음 서버가 지운다
+    TEST_CHECK(writeTextFile(project + "/build/live/game-4000000000.json", "{}"));
+    TEST_CHECK(server.start(c));
+    TEST_CHECK(!fileExists(project + "/build/live/game-4000000000.json"));
+    server.stop();
 }
 #endif
 
@@ -1264,6 +1317,50 @@ TEST_CASE(project_file) {
     game::ProjectSettings other = q.settings;
     other.engine = "E:\\elsewhere";
     TEST_CHECK(reflect::hashOf(q.settings, reflect::kFieldView) == reflect::hashOf(other, reflect::kFieldView));
+}
+
+// 형식 줄 "@format <종류> <N>" (mealkit/core/TextFormat.h, 도구 사이 약속)
+TEST_CASE(text_format) {
+    TEST_CHECK(text::formatLine(text::kTable) == "@format table 1");
+    u32 version = 0;
+    TEST_CHECK(!text::readFormatLine("row a", text::kTable, "t", version) && version == 0);
+    TEST_CHECK(text::readFormatLine("@format table 1", text::kTable, "t", version) && version == 1);
+    TEST_CHECK(text::readFormatLine("@format table 7", text::kTable, "t", version) && version == 7); // 더 새 버전: 경고
+    version = 0;
+    TEST_CHECK(text::readFormatLine("@format", text::kTable, "t", version) && version == 0); // 모양이 틀린 줄: 경고하고 건너뛴다
+
+    // 쓰는 쪽은 머리 주석 다음 줄에 형식 줄을 쓰고, 읽는 쪽은 그 줄을 값으로 읽지 않는다
+    const std::string dir = executableDirectory();
+    data::TableText table;
+    table.ids = {"a"};
+    table.rows = {{{"weight", "2"}}};
+    TEST_CHECK(data::writeTableText(dir + "/test_format.table", table, "TestKind"));
+    std::string body;
+    TEST_CHECK(readTextFile(dir + "/test_format.table", body));
+    TEST_CHECK(body.find("\n@format table 1\n") != std::string::npos && body.rfind("# MealKit table", 0) == 0);
+    data::TableData data;
+    std::string warnings;
+    TEST_CHECK(data::loadTableData(reflect::typeOf<TestKind>(), dir + "/test_format.table", data, &warnings) && warnings.empty());
+    TEST_CHECK(data.ids.size() == 1 && static_cast<const TestKind*>(data.rows[0].data())->weight == 2.0f);
+    removeFile(dir + "/test_format.table");
+
+    TestKind kind;
+    kind.weight = 3.5f;
+    TEST_CHECK(reflect::saveTextFile(reflect::typeOf<TestKind>(), &kind, dir + "/test_format.tuning", text::kTuning, "test"));
+    TEST_CHECK(readTextFile(dir + "/test_format.tuning", body) && body.rfind("# test\n@format tuning 1\n", 0) == 0);
+    TestKind back;
+    TEST_CHECK(reflect::loadTextFile(reflect::typeOf<TestKind>(), &back, dir + "/test_format.tuning", text::kTuning) && back.weight == 3.5f);
+    removeFile(dir + "/test_format.tuning");
+
+    // 형식 줄이 없는 예전 파일은 버전 1로 읽는다, 프로젝트 파일의 머리말에는 형식 줄이 들어가지 않는다
+    const std::string project = dir + "/test_format.project";
+    TEST_CHECK(writeTextFile(project, "# head\nname Old\n"));
+    game::ProjectFile p;
+    TEST_CHECK(game::loadProjectFile(project, p) && p.settings.name == "Old");
+    TEST_CHECK(game::saveProjectFile(project, p) && readTextFile(project, body) && body.rfind("# head\n@format project 1\n", 0) == 0);
+    game::ProjectFile q;
+    TEST_CHECK(game::loadProjectFile(project, q) && q.header == "# head\n" && q.unknownFields.empty());
+    removeFile(project);
 }
 
 // 같은 조작을 하면서 매 틱 해시를 남긴다. 30틱째에 바디 하나를 지우고 새 바디를 만든다 (복원이 바디 목록 변화도 되돌리는지)

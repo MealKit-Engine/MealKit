@@ -21,6 +21,8 @@ void showErrorDialog(const char* title, const char* message);
 [[noreturn]] void exitProcess(int code);
 
 u32 processId();
+// 그 번호의 프로세스가 아직 살아 있나 (라이브 연결 접속 정보 파일 정리, mealkit/live/Server.h). 모르면 true
+bool processRunning(u32 pid);
 
 // 이 프로세스가 쓰는 실제 메모리 (RAM에 올라 있는 바이트, Windows 작업 집합). peak는 시작부터 가장 컸던 값. 모르면 0.
 // 벤치마크 보고서·성능 숫자용 (game::FrameStats).

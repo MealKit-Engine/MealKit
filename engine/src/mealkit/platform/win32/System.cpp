@@ -22,6 +22,15 @@ void exitProcess(int code) { ExitProcess(static_cast<UINT>(code)); }
 
 u32 processId() { return static_cast<u32>(GetCurrentProcessId()); }
 
+bool processRunning(u32 pid) {
+    HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (!h) return GetLastError() == ERROR_ACCESS_DENIED; // 다른 사용자의 프로세스: 살아 있다
+    DWORD code = 0;
+    const bool alive = GetExitCodeProcess(h, &code) && code == STILL_ACTIVE;
+    CloseHandle(h);
+    return alive;
+}
+
 ProcessMemory processMemory() {
     PROCESS_MEMORY_COUNTERS c{};
     c.cb = sizeof(c);

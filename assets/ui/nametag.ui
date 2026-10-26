@@ -1,4 +1,5 @@
 # MealKit UI (hand-written): name tag drawn over each character (world UI, ui.drawAt). View model: NameTagVm.
+@format ui 1
 board nametag 200 52
   frame tag
     pos 0 0

@@ -1,6 +1,7 @@
 # MealKit UI (hand-written): lobby before a match (solo, hosted room, joined room, Steam lobby). View model: LobbyVm
 # (samples/sandbox/app/Screens.h). Inputs: ready (toggle), body (select), chatDraft (text input, chat.send).
 # Actions: lobby.start (host), lobby.leave, lobby.invite (Steam), chat.send. Text: assets/strings.
+@format ui 1
 board lobby 1920 1080
   navigation
   firstFocus readyButton

@@ -1,4 +1,5 @@
 # MealKit project (경로 값): 엔진 저장소 자신도 예제 게임(samples/sandbox) 프로젝트로 열 수 있다.
+@format project 1
 name sandbox
 scene scenes/arena.scene
 game.defaultPort 27015

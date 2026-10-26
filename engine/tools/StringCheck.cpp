@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
                 size_t start = 0;
                 if (lineNo == 1 && line.size() >= 3 && static_cast<unsigned char>(line[0]) == 0xEF) start = 3; // BOM
                 const size_t first = line.find_first_not_of(" \t\r", start);
-                if (first == std::string::npos || line[first] == '#') continue;
+                if (first == std::string::npos || line[first] == '#' || line[first] == '@') continue; // 주석, 형식 줄 "@format strings 1"
                 const size_t eq = line.find('=', first);
                 if (eq == std::string::npos) continue;
                 for (unsigned cp : decode(line.substr(eq + 1))) {

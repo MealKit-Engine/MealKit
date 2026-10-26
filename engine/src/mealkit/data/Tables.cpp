@@ -1,5 +1,6 @@
 #include "mealkit/data/Tables.h"
 
+#include "mealkit/core/TextFormat.h"
 #include "mealkit/platform/Paths.h"
 
 #include <cctype>
@@ -136,6 +137,8 @@ bool readTableText(const std::string& path, TableText& out, std::string* warning
         const size_t first = line.find_first_not_of(" \t");
         if (first == std::string::npos || line[first] == '#') continue;
         line = line.substr(first);
+        u32 version = 1; // 지금은 버전 1뿐이라 migrate가 없다
+        if (text::readFormatLine(line, text::kTable, path, version)) continue;
         const size_t space = line.find(' ');
         const std::string key = line.substr(0, space);
         const std::string value = space == std::string::npos ? std::string() : line.substr(line.find_first_not_of(' ', space));
@@ -166,7 +169,7 @@ bool readTableText(const std::string& path, TableText& out, std::string* warning
 
 bool writeTableText(const std::string& path, const TableText& table, const char* rowTypeName) {
     std::string text = std::string("# MealKit table (") + rowTypeName +
-                       "). Edit it in the editor's [Tables] panel or import a CSV there.\n";
+                       "). Edit it in the editor's [Tables] panel or import a CSV there.\n" + text::formatLine(text::kTable) + "\n";
     for (size_t i = 0; i < table.ids.size(); ++i) {
         text += "\nrow " + table.ids[i] + "\n";
         for (const auto& [key, value] : table.rows[i]) text += key + " " + value + "\n";

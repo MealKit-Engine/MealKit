@@ -2,6 +2,7 @@
 
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Math.h"
+#include "mealkit/core/TextFormat.h"
 
 #include <array>
 #include <cstring>
@@ -252,9 +253,9 @@ struct RowRefView {
 RowRefView rowRefOf(void* data);
 std::string formatScalar(const ValueInfo& value, const void* data); // 디버그 표시용 (구조체·배열은 빈 문자열)
 
-// .tuning 같은 텍스트 파일 ("# 주석", "경로 값")
-bool saveTextFile(const TypeInfo& type, const void* data, const std::string& path, const char* header);
-bool loadTextFile(const TypeInfo& type, void* data, const std::string& path, std::string* error = nullptr);
+// .tuning 같은 텍스트 파일 ("# 주석", 형식 줄 "@format <종류> <N>", "경로 값")
+bool saveTextFile(const TypeInfo& type, const void* data, const std::string& path, const text::Format& format, const char* header);
+bool loadTextFile(const TypeInfo& type, void* data, const std::string& path, const text::Format& format, std::string* error = nullptr);
 
 // 두 값의 다른 필드를 "경로: a -> b" 줄로 (그림자 시뮬레이션 디싱크 보고). 최대 maxLines 줄.
 void diffStruct(const TypeInfo& type, const void* a, const void* b, std::vector<std::string>& out, u32 maxLines = 32);

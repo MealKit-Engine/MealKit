@@ -465,37 +465,40 @@ void fromText(const TypeInfo& type, void* data, const TextFields& fields, std::s
     }
 }
 
-bool saveTextFile(const TypeInfo& type, const void* data, const std::string& path, const char* header) {
+bool saveTextFile(const TypeInfo& type, const void* data, const std::string& path, const text::Format& format, const char* header) {
     TextFields fields;
     toText(type, data, fields);
-    std::string text;
-    if (header && header[0]) text += std::string("# ") + header + "\n";
-    for (const auto& [key, value] : fields) text += key + " " + value + "\n";
-    if (!writeTextFile(path, text)) {
+    std::string out;
+    if (header && header[0]) out += std::string("# ") + header + "\n";
+    out += text::formatLine(format) + "\n";
+    for (const auto& [key, value] : fields) out += key + " " + value + "\n";
+    if (!writeTextFile(path, out)) {
         MEALKIT_ERROR("Cannot write %s", path.c_str());
         return false;
     }
     return true;
 }
 
-bool loadTextFile(const TypeInfo& type, void* data, const std::string& path, std::string* error) {
-    std::string text;
-    if (!readTextFile(path, text)) {
+bool loadTextFile(const TypeInfo& type, void* data, const std::string& path, const text::Format& format, std::string* error) {
+    std::string content;
+    if (!readTextFile(path, content)) {
         if (error) *error = "cannot open file";
         return false;
     }
     size_t start = 0;
     int lineNo = 0;
-    while (start < text.size()) {
-        size_t end = text.find('\n', start);
-        if (end == std::string::npos) end = text.size();
-        std::string line = text.substr(start, end - start);
+    while (start < content.size()) {
+        size_t end = content.find('\n', start);
+        if (end == std::string::npos) end = content.size();
+        std::string line = content.substr(start, end - start);
         start = end + 1;
         ++lineNo;
         while (!line.empty() && (line.back() == '\r' || line.back() == ' ' || line.back() == '\t')) line.pop_back();
         size_t first = line.find_first_not_of(" \t");
         if (first == std::string::npos || line[first] == '#') continue;
         line = line.substr(first);
+        u32 version = 1; // 지금은 버전 1뿐이라 migrate가 없다
+        if (text::readFormatLine(line, format, path, version)) continue;
         const size_t space = line.find(' ');
         const std::string key = line.substr(0, space);
         const std::string value =

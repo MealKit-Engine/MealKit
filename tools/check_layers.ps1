@@ -11,6 +11,7 @@ $engineSrc = Join-Path $root "engine\src\mealkit"
 $layers = @(
     @("core", "platform"), # 기반
     @("net"), @("physics"), @("sim"), @("data"), # 시뮬레이션 쪽 (헤드리스가 쓰는 것)
+    @("live"), # 개발 도구 연결 (라이브 연결 서버, 도구 약속)
     @("loc"), @("scene"), @("rhi"), @("render"), @("asset"), @("online"), @("debug"), # 화면 쪽
     @("input"), @("audio"), @("ui"), @("feedback"), @("settings"),
     @("game"), # 게임 경계 (GameInstance, GameContext)

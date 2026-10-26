@@ -1,6 +1,7 @@
 // 시스템 기능의 POSIX 부분 (Linux·macOS 헤드리스). 대화상자는 없다(로그만).
 #include "mealkit/platform/System.h"
 
+#include <cerrno>
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
@@ -18,6 +19,8 @@ void debugBreak() { std::raise(SIGTRAP); }
 void showErrorDialog(const char*, const char*) {}
 void exitProcess(int code) { std::_Exit(code); }
 u32 processId() { return static_cast<u32>(getpid()); }
+
+bool processRunning(u32 pid) { return kill(static_cast<pid_t>(pid), 0) == 0 || errno == EPERM; }
 
 ProcessMemory processMemory() {
     ProcessMemory out;

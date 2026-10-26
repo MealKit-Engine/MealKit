@@ -1,4 +1,5 @@
 # MealKit UI (hand-written): loading screen, drawn for one frame while the match world is built (no view model).
+@format ui 1
 board loading 1920 1080
   frame dim
     pos 0 0

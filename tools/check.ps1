@@ -169,6 +169,28 @@ if (-not $Quick) {
         $code = Run $log $game "--mute --frames 240 --ui-press 20:start,50:solo,90:start --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and (Has $log "Match 1 started") -and (Has $log "World ready") -and -not (Has $log "--ui-press: no widget")
     }
+    # 라이브 연결 (도구 사이 약속, mealkit/live/Server.h): 게임의 build\live\ 접속 정보로 hello + stats 이벤트, 끝나면 접속 정보 파일이 없어진다
+    Invoke-Check "Live connection (game)" {
+        param($log)
+        $p = Start-Process -FilePath $game -ArgumentList "--bot --mute --vsync 0 --size 640 360 --exit-tick 600" -PassThru -WindowStyle Hidden
+        try {
+            & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\tools\live_probe.ps1" -Kind game -Wait 20 -Events 2 *> $log
+            $code = $LASTEXITCODE
+        } finally { $p.WaitForExit(60000) | Out-Null }
+        $left = Test-Path (Join-Path $root "build\live\game-$($p.Id).json")
+        return $code -eq 0 -and -not $left -and (Has $log "^event stats: ")
+    }
+    # 도구 바로가기 (editor/Tools.h): 매니페스트를 찾고, 약속 버전이 다른 도구를 알아본다
+    Invoke-Check "Editor tool discovery (manifest)" {
+        param($log)
+        $dir = Join-Path $out "tools"
+        Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
+        New-Item -ItemType Directory -Force "$dir\good", "$dir\old" | Out-Null
+        [IO.File]::WriteAllText("$dir\good\mealkit-tool.txt", "# MealKit tool manifest`n@format tool 1`nname Check Tool`nexe $game`nversion 1.0`nprotocol 1`nopens .table`n")
+        [IO.File]::WriteAllText("$dir\old\mealkit-tool.txt", "@format tool 1`nname Old Tool`nexe old.exe`nprotocol 999`n")
+        $code = Run $log $editor "--list-tools --tool-path `"$dir`""
+        return $code -eq 0 -and (Has $log "^tool: Check Tool 1\.0 protocol 1 .*sandbox\.exe$") -and (Has $log "^tool: Old Tool .*\(protocol differs\)")
+    }
     # Penpot 플러그인 (ROADMAP "게임 화면 UI 2부"): 변환기 시험(Node.js가 있을 때), Penpot에서 내보낸 화면의 배치 = Penpot 상자.
     # 비교는 영어 표로 한다 (Penpot 원본 글자가 영어라 글자 노드도 같은 글자를 그린다)
     Invoke-Check "Penpot plugin (converter tests)" {
@@ -332,7 +354,12 @@ if (-not $Quick) {
     }
     Invoke-Check "Export build" {
         param($log)
-        return (Build $log "Export") -and (Test-Path (Join-Path $root "export\sandbox\sandbox.exe"))
+        $exe = Join-Path $root "export\sandbox\sandbox.exe"
+        if (-not ((Build $log "Export") -and (Test-Path $exe))) { return $false }
+        # 출시 빌드에는 라이브 연결 서버가 없다 (MEALKIT_LIVE=0)
+        $text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))
+        if ($text.Contains("Live server (")) { return "export\sandbox\sandbox.exe contains the live server (MEALKIT_LIVE should be 0)" }
+        return $true
     }
 }
 

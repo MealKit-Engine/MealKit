@@ -1,5 +1,6 @@
 # MealKit UI (hand-written): pause menu (Esc / Start during a match). View model: PauseVm (samples/sandbox/app/Screens.h).
 # Solo play stops the match while this is open; with other players the match keeps running. Text: assets/strings.
+@format ui 1
 board pause 1920 1080
   navigation
   firstFocus resume

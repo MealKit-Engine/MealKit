@@ -1,6 +1,7 @@
 #include "mealkit/ui/Document.h"
 
 #include "mealkit/core/Log.h"
+#include "mealkit/core/TextFormat.h"
 #include "mealkit/platform/Paths.h"
 #include "mealkit/render/Renderer.h"
 
@@ -190,6 +191,8 @@ bool loadTheme(Theme& out, std::vector<std::string>* errors) {
         pos = end + 1;
         ++lineNo;
         if (line.empty() || line[0] == '#') continue;
+        u32 version = 1; // 지금은 버전 1뿐이라 migrate가 없다
+        if (text::readFormatLine(line, text::kUi, path, version)) continue;
         const std::vector<std::string> t = split(line);
         bool ok = t.size() == 3;
         if (ok && t[0] == "color") {
@@ -533,6 +536,8 @@ struct Parser {
             ++lineNo;
             if (lineNo == 1 && line.rfind("# MealKit UI exported from Penpot", 0) == 0) doc.exported = true;
             if (line.empty() || line[0] == '#') continue;
+            u32 version = 1; // 지금은 버전 1뿐이라 migrate가 없다
+            if (text::readFormatLine(line, text::kUi, "assets/" + doc.path, version)) continue;
             const std::vector<std::string> t = split(line);
             const std::string& k = t[0];
             if (k == "board") {

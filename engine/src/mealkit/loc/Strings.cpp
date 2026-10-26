@@ -1,6 +1,7 @@
 #include "mealkit/loc/Strings.h"
 
 #include "mealkit/core/Log.h"
+#include "mealkit/core/TextFormat.h"
 #include "mealkit/platform/Paths.h"
 
 #include <algorithm>
@@ -94,7 +95,8 @@ bool readStringsFile(const std::string& path, std::vector<StringEntry>& out, std
         const std::string line = trim(std::string_view(text).substr(pos, end - pos));
         ++lineNo;
         pos = end + 1;
-        if (line.empty() || line[0] == '#') {
+        u32 version = 1; // 지금은 버전 1뿐이라 migrate가 없다
+        if (line.empty() || line[0] == '#' || text::readFormatLine(line, text::kStrings, path, version)) {
             if (end == text.size()) break;
             continue;
         }

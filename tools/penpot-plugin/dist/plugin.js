@@ -2,6 +2,7 @@
 (() => {
   // src/convert.ts
   var kHeader = "# MealKit UI exported from Penpot";
+  var kFormatLine = "@format ui 1";
   var weightNames = {
     "100": "Thin",
     "200": "ExtraLight",
@@ -402,6 +403,7 @@
     };
     const name = nodeName(board2.name, screen);
     ctx.lines.push(`${kHeader}: ${opt.fileName} (file ${opt.fileId}, board ${board2.id}). Do not edit; change it in Penpot and export again.`);
+    ctx.lines.push(kFormatLine);
     ctx.lines.push(`board ${name} ${num(board2.width)} ${num(board2.height)}`);
     ctx.lines.push(`  id ${board2.id}`);
     ctx.boxes.push({ id: board2.id, name, x: 0, y: 0, w: board2.width, h: board2.height });
@@ -442,7 +444,7 @@
     };
   }
   function convertTheme(tokens, fileName) {
-    const lines = [`${kHeader}: design tokens of ${fileName}. Do not edit; change the tokens in Penpot and export again.`];
+    const lines = [`${kHeader}: design tokens of ${fileName}. Do not edit; change the tokens in Penpot and export again.`, kFormatLine];
     const warnings = [];
     const numberTypes = /* @__PURE__ */ new Set(["dimension", "spacing", "borderRadius", "sizing", "number", "opacity", "borderWidth", "fontSizes", "letterSpacing", "rotation"]);
     for (const t of [...tokens].sort((a, b) => a.name.localeCompare(b.name))) {
