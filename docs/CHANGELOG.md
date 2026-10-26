@@ -5,6 +5,16 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 그림자 (완료 2026-10-27)
+- **방식**: 태양만, 단계식 그림자 맵(CSM) 1~2단계. 카메라 앞 그림자 거리까지를 [0, 거리/4], [거리/4, 거리]로 나누고, 조각의 꼭짓점 8개를 감싸는 구 → 빛 방향 정사영(reversed-Z). 구 반지름(1/16 m)과 빛 공간 중심(텍셀)을 맞춰 카메라가 움직여도 가장자리가 떨리지 않는다. 해 쪽으로 100 m를 더 잡는다.
+- **RHI**: `Device::createDepthTarget`(깊이만: DX12 `R32_TYPELESS` + D32 DSV + R32 SRV, Vulkan D32 `DEPTH_ATTACHMENT | SAMPLED`, 둘 다 처음 상태는 셰이더 읽기), `Target::Shadow` 파이프라인(색 없음, 깊이 GREATER). `beginTarget`·`endTarget`이 깊이만 대상을 다룬다.
+- **렌더러**: 그림자 맵은 단계를 가로로 붙인 아틀라스 하나(`size × 단계 수` × `size`). 본 화면 대상은 처음 그릴 때 묶는다(`ensureScene`: `drawInstances`·`drawToTarget`·`beginOverlay`·`drawUi`·`endFrame`). `DrawList::submit`이 먼저 `drawShadows`(목록의 모든 인스턴스를 단계마다 빛 상자로 거르고, 단계마다 viewProj만 바꾼 프레임 상수로 `VSShadow`/`PSShadow`, 양면, 외곽선 없음, GPU 패스 `shadow`). 프레임 상수 496 → 672바이트(단계 행렬 2, 카메라 앞 방향, 나눈 거리·텍셀 크기, 그림자 맵 번호·단계 수·크기). 보기 모드와 오프스크린(룩데브·프로브 굽기)은 그림자 없이.
+- **셰이더**: `sunShadow`: 카메라 앞 거리로 단계, 법선 쪽으로 텍셀 1.5개 밀기, 깊이 치우침 0.0002, `GatherRed` 넷(4×4 텍셀) 쌍선형 PCF, 마지막 10% 옅어짐. 해를 등지는 면(기하 법선·태양 내적 < 0.25)에서는 그림자를 빼 둥근 면의 텍셀 계단을 숨긴다. PBR은 태양 확산·정반사에 곱하고, 툰은 램프 위치를 반으로(그늘 단계로) 하고 하이라이트를 끈다. 알파 마스크·디졸브는 그림자에도 구멍.
+- **설정**: 프로젝트 설정 `shadows`(켬)·`shadowCascades`(2)·`shadowMapSize`(1024, 512~4096)·`shadowDistance`(40 m) → `game::applyRenderStyle` → `Renderer::setShadows`.
+- **측정**: `sandbox --benchmark 10`(arena, Core Ultra 5 125U): GPU 프레임 1.66 ms 중 shadow 0.36 ms(예산 1.5), opaque 1.30 ms.
+- **기준 그림**: 그림자가 생겨 14장을 다시 만들었다(조명 없음 장면은 그대로). DX12와 Vulkan 차이는 문턱 안, 검증 레이어 오류 없음.
+- **남은 것**: 최소 사양(11세대) 실기 측정. 반사 프로브 굽기에 그림자 넣기(지금 구운 방 안 반사는 그늘이 없다). 툰에서 머리 그림자처럼 둥근 면에 떨어지는 그림자 경계의 텍셀 계단. 플레이어 그래픽 설정(품질 단계)은 설정 화면 항목에서.
+
 ### [x] 점광원 (완료 2026-10-27)
 - **왜**: 태양 하나뿐이라 횃불·폭발 빛·실내 조명을 쓸 수 없었다.
 - **씬**: 엔진 기본 종류 `point_light`("점광원", `kObjectMarker | kObjectCosmetic`). 기본 종류지만 필드가 있다: `scene::PointLightFields`(`MEALKIT_STRUCT`, 색 `#FFD6A0`·세기 3·거리 6 m)의 설명을 이름만 바꿔 `builtinTypes`에 넣어 인스펙터 [필드]와 `field` 줄을 게임 종류와 같이 쓴다. 에디터는 빛 색의 0.2 m 상자로 그린다.

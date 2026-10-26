@@ -1,7 +1,7 @@
 // MealKit forward shading.
 // 인스턴스 데이터(위치/회전/스케일/색)를 업로드 링에서 읽어 정점 셰이더에서 변환한다.
 // CPU는 행렬을 만들지 않고 48바이트 인스턴스만 쓴다. 머티리얼은 glTF PBR metallic-roughness(정점의 material 번호 →
-// 업로드 링의 머티리얼 표 → bindless 텍스처). 조명: 태양 + 점광원(물체마다 CPU가 고른 최대 8개, 그림자 없음)
+// 업로드 링의 머티리얼 표 → bindless 텍스처). 조명: 태양(그림자 단계 1~2개, VSShadow/PSShadow가 먼저 그린다) + 점광원(물체마다 CPU가 고른 최대 8개, 그림자 없음)
 // + 환경광(하늘 HDRI의 SH, 없으면 반구 그라디언트) + 지수 안개.
 // 하늘 HDRI가 있으면 VSSky/PSSky가 3D 전에 스카이박스를 그리고, 반사는 구운 큐브(밉 = 거칠기)에서 읽는다.
 // 반사 프로브가 있으면 정점 셰이더가 인스턴스 위치를 담은 영향 상자 중 중심이 가장 가까운 프로브 하나를 골라 하늘 반사 대신 그 큐브를 읽는다.
@@ -30,7 +30,7 @@ struct Instance // 48바이트 (render::InstanceData)
                      // bit16~23: 번쩍임, bit24~31: 디졸브 진행도 (render::instanceFlash/instanceDissolve)
 };
 
-struct FrameConstants // 496바이트 (Renderer.cpp FrameConstants)
+struct FrameConstants // 672바이트 (Renderer.cpp FrameConstants)
 {
     float4x4 viewProj;
     float4 cameraPos;
@@ -49,6 +49,10 @@ struct FrameConstants // 496바이트 (Renderer.cpp FrameConstants)
     float4 sh[9];       // 환경광 SH (rgb)
     uint4 probes;       // x = 반사 프로브 표의 링 위치, y = 개수 (표 32바이트: 위치 xyz, 큐브 번호 | 밉 수 << 24, 상자 반 크기 xyz, 0)
     uint4 lights;       // x = 점광원 표의 링 위치, y = 개수 (표 32바이트: 위치 xyz, 거리, 색 rgb(× 세기), 0)
+    float4x4 shadowViewProj[2]; // 단계마다 월드 → 그림자 클립
+    float4 shadowForward; // 카메라 앞 방향 (단계 고르기)
+    float4 shadowSplits;  // x = 단계 0 끝 거리, y = 마지막 단계 끝 거리, z·w = 단계 0·1 텍셀의 월드 크기
+    uint4 shadow;         // x = 그림자 맵 (bindless), y = 단계 수 (0 = 없음), z = 단계 하나 크기
 };
 
 static const uint kNoTexture = 0xFFFFFFFFu;
@@ -105,6 +109,12 @@ FrameConstants loadFrame()
         f.sh[i] = loadFloat4(b, o + 320 + i * 16);
     f.probes = b.Load4(o + 464);
     f.lights = b.Load4(o + 480);
+    [unroll] for (uint c = 0; c < 2; ++c)
+        f.shadowViewProj[c] = float4x4(loadFloat4(b, o + 496 + c * 64), loadFloat4(b, o + 512 + c * 64), loadFloat4(b, o + 528 + c * 64),
+                                       loadFloat4(b, o + 544 + c * 64));
+    f.shadowForward = loadFloat4(b, o + 624);
+    f.shadowSplits = loadFloat4(b, o + 640);
+    f.shadow = b.Load4(o + 656);
     return f;
 }
 
@@ -239,6 +249,7 @@ VSOutput transformVertex(VSInput input, bool outline)
 }
 
 VSOutput VSMain(VSInput input) { return transformVertex(input, false); }
+VSOutput VSShadow(VSInput input) { return transformVertex(input, false); } // 프레임 상수의 viewProj = 그림자 단계
 VSOutput VSOutline(VSInput input) { return transformVertex(input, true); }
 
 float4 sampleTexture(uint index, float2 uv, float4 fallback)
@@ -337,6 +348,42 @@ float3 pointLights(FrameConstants f, uint2 lights, float3 worldPos, float3 n, fl
 #endif
     }
     return color;
+}
+
+// 태양 그림자 (0 = 그늘, 1 = 빛). 단계는 카메라 앞 방향 거리로 고르고, 법선 쪽으로 텍셀 1.5개 밀어 자기 그림자 줄무늬를 막는다.
+// 걸러 읽기: Gather 넷(4×4 텍셀)을 쌍선형 가중으로 비교해 평균 (reversed-Z: 빛에 가까울수록 깊이가 크다)
+float sunShadow(FrameConstants f, float3 worldPos, float3 n)
+{
+    if (f.shadow.y == 0)
+        return 1.0;
+    float viewDepth = dot(worldPos - f.cameraPos.xyz, f.shadowForward.xyz);
+    if (viewDepth >= f.shadowSplits.y)
+        return 1.0;
+    uint c = (viewDepth < f.shadowSplits.x || f.shadow.y == 1) ? 0 : 1;
+    float texelWorld = c == 0 ? f.shadowSplits.z : f.shadowSplits.w;
+    float3 p = worldPos + n * (texelWorld * 1.5);
+    float4 clip = mul(float4(p, 1.0), f.shadowViewProj[c]);
+    float2 uv = clip.xy * float2(0.5, -0.5) + 0.5;
+    float size = float(f.shadow.z);
+    if (any(uv < 2.0 / size) || any(uv > 1.0 - 2.0 / size))
+        return 1.0;
+    float2 dims = float2(size * float(f.shadow.y), size);
+    float2 texel = (float2(uv.x + float(c), uv.y) * float2(size, size)) - 0.5; // 아틀라스 픽셀 (텍셀 가운데 기준)
+    float receiver = clip.z + 0.0002;
+    Texture2D map = g_textures[NonUniformResourceIndex(f.shadow.x)];
+    float lit = 0.0;
+    [unroll] for (uint i = 0; i < 4; ++i)
+    {
+        float2 offset = float2((i & 1u) ? 1.0 : -1.0, (i & 2u) ? 1.0 : -1.0);
+        float2 t = texel + offset;
+        float2 base = floor(t), w = t - base;
+        float4 d = map.GatherRed(g_linearClamp, (base + 1.0) / dims); // (0,1) (1,1) (1,0) (0,0)
+        float4 s = step(d, receiver.xxxx);
+        lit += lerp(lerp(s.w, s.z, w.x), lerp(s.x, s.y, w.x), w.y);
+    }
+    lit *= 0.25;
+    float fade = saturate((f.shadowSplits.y - viewDepth) / (f.shadowSplits.y * 0.1)); // 끝 10%에서 옅어진다
+    return lerp(1.0, lit, fade);
 }
 
 // 거칠기·시야각에 따른 정반사 적분 (Karis의 근사, 표 텍스처 없이)
@@ -452,6 +499,11 @@ float4 PSMain(VSOutput input) : SV_Target
     float3 ambient = ambientLight(frame, n);
     float3 v = normalize(frame.cameraPos.xyz - input.worldPos);
     float ndv = max(dot(n, v), 1e-4);
+#if LIGHTING_MODEL != 2
+    // 해를 등지는 쪽은 이미 어둡다: 경계 근처에서 그림자를 빼면 둥근 면의 그림자 맵 계단이 보이지 않는다
+    float3 geometric = normalize(input.normal);
+    float shadow = lerp(1.0, sunShadow(frame, input.worldPos, geometric), saturate(dot(geometric, l) * 4.0));
+#endif
 
 #if LIGHTING_MODEL == 0
     // GGX 정반사 (태양 하나) + 금속은 확산 없이 색이 정반사로. 환경 반사는 하늘 HDRI 항목에서
@@ -467,15 +519,16 @@ float4 PSMain(VSOutput input) : SV_Target
     float3 diffuse = albedo * (1.0 - metallic);
     float3 ambientSpecular = hasReflection(frame, input.probe) ? reflection(frame, reflect(-v, n), roughness, input.probe) * envBrdf(f0, roughness, ndv)
                                               : f0 * ambient * (1.0 - roughness * 0.7); // HDRI가 없으면 예전 어림
-    float3 color = diffuse * (frame.sunColor.rgb * (halfLambert * halfLambert) + ambient) + specular * frame.sunColor.rgb +
+    float3 color = diffuse * (frame.sunColor.rgb * (halfLambert * halfLambert * shadow) + ambient) + specular * frame.sunColor.rgb * shadow +
                    ambientSpecular + emissive + pointLights(frame, input.lights, input.worldPos, n, v, diffuse, f0, roughness);
 #elif LIGHTING_MODEL == 1
     // 툰: 확산은 램프 텍스처(하프 램버트 → 색 단계), 하이라이트는 가장자리가 끊어진 점 하나. 금속은 하이라이트·환경에 색이 실린다
-    float3 ramp = g_textures[NonUniformResourceIndex(frame.style.x)].SampleLevel(g_linearClamp, float2(saturate(halfLambert), 0.5), 0).rgb;
+    // 그늘은 램프의 어두운 쪽으로 (하프 램버트를 반으로)
+    float3 ramp = g_textures[NonUniformResourceIndex(frame.style.x)].SampleLevel(g_linearClamp, float2(saturate(halfLambert * lerp(0.5, 1.0, shadow)), 0.5), 0).rgb;
     ramp *= ramp; // sRGB 그림 → 선형 근사
     float3 h = normalize(l + v);
     float shininess = 2.0 / max(roughness * roughness * roughness * roughness, 1e-3) - 2.0;
-    float highlight = smoothstep(0.45, 0.55, pow(saturate(dot(n, h)), shininess)) * step(0.0, dot(n, l)) * (1.0 - roughness * 0.8);
+    float highlight = smoothstep(0.45, 0.55, pow(saturate(dot(n, h)), shininess)) * step(0.0, dot(n, l)) * (1.0 - roughness * 0.8) * step(0.5, shadow);
     float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
     float3 diffuse = albedo * (1.0 - metallic);
     float3 envSpecular = hasReflection(frame, input.probe) ? reflection(frame, reflect(-v, n), roughness, input.probe) * envBrdf(f0, roughness, ndv)
@@ -507,6 +560,17 @@ float4 PSOutline(VSOutput input) : SV_Target
         discard;
     float edge = dissolveEdge(mat, input);
     return finishColor(frame, input, mat.outlineColor + mat.dissolveColor * edge);
+}
+
+// 그림자 패스 (깊이만): 알파 마스크와 디졸브는 본 패스와 같게 구멍을 낸다
+void PSShadow(VSOutput input)
+{
+    FrameConstants frame = loadFrame();
+    Material mat = loadMaterial(frame, input.material);
+    float4 base = mat.baseColor * sampleTexture(mat.textures.x, input.uv, float4(1, 1, 1, 1));
+    if (mat.alphaCutoff > 0.0 && base.a < mat.alphaCutoff)
+        discard;
+    dissolveEdge(mat, input);
 }
 
 // 스카이박스: 화면 가득 삼각형 하나 (정점 버퍼 없이). 깊이 없이 3D 전에 그리고 3D가 덮는다. 안개는 받지 않는다
