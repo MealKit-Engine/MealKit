@@ -1,18 +1,122 @@
-﻿# MealKit 엔진 검증: 엔진을 고친 뒤 한 번에 돌린다. 항목별 PASS/FAIL과 걸린 시간을 출력하고, 하나라도 실패하면 종료 코드 1.
-#   powershell -ExecutionPolicy Bypass -File tools\check.ps1          전체
-#   powershell -ExecutionPolicy Bypass -File tools\check.ps1 -Quick   빌드 + 단위 테스트 + 결정론 테스트만
-#   ... -UpdateGolden   그래픽 회귀 테스트의 기준 그림(engine\tests\golden)을 이번 그림으로 바꾼다 (그림을 일부러 바꿨을 때)
+﻿# MealKit 엔진 검증: 항목별 PASS/FAIL과 걸린 시간을 출력하고, 하나라도 실패하면 종료 코드 1.
+#   powershell -ExecutionPolicy Bypass -File tools\check.ps1            전체 (ROADMAP 항목을 끝낼 때, 커밋 전)
+#   ... -Changed           고친 파일(git 작업 트리, -Base <커밋>이면 그 커밋 이후도)에 맞는 묶음만. 작업 중에는 이것을 쓴다
+#   ... -Quick             빌드 + 단위 테스트 + 결정론 테스트만
+#   ... -Only det,render   그 묶음만 (아래 $allGroups)
+#   ... -DryRun            고를 묶음만 보여 주고 끝낸다 (-Changed와 같이)
+#   ... -UpdateGolden      그래픽 회귀 테스트의 기준 그림(engine\tests\golden)을 이번 그림으로 바꾼다 (그림을 일부러 바꿨을 때)
+# 묶음: static(검사 스크립트) unit(단위 테스트) det(결정론·멀티플레이) game(게임 창) tools(도구 연결) render(그래픽·Vulkan)
+#       editor(에디터 플레이·핫 리로드) project(새 프로젝트·업그레이드) export(출시 빌드)
+# 결정론 묶음은 전체 검사가 아니면 "결정론 키"(시뮬레이션 버전 + 시뮬레이션이 읽는 콘텐츠)가 마지막 통과 때와 같을 때 건너뛴다
+# (build\check-state\det.key). 키가 바뀌었으면 고른 묶음과 상관없이 돈다.
 # 로그와 스크린샷: build\check\  (항목마다 <번호>-<이름>.log)
 # 실행 중인 에디터는 먼저 닫는다 (mealkit.dll을 다시 빌드한다).
 param(
     [switch]$Quick,
-    [switch]$UpdateGolden
+    [switch]$Changed,
+    [string]$Base = "",
+    [string[]]$Only = @(),
+    [switch]$UpdateGolden,
+    [switch]$DryRun
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $out = Join-Path $root "build\check"
 New-Item -ItemType Directory -Force $out | Out-Null
 Get-ChildItem $out -File | Remove-Item -Force
+$stateDir = Join-Path $root "build\check-state"
+$detKeyFile = Join-Path $stateDir "det.key"
+
+$allGroups = @("static", "unit", "det", "game", "tools", "render", "editor", "project", "export")
+
+# 엔진 폴더(engine/src/mealkit/<폴더>)를 고치면 도는 묶음. core·platform(과 표에 없는 폴더)은 export 빼고 전부.
+# 단위 테스트는 같은 이름 영역(TEST_CASE(area, ...))만 돈다. "det!" = 결정론 키와 상관없이 결정론 묶음
+$folderGroups = @{
+    net = "unit det game editor"; physics = "unit det game editor"; sim = "unit det game editor"; data = "unit det game editor"
+    scene = "unit det game editor render"; asset = "unit det game render"; game = "unit det! game editor project"
+    live = "unit game tools"; loc = "unit game editor"; input = "unit game editor"; settings = "unit game"; ui = "unit game tools editor"
+    rhi = "unit game render"; render = "unit game render"; online = "game"; debug = "game editor"; audio = "game"; feedback = "game editor"
+    editor = "editor tools render"
+}
+# 경로 규칙 (위에서부터 처음 맞는 것). 값: 묶음 이름, "folder:<엔진 폴더>", "unit-all", "det!", "full"(export 빼고 전부), "" = 검사 없음
+$pathRules = @(
+    @('\.md$', ''), @('^docs/', ''), @('^\.github/', ''), @('^\.claude/', ''), @('^\.git(ignore|attributes)$', ''),
+    @('^art/ui/preview/', 'tools'), @('^art/', ''),
+    @('^engine/src/mealkit/([^/]+)/', 'folder:$1'), @('^engine/shaders/', 'folder:render'),
+    @('^engine/tests/golden/', 'render'), @('^engine/tests/', 'unit-all'),
+    @('^engine/tools/SimCheck', 'editor project'), @('^engine/tools/', 'game'), @('^engine/res/', 'editor'),
+    @('^third_party/mkaudio/', 'folder:audio'), @('^third_party/', 'full'),
+    @('^samples/[^/]+/(sim|replays)/', 'det! game editor'), @('^samples/', 'game editor'),
+    @('^assets/sounds', 'folder:audio'), @('^assets/ui/', 'folder:ui'), @('^assets/strings/', 'folder:loc'),
+    @('^assets/(game\.tuning|scenes/|models/|tables/)', 'det game editor render'), @('^assets/', 'game editor'),
+    @('^mealkit\.project$', 'det game editor'),
+    @('^(templates/|VERSION$|tools/(new|upgrade|rename)_project|tools/project_common)', 'project'),
+    @('^tools/(penpot-plugin|blender-addon)/', 'tools'),
+    @('^tools/(mp_test|record_replay|ci_)', 'det!'), @('^tools/(live_probe|compare_images)', 'game render tools'),
+    @('^tools/(check_|gen_notices)', 'static'), @('^tools/check\.ps1$', ''), @('^tools/update_mkaudio', 'folder:audio'),
+    @('^(cmake/|CMakeLists\.txt$|engine/CMakeLists\.txt$|build\.bat$|editor\.bat$|tools/build_project)', 'full')
+)
+
+# 고른 묶음: $groups[이름] = $true, $unitAreas = $null(전부) 또는 영역 목록, $detForced = 키와 상관없이 결정론
+$groups = @{}
+$unitAreas = $null
+$detForced = $false
+function Add-All { $allGroups | Where-Object { $_ -ne "export" } | ForEach-Object { $script:groups[$_] = $true } }
+if ($Only.Count -gt 0) {
+    $mode = "only"
+    foreach ($g in ($Only -join ",").Split(",")) {
+        if ($allGroups -notcontains $g) { Write-Host "unknown group '$g' (groups: $($allGroups -join ', '))" -ForegroundColor Red; exit 1 }
+        $groups[$g] = $true
+    }
+    $detForced = [bool]$groups["det"]
+} elseif ($Changed) {
+    $mode = "changed"
+    $files = @()
+    if ($Base) { $files += @(& git -C $root diff --name-only $Base) }
+    $files += @(& git -C $root status --porcelain --untracked-files=all | ForEach-Object { ($_.Substring(3) -replace '^.* -> ', '').Trim('"') })
+    $files = @($files | Where-Object { $_ } | Sort-Object -Unique)
+    $areas = @{}
+    $allUnit = $false
+    foreach ($f in $files) {
+        $tokens = $null
+        foreach ($rule in $pathRules) {
+            $m = [regex]::Match($f, $rule[0])
+            if ($m.Success) { $tokens = $m.Result($rule[1]); break }
+        }
+        if ($null -eq $tokens) { Write-Host "  $f -> full (no rule in check.ps1)" -ForegroundColor Yellow; $tokens = "full" }
+        foreach ($t in $tokens.Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) {
+            if ($t -eq "full") { Add-All; $allUnit = $true; $detForced = $true }
+            elseif ($t -eq "unit-all") { $groups["unit"] = $true; $allUnit = $true }
+            elseif ($t -eq "det!") { $groups["det"] = $true; $detForced = $true }
+            elseif ($t.StartsWith("folder:")) {
+                $folder = $t.Substring(7)
+                if (-not $folderGroups.ContainsKey($folder)) { Add-All; $allUnit = $true } # core, platform
+                else {
+                    foreach ($g in $folderGroups[$folder].Split(" ")) {
+                        if ($g -eq "det!") { $groups["det"] = $true; $detForced = $true } else { $groups[$g] = $true }
+                    }
+                    $areas[$folder] = $true
+                }
+            } else { $groups[$t] = $true }
+        }
+    }
+    # 단위 테스트가 있는 영역만 (engine/tests/Tests.cpp의 TEST_CASE 첫 인자)
+    $testAreas = @(Select-String -Path (Join-Path $root "engine\tests\Tests.cpp") -Pattern '^TEST_CASE\((\w+),' | ForEach-Object { $_.Matches[0].Groups[1].Value })
+    if ($groups["unit"] -and -not $allUnit) { $unitAreas = @($areas.Keys | Where-Object { $testAreas -contains $_ } | Sort-Object) }
+    if ($groups.Count -gt 0) { $groups["static"] = $true }
+    Write-Host ("changed: {0} file(s)" -f $files.Count)
+} elseif ($Quick) {
+    $mode = "quick"
+    foreach ($g in "static", "unit", "det") { $groups[$g] = $true }
+} else {
+    $mode = "full"
+    foreach ($g in $allGroups) { $groups[$g] = $true }
+    $detForced = $true
+}
+if ($groups["unit"] -and $null -ne $unitAreas -and $unitAreas.Count -eq 0) { $groups.Remove("unit") }
+function Selected([string]$group) { return [bool]$groups[$group] }
+$needRelease = (Selected "unit") -or (Selected "det") -or (Selected "game") -or (Selected "project") -or (Selected "export")
+$needEditor = (Selected "unit") -or (Selected "tools") -or (Selected "render") -or (Selected "editor")
 
 $release = Join-Path $root "build\Release\bin"
 $editorBin = Join-Path $root "build\Editor\bin"
@@ -23,7 +127,8 @@ $results = @()
 $step = 0
 
 # 항목 하나: $body가 $true를 돌려주면 PASS. 출력은 로그 파일로.
-function Invoke-Check([string]$name, [scriptblock]$body) {
+function Invoke-Check([string]$group, [string]$name, [scriptblock]$body) {
+    if (-not (Selected $group)) { return }
     $script:step++
     $log = Join-Path $out ("{0:D2}-{1}.log" -f $script:step, ($name -replace '[^A-Za-z0-9]+', '-'))
     $watch = [Diagnostics.Stopwatch]::StartNew()
@@ -42,7 +147,7 @@ function Invoke-Check([string]$name, [scriptblock]$body) {
     $status = if ($detail.StartsWith("SKIP")) { "SKIP" } elseif ($ok) { "PASS" } else { "FAIL" }
     $color = if ($status -eq "SKIP") { "Yellow" } elseif ($ok) { "Green" } else { "Red" }
     Write-Host ("{0,-4} {1,-34} {2,7:N1}s  {3}" -f $status, $name, $watch.Elapsed.TotalSeconds, $detail) -ForegroundColor $color
-    $script:results += [pscustomobject]@{ Name = $name; Ok = $ok; Skipped = ($status -eq "SKIP"); Seconds = $watch.Elapsed.TotalSeconds; Log = $log }
+    $script:results += [pscustomobject]@{ Group = $group; Name = $name; Ok = $ok; Skipped = ($status -eq "SKIP"); Seconds = $watch.Elapsed.TotalSeconds; Log = $log }
 }
 
 # 프로그램을 실행하고 stdout/stderr를 로그에 남긴다 (cmd가 직접 파일로 보낸다). 종료 코드를 돌려준다.
@@ -58,26 +163,55 @@ function Build([string]$log, [string]$kind) {
 
 function Has([string]$log, [string]$pattern) { return [bool](Select-String -Path $log -Pattern $pattern -Quiet) }
 
-Write-Host "MealKit check ($(if ($Quick) { 'quick' } else { 'full' })) - logs in $out"
+$picked = @($allGroups | Where-Object { Selected $_ })
+$unitText = if ((Selected "unit") -and $null -ne $unitAreas) { " (unit: $($unitAreas -join ','))" } else { "" }
+Write-Host "MealKit check ($mode): $(if ($picked.Count) { $picked -join ' ' } else { 'nothing to check' })$unitText - logs in $out"
+if ($picked.Count -eq 0) { exit 0 }
+if ($DryRun) {
+    if ((Selected "det") -and -not $detForced) { Write-Host "det runs only if the simulation key changed since the last pass" }
+    exit 0
+}
+$groups["build-release"] = $needRelease
+$groups["build-editor"] = $needEditor
 
-Invoke-Check "Editor build" { param($log) Build $log "Editor" }
-Invoke-Check "Release build" { param($log) Build $log "" }
-Invoke-Check "Unit tests (Release)" { param($log) (Run $log "$release\mealkit_tests.exe" "") -eq 0 }
-Invoke-Check "Unit tests (Editor) + DetMath bits" {
+# 결정론 키: Release 빌드의 시뮬레이션 버전(cmake/BuildInfo.cmake, 시뮬레이션에 닿는 소스 해시) + 시뮬레이션이 읽는 콘텐츠
+function Get-DetKey {
+    $parts = @()
+    foreach ($h in @(Get-ChildItem (Join-Path $root "build\Release\samples") -Recurse -Filter mealkit_build_info.h -ErrorAction SilentlyContinue | Sort-Object FullName)) {
+        $parts += "$($h.Directory.Name) " + (Select-String -Path $h.FullName -Pattern "SIM_VERSION (\w+)").Matches[0].Groups[1].Value
+    }
+    if ($parts.Count -eq 0) { return "" }
+    $content = @(@("mealkit.project", "assets\game.tuning") | ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path $_ })
+    $content += @(Get-ChildItem (Join-Path $root "assets") -Recurse -File -Include *.scene, *.glb, *.gltf, *.table -ErrorAction SilentlyContinue | ForEach-Object FullName)
+    $content += @(Get-ChildItem (Join-Path $root "samples") -Recurse -File -Filter *.rec | ForEach-Object FullName)
+    foreach ($f in ($content | Sort-Object)) { $parts += $f.Substring($root.Length + 1) + " " + (Get-FileHash $f -Algorithm SHA256).Hash }
+    $sha = [Security.Cryptography.SHA256]::Create()
+    return [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($parts -join "`n"))).Replace("-", "").Substring(0, 16)
+}
+
+Invoke-Check build-editor "Editor build" { param($log) Build $log "Editor" }
+Invoke-Check build-release "Release build" { param($log) Build $log "" }
+$unitArgs = if ($null -ne $unitAreas) { "--only $($unitAreas -join ',')" } else { "" }
+$releaseUnitLog = ""
+Invoke-Check unit "Unit tests (Release)" { param($log) $script:releaseUnitLog = $log; (Run $log "$release\mealkit_tests.exe" $unitArgs) -eq 0 }
+Invoke-Check unit "Unit tests (Editor) + DetMath bits" {
     param($log)
-    if ((Run $log "$editorBin\mealkit_tests.exe" "") -ne 0) { return $false }
-    $a = (Select-String -Path $log -Pattern "^detmath-bits (\w+)").Matches[0].Groups[1].Value
-    $b = (Select-String -Path $results[2].Log -Pattern "^detmath-bits (\w+)").Matches[0].Groups[1].Value
-    if ($a -ne $b) { return "Release $b != Editor $a" }
+    if ((Run $log "$editorBin\mealkit_tests.exe" $unitArgs) -ne 0) { return $false }
+    # detmath-bits는 det_math(core 영역) 시험이 찍는다. --only로 빠졌으면 비교하지 않는다
+    $a = @((Select-String -Path $log -Pattern "^detmath-bits (\w+)").Matches)
+    $b = if ($releaseUnitLog) { @((Select-String -Path $releaseUnitLog -Pattern "^detmath-bits (\w+)").Matches) } else { @() }
+    if ($a.Count -gt 0 -and $b.Count -gt 0 -and $a[0].Groups[1].Value -ne $b[0].Groups[1].Value) {
+        return "Release $($b[0].Groups[1].Value) != Editor $($a[0].Groups[1].Value)"
+    }
     return $true
 }
-Invoke-Check "Editor strings (ko.txt)" {
+Invoke-Check static "Editor strings (ko.txt)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_strings.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
-Invoke-Check "Project layout + notices" {
+Invoke-Check static "Project layout + notices" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layout.ps1" 2>&1
     $code = $LASTEXITCODE
@@ -85,26 +219,39 @@ Invoke-Check "Project layout + notices" {
     $output | Out-File -Encoding utf8 $log
     return $code -eq 0 -and $LASTEXITCODE -eq 0
 }
-Invoke-Check "Platform layer (OS APIs)" {
+Invoke-Check static "Platform layer (OS APIs)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_platform.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
-Invoke-Check "Engine layers (include order)" {
+Invoke-Check static "Engine layers (include order)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layers.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
 # 도구 제품군 런타임(third_party/mkaudio = 별도 저장소 MealKit-Audio)은 엔진 헤더·매크로를 쓰지 않는다
-Invoke-Check "Engine libs (no engine headers)" {
+Invoke-Check static "Engine libs (no engine headers)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_libs.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
-Invoke-Check "Determinism (mp_test 1+3, 900 ticks)" {
+# 결정론 묶음: 전체 검사·-Only det·고친 파일이 요구하면("det!") 늘, 아니면 키가 바뀌었을 때만. 키가 바뀌면 고르지 않았어도 돈다
+$detKey = if ($needRelease) { Get-DetKey } else { "" }
+$savedKey = if (Test-Path $detKeyFile) { (Get-Content $detKeyFile -Raw).Trim() } else { "" }
+if ($detKey -and -not $detForced) {
+    if ($detKey -eq $savedKey) {
+        if (Selected "det") { Write-Host "SKIP determinism group: simulation key $detKey unchanged since the last pass" -ForegroundColor Yellow }
+        $groups["det"] = $false
+    } elseif (-not (Selected "det")) {
+        Write-Host "simulation key changed ($(if ($savedKey) { $savedKey } else { 'none' }) -> $detKey): adding the determinism group" -ForegroundColor Yellow
+        $groups["det"] = $true
+    }
+}
+
+Invoke-Check det "Determinism (mp_test 1+3, 900 ticks)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 3 -Ticks 900 2>&1
     $output | Out-File -Encoding utf8 $log
@@ -112,7 +259,7 @@ Invoke-Check "Determinism (mp_test 1+3, 900 ticks)" {
 }
 
 # 헤드리스: 창 없이 같은 결정론 테스트 + 입력 기록을 다른 실행 파일(sandbox.exe --headless)로 재생해 틱별 해시가 같은지
-Invoke-Check "Headless (mp_test, record + replay)" {
+Invoke-Check det "Headless (mp_test, record + replay)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 3 -Ticks 900 -Headless 2>&1
     $output | Out-File -Encoding utf8 $log
@@ -127,7 +274,7 @@ Invoke-Check "Headless (mp_test, record + replay)" {
 
 # 저장소의 고정 입력 기록(samples/*/replays/*.rec, CI가 모든 OS에서 재생한다)이 지금 코드와 맞는가.
 # 시뮬레이션 결과를 일부러 바꿨다면 기록을 다시 만든다 (문서 저장소 "엔진 개발 > 테스트").
-Invoke-Check "Committed replays (samples/*/replays)" {
+Invoke-Check det "Committed replays (samples/*/replays)" {
     param($log)
     $recs = @(Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Filter *.rec | Where-Object { $_.Directory.Name -eq "replays" })
     if ($recs.Count -eq 0) { return "no recordings" }
@@ -139,20 +286,21 @@ Invoke-Check "Committed replays (samples/*/replays)" {
     return $true
 }
 
+# -Quick은 여기부터 뺀다 (창 900틱 결정론 항목, 고르지 않은 묶음은 어차피 건너뛴다)
 if (-not $Quick) {
-    Invoke-Check "Shadow simulation + rewind" {
+    Invoke-Check det "Shadow simulation + rewind" {
         param($log)
         Run $log $game "--bot --mute --seed 7 --exit-tick 900 --shadow --rewind-test --vsync 0 --size 640 360 --hash-log `"$out\window-hashes.txt`"" | Out-Null
         return (Has $log "^SHADOW ok") -and (Has $log "^REWIND ok")
     }
-    Invoke-Check "Headless = window (900 tick hashes)" {
+    Invoke-Check det "Headless = window (900 tick hashes)" {
         param($log)
         $a = Join-Path $out "headless-hashes.txt"
         $b = Join-Path $out "window-hashes.txt"
         if (-not (Test-Path $a) -or -not (Test-Path $b)) { return "hash log missing" }
         return (Get-FileHash $a).Hash -eq (Get-FileHash $b).Hash
     }
-    Invoke-Check "Game capture" {
+    Invoke-Check game "Game capture" {
         param($log)
         $png = Join-Path $out "game.png"
         $code = Run $log $game "--bot --mute --seed 7 --exit-tick 300 --capture `"$png`" 240"
@@ -160,7 +308,7 @@ if (-not $Quick) {
     }
     # 화면 흐름: 타이틀 → 메뉴 → 혼자 하기 → 로비 → 시작 → 매치 (위젯을 이름으로 누른다, 프레임 수로 끝)
     # GPU 캡처 (ROADMAP "GPU 캡처 버튼과 에디터 보기 모드"): RenderDoc이 있으면 --gpu-capture-at으로 한 프레임을 캡처해 .rdc가 생기는지
-    Invoke-Check "GPU capture (RenderDoc)" {
+    Invoke-Check game "GPU capture (RenderDoc)" {
         param($log)
         if (-not (Test-Path "$env:ProgramFiles\RenderDoc\renderdoc.dll")) { return "SKIP: RenderDoc not installed" }
         $dir = Join-Path $env:LOCALAPPDATA "MealKit\gpu-captures"
@@ -170,14 +318,14 @@ if (-not $Quick) {
         if ($after.Count -gt $before) { Remove-Item ($after | Sort-Object LastWriteTime | Select-Object -Last 1).FullName } # 시험 캡처는 지운다
         return $code -eq 0 -and $after.Count -gt $before -and (Has $log "RenderDoc loaded")
     }
-    Invoke-Check "Game screen flow (title to match)" {
+    Invoke-Check game "Game screen flow (title to match)" {
         param($log)
         $png = Join-Path $out "flow.png"
         $code = Run $log $game "--mute --frames 240 --ui-press 20:start,50:solo,90:start --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and (Has $log "Match 1 started") -and (Has $log "World ready") -and -not (Has $log "--ui-press: no widget")
     }
     # 라이브 연결 (도구 사이 약속, mealkit/live/Server.h): 게임의 build\live\ 접속 정보로 hello + stats 이벤트, 끝나면 접속 정보 파일이 없어진다
-    Invoke-Check "Live connection (game)" {
+    Invoke-Check game "Live connection (game)" {
         param($log)
         $p = Start-Process -FilePath $game -ArgumentList "--bot --mute --vsync 0 --size 640 360 --exit-tick 600" -PassThru -WindowStyle Hidden
         try {
@@ -188,7 +336,7 @@ if (-not $Quick) {
         return $code -eq 0 -and -not $left -and (Has $log "^event stats: ")
     }
     # 도구 바로가기 (editor/Tools.h): 매니페스트를 찾고, 약속 버전이 다른 도구를 알아본다
-    Invoke-Check "Editor tool discovery (manifest)" {
+    Invoke-Check tools "Editor tool discovery (manifest)" {
         param($log)
         $dir = Join-Path $out "tools"
         Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
@@ -200,7 +348,7 @@ if (-not $Quick) {
     }
     # Penpot 플러그인 (ROADMAP "게임 화면 UI 2부"): 변환기 시험(Node.js가 있을 때), Penpot에서 내보낸 화면의 배치 = Penpot 상자.
     # 비교는 영어 표로 한다 (Penpot 원본 글자가 영어라 글자 노드도 같은 글자를 그린다)
-    Invoke-Check "Penpot plugin (converter tests)" {
+    Invoke-Check tools "Penpot plugin (converter tests)" {
         param($log)
         if (-not (Get-Command node -ErrorAction SilentlyContinue)) { return "SKIP: no Node.js" }
         $code = Run $log "node" "--test `"$root\tools\penpot-plugin\test\convert.test.ts`""
@@ -208,7 +356,7 @@ if (-not $Quick) {
     }
     # Blender 애드온 (ROADMAP "Blender 내보내기 애드온"): Blender LTS를 창 없이 돌려 검사·내보내기 시험 (없으면 SKIP).
     # 지원 범위 스키마가 엔진과 같은지는 단위 테스트 asset_schema가 본다
-    Invoke-Check "Blender add-on export" {
+    Invoke-Check tools "Blender add-on export" {
         param($log)
         $blender = $env:MEALKIT_BLENDER
         if (-not $blender) { $blender = "$env:ProgramFiles\Blender Foundation\Blender 5.2\blender.exe" }
@@ -220,14 +368,14 @@ if (-not $Quick) {
         & $blender -b --factory-startup --python "$root\tools\blender-addon\test\test_export.py" -- $dir 2>&1 | Out-File $log -Encoding utf8
         return $LASTEXITCODE -eq 0 -and (Has $log "BLENDER ADDON ok")
     }
-    Invoke-Check "Penpot screens = engine layout" {
+    Invoke-Check tools "Penpot screens = engine layout" {
         param($log)
         $code = Run $log $editor "--project `"$root`" --ui-check --lang en"
         return $code -eq 0 -and (Has $log "UI-CHECK .* -> ok") -and -not (Has $log "-> FAIL")
     }
     # 보조: Penpot이 그린 보드(art/ui/preview, 반 크기)와 엔진이 그린 같은 화면. 글자 래스터·안티에일리어싱이 달라 느슨하게
     # (채널 차이 48 넘는 픽셀 1% 이하). 노드가 빠지거나 크게 어긋나는 것을 잡는다
-    Invoke-Check "Penpot screens = engine pixels" {
+    Invoke-Check tools "Penpot screens = engine pixels" {
         param($log)
         $previews = @(Get-ChildItem (Join-Path $root "art\ui\preview") -Filter *.png -ErrorAction SilentlyContinue)
         if ($previews.Count -eq 0) { return "SKIP: no art/ui/preview images" }
@@ -242,14 +390,14 @@ if (-not $Quick) {
         }
         return $true
     }
-    Invoke-Check "Editor capture (edit mode)" {
+    Invoke-Check editor "Editor capture (edit mode)" {
         param($log)
         $png = Join-Path $out "editor.png"
         $code = Run $log $editor "--project `"$root`" --frames 60 --select 25 --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]")
     }
     # 룩데브 창 (ROADMAP "텍스처와 머티리얼 3부"): 오프스크린 대상에 그려 창에 띄운다. 디버그 레이어 메시지 없이
-    Invoke-Check "Editor look dev (offscreen, DX12 debug layer)" {
+    Invoke-Check render "Editor look dev (offscreen, DX12 debug layer)" {
         param($log)
         $png = Join-Path $out "editor-lookdev.png"
         $code = Run $log $editor "--project `"$root`" assets\scenes\styles.scene --frames 60 --select 3 --lookdev --debug --capture `"$png`""
@@ -276,8 +424,8 @@ if (-not $Quick) {
         if ($problems.Count -gt 0) { return ($problems -join "; ") }
         return $true
     }
-    Invoke-Check "Graphics regression (golden images)" { param($log) Compare-Golden $log $editor "" }
-    Invoke-Check "Editor play (solo, shadow)" {
+    Invoke-Check render "Graphics regression (golden images)" { param($log) Compare-Golden $log $editor "" }
+    Invoke-Check editor "Editor play (solo, shadow)" {
         param($log)
         $png = Join-Path $out "editor-play.png"
         $code = Run $log $editor "--project `"$root`" --frames 180 --play --bot --capture `"$png`""
@@ -287,8 +435,8 @@ if (-not $Quick) {
     # 에디터 편집 화면은 실행마다 같다(게임 화면은 시간에 따라 바뀐다). 상태 표시줄(fps)은 뺀다.
     $vkEditorBin = Join-Path $root "build\VulkanEditor\bin"
     $vkEditor = Join-Path $vkEditorBin "MealKitEditor.exe"
-    Invoke-Check "Vulkan editor build" { param($log) Build $log "VulkanEditor" }
-    Invoke-Check "Vulkan = DX12 (editor capture)" {
+    Invoke-Check render "Vulkan editor build" { param($log) Build $log "VulkanEditor" }
+    Invoke-Check render "Vulkan = DX12 (editor capture)" {
         param($log)
         # 창 배치가 같아야 한다: DX12 에디터의 창 배치 파일을 쓴다
         $ini = Join-Path $editorBin "mealkit_editor.ini"
@@ -303,8 +451,8 @@ if (-not $Quick) {
         if ($LASTEXITCODE -ne 0) { return ($output | Select-Object -First 1) }
         return $true
     }
-    Invoke-Check "Graphics regression (Vulkan)" { param($log) Compare-Golden $log $vkEditor "-vulkan" }
-    Invoke-Check "Vulkan validation layer (play)" {
+    Invoke-Check render "Graphics regression (Vulkan)" { param($log) Compare-Golden $log $vkEditor "-vulkan" }
+    Invoke-Check render "Vulkan validation layer (play)" {
         param($log)
         $png = Join-Path $out "vulkan-play.png"
         $code = Run $log $vkEditor "--project `"$root`" --frames 180 --play --bot --debug --capture `"$png`""
@@ -314,7 +462,7 @@ if (-not $Quick) {
         if ($issues.Count -gt 0) { return "$($issues.Count) validation message(s)" }
         return $true
     }
-    Invoke-Check "Vulkan validation layer (look dev)" {
+    Invoke-Check render "Vulkan validation layer (look dev)" {
         param($log)
         $png = Join-Path $out "vulkan-lookdev.png"
         $code = Run $log $vkEditor "--project `"$root`" assets\scenes\styles.scene --frames 60 --select 3 --lookdev --debug --capture `"$png`""
@@ -324,7 +472,7 @@ if (-not $Quick) {
         if ($issues.Count -gt 0) { return "$($issues.Count) validation message(s)" }
         return $true
     }
-    Invoke-Check "Editor play (3 players)" {
+    Invoke-Check editor "Editor play (3 players)" {
         param($log)
         $png = Join-Path $out "editor-3p.png"
         $code = Run $log $editor "--project `"$root`" --frames 400 --play --players 3 --bot --capture `"$png`""
@@ -334,12 +482,12 @@ if (-not $Quick) {
     $bad = Join-Path $root "samples\sandbox\sim\ZzCheckFailure.cpp"
     try {
         Set-Content -Path $bad -Value "// tools/check.ps1이 잠깐 만드는 파일 (SimCheck 실패 시험)`r`n#include <random>`r`n" -Encoding UTF8
-        Invoke-Check "SimCheck stops a bad build" {
+        Invoke-Check editor "SimCheck stops a bad build" {
             param($log)
             $ok = -not (Build $log "Editor")
             return $ok -and (Has $log "SIM002")
         }
-        Invoke-Check "Editor keeps the old DLL on failure" {
+        Invoke-Check editor "Editor keeps the old DLL on failure" {
             param($log)
             Run $log $editor "--project `"$root`" --build-game --frames 30" | Out-Null
             return (Has $log "Build failed") -and (Has $log "Game module '.*' loaded")
@@ -347,12 +495,12 @@ if (-not $Quick) {
     } finally {
         Remove-Item $bad -Force -ErrorAction SilentlyContinue
     }
-    Invoke-Check "Game code rebuild + load" {
+    Invoke-Check editor "Game code rebuild + load" {
         param($log)
         Run $log $editor "--project `"$root`" --build-game --frames 30" | Out-Null
         return (Has $log "Game code build finished") -and (Has $log "Game module '.*' loaded") -and -not (Has $log "Build failed")
     }
-    Invoke-Check "New project + upgrade" {
+    Invoke-Check project "New project + upgrade" {
         param($log)
         $projects = Join-Path $env:TEMP "mealkit-check-projects" # 엔진 폴더 밖이어야 한다
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
@@ -376,7 +524,7 @@ if (-not $Quick) {
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
         return $ok
     }
-    Invoke-Check "Export build" {
+    Invoke-Check export "Export build" {
         param($log)
         $exe = Join-Path $root "export\sandbox\sandbox.exe"
         if (-not ((Build $log "Export") -and (Test-Path $exe))) { return $false }
@@ -388,6 +536,12 @@ if (-not $Quick) {
 }
 
 $failed = @($results | Where-Object { -not $_.Ok })
+# 결정론 묶음이 모두 통과했으면 키를 남긴다 (다음 검사는 같은 키면 건너뛴다)
+$detResults = @($results | Where-Object { $_.Group -eq "det" })
+if ($detKey -and $detResults.Count -gt 0 -and @($detResults | Where-Object { -not $_.Ok }).Count -eq 0) {
+    New-Item -ItemType Directory -Force $stateDir | Out-Null
+    Set-Content -Path $detKeyFile -Value $detKey -Encoding ASCII
+}
 $skipped = @($results | Where-Object { $_.Skipped })
 $total = ($results | Measure-Object -Property Seconds -Sum).Sum
 Write-Host ("{0} passed, {1} skipped, {2} failed, {3:N0}s total" -f ($results.Count - $failed.Count - $skipped.Count), $skipped.Count, $failed.Count, $total) `

@@ -1,5 +1,6 @@
 // 엔진 단위 테스트 (mealkit_tests.exe). 엔진 저장소 빌드에만 있다. tools\check.ps1이 Release와 Editor 빌드에서 돌린다.
 //   mealkit_tests.exe          모든 테스트, 끝에 PASS 또는 FAILED
+//   mealkit_tests.exe --only net,physics   그 영역(엔진 폴더 이름)의 테스트만
 //   출력의 "detmath-bits <hash>" 줄은 결정론 수학 결과 비트의 해시다. 빌드 구성이 달라도 같아야 한다.
 #include "mealkit/core/DetMath.h"
 #include "mealkit/core/Hash.h"
@@ -61,7 +62,7 @@ u32 countIter(const sim::Pool<Item>& p) {
     return n;
 }
 
-TEST_CASE(pool) {
+TEST_CASE(sim, pool) {
     using sim::Id;
     using sim::Pool;
     Pool<Item> p;
@@ -123,7 +124,7 @@ TEST_CASE(pool) {
     TEST_CHECK(x.create().slot == y.create().slot);
 }
 
-TEST_CASE(tick_timer_and_events) {
+TEST_CASE(sim, tick_timer_and_events) {
     sim::TickTimer t;
     TEST_CHECK(t.ready(0));
     t.start(10, 15);
@@ -137,7 +138,7 @@ TEST_CASE(tick_timer_and_events) {
     TEST_CHECK(ev.size() == 0 && ev.begin() == ev.end());
 }
 
-TEST_CASE(det_math) {
+TEST_CASE(core, det_math) {
     f32 worstSin = 0.0f, worstCos = 0.0f, worstAtan = 0.0f;
     Hasher bits;
     for (i32 i = -200000; i <= 200000; ++i) {
@@ -193,7 +194,7 @@ MEALKIT_OBJECT(TestPad) {
     MEALKIT_FIELD(f32, power, 12.0f, "힘");
 };
 
-TEST_CASE(reflect) {
+TEST_CASE(core, reflect) {
     using reflect::Kind;
     const reflect::TypeInfo& t = reflect::typeOf<Outer>();
     TEST_CHECK(std::string(t.name) == "Outer");
@@ -275,7 +276,7 @@ MEALKIT_STRUCT(HoldsNamed) {
 static_assert(reflect::hasStringField<Named>() && reflect::hasStringField<HoldsNamed>());
 static_assert(!reflect::hasStringField<Inner>() && !reflect::hasStringField<Outer>());
 
-TEST_CASE(reflect_string) {
+TEST_CASE(core, reflect_string) {
     const reflect::TypeInfo& t = reflect::typeOf<Named>();
     TEST_CHECK(t.fields[0].value->kind == reflect::Kind::String);
     Named a;
@@ -310,7 +311,7 @@ MEALKIT_STRUCT(Timed) {
     MEALKIT_FIELD(Color, tint, (Color::rgb(255, 128, 0)), "색");
 };
 
-TEST_CASE(reflect_ticks_and_color) {
+TEST_CASE(core, reflect_ticks_and_color) {
     const reflect::TypeInfo& t = reflect::typeOf<Timed>();
     TEST_CHECK(t.fields[0].value->kind == reflect::Kind::Ticks && t.fields[1].value->kind == reflect::Kind::Color);
     TEST_CHECK(reflect::tickRate() == 30);
@@ -346,7 +347,7 @@ MEALKIT_STRUCT(WithEnum) {
     MEALKIT_FIELD(u8, plain, 3, "그냥 수");
 };
 
-TEST_CASE(reflect_enum) {
+TEST_CASE(core, reflect_enum) {
     const reflect::TypeInfo& t = reflect::typeOf<WithEnum>();
     TEST_CHECK(t.fields[0].value->enumNames.size() == 3 && t.fields[0].value->enumNames[2] == "Capsule");
     TEST_CHECK(t.fields[1].value->enumNames.empty());
@@ -363,7 +364,7 @@ TEST_CASE(reflect_enum) {
     TEST_CHECK(reflect::hashOf(a) == reflect::hashOf(b)); // 해시는 정수 그대로
 }
 
-TEST_CASE(input_actions) {
+TEST_CASE(input, input_actions) {
     // 임시 프로젝트 폴더의 assets/input.bindings
     const std::string oldRoot = projectRoot();
     const std::string dir = executableDirectory() + "/test_input_actions";
@@ -457,7 +458,7 @@ MEALKIT_STRUCT(TestItem) {
 
 static_assert(reflect::hasStringField<TestItem>()); // RowRef에는 id 문자열이 있어 시뮬레이션 상태에 넣지 않는다
 
-TEST_CASE(tables) {
+TEST_CASE(data, tables) {
     const std::string dir = executableDirectory();
     // 파일: 쓰고 읽으면 같다. 겹친 id·잘못된 id는 버린다
     data::TableText text;
@@ -520,7 +521,7 @@ TEST_CASE(tables) {
     TEST_CHECK(reflect::loadStruct(reflect::typeOf<TestItem>(), &c, r) && c.kind.id == "heavy" && c.kind.index == 5);
 }
 
-TEST_CASE(input_record) {
+TEST_CASE(game, input_record) {
     const std::string path = executableDirectory() + "/test_inputs.rec";
     const game::MatchInfo match{0x0123456789ABCDEFull, 3, 2000};
     std::vector<net::TickInputs> inputs(5);
@@ -559,7 +560,7 @@ MEALKIT_STRUCT(TestSaveV2) {
     MEALKIT_FIELD(f32, extra, 2.5f, "새 필드"); // 예전 파일에는 없다 → 기본값
 };
 
-TEST_CASE(save_files) {
+TEST_CASE(game, save_files) {
     const std::string folder = executableDirectory() + "/test_saves";
     removeFile(game::savePath(folder, "progress"));
     TestSaveV1 v1;
@@ -579,7 +580,7 @@ TEST_CASE(save_files) {
     TEST_CHECK(!game::writeSave(v1, "", "progress", 1)); // 사용자 폴더가 없으면(자동 실행) 저장하지 않는다
 }
 
-TEST_CASE(strings_table) {
+TEST_CASE(loc, strings_table) {
     const std::string oldRoot = projectRoot();
     const std::string dir = executableDirectory() + "/test_strings";
     createDirectories(dir + "/assets/strings");
@@ -618,7 +619,7 @@ MEALKIT_VIEWMODEL(TestUiVm) {
     MEALKIT_LIST(TestRowVm, rows, 4, "줄");
 };
 
-TEST_CASE(ui_layout) {
+TEST_CASE(ui, ui_layout) {
     const std::string oldRoot = projectRoot();
     const std::string dir = executableDirectory() + "/test_ui";
     createDirectories(dir + "/assets/ui");
@@ -719,7 +720,7 @@ TEST_CASE(ui_layout) {
     setProjectRoot(oldRoot);
 }
 // Penpot 플러그인 변환기의 기대 파일(tools/penpot-plugin/test/expected, node --test가 만든다)을 엔진 파서가 오류 없이 읽는다
-TEST_CASE(penpot_expected) {
+TEST_CASE(ui, penpot_expected) {
     const std::string dir = std::string(MEALKIT_ENGINE_DIR) + "/tools/penpot-plugin/test/expected/";
     ui::Theme theme;
     std::string themeText;
@@ -736,7 +737,7 @@ TEST_CASE(penpot_expected) {
     TEST_CHECK(doc.nodes[0].id == "id-pause");
 }
 
-TEST_CASE(settings_service) {
+TEST_CASE(settings, settings_service) {
     const std::string oldRoot = projectRoot();
     const std::string dir = executableDirectory() + "/test_settings";
     createDirectories(dir + "/assets/ui");
@@ -778,7 +779,7 @@ TEST_CASE(settings_service) {
 }
 
 // Blender 애드온의 지원 범위 스키마가 엔진 불러오기와 같다. 다르면 mealkit_tests --write-asset-schema로 파일을 다시 쓴다
-TEST_CASE(asset_schema) {
+TEST_CASE(asset, asset_schema) {
     const std::string path = std::string(MEALKIT_ENGINE_DIR) + "/tools/blender-addon/mealkit/schema.json";
     const std::string expected = asset::modelSchemaJson();
     std::string text;
@@ -788,7 +789,7 @@ TEST_CASE(asset_schema) {
 }
 
 // 스타일 프리셋 머티리얼 기능: glTF extras(Blender 커스텀 속성)의 mealkit_ 키 → 머티리얼 비트와 값, 틀린 키·값은 문제로
-TEST_CASE(material_extras) {
+TEST_CASE(asset, material_extras) {
     render::MaterialData m;
     std::vector<std::string> problems;
     asset::applyMaterialExtras(R"({"mealkit_outline": 0.05, "mealkit_outlineColor": [0.1, 0.2, 0.3], "other": {"a": [1, "x"]},
@@ -814,7 +815,7 @@ TEST_CASE(material_extras) {
 }
 
 // 하늘 HDRI 굽기: RGB9E5 왕복, 큐브 면 방향, 고른 밝기 1의 하늘은 환경광·반사·하늘이 모두 1
-TEST_CASE(environment_bake) {
+TEST_CASE(asset, environment_bake) {
     for (const f32 v : {0.0f, 0.001f, 0.5f, 1.0f, 3.7f, 250.0f}) {
         f32 back[3];
         asset::unpackRgb9e5(asset::packRgb9e5(v, v * 0.5f, 0.0f), back);
@@ -844,7 +845,7 @@ TEST_CASE(environment_bake) {
 }
 
 // 텍스처 캐시의 밉맵: 크기가 반씩 줄고, sRGB는 선형으로 평균하고, 법선은 다시 길이 1. half 변환
-TEST_CASE(texture_mips) {
+TEST_CASE(asset, texture_mips) {
     std::vector<u8> rgba(4 * 2 * 4); // 4x2: 왼쪽 반 흰색, 오른쪽 반 검정
     for (u32 y = 0; y < 2; ++y)
         for (u32 x = 0; x < 4; ++x)
@@ -862,7 +863,7 @@ TEST_CASE(texture_mips) {
 }
 
 // 에셋 예산: 종류는 models/ 아래 첫 폴더, 넘은 항목만 문장으로
-TEST_CASE(asset_budget) {
+TEST_CASE(asset, asset_budget) {
     TEST_CHECK(asset::modelKind("models/characters/hero.glb") == asset::ModelKind::Character);
     TEST_CHECK(asset::modelKind("models/environment/cliff.glb") == asset::ModelKind::Environment);
     TEST_CHECK(asset::modelKind("models/tree.glb") == asset::ModelKind::Prop);
@@ -877,7 +878,7 @@ TEST_CASE(asset_budget) {
 }
 
 // 프러스텀 컬링: 카메라 (0,0,-10)이 원점을 본다 (reversed-Z, 가까운 면 0.1, 먼 면 100)
-TEST_CASE(frustum_culling) {
+TEST_CASE(render, frustum_culling) {
     const Mat4 vp = lookAtLH({0, 0, -10}, {0, 0, 0}, {0, 1, 0}) * perspectiveReversedZ(1.0f, 1.0f, 0.1f, 100.0f);
     const render::Frustum f = render::Frustum::fromViewProj(vp);
     TEST_CHECK(f.count == 6);
@@ -893,7 +894,7 @@ TEST_CASE(frustum_culling) {
 }
 
 // 성능 숫자: 보고 주기마다 평균·최악 프레임, 없는 출처는 글자에서 빠진다
-TEST_CASE(frame_stats) {
+TEST_CASE(game, frame_stats) {
     game::FrameStats perf(0.25);
     TEST_CHECK(!perf.update(0.1, {}) && !perf.update(0.1, {}));
     TEST_CHECK(perf.update(0.1, {})); // 0.3초: 주기 끝
@@ -919,7 +920,7 @@ TEST_CASE(frame_stats) {
 }
 
 // 라이브 연결 (mealkit/live/Server.h): 접속 정보 파일, 토큰 경로, Origin, 서비스 경로 (소켓 왕복은 check.ps1의 live_probe)
-TEST_CASE(live_server) {
+TEST_CASE(live, live_server) {
     const std::string project = executableDirectory() + "/live_test";
     live::Server server;
     live::ServerConfig c;
@@ -987,7 +988,7 @@ struct CommandLog {
     }
 };
 
-TEST_CASE(command_channel) {
+TEST_CASE(net, command_channel) {
     { // 혼자: 보낸 명령은 다음에 확정되는 틱에, 보낸 순서로 들어간다
         net::LockstepSession s;
         TEST_CHECK(s.startOffline(1, 0));
@@ -1100,7 +1101,7 @@ TEST_CASE(command_channel) {
 }
 
 // 화면 흐름의 세션: 로비 이름·준비·로드아웃, 채팅 중계, 매치 → 로비 → 두 번째 매치, LAN 방 알림 (UDP 루프백)
-TEST_CASE(lobby_chat_rematch) {
+TEST_CASE(net, lobby_chat_rematch) {
     TEST_CHECK(net::clampUtf8("abc", 2) == "ab");
     TEST_CHECK(net::clampUtf8("\xEA\xB0\x80\xEA\xB0\x80", 4) == "\xEA\xB0\x80"); // 한글 한 글자(3바이트) 중간에서 자르지 않는다
 
@@ -1193,7 +1194,7 @@ TEST_CASE(lobby_chat_rematch) {
 }
 
 // 네트워크 상태 흉내: 지연·흔들림·손실이 있어도 락스텝은 같은 입력으로 끝까지 간다 (재전송·중복 전송 길)
-TEST_CASE(net_conditions) {
+TEST_CASE(net, net_conditions) {
     constexpr u16 kPort = 27935;
     net::LockstepSession host, client;
     const net::NetConditions bad{60.0f, 30.0f, 15.0f};
@@ -1250,7 +1251,7 @@ TEST_CASE(net_conditions) {
 }
 
 // 입력 지연 바꾸기: 매치 중에 늘리고 줄여도 두 피어가 같은 틱부터 바꾸고 같은 입력으로 끝까지 간다 (빈 틱 채우기, 겹친 틱 건너뛰기)
-TEST_CASE(input_delay_change) {
+TEST_CASE(net, input_delay_change) {
     net::AutoDelay a;
     a.tickMs = 1000.0f / 30.0f;
     a.minTicks = 2;
@@ -1308,7 +1309,7 @@ TEST_CASE(input_delay_change) {
 }
 
 // 접속 거부 이유: 시뮬레이션 버전이 다르면 버전 (방장의 게임 버전과 함께), 게임 데이터가 다르면 다른 구성
-TEST_CASE(join_reject_reasons) {
+TEST_CASE(net, join_reject_reasons) {
     constexpr u16 kPort = 27939;
     net::Address address;
     net::startup();
@@ -1346,7 +1347,7 @@ TEST_CASE(join_reject_reasons) {
     TEST_CHECK(r.reason == net::RejectReason::None); // 같으면 들어간다
 }
 
-TEST_CASE(project_file) {
+TEST_CASE(game, project_file) {
     const std::string path = executableDirectory() + "\\test.project";
     // 예전 형식(키=값)과 새 형식(경로 값)이 섞여 있어도 읽는다
     TEST_CHECK(writeTextFile(path, "# header line\r\nname=Old\r\nengine = D:\\My Engine\r\n"
@@ -1377,7 +1378,7 @@ TEST_CASE(project_file) {
 }
 
 // 형식 줄 "@format <종류> <N>" (mealkit/core/TextFormat.h, 도구 사이 약속)
-TEST_CASE(text_format) {
+TEST_CASE(core, text_format) {
     TEST_CHECK(text::formatLine(text::kTable) == "@format table 1");
     u32 version = 0;
     TEST_CHECK(!text::readFormatLine("row a", text::kTable, "t", version) && version == 0);
@@ -1441,7 +1442,7 @@ std::vector<u64> runPhysics(physics::PhysicsWorld& w, std::vector<physics::BodyI
     return hashes;
 }
 
-TEST_CASE(physics_snapshot) {
+TEST_CASE(physics, physics_snapshot) {
     physics::PhysicsWorld w;
     w.init(1024, 2);
     w.setGravity({0.0f, -20.0f, 0.0f});
@@ -1502,7 +1503,7 @@ std::vector<physics::ContactEvent> runContacts(u32 threads, u64& hash) {
     return all;
 }
 
-TEST_CASE(physics_contact_events) {
+TEST_CASE(physics, physics_contact_events) {
     u64 hashOne = 0, hashFour = 0;
     const std::vector<physics::ContactEvent> one = runContacts(1, hashOne);
     const std::vector<physics::ContactEvent> four = runContacts(4, hashFour);
@@ -1517,7 +1518,7 @@ bool near(Vec3 a, Vec3 b) {
     return std::fabs(a.x - b.x) < 1e-4f && std::fabs(a.y - b.y) < 1e-4f && std::fabs(a.z - b.z) < 1e-4f;
 }
 
-TEST_CASE(scene_hierarchy) {
+TEST_CASE(scene, scene_hierarchy) {
     scene::Scene s;
     s.entities.reserve(8); // add()가 돌려준 참조를 계속 쓴다
     scene::Entity& parent = s.add(scene::kTypeSolid, "parent");
@@ -1623,7 +1624,7 @@ void runFake(game::Simulation<FakeWorld>& sim, net::LockstepSession& session, u3
     TEST_CHECK(events == sim.nextTick() - before); // 틱마다 이벤트가 화면 쪽으로 넘어간다
 }
 
-TEST_CASE(simulation_shadow_and_rewind) {
+TEST_CASE(game, simulation_shadow_and_rewind) {
     { // 정상: 그림자 시뮬레이션이 조용하고, 되감아 다시 돌린 결과가 기록과 같다
         net::LockstepSession session;
         session.startOffline(1, 0);
@@ -1694,9 +1695,8 @@ int main(int argc, char** argv) {
 #if MEALKIT_TEST_UI
     if (argc > 1 && std::string(argv[1]) == "--write-asset-schema") // Blender 애드온의 schema.json (asset_schema 시험)
         return writeTextFile(std::string(MEALKIT_ENGINE_DIR) + "/tools/blender-addon/mealkit/schema.json", asset::modelSchemaJson()) ? 0 : 1;
-#else
-    (void)argc;
-    (void)argv;
 #endif
-    return test::runAll();
+    std::string only;
+    if (argc > 2 && std::string(argv[1]) == "--only") only = argv[2];
+    return test::runAll(only);
 }

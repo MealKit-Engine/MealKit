@@ -5,6 +5,14 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### 개발 도구: 고친 것에 맞는 검사만 (2026-10-26, 로드맵 밖)
+- **왜**: 검사가 전체·`-Quick` 둘뿐이라 오디오·문서만 고쳐도 멀티플레이 결정론 테스트(창 4개 900틱, 그림자·되감기)까지 돌았다.
+- **check.ps1 묶음**: 항목마다 묶음(static·unit·det·game·tools·render·editor·project·export)을 붙이고, 고른 묶음에 필요한 빌드(Release·Editor)만 한다. `-Only <묶음,...>`, `-Changed`(git 작업 트리 + `-Base <커밋>`, 위쪽 `$pathRules`·`$folderGroups` 표로 경로 → 묶음, 규칙에 없는 경로는 전체), `-DryRun`.
+- **결정론 키**: Release 빌드의 시뮬레이션 버전(`mealkit_build_info.h`) + `mealkit.project`·`game.tuning`·씬·모델·표·리플레이 해시. 전체 검증·`-Only det`·"det!" 경로(`samples/*/sim`, 리플레이, `game/`, mp_test 스크립트)가 아니면 마지막 통과 키(`build\check-state\det.key`)와 같을 때 결정론 묶음을 건너뛰고, 다르면 고르지 않았어도 돌린다. 결정론 묶음이 모두 통과하면 키를 남긴다.
+- **단위 테스트 영역**: `TEST_CASE(영역, 이름)`(영역 = 엔진 폴더), `mealkit_tests --only net,physics`(끝에 `ran N of M`). `-Changed`는 고친 폴더 중 시험이 있는 영역만, core·platform·`engine/tests`는 전부. `detmath-bits` 비교는 두 빌드 모두 찍었을 때만.
+- **CLAUDE.md**: 루트는 작업 방식·빌드·"고친 것 → 돌릴 검사" 표·절대 규칙만 남기고, 구조 메모는 폴더별 CLAUDE.md(`engine/src/mealkit/`, `game/`, `editor/`, `net/`, `render/`, `ui/`, `audio/`, `samples/sandbox/`)로 옮겼다(정점 36바이트, 게임 폴더 경로 고침).
+- **시험**: `-Changed`(이 변경: static·unit, 처음엔 키가 없어 결정론 묶음 추가 → 통과 후 키 저장, 108초), 이어서 `-Quick`이 결정론 묶음을 건너뜀(26초), `-Only static`. 문서 저장소 `engine_dev/testing` 영어·한국어.
+
 ### [x] 하늘 HDRI와 환경광 (완료 2026-10-26)
 - **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 하늘 HDRI): 큐브맵, CPU 굽기 + 캐시, RGB9E5, Poly Haven CC0 1k 예제.
 - **RHI**: `Format::Rgb9e5`(DX12 `R9G9B9E5_SHAREDEXP`, Vulkan `E5B9G9R9_UFLOAT_PACK32`), `TextureInit::cube`(면 여섯 × 밉, DX12 하위 자원·`TEXTURECUBE` SRV, Vulkan `CUBE_COMPATIBLE` + 큐브 뷰), `TextureCube g_cubes[]`(DX12 루트 서명에 space3 표 = 텍스처와 같은 힙 칸, Vulkan 바인딩 4 = 텍스처와 같은 번호, 풀 크기 2배).
