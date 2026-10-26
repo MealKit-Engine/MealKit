@@ -5,6 +5,13 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### 허브 앱 MealKit Manager 1부 (2026-10-27, 로드맵 밖)
+- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-27): 프로젝트 관리자를 별도 저장소 `D:\MealKit-Engine\MealKit-Manager`(MIT, v0.1.0)로. 엔진을 링크하지 않는 SDL3 + SDL_Renderer + Dear ImGui exe(약 3.3 MB, MealKit-Audio와 같은 SDL·ImGui 버전).
+- **Manager 0.1.0**: [프로젝트](최근·즐겨찾기 목록은 에디터와 같은 파일, 검색, 새 프로젝트 = 엔진 `new_project.ps1`, 가져오기, 에디터에서 열기 = 그 프로젝트 `engine` 줄의 `build\Editor\bin\MealKitEditor.exe --project`, 엔진 버전이 다르면 업그레이드 = `upgrade_project.ps1`, 폴더 보기, 목록에서 빼기) · [엔진](프로젝트가 가리키는 엔진 + `engines.txt` + `--engine`, 에디터가 없으면 `build.bat Editor`) · [도구](`mealkit-tool.txt`, 고른 프로젝트로 연다). 스크립트는 콘솔 창 없이 배경 스레드에서 돌고 실패하면 출력을 보여 준다. 글자는 에디터 설정의 `language`(한국어 기본). 창 없는 명령 `--list`·`--new <이름> --path <위치>`·`--open <폴더>`, 화면 시험 `--frames N --capture`.
+- **에디터**: `--project` 없이 열면 `%LOCALAPPDATA%\MealKit\manager\MealKitManager.exe --engine <이 엔진>`을 띄우고 끝난다(`startManager`). 설치하지 않았거나 `--frames`(자동 시험)·`--builtin-manager`면 예전처럼 에디터 안 관리자.
+- **시험**: Manager 저장소 `mkmanager_tests`(가짜 사용자 폴더·엔진·프로젝트·도구, BOM, 즐겨찾기 순서, 업그레이드 판단, 목록 고치기, App.cpp의 tr 글자가 모두 한국어 표에 있는지), `--new`로 새 프로젝트를 만들고 `--list`에 나오는지, `--open`이 엔진 에디터를 `--project`로 띄우는지, 에디터를 프로젝트 없이 열면 Manager가 뜨는지.
+- **남은 것**: 이름 바꾸기·폴더 옮기기·아이콘을 Manager로 옮긴 뒤 `editor/ProjectManager.cpp` 지우기, 엔진 버전 내려받기·설치(지금은 폴더 더하기만), 도구 설치·업데이트, GitHub 저장소와 CI(사용자가 만든다).
+
 ### 개발 도구: 고친 것에 맞는 검사만 (2026-10-26, 로드맵 밖)
 - **왜**: 검사가 전체·`-Quick` 둘뿐이라 오디오·문서만 고쳐도 멀티플레이 결정론 테스트(창 4개 900틱, 그림자·되감기)까지 돌았다.
 - **check.ps1 묶음**: 항목마다 묶음(static·unit·det·game·tools·render·editor·project·export)을 붙이고, 고른 묶음에 필요한 빌드(Release·Editor)만 한다. `-Only <묶음,...>`, `-Changed`(git 작업 트리 + `-Base <커밋>`, 위쪽 `$pathRules`·`$folderGroups` 표로 경로 → 묶음, 규칙에 없는 경로는 전체), `-DryRun`.
