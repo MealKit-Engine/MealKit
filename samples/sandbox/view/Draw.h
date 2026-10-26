@@ -22,6 +22,12 @@ struct WorldView {
         mealkit::f64 time;
     };
     std::vector<Flash> flashes; // 밀치기 빛 (화면 시각, applyLights가 점광원으로)
+    // 스킨 캐릭터의 클립 (Pawn 슬롯마다): 지금 클립, 바뀐 화면 시각, 직전 클립 (섞기)
+    struct Anim {
+        bool running = false, wasRunning = false;
+        mealkit::f64 changed = -100.0;
+    };
+    std::vector<Anim> anims;
 };
 
 // 틱 이벤트 → 화면 상태: 밀치기 범위 안의 다른 Pawn이 번쩍인다 (viewTime: 화면 정지 동안 멈추는 화면 시계)
@@ -36,11 +42,11 @@ void applyLights(const mealkit::scene::Scene& scene, const WorldView& view, meal
 void applyProbes(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models,
                  std::vector<mealkit::render::ReflectionProbe>& probes, mealkit::render::FrameParams& frame);
 // 씬의 정적 물체 (스폰 지점과 영역은 그리지 않는다)
-void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, const Vec3& eye,
+void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, const Vec3& eye, mealkit::f64 viewTime,
                mealkit::render::DrawList& out);
 // 직전 틱과 현재 틱 사이를 alpha로 보간해 상자와 Pawn을 그린다. localOffset: 내 캐릭터만 더 옮겨 그린다 (미리 움직이기)
 void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, u8 localPlayer, mealkit::f64 now,
-               mealkit::f64 viewTime, const ViewTuning& look, mealkit::render::MeshId box, WorldView& view, mealkit::render::DrawList& out,
+               mealkit::f64 viewTime, const ViewTuning& look, mealkit::asset::ModelCache& models, WorldView& view, mealkit::render::DrawList& out,
                const Vec3& localOffset = {});
 
 } // namespace sandbox

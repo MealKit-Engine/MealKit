@@ -160,6 +160,28 @@ TEST_CASE(core, det_math) {
     }
     const Quat q = detQuatFromAxisAngle({0, 1, 0}, 1.0f);
     bits.add(q);
+    // 시뮬레이션용 포즈 샘플링 (asset::samplePoseTick): 틱 → 프레임 보간이 모든 빌드·플랫폼에서 같은 비트
+    asset::Skeleton skeleton;
+    skeleton.joints.resize(3);
+    skeleton.joints[1].parent = 0;
+    skeleton.joints[2].parent = 1;
+    asset::AnimationClip clip;
+    clip.frames = 31;
+    clip.duration = 1.0f;
+    for (u32 f = 0; f < clip.frames; ++f)
+        for (u32 j = 0; j < 3; ++j) {
+            const f32 a = static_cast<f32>(f * 3 + j) * 0.21f;
+            clip.poses.push_back({{detSin(a), 0.5f * detCos(a), 0.1f * static_cast<f32>(j)}, detQuatFromAxisAngle({0.3f, 1.0f, 0.2f}, a), {1, 1, 1}});
+        }
+    std::vector<asset::JointPose> pose;
+    for (const u32 rate : {30u, 60u})
+        for (u32 tick = 0; tick < 200; ++tick) {
+            asset::samplePoseTick(skeleton, clip, tick, rate, true, pose);
+            for (const asset::JointPose& jp : pose) {
+                bits.add(jp.translation);
+                bits.add(jp.rotation);
+            }
+        }
     std::printf("  det_math worst error: sin %.2e cos %.2e atan2 %.2e\n", worstSin, worstCos, worstAtan);
     std::printf("detmath-bits %016llx\n", static_cast<unsigned long long>(bits.value));
     TEST_CHECK(worstSin < 2e-7f && worstCos < 2e-7f);
@@ -901,6 +923,46 @@ TEST_CASE(render, scene_point_lights) {
     TEST_CHECK(lights[0].position.x == 10.0f && lights[0].position.y == 2.0f && lights[0].range == 5.0f);
     TEST_CHECK(std::abs(lights[0].color.x - 2.0f) < 1e-5f);
     TEST_CHECK(std::abs(render::srgbToLinear(Color::rgb(188, 188, 188)).x - 0.5f) < 0.01f);
+}
+
+// 스켈레탈 애니메이션: 예제 인형(rig_figure.glb)의 스킨·클립, 쉬는 자세 팔레트 = 단위, 틱 샘플링 = 같은 프레임의 초 샘플링
+TEST_CASE(asset, skeletal_animation) {
+    asset::ModelCache models; // 렌더러 없이 (CPU 데이터만)
+    const asset::Model* rig = models.get("models/characters/rig_figure.glb");
+    TEST_CHECK(rig && rig->skinned() && rig->bones == 8 && rig->clips.size() == 3);
+    if (!rig || !rig->skinned()) return;
+    for (size_t j = 0; j < rig->skeleton.joints.size(); ++j) // 부모가 앞에
+        TEST_CHECK(rig->skeleton.joints[j].parent < static_cast<i32>(j));
+    TEST_CHECK(rig->skeleton.joints[0].name == "root" && asset::findClip(rig->clips, "run") && !asset::findClip(rig->clips, "fly"));
+    std::vector<asset::JointPose> pose;
+    std::vector<asset::BoneMatrix> palette;
+    asset::restPose(rig->skeleton, pose);
+    asset::skinPalette(rig->skeleton, pose, palette);
+    for (const asset::BoneMatrix& b : palette)
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 4; ++c) TEST_CHECK(std::abs(b.rows[r][c] - (r == c ? 1.0f : 0.0f)) < 1e-5f);
+    const asset::AnimationClip& run = *asset::findClip(rig->clips, "run");
+    TEST_CHECK(run.frames == 19 && std::abs(run.duration - 0.6f) < 1e-5f); // 0.6초 × 30 Hz + 1
+    std::vector<asset::JointPose> byTick, bySeconds;
+    asset::samplePoseTick(rig->skeleton, run, 9, 30, true, byTick); // 틱 9 @30 Hz = 프레임 9
+    asset::samplePose(rig->skeleton, run, 9.0f / 30.0f, true, bySeconds);
+    for (size_t j = 0; j < byTick.size(); ++j)
+        TEST_CHECK(std::abs(byTick[j].rotation.x - bySeconds[j].rotation.x) < 1e-5f && std::abs(byTick[j].translation.y - bySeconds[j].translation.y) < 1e-5f);
+    // 다리를 흔드는 프레임: 왼다리 관절이 움직였고, 팔레트로 옮긴 발끝이 쉬는 자세와 다르다 (z 반전 포함)
+    asset::samplePose(rig->skeleton, run, 0.15f, true, pose);
+    asset::skinPalette(rig->skeleton, pose, palette);
+    const i32 leg = [&] { for (size_t j = 0; j < rig->skeleton.joints.size(); ++j) if (rig->skeleton.joints[j].name == "leg.L") return static_cast<i32>(j); return -1; }();
+    TEST_CHECK(leg > 0);
+    const asset::BoneMatrix& m = palette[static_cast<size_t>(leg)];
+    const Vec3 foot{0.15f, 0.0f, 0.0f}; // MealKit 좌표 (z 반전된 정점)
+    const Vec3 moved{m.rows[0][0] * foot.x + m.rows[0][1] * foot.y + m.rows[0][2] * foot.z + m.rows[0][3],
+                     m.rows[1][0] * foot.x + m.rows[1][1] * foot.y + m.rows[1][2] * foot.z + m.rows[1][3],
+                     m.rows[2][0] * foot.x + m.rows[2][1] * foot.y + m.rows[2][2] * foot.z + m.rows[2][3]};
+    TEST_CHECK(std::abs(moved.z) > 0.2f && moved.y > 0.0f); // 35도 흔들림: 발이 앞이나 뒤로, 위로
+    std::vector<Mat4> world;
+    asset::jointMatrices(rig->skeleton, pose, world);
+    const Mat4& hip = world[static_cast<size_t>(leg)]; // 다리 관절 = 엉덩이 옆 (z 반전은 0이라 같다)
+    TEST_CHECK(std::abs(length(moved - Vec3{hip.m[3][0], hip.m[3][1], -hip.m[3][2]}) - 0.7f) < 1e-3f); // 다리 길이 그대로
 }
 
 // 텍스처 캐시의 밉맵: 크기가 반씩 줄고, sRGB는 선형으로 평균하고, 법선은 다시 길이 1. half 변환

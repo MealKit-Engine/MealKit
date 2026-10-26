@@ -50,6 +50,7 @@ def check_objects(objects, schema, depsgraph, kind="props", budget=None):
         return [("ERROR", "Nothing to export: no visible (or selected) mesh objects")]
     materials = {}
     triangles = 0
+    bones = 0
     for obj in objects:
         evaluated = obj.evaluated_get(depsgraph)
         mesh = evaluated.to_mesh()
@@ -63,7 +64,14 @@ def check_objects(objects, schema, depsgraph, kind="props", budget=None):
         for slot in obj.material_slots:
             if slot.material:
                 materials[slot.material.name] = slot.material
-        if not model["skinning"] and (obj.find_armature() or any(m.type == "ARMATURE" for m in obj.modifiers)):
+        armature = obj.find_armature()
+        if model["skinning"] and armature is not None:
+            # 엔진은 스킨 하나, 관절 maxJoints개까지 (넘으면 바인드 자세로 그린다). 예산의 bones도 여기서 센다
+            joints = len(armature.data.bones)
+            bones = max(bones, joints)
+            if joints > model.get("maxJoints", 64):
+                out.append(("ERROR", f"'{armature.name}': {joints} bones, the engine supports {model.get('maxJoints', 64)}"))
+        if not model["skinning"] and (armature or any(m.type == "ARMATURE" for m in obj.modifiers)):
             out.append(("WARNING", f"'{obj.name}': skinning is not supported yet, exported in its current pose"))
         if not model["animation"] and obj.animation_data and obj.animation_data.action:
             out.append(("WARNING", f"'{obj.name}': animation is not supported yet and is not exported"))
@@ -80,4 +88,6 @@ def check_objects(objects, schema, depsgraph, kind="props", budget=None):
         used = len(materials) or 1  # 재질 없는 메시는 기본 재질 하나
         if used > budget["materials"]:
             out.append(("WARNING", f"{used} materials is over the {kind} budget ({budget['materials']})"))
+        if bones > budget["bones"]:
+            out.append(("WARNING", f"{bones} bones is over the {kind} budget ({budget['bones']})"))
     return out

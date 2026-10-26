@@ -492,6 +492,158 @@ def make_probe_ball():
     ])
 
 
+def ellipsoid(center, radii, rings=12, segments=16):
+    """축마다 반지름이 다른 매끈한 타원체. glTF 앞면 = 반시계."""
+    positions, normals, indices = [], [], []
+    for r in range(rings + 1):
+        theta = math.pi * r / rings
+        for s in range(segments + 1):
+            phi = 2 * math.pi * s / segments
+            n = (math.sin(theta) * math.cos(phi), math.cos(theta), math.sin(theta) * math.sin(phi))
+            positions.append(tuple(center[k] + radii[k] * n[k] for k in range(3)))
+            normals.append(normalize((n[0] / radii[0], n[1] / radii[1], n[2] / radii[2])))
+    for r in range(rings):
+        for s in range(segments):
+            a = r * (segments + 1) + s
+            b = a + segments + 1
+            indices += [a, a + 1, b, a + 1, b + 1, b]
+    return positions, normals, indices
+
+
+def quat_axis(axis, degrees):
+    a = math.radians(degrees) * 0.5
+    n = normalize(axis)
+    return (n[0] * math.sin(a), n[1] * math.sin(a), n[2] * math.sin(a), math.cos(a))
+
+
+def make_rig():
+    # 스켈레탈 애니메이션 확인용 인형 (sandbox의 Pawn, scenes/anim.scene): 관절 8개, 클립 idle·run·wave.
+    # 부위마다 관절 하나에 붙고, 몸통만 엉덩이·등뼈 사이를 섞는다 (가중치 섞기 확인). glTF에서 앞은 -z (MealKit에서 +z)
+    out = os.path.join(OUT_DIR, "characters")
+    os.makedirs(out, exist_ok=True)
+    # 관절: 이름, 부모, 부모 기준 위치
+    joints = [("root", -1, (0, 0, 0)), ("hips", 0, (0, 0.7, 0)), ("spine", 1, (0, 0.3, 0)), ("head", 2, (0, 0.5, 0)),
+              ("arm.L", 2, (0.3, 0.25, 0)), ("arm.R", 2, (-0.3, 0.25, 0)), ("leg.L", 1, (0.15, 0, 0)), ("leg.R", 1, (-0.15, 0, 0))]
+    world = []
+    for name, parent, t in joints:
+        world.append(tuple(t[k] + (world[parent][k] if parent >= 0 else 0) for k in range(3)))
+    J = {name: i for i, (name, _, _) in enumerate(joints)}
+    parts = []  # (positions, normals, indices, joint(또는 None = 몸통), material)
+    skin_mat = pbr("rig_skin", (0.95, 0.75, 0.6), roughness=0.5)
+    cloth = pbr("rig_cloth", (0.92, 0.92, 0.95), roughness=0.7)  # 인스턴스 색(플레이어 색)이 그대로 보이게 흰색
+    dark = pbr("rig_dark", (0.15, 0.15, 0.2), roughness=0.6)
+    parts.append(ellipsoid((0, 1.0, 0), (0.28, 0.36, 0.2)) + (None, cloth))
+    parts.append(ellipsoid((0, 1.62, 0), (0.2, 0.22, 0.2)) + ("head", skin_mat))
+    parts.append(ellipsoid((0, 1.6, -0.2), (0.05, 0.05, 0.05)) + ("head", dark))  # 코: 앞쪽 표시
+    for side, sx in (("L", 1), ("R", -1)):
+        parts.append(ellipsoid((0.4 * sx, 0.95, 0), (0.08, 0.32, 0.08)) + ("arm." + side, skin_mat))
+        parts.append(ellipsoid((0.15 * sx, 0.38, 0), (0.1, 0.36, 0.1)) + ("leg." + side, dark))
+    blob = bytearray()
+    views, accessors, materials, primitives = [], [], [], []
+
+    def add(data, target, count, kind, ctype=5126, extra=None):
+        while len(blob) % 4:
+            blob.append(0)
+        view = {"buffer": 0, "byteOffset": len(blob), "byteLength": len(data)}
+        if target:
+            view["target"] = target
+        views.append(view)
+        blob.extend(data)
+        acc = {"bufferView": len(views) - 1, "componentType": ctype, "count": count, "type": kind}
+        acc.update(extra or {})
+        accessors.append(acc)
+        return len(accessors) - 1
+
+    tris = 0
+    for positions, normals, indices, joint, material in parts:
+        js, ws = [], []
+        for p in positions:
+            if joint:
+                js += [J[joint], 0, 0, 0]
+                ws += [1.0, 0.0, 0.0, 0.0]
+            else:  # 몸통: 0.85 아래는 엉덩이, 1.05 위는 등뼈, 사이는 섞는다
+                t = min(1.0, max(0.0, (p[1] - 0.85) / 0.2))
+                js += [J["hips"], J["spine"], 0, 0]
+                ws += [1.0 - t, t, 0.0, 0.0]
+        flat = [c for p in positions for c in p]
+        lo = [min(p[k] for p in positions) for k in range(3)]
+        hi = [max(p[k] for p in positions) for k in range(3)]
+        attrs = {"POSITION": add(struct.pack("<%df" % len(flat), *flat), 34962, len(positions), "VEC3", extra={"min": lo, "max": hi}),
+                 "NORMAL": add(struct.pack("<%df" % (3 * len(normals)), *[c for n in normals for c in n]), 34962, len(normals), "VEC3"),
+                 "JOINTS_0": add(struct.pack("<%dB" % len(js), *js), 34962, len(positions), "VEC4", ctype=5121),
+                 "WEIGHTS_0": add(struct.pack("<%df" % len(ws), *ws), 34962, len(positions), "VEC4")}
+        idx = add(struct.pack("<%dH" % len(indices), *indices), 34963, len(indices), "SCALAR", ctype=5123)
+        if not any(m is material for m in materials):  # 같은 머티리얼은 한 번만 (예산: 머티리얼 수)
+            materials.append(material)
+        primitives.append({"attributes": attrs, "indices": idx, "material": next(i for i, m in enumerate(materials) if m is material)})
+        tris += len(indices) // 3
+    ibm = []
+    for w in world:  # 역바인드 = 바인드 자세 관절 월드의 역 (이동만), 열 우선
+        ibm += [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -w[0], -w[1], -w[2], 1]
+    ibm_acc = add(struct.pack("<%df" % len(ibm), *ibm), None, len(world), "MAT4")
+    nodes = [{"name": "rig_figure", "mesh": 0, "skin": 0}]
+    for i, (name, parent, t) in enumerate(joints):
+        node = {"name": name, "translation": list(t)}
+        children = [1 + k for k, j in enumerate(joints) if j[1] == i]
+        if children:
+            node["children"] = children
+        nodes.append(node)
+
+    # 클립: (관절, 경로, 축, (키 시각, 값)). 10 Hz 키, 선형, 마지막 키 = 첫 키 (감기)
+    def wave(period, amp, offset=0.0, absolute=False):
+        steps = max(2, int(round(period * 10)))
+        times = [period * k / steps for k in range(steps + 1)]
+        values = [amp * math.sin(2 * math.pi * t / period) for t in times]
+        if absolute:
+            values = [abs(v) for v in values]
+        return times, [v + offset for v in values]
+
+    clips = {
+        "idle": [("spine", "rotation", (0, 0, 1), wave(2.0, 3.0)), ("arm.L", "rotation", (0, 0, 1), wave(2.0, 4.0)),
+                 ("arm.R", "rotation", (0, 0, 1), wave(2.0, -4.0)), ("head", "rotation", (0, 1, 0), wave(4.0, 8.0))],
+        "run": [("leg.L", "rotation", (1, 0, 0), wave(0.6, 35.0)), ("leg.R", "rotation", (1, 0, 0), wave(0.6, -35.0)),
+                ("arm.L", "rotation", (1, 0, 0), wave(0.6, -40.0)), ("arm.R", "rotation", (1, 0, 0), wave(0.6, 40.0)),
+                ("spine", "rotation", (1, 0, 0), wave(0.6, 0.0, offset=-8.0)),
+                ("hips", "translation", None, wave(0.3, 0.05, absolute=True))],
+        "wave": [("arm.R", "rotation", (0, 0, 1), wave(0.8, 20.0, offset=-150.0)), ("head", "rotation", (0, 0, 1), wave(0.8, 5.0))],
+    }
+    animations = []
+    for clip_name, channels in clips.items():
+        samplers, chans = [], []
+        for joint, path, axis, (times, values) in channels:
+            t_acc = add(struct.pack("<%df" % len(times), *times), None, len(times), "SCALAR", extra={"min": [min(times)], "max": [max(times)]})
+            if path == "rotation":
+                vals = [c for v in values for c in quat_axis(axis, v)]
+                v_acc = add(struct.pack("<%df" % len(vals), *vals), None, len(values), "VEC4")
+            else:
+                base = joints[J[joint]][2]
+                vals = [c for v in values for c in (base[0], base[1] + v, base[2])]
+                v_acc = add(struct.pack("<%df" % len(vals), *vals), None, len(values), "VEC3")
+            samplers.append({"input": t_acc, "output": v_acc, "interpolation": "LINEAR"})
+            chans.append({"sampler": len(samplers) - 1, "target": {"node": 1 + J[joint], "path": path}})
+        animations.append({"name": clip_name, "samplers": samplers, "channels": chans})
+    while len(blob) % 4:
+        blob.append(0)
+    gltf = {
+        "asset": {"version": "2.0", "generator": "MealKit make_sample_models.py"},
+        "scene": 0, "scenes": [{"nodes": [0, 1]}], "nodes": nodes,
+        "skins": [{"name": "rig", "joints": list(range(1, 1 + len(joints))), "inverseBindMatrices": ibm_acc, "skeleton": 1}],
+        "meshes": [{"name": "rig_figure", "primitives": primitives}], "materials": materials, "animations": animations,
+        "buffers": [{"byteLength": len(blob)}], "bufferViews": views, "accessors": accessors,
+    }
+    js = json.dumps(gltf, separators=(",", ":")).encode("utf-8")
+    js += b" " * ((4 - len(js) % 4) % 4)
+    total = 12 + 8 + len(js) + 8 + len(blob)
+    path = os.path.join(out, "rig_figure.glb")
+    with open(path, "wb") as f:
+        f.write(struct.pack("<III", 0x46546C67, 2, total))
+        f.write(struct.pack("<II", len(js), 0x4E4F534A))
+        f.write(js)
+        f.write(struct.pack("<II", len(blob), 0x004E4942))
+        f.write(blob)
+    print("wrote %s (%d triangles, %d joints, %d clips, %d bytes)" % (os.path.relpath(path, ROOT), tris, len(joints), len(clips), total))
+
+
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
     make_tree()
@@ -501,3 +653,4 @@ if __name__ == "__main__":
     make_fence()
     make_styles()
     make_probe_ball()
+    make_rig()

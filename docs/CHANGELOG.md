@@ -5,6 +5,16 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 스켈레탈 애니메이션 (완료 2026-10-27)
+- **불러오기** (`asset/ModelCache.cpp`, `asset/Animation.h`): glTF 첫 스킨 하나. 관절을 부모가 앞에 오게 다시 늘어놓고(깊이 순 안정 정렬), 쉬는 자세 TRS·역바인드·뿌리 위 노드 변환은 glTF 공간 그대로. 관절 64개(`kMaxJoints`)를 넘으면 스킨을 버리고 바인드 자세로(경고). 애니메이션마다 30 Hz로 구운 클립(관절 자세 × 프레임, 선형·계단·큐빅은 값만, 회전 nlerp). 스킨 메시는 LOD 없음, 정적 프리미티브는 가장 가까운 조상 관절에 붙는다. `Model::bones`가 예산(characters 64)에 들어간다.
+- **정점**: `render::SkinWeights`(관절 u8 ×4, 가중치 unorm8 ×4, 합 255), GPU에는 36바이트 정점 뒤에 붙여 44바이트. meshoptimizer 정리는 정점 형식 템플릿. RHI `VertexFormat::Uint8x4`.
+- **포즈** (`asset/Animation.cpp`, 헤드리스에도 있음): `samplePose`(초, 반복·멈춤), `blendPoses`, `restPose`, `jointMatrices`, `skinPalette`(관절 월드 × 역바인드를 S·M·S로 왼손 좌표, 관절마다 행 셋 48바이트 `render::BoneMatrix`). 시뮬레이션용 `samplePoseTick`(틱 × 30 / 틱레이트의 정수 프레임 + 나머지/틱레이트: 30·60 Hz에서 0과 0.5라 float로 정확, 사칙연산 lerp·nlerp만) — 결과를 `detmath-bits`에 넣어 CI가 빌드·플랫폼 사이를 비교한다.
+- **렌더러**: `DrawList::addSkinned(mesh, instance, palette)`, `Renderer::drawSkinned`(팔레트를 링에, 푸시 상수 `paletteOffset`, 캐릭터마다 드로우 콜 1회), 스킨 파이프라인(조명 모델 셋·외곽선·그림자·보기 모드 둘, 같은 셰이더 `SKINNED=1`, 핫 리로드 포함). 그림자 패스·점광원 고르기·컬링은 바인드 자세 경계 × 1.5. 팔레트 없이 `add`한 스킨 메시는 단위 팔레트(바인드 자세).
+- **쓰기**: `asset::addModel(out, model, mesh, instance, anim, seconds)`(정적은 add, 스킨은 클립 재생). 씬 필드 `anim`("<클립> [초 어긋남]", 어느 종류에나, 콘텐츠 해시 제외) — 에디터 인스펙터 [애니메이션]의 클립 고르기, 편집 화면과 게임 `drawScene`이 반복 재생(그래픽 회귀 테스트는 시계 0). sandbox Pawn은 `view.tuning` `pawn.model`(rig_figure)로 idle/run을 속도로 고르고 0.15초 크로스페이드(`WorldView::anims`), 비우면 예전 상자.
+- **도구**: `make_sample_models.py` `make_rig`(`models/characters/rig_figure.glb`: 관절 8개, 머티리얼 3개, 클립 idle·run·wave, 몸통은 두 관절 섞기). Blender 애드온 스키마 `skinning`·`animation` 켬 + `maxJoints`, 검사가 뼈 수를 예산·한도와 비교. `assets/scenes/anim.scene`, 골든 `anim_figures`·`anim_side`(기존 15장 그대로, DX12 = Vulkan, 검증 레이어 오류 없음).
+- **시험**: `asset/skeletal_animation`(인형 불러오기, 부모 순서, 쉬는 자세 팔레트 = 단위, 틱 샘플 = 같은 프레임의 초 샘플, 다리 흔들림 팔레트가 z 반전·다리 길이를 지킴), `core/det_math`에 틱 샘플링 비트.
+- **남은 것**: 모프 타깃, 스킨 여럿, 루트 모션, 애니메이션 이벤트(발소리), 클립 블렌드 트리. 인스펙터 미리보기는 클립 고르기뿐(재생 막대 없음). 캐릭터가 수십 개를 넘으면 인스턴싱 팔레트(드로우 콜 묶기).
+
 ### [x] 그림자 (완료 2026-10-27)
 - **방식**: 태양만, 단계식 그림자 맵(CSM) 1~2단계. 카메라 앞 그림자 거리까지를 [0, 거리/4], [거리/4, 거리]로 나누고, 조각의 꼭짓점 8개를 감싸는 구 → 빛 방향 정사영(reversed-Z). 구 반지름(1/16 m)과 빛 공간 중심(텍셀)을 맞춰 카메라가 움직여도 가장자리가 떨리지 않는다. 해 쪽으로 100 m를 더 잡는다.
 - **RHI**: `Device::createDepthTarget`(깊이만: DX12 `R32_TYPELESS` + D32 DSV + R32 SRV, Vulkan D32 `DEPTH_ATTACHMENT | SAMPLED`, 둘 다 처음 상태는 셰이더 읽기), `Target::Shadow` 파이프라인(색 없음, 깊이 GREATER). `beginTarget`·`endTarget`이 깊이만 대상을 다룬다.

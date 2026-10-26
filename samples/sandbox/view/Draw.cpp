@@ -39,13 +39,14 @@ void applyProbes(const scene::Scene& scene, asset::ModelCache& models, std::vect
     frame.probeCount = static_cast<u32>(probes.size());
 }
 
-void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3& eye, render::DrawList& out) {
+void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3& eye, f64 viewTime, render::DrawList& out) {
     const render::MeshId box = models.boxMesh();
     for (const scene::Entity& e : scene.entities) {
         if (!scene::visibleInGame(e, &reflect::moduleObjectTypes())) continue; // 스폰 지점·영역은 게임에서 보이지 않음
         const asset::Model* model = e.model.empty() ? nullptr : models.get(e.model);
         const render::MeshId mesh = model ? models.pickLod(*model, eye, e.position, e.scale) : box;
-        out.add(mesh, {e.position, e.color, e.rotation, e.scale, e.flags});
+        if (model) asset::addModel(out, *model, mesh, {e.position, e.color, e.rotation, e.scale, e.flags}, scene::animField(e), viewTime);
+        else out.add(mesh, {e.position, e.color, e.rotation, e.scale, e.flags});
     }
 }
 
@@ -61,9 +62,35 @@ void onWorldEvent(const GameEvent& e, const WorldState& state, f64 viewTime, Wor
     }
 }
 
+// 스킨 캐릭터 하나: 지금 클립(반복)과 직전 클립을 섞어 팔레트로 (클립 시계는 화면 시각, 캐릭터마다 같다)
+void drawFigure(const asset::Model& figure, const PawnLook& pl, const WorldView::Anim& anim, f64 viewTime,
+                const render::InstanceData& instance, render::DrawList& out) {
+    thread_local std::vector<asset::JointPose> now, before, blended;
+    thread_local std::vector<asset::BoneMatrix> palette;
+    const auto sample = [&](bool running, std::vector<asset::JointPose>& pose) {
+        const asset::AnimationClip* clip = asset::findClip(figure.clips, running ? pl.runClip : pl.idleClip);
+        if (clip) asset::samplePose(figure.skeleton, *clip, static_cast<f32>(std::fmod(viewTime, 4096.0)), true, pose);
+        else asset::restPose(figure.skeleton, pose);
+    };
+    sample(anim.running, now);
+    const f32 t = pl.blendSeconds > 0.0f ? static_cast<f32>((viewTime - anim.changed) / pl.blendSeconds) : 1.0f;
+    if (t < 1.0f) {
+        sample(anim.wasRunning, before);
+        asset::blendPoses(before, now, t, blended);
+        asset::skinPalette(figure.skeleton, blended, palette);
+    } else {
+        asset::skinPalette(figure.skeleton, now, palette);
+    }
+    out.addSkinned(figure.lods[0], instance, palette.data(), static_cast<u32>(palette.size()));
+}
+
 void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, u8 localPlayer, f64 now, f64 viewTime,
-               const ViewTuning& look, render::MeshId box, WorldView& view, render::DrawList& out, const Vec3& localOffset) {
+               const ViewTuning& look, asset::ModelCache& models, WorldView& view, render::DrawList& out, const Vec3& localOffset) {
     const PawnLook& pl = look.pawn;
+    const render::MeshId box = models.boxMesh();
+    const asset::Model* figure = pl.model.empty() ? nullptr : models.get(pl.model);
+    if (figure && !figure->skinned()) figure = nullptr;
+    view.anims.resize(current.pawns.capacity());
     view.hitTime.resize(current.pawns.capacity(), -1.0);
     for (auto [id, b] : current.props) {
         const Prop* before = previous.props.get(id); // 이번 틱에 생긴 상자는 직전 상태가 없다
@@ -90,8 +117,20 @@ void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha,
                               ? pl.hitFlash * (1.0f - static_cast<f32>(sinceHit) / pl.hitFlashSeconds)
                               : 0.0f;
         const u32 flags = render::instanceFlash(0, flash);
-        out.add(box, {pos, color.value, facing, pl.bodySize, flags});
-        out.add(box, {pos + rotate(facing, pl.visorOffset), pl.visorColor.value, facing, pl.visorSize, flags});
+        if (figure) { // 스킨 캐릭터: 서 있으면 idle, 움직이면 run, 바뀔 때 blendSeconds 동안 섞는다
+            WorldView::Anim& anim = view.anims[id.slot];
+            const bool running = b.velocity.x * b.velocity.x + b.velocity.z * b.velocity.z > pl.runSpeed * pl.runSpeed;
+            if (!before) anim = {running, running, -100.0};
+            if (running != anim.running) {
+                anim.wasRunning = anim.running;
+                anim.running = running;
+                anim.changed = viewTime;
+            }
+            drawFigure(*figure, pl, anim, viewTime, {pos - Vec3{0, pl.footOffset, 0}, color.value, facing, {1, 1, 1}, flags}, out);
+        } else {
+            out.add(box, {pos, color.value, facing, pl.bodySize, flags});
+            out.add(box, {pos + rotate(facing, pl.visorOffset), pl.visorColor.value, facing, pl.visorSize, flags});
+        }
         if (player == localPlayer) { // 내 캐릭터 표시
             const Quat spin = quatFromAxisAngle({0, 1, 0}, static_cast<f32>(now) * pl.markerSpin);
             const f32 size = pl.markerSize;

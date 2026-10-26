@@ -85,6 +85,12 @@ std::string probeFile(const Entity& probe) {
     return {};
 }
 
+std::string animField(const Entity& e) {
+    for (const auto& [key, value] : e.fields)
+        if (key == kAnimField) return value;
+    return {};
+}
+
 std::string probeFileFor(const std::string& sceneName, const Entity& probe) {
     return "probes/" + (sceneName.empty() ? std::string("scene") : sceneName) + "_" + std::to_string(probe.id) + ".mkprobe";
 }
@@ -153,6 +159,7 @@ u64 Scene::contentHash(const TypeList* gameTypes) const {
         h.add(e.scale);
         h.bytes(e.model.data(), e.model.size() + 1);
         for (const auto& [path, value] : e.fields) {
+            if (path == kAnimField) continue; // 화면용 애니메이션
             if (type) { // 보기 전용 필드는 뺀다 (경로의 첫 이름이 필드 이름)
                 const std::string top = path.substr(0, path.find_first_of(".["));
                 const reflect::FieldInfo* f = type->field(top.c_str());

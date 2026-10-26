@@ -63,6 +63,9 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     mealkit_shader(shaders/Forward.hlsl VSOutline vs_6_6 g_OutlineVS)
     mealkit_shader(shaders/Forward.hlsl PSOutline ps_6_6 g_OutlinePS)
     mealkit_shader(shaders/Forward.hlsl VSShadow vs_6_6 g_ShadowVS)
+    mealkit_shader(shaders/Forward.hlsl VSMain vs_6_6 g_ForwardSkinVS SKINNED=1)
+    mealkit_shader(shaders/Forward.hlsl VSOutline vs_6_6 g_OutlineSkinVS SKINNED=1)
+    mealkit_shader(shaders/Forward.hlsl VSShadow vs_6_6 g_ShadowSkinVS SKINNED=1)
     mealkit_shader(shaders/Forward.hlsl PSShadow ps_6_6 g_ShadowPS)
     mealkit_shader(shaders/Forward.hlsl VSSky vs_6_6 g_SkyVS)
     mealkit_shader(shaders/Forward.hlsl PSSky ps_6_6 g_SkyPS)
@@ -144,6 +147,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/asset/ModelCache.h
     src/mealkit/asset/Environment.h # 선언만 (굽기 Environment.cpp는 화면 쪽, ModelCache::setRenderer 인라인이 부른다)
     src/mealkit/asset/ModelCache.cpp
+    src/mealkit/asset/Animation.h
+    src/mealkit/asset/Animation.cpp
     src/mealkit/render/DrawList.h
     src/mealkit/render/Culling.h
     src/mealkit/render/Mesh.h

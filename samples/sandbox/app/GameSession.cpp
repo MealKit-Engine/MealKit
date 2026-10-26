@@ -192,7 +192,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
         applyEnvironment(m_scene.environment, ctx.models, frame);
         applyProbes(m_scene, ctx.models, m_probes, frame);
         applyLights(m_scene, m_view, m_viewTime, m_lights, frame);
-        drawScene(m_scene, ctx.models, frame.cameraPos, out);
+        drawScene(m_scene, ctx.models, frame.cameraPos, m_viewTime, out);
         return;
     }
     // 화면 정지가 시작되면 그 순간의 그림을 붙잡아 두고, 끝나면 지금 상태로 돌아온다
@@ -224,8 +224,8 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     applyProbes(m_scene, ctx.models, m_probes, frame);
     applyLights(m_scene, m_view, m_viewTime, m_lights, frame);
 
-    drawScene(m_scene, ctx.models, frame.cameraPos, out);
-    drawWorld(previous, current, alpha, localPlayer, now, m_viewTime, look, ctx.models.boxMesh(), m_view, out, m_prediction.offset);
+    drawScene(m_scene, ctx.models, frame.cameraPos, m_viewTime, out);
+    drawWorld(previous, current, alpha, localPlayer, now, m_viewTime, look, ctx.models, m_view, out, m_prediction.offset);
     // 캐릭터 위 이름표 (월드 위 UI): 보간한 위치 위에
     for (u32 slot = 0; slot < current.playerCount && slot < m_tagVms.size(); ++slot) {
         const Pawn* pawn = playerPawn(current, slot);

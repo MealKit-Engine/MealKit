@@ -21,3 +21,6 @@ probes_outside  scenes/probes.scene   7 2.5 -5  -70 -12
 # lights: 점광원 셋 (밤 하늘, 횃불·파랑·빨강, 에디터 표시는 빛 색 작은 상자), PBR과 툰
 lights_view     scenes/lights.scene   0 3.0 -6.5   0 -18
 lights_toon     scenes/lights.scene   0 3.0 -6.5   0 -18  toon
+# anim: 스켈레탈 애니메이션 (models/characters/rig_figure.glb, 씬 필드 anim = 클립과 어긋남): 쉬는 자세·idle·run·wave, 앞과 옆
+anim_figures    scenes/anim.scene   0 1.6 6   180 -8
+anim_side       scenes/anim.scene   5 1.4 0.5  -90 -6

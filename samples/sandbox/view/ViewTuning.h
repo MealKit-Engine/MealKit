@@ -43,6 +43,13 @@ MEALKIT_STRUCT(PawnLook) {
     MEALKIT_FIELD(Color, markerColor, (Color::rgb(255, 230, 80)), "내 캐릭터 표시 색");
     MEALKIT_FIELD(f32, hitFlash, 0.8f, "밀쳐졌을 때 번쩍임 세기 (0..1)");
     MEALKIT_FIELD(f32, hitFlashSeconds, 0.2f, "밀쳐졌을 때 번쩍임이 사라지는 시간 (초)");
+    // 스킨 모델 (비면 상자 몸 + 얼굴). 발이 원점이고 몸 중심에서 footOffset만큼 아래에 그린다
+    MEALKIT_FIELD(std::string, model, "models/characters/rig_figure.glb", "캐릭터 모델 (스킨, 비면 상자)");
+    MEALKIT_FIELD(f32, footOffset, 0.9f, "몸 중심에서 발까지 (m)");
+    MEALKIT_FIELD(std::string, idleClip, "idle", "서 있을 때 클립");
+    MEALKIT_FIELD(std::string, runClip, "run", "움직일 때 클립");
+    MEALKIT_FIELD(f32, runSpeed, 1.0f, "이 속도(m/s)보다 빠르면 달리기 클립");
+    MEALKIT_FIELD(f32, blendSeconds, 0.15f, "클립을 바꿀 때 섞는 시간 (초)");
 };
 
 MEALKIT_STRUCT(ShockwaveLook) {

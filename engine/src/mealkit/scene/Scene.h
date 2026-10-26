@@ -20,6 +20,7 @@ inline constexpr const char* kTypeDecoration = "decoration"; // 보이기만 하
 inline constexpr const char* kTypeSpawn = "spawn";           // 플레이어 시작 위치 (게임에서는 보이지 않음)
 inline constexpr const char* kTypeProbe = "reflection_probe"; // 반사 프로브 (화면 전용, 크기 = 영향 상자, 게임에서는 보이지 않음, 에디터가 굽는다)
 inline constexpr const char* kProbeFileField = "bake";        // 반사 프로브의 구운 파일 (assets 기준, 필드 텍스트로 저장)
+inline constexpr const char* kAnimField = "anim";             // 스킨 모델의 화면용 반복 클립 "<클립> [초 어긋남]" (어느 종류에나, 콘텐츠 해시 제외)
 inline constexpr const char* kTypePointLight = "point_light"; // 점광원 (화면 전용, 게임에서는 빛만 보인다, 필드는 PointLightFields)
 
 // 점광원 물체의 필드 (엔진 기본 종류지만 게임 종류처럼 인스펙터·필드 줄로 고친다). readObject<PointLightFields>(e)로 읽는다
@@ -117,6 +118,8 @@ Bounds areaBounds(const Entity& e);
 // 반사 프로브의 구운 파일 경로 (assets 기준, 굽기 전이면 빈 문자열) / 굽기가 정하는 경로 probes/<씬 이름>_<물체 id>.mkprobe
 std::string probeFile(const Entity& probe);
 std::string probeFileFor(const std::string& sceneName, const Entity& probe);
+// 화면용 반복 클립 필드 (kAnimField, 없으면 빈 문자열)
+std::string animField(const Entity& e);
 
 // 게임 종류의 필드를 읽는다. 씬에 없는 필드는 선언의 기본값.
 template <class T>

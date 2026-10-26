@@ -82,6 +82,7 @@ struct PushConstants
     uint instanceOffset; // 이번 드로우의 Instance 배열 위치
     uint debugView;      // render::DebugView: 0 없음, 1 와이어프레임, 2 법선, 3 LOD, 4 오버드로, 5 예산, 6 머티리얼 기능
     uint lightOffset;    // 인스턴스마다 점광원 번호 8개 (바이트, 0xFF = 끝)의 링 위치
+    uint paletteOffset;  // 스킨 메시: 관절 팔레트 (관절마다 행 셋 = 48바이트)의 링 위치
 };
 [[vk::push_constant]] ConstantBuffer<PushConstants> pc : register(b0);
 
@@ -164,6 +165,10 @@ struct VSInput
     float4 color : COLOR; // 정점 색 (sRGB, glTF COLOR_0). 알파는 바람 세기
     float2 uv : TEXCOORD;
     uint2 material : MATERIAL; // x = 머티리얼 표 번호
+#if SKINNED
+    uint4 joints : JOINTS;   // 관절 번호 넷 (팔레트 칸)
+    float4 weights : WEIGHTS; // 합 1
+#endif
     uint instanceId : SV_InstanceID;
 };
 
@@ -219,8 +224,23 @@ VSOutput transformVertex(VSInput input, bool outline)
     Instance inst = loadInstance(input.instanceId);
     FrameConstants frame = loadFrame();
     Material mat = loadMaterial(frame, input.material.x);
-    float3 world = rotateByQuat(inst.rotation, input.position * inst.scale) + inst.position;
-    float3 normal = rotateByQuat(inst.rotation, input.normal / inst.scale);
+    float3 local = input.position, localNormal = input.normal;
+#if SKINNED
+    // 스킨: 관절 넷의 팔레트 행렬을 가중 합 (CPU의 asset::skinPalette, MealKit 좌표). 법선은 같은 행렬 (비균등 크기 없음 가정)
+    {
+        ByteAddressBuffer b = g_buffers[pc.ring];
+        float3x4 skin = (float3x4)0;
+        [unroll] for (uint k = 0; k < 4; ++k)
+        {
+            uint o = pc.paletteOffset + input.joints[k] * 48;
+            skin += float3x4(loadFloat4(b, o), loadFloat4(b, o + 16), loadFloat4(b, o + 32)) * input.weights[k];
+        }
+        local = mul(skin, float4(local, 1.0));
+        localNormal = mul((float3x3)skin, localNormal);
+    }
+#endif
+    float3 world = rotateByQuat(inst.rotation, local * inst.scale) + inst.position;
+    float3 normal = rotateByQuat(inst.rotation, localNormal / inst.scale);
 
     if (mat.features & kMaterialWind) // 바람: 정점 알파 = 세기 (뿌리 0, 끝 1로 칠한다). 자리마다 위상이 달라 함께 흔들리지 않는다
     {
@@ -237,7 +257,7 @@ VSOutput transformVertex(VSInput input, bool outline)
     if (outline && !(mat.features & kMaterialOutline))
         o.position = float4(0.0, 0.0, 0.0, 0.0); // 넓이 0 삼각형은 래스터라이저가 버린다
     o.worldPos = world;
-    o.localPos = input.position;
+    o.localPos = local;
     o.normal = normal;
     o.albedo = unpackAlbedo(inst.color) * (input.color.rgb * input.color.rgb);
     o.uv = input.uv;

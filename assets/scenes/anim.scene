@@ -1,0 +1,70 @@
+# MealKit scene
+@format scene 3
+
+sun 0.400000006 0.800000012 0.300000012
+sunColor 1 0.949999988 0.850000024
+sky 0.300000012 0.379999995 0.5
+groundColor 0.200000003 0.170000002 0.140000001
+fog 0.5 0.620000005 0.779999971 0.00400000019
+
+entity
+id 1
+name Ground
+kind solid
+position 0 -0.5 0
+rotation 0 0 0 1
+scale 20 1 20
+color FF609676
+flags 1
+end
+
+entity
+id 2
+name Rest
+kind decoration
+position -3 0 0
+rotation 0 0 0 1
+scale 1 1 1
+model models/characters/rig_figure.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 3
+name Idle
+kind decoration
+position -1 0 0
+rotation 0 0 0 1
+scale 1 1 1
+model models/characters/rig_figure.glb
+color FFF5A742
+flags 0
+field anim idle 0.5
+end
+
+entity
+id 4
+name Run
+kind decoration
+position 1 0 0
+rotation 0 0 0 1
+scale 1 1 1
+model models/characters/rig_figure.glb
+color FF4287F5
+flags 0
+field anim run 0.15
+end
+
+entity
+id 5
+name Wave
+kind decoration
+position 3 0 0
+rotation 0 0 0 1
+scale 1 1 1
+model models/characters/rig_figure.glb
+color FF52C734
+flags 0
+field anim wave 0.2
+end
