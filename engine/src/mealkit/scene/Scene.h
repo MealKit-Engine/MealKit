@@ -20,6 +20,14 @@ inline constexpr const char* kTypeDecoration = "decoration"; // 보이기만 하
 inline constexpr const char* kTypeSpawn = "spawn";           // 플레이어 시작 위치 (게임에서는 보이지 않음)
 inline constexpr const char* kTypeProbe = "reflection_probe"; // 반사 프로브 (화면 전용, 크기 = 영향 상자, 게임에서는 보이지 않음, 에디터가 굽는다)
 inline constexpr const char* kProbeFileField = "bake";        // 반사 프로브의 구운 파일 (assets 기준, 필드 텍스트로 저장)
+inline constexpr const char* kTypePointLight = "point_light"; // 점광원 (화면 전용, 게임에서는 빛만 보인다, 필드는 PointLightFields)
+
+// 점광원 물체의 필드 (엔진 기본 종류지만 게임 종류처럼 인스펙터·필드 줄로 고친다). readObject<PointLightFields>(e)로 읽는다
+MEALKIT_STRUCT(PointLightFields) {
+    MEALKIT_FIELD(Color, color, (Color::rgb(255, 214, 160)), "Light color");
+    MEALKIT_FIELD(f32, intensity, 3.0f, "Intensity");
+    MEALKIT_FIELD(f32, range, 6.0f, "Range (m)");
+};
 
 // 엔진 기본 종류의 설명 (필드 없음, 라벨과 플래그만)
 const std::vector<const reflect::TypeInfo*>& builtinTypes();

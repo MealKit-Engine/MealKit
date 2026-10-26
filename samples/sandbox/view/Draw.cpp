@@ -1,5 +1,7 @@
 #include "view/Draw.h"
 
+#include "mealkit/render/SceneLights.h"
+
 #include <cmath>
 
 using namespace mealkit;
@@ -16,6 +18,18 @@ void applyEnvironment(const scene::Environment& env, asset::ModelCache& models, 
     frame.environment = models.environment(env.hdri);
     frame.environmentIntensity = env.hdriIntensity;
     frame.environmentRotation = env.hdriRotation * (3.14159265f / 180.0f);
+}
+
+void applyLights(const scene::Scene& scene, const WorldView& view, f64 viewTime, std::vector<render::PointLight>& lights,
+                 render::FrameParams& frame) {
+    lights.clear();
+    render::addSceneLights(scene, lights);
+    for (const WorldView::Flash& f : view.flashes) { // 밀치기 순간의 잠깐 빛 (화면 쪽 효과, 0.25초에 꺼진다)
+        const f32 t = static_cast<f32>(viewTime - f.time) / 0.25f;
+        if (t >= 0.0f && t < 1.0f) lights.push_back({f.position, 4.0f, Vec3{1.0f, 0.75f, 0.4f} * (6.0f * (1.0f - t))});
+    }
+    frame.lights = lights.data();
+    frame.lightCount = static_cast<u32>(lights.size());
 }
 
 void applyProbes(const scene::Scene& scene, asset::ModelCache& models, std::vector<render::ReflectionProbe>& probes,
@@ -37,6 +51,8 @@ void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3&
 
 void onWorldEvent(const GameEvent& e, const WorldState& state, f64 viewTime, WorldView& view) {
     if (e.kind != EventKind::Push) return;
+    std::erase_if(view.flashes, [&](const WorldView::Flash& f) { return viewTime - f.time > 0.25; });
+    view.flashes.push_back({e.position + Vec3{0.0f, 1.0f, 0.0f}, viewTime});
     view.hitTime.resize(state.pawns.capacity(), -1.0);
     for (auto [id, pawn] : state.pawns) {
         const Vec3 d = pawn.position - e.position;

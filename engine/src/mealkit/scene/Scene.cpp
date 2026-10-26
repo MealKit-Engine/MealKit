@@ -67,7 +67,15 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
     static const reflect::TypeInfo spawn = makeBuiltin(kTypeSpawn, "Spawn point", reflect::kObjectMarker);
     static const reflect::TypeInfo probe =
         makeBuiltin(kTypeProbe, "Reflection probe", reflect::kObjectArea | reflect::kObjectCosmetic); // 크기 = 영향 상자
-    static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn, &probe};
+    static const reflect::TypeInfo pointLight = [] { // 필드가 있는 기본 종류: PointLightFields의 설명을 이름만 바꿔 쓴다
+        reflect::TypeInfo t = reflect::typeOf<PointLightFields>();
+        const reflect::TypeInfo b = makeBuiltin(kTypePointLight, "Point light", reflect::kObjectMarker | reflect::kObjectCosmetic);
+        t.name = b.name;
+        t.label = b.label;
+        t.flags = b.flags;
+        return t;
+    }();
+    static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn, &probe, &pointLight};
     return list;
 }
 

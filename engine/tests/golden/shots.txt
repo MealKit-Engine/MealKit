@@ -18,3 +18,6 @@ hdri_up         scenes/hdri.scene     0.5 1.0 -4.5    0  20
 # probes: 반사 프로브 (assets/probes/probes_9.mkprobe, 다시 굽기 MealKitEditor --scene assets\scenes\probes.scene --bake-probes). 방 안 구슬은 프로브, 밖 구슬은 하늘
 probes_inside   scenes/probes.scene  -1.0 1.6 -2.0  -60 -15
 probes_outside  scenes/probes.scene   7 2.5 -5  -70 -12
+# lights: 점광원 셋 (밤 하늘, 횃불·파랑·빨강, 에디터 표시는 빛 색 작은 상자), PBR과 툰
+lights_view     scenes/lights.scene   0 3.0 -6.5   0 -18
+lights_toon     scenes/lights.scene   0 3.0 -6.5   0 -18  toon

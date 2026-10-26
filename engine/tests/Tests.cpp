@@ -29,6 +29,7 @@
 #include "mealkit/sim/TickTimer.h"
 #if MEALKIT_TEST_UI
 #include "mealkit/asset/Environment.h"
+#include "mealkit/render/SceneLights.h"
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/game/FrameStats.h"
 #include "mealkit/live/Server.h"
@@ -878,6 +879,28 @@ TEST_CASE(asset, reflection_probe) {
     TEST_CHECK(asset::loadProbe(path, back, error) && back.size == probe.size && back.mips == probe.mips && back.reflect == probe.reflect);
     removeFile(path);
     TEST_CHECK(!asset::loadProbe(path, back, error) && !error.empty());
+}
+
+// 점광원: 엔진 기본 종류지만 필드가 있고, 씬 물체 → render::PointLight (월드 위치, 선형 색 × 세기, 꺼진 빛은 뺀다)
+TEST_CASE(render, scene_point_lights) {
+    const reflect::TypeInfo* type = scene::findType(scene::kTypePointLight, nullptr);
+    TEST_CHECK(type && type->field("range") && (type->flags & reflect::kObjectCosmetic));
+    scene::Scene s;
+    scene::Entity& parent = s.add(scene::kTypeSolid, "Parent");
+    parent.position = {10, 0, 0};
+    const u32 parentId = parent.id; // add가 벡터를 늘리면 앞의 참조는 무효
+    scene::Entity& lamp = s.add(scene::kTypePointLight, "Lamp");
+    lamp.parent = parentId;
+    lamp.position = {0, 2, 0};
+    lamp.fields = {{"color", "#FFFFFF"}, {"intensity", "2"}, {"range", "5"}};
+    scene::Entity& off = s.add(scene::kTypePointLight, "Off");
+    off.fields = {{"intensity", "0"}};
+    std::vector<render::PointLight> lights;
+    render::addSceneLights(s, lights);
+    TEST_CHECK(lights.size() == 1);
+    TEST_CHECK(lights[0].position.x == 10.0f && lights[0].position.y == 2.0f && lights[0].range == 5.0f);
+    TEST_CHECK(std::abs(lights[0].color.x - 2.0f) < 1e-5f);
+    TEST_CHECK(std::abs(render::srgbToLinear(Color::rgb(188, 188, 188)).x - 0.5f) < 0.01f);
 }
 
 // 텍스처 캐시의 밉맵: 크기가 반씩 줄고, sRGB는 선형으로 평균하고, 법선은 다시 길이 1. half 변환

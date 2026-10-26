@@ -5,6 +5,14 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 점광원 (완료 2026-10-27)
+- **왜**: 태양 하나뿐이라 횃불·폭발 빛·실내 조명을 쓸 수 없었다.
+- **씬**: 엔진 기본 종류 `point_light`("점광원", `kObjectMarker | kObjectCosmetic`). 기본 종류지만 필드가 있다: `scene::PointLightFields`(`MEALKIT_STRUCT`, 색 `#FFD6A0`·세기 3·거리 6 m)의 설명을 이름만 바꿔 `builtinTypes`에 넣어 인스펙터 [필드]와 `field` 줄을 게임 종류와 같이 쓴다. 에디터는 빛 색의 0.2 m 상자로 그린다.
+- **렌더러**: `PointLight`(위치, 거리, 선형 색 × 세기), `FrameParams::lights`·`lightCount`(프레임당 `kMaxPointLights` 255). `render/SceneLights.h` `addSceneLights(scene, out)`(월드 위치, sRGB → 선형). 프레임 상수 480 → 496바이트(빛 표 위치·개수), 표는 빛마다 32바이트. `drawInstances`가 인스턴스마다 메시 바운딩 구에 닿는 빛을 밝기 × 가까움 점수로 최대 `lightsPerObject`개(`setLightsPerObject`, 프로젝트 설정 `pointLightsPerObject` 4, 1~8) 골라 8바이트(번호 8개, 0xFF = 끝)를 링에 쓰고, 푸시 상수 `lightOffset`(16 → 32바이트)으로 넘긴다. 빛이 없는 프레임은 고르지 않는다.
+- **셰이더**: 정점 셰이더가 번호 8개를 `nointerpolation`으로 넘기고, `pointLights()`가 거리 감쇠(창 함수² / (d² + 1), 거리에서 0) × (PBR: Lambert 확산 + 해와 같은 GGX 정반사, 툰: 램프 확산만). 조명 없음은 받지 않는다. 그림자 없음. 빛이 없는 장면은 기준 그림이 그대로다(13장).
+- **샘플**: sandbox `applyLights`가 씬 빛 + 밀치기 순간의 잠깐 빛(0.25초, 화면 쪽 효과, `WorldView::flashes`)을 넘긴다. `assets/scenes/lights.scene`(밤, 횃불·파랑·빨강), 골든 `lights_view`·`lights_toon`. 반사 프로브 굽기도 씬 빛을 받는다.
+- **남은 것**: 빛 그림자(보류), 광원 수백 개는 보류 표의 Forward+. 인스턴스마다 고르는 CPU 비용은 인스턴스 × 프레임 빛 수라 빛이 수십 개를 넘으면 공간 나누기가 필요하다.
+
 ### [x] 반사 프로브 (완료 2026-10-27)
 - **왜**: 실내·그늘에서도 유광·금속 표면에 하늘 HDRI가 비쳐 어색했다.
 - **씬**: 엔진 기본 종류 `reflection_probe`("반사 프로브", `kObjectArea | kObjectCosmetic`: 에디터는 상자 모서리로 그리고 게임은 그리지 않으며 콘텐츠 해시에서 빠진다). 위치 = 찍는 자리 = 영향 상자 중심, 크기 = 영향 상자(축 정렬). 구운 파일은 필드 줄 `field bake probes/<씬>_<id>.mkprobe`(`scene::probeFile`·`probeFileFor`). 씬 형식은 그대로.

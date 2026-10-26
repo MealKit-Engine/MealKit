@@ -1,7 +1,8 @@
 // MealKit forward shading.
 // 인스턴스 데이터(위치/회전/스케일/색)를 업로드 링에서 읽어 정점 셰이더에서 변환한다.
 // CPU는 행렬을 만들지 않고 48바이트 인스턴스만 쓴다. 머티리얼은 glTF PBR metallic-roughness(정점의 material 번호 →
-// 업로드 링의 머티리얼 표 → bindless 텍스처). 조명: 태양 + 환경광(하늘 HDRI의 SH, 없으면 반구 그라디언트) + 지수 안개.
+// 업로드 링의 머티리얼 표 → bindless 텍스처). 조명: 태양 + 점광원(물체마다 CPU가 고른 최대 8개, 그림자 없음)
+// + 환경광(하늘 HDRI의 SH, 없으면 반구 그라디언트) + 지수 안개.
 // 하늘 HDRI가 있으면 VSSky/PSSky가 3D 전에 스카이박스를 그리고, 반사는 구운 큐브(밉 = 거칠기)에서 읽는다.
 // 반사 프로브가 있으면 정점 셰이더가 인스턴스 위치를 담은 영향 상자 중 중심이 가장 가까운 프로브 하나를 골라 하늘 반사 대신 그 큐브를 읽는다.
 // 스타일 프리셋 (docs/CODING_MODEL.md "셰이더 코드"): 조명 모델은 LIGHTING_MODEL로 빌드 때 변형 셋(PSMain),
@@ -29,7 +30,7 @@ struct Instance // 48바이트 (render::InstanceData)
                      // bit16~23: 번쩍임, bit24~31: 디졸브 진행도 (render::instanceFlash/instanceDissolve)
 };
 
-struct FrameConstants // 480바이트 (Renderer.cpp FrameConstants)
+struct FrameConstants // 496바이트 (Renderer.cpp FrameConstants)
 {
     float4x4 viewProj;
     float4 cameraPos;
@@ -47,6 +48,7 @@ struct FrameConstants // 480바이트 (Renderer.cpp FrameConstants)
     float4 envParams;   // x = 세기, y = cos(회전), z = sin(회전)
     float4 sh[9];       // 환경광 SH (rgb)
     uint4 probes;       // x = 반사 프로브 표의 링 위치, y = 개수 (표 32바이트: 위치 xyz, 큐브 번호 | 밉 수 << 24, 상자 반 크기 xyz, 0)
+    uint4 lights;       // x = 점광원 표의 링 위치, y = 개수 (표 32바이트: 위치 xyz, 거리, 색 rgb(× 세기), 0)
 };
 
 static const uint kNoTexture = 0xFFFFFFFFu;
@@ -75,6 +77,7 @@ struct PushConstants
     uint frameOffset;    // FrameConstants 위치
     uint instanceOffset; // 이번 드로우의 Instance 배열 위치
     uint debugView;      // render::DebugView: 0 없음, 1 와이어프레임, 2 법선, 3 LOD, 4 오버드로, 5 예산, 6 머티리얼 기능
+    uint lightOffset;    // 인스턴스마다 점광원 번호 8개 (바이트, 0xFF = 끝)의 링 위치
 };
 [[vk::push_constant]] ConstantBuffer<PushConstants> pc : register(b0);
 
@@ -101,6 +104,7 @@ FrameConstants loadFrame()
     [unroll] for (uint i = 0; i < 9; ++i)
         f.sh[i] = loadFloat4(b, o + 320 + i * 16);
     f.probes = b.Load4(o + 464);
+    f.lights = b.Load4(o + 480);
     return f;
 }
 
@@ -164,6 +168,7 @@ struct VSOutput
     nointerpolation uint flags : FLAGS;
     nointerpolation uint material : MATERIAL;
     nointerpolation uint probe : PROBE; // 반사 프로브 큐브 번호 | 밉 수 << 24 (0 = 하늘 반사)
+    nointerpolation uint2 lights : LIGHTS; // 점광원 번호 8개 (바이트, 0xFF = 끝)
 };
 
 float3 rotateByQuat(float4 q, float3 v)
@@ -229,6 +234,7 @@ VSOutput transformVertex(VSInput input, bool outline)
     o.flags = inst.flags;
     o.material = input.material.x;
     o.probe = nearestProbe(frame, inst.position);
+    o.lights = frame.lights.y != 0 ? g_buffers[pc.ring].Load2(pc.lightOffset + input.instanceId * 8) : uint2(0xFFFFFFFFu, 0xFFFFFFFFu);
     return o;
 }
 
@@ -293,6 +299,44 @@ float3 reflection(FrameConstants f, float3 r, float roughness, uint probe)
     }
     float mips = float(max(f.env.z, 1u) - 1);
     return g_cubes[NonUniformResourceIndex(f.env.y)].SampleLevel(g_linearClamp, envDirection(f, r), roughness * mips).rgb * f.envParams.x;
+}
+
+// 점광원 (그림자 없음): 거리 감쇠는 창 함수를 곱한 역제곱 (range에서 0). 확산은 Lambert, PBR은 GGX 정반사도
+// diffuseColor = albedo × (1 − metallic). 조명 없음 모델은 부르지 않는다
+float3 pointLights(FrameConstants f, uint2 lights, float3 worldPos, float3 n, float3 v, float3 diffuseColor, float3 f0, float roughness)
+{
+    ByteAddressBuffer b = g_buffers[pc.ring];
+    float3 color = 0.0;
+    [loop] for (uint i = 0; i < 8; ++i)
+    {
+        uint index = ((i < 4 ? lights.x : lights.y) >> ((i & 3u) * 8)) & 0xFFu;
+        if (index == 0xFFu || index >= f.lights.y)
+            break;
+        uint o = f.lights.x + index * 32;
+        float4 pr = loadFloat4(b, o);
+        float3 radiance = loadFloat3(b, o + 16);
+        float3 toLight = pr.xyz - worldPos;
+        float d2 = dot(toLight, toLight);
+        float window = saturate(1.0 - (d2 * d2) / (pr.w * pr.w * pr.w * pr.w));
+        float atten = window * window / (d2 + 1.0);
+        float3 l = toLight * rsqrt(max(d2, 1e-8));
+        float ndl = saturate(dot(n, l));
+#if LIGHTING_MODEL == 1
+        // 툰: 확산을 램프로 (해와 같은 색 단계), 하이라이트는 없다
+        float3 ramp = g_textures[NonUniformResourceIndex(f.style.x)].SampleLevel(g_linearClamp, float2(saturate(dot(n, l) * 0.5 + 0.5), 0.5), 0).rgb;
+        color += diffuseColor * ramp * ramp * radiance * atten;
+#else
+        float3 h = normalize(l + v);
+        float ndh = saturate(dot(n, h)), ndv = max(dot(n, v), 1e-4), vdh = saturate(dot(v, h));
+        float a = roughness * roughness, a2 = a * a;
+        float d = a2 / (3.14159265 * pow(ndh * ndh * (a2 - 1.0) + 1.0, 2.0));
+        float k = a * 0.5;
+        float vis = 1.0 / ((ndl * (1.0 - k) + k) * (ndv * (1.0 - k) + k) * 4.0);
+        float3 fresnel = f0 + (1.0 - f0) * pow(1.0 - vdh, 5.0);
+        color += (diffuseColor + d * vis * fresnel) * radiance * (atten * ndl);
+#endif
+    }
+    return color;
 }
 
 // 거칠기·시야각에 따른 정반사 적분 (Karis의 근사, 표 텍스처 없이)
@@ -424,7 +468,7 @@ float4 PSMain(VSOutput input) : SV_Target
     float3 ambientSpecular = hasReflection(frame, input.probe) ? reflection(frame, reflect(-v, n), roughness, input.probe) * envBrdf(f0, roughness, ndv)
                                               : f0 * ambient * (1.0 - roughness * 0.7); // HDRI가 없으면 예전 어림
     float3 color = diffuse * (frame.sunColor.rgb * (halfLambert * halfLambert) + ambient) + specular * frame.sunColor.rgb +
-                   ambientSpecular + emissive;
+                   ambientSpecular + emissive + pointLights(frame, input.lights, input.worldPos, n, v, diffuse, f0, roughness);
 #elif LIGHTING_MODEL == 1
     // 툰: 확산은 램프 텍스처(하프 램버트 → 색 단계), 하이라이트는 가장자리가 끊어진 점 하나. 금속은 하이라이트·환경에 색이 실린다
     float3 ramp = g_textures[NonUniformResourceIndex(frame.style.x)].SampleLevel(g_linearClamp, float2(saturate(halfLambert), 0.5), 0).rgb;
@@ -436,7 +480,8 @@ float4 PSMain(VSOutput input) : SV_Target
     float3 diffuse = albedo * (1.0 - metallic);
     float3 envSpecular = hasReflection(frame, input.probe) ? reflection(frame, reflect(-v, n), roughness, input.probe) * envBrdf(f0, roughness, ndv)
                                           : f0 * ambient * (1.0 - roughness * 0.7);
-    float3 color = diffuse * (frame.sunColor.rgb * ramp + ambient) + highlight * f0 * frame.sunColor.rgb * 4.0 + envSpecular + emissive;
+    float3 color = diffuse * (frame.sunColor.rgb * ramp + ambient) + highlight * f0 * frame.sunColor.rgb * 4.0 + envSpecular + emissive +
+                   pointLights(frame, input.lights, input.worldPos, n, v, diffuse, f0, roughness);
 #else
     // 조명 없음: 색 그대로 (림·안개·번쩍임은 받는다)
     float3 color = albedo + emissive;
