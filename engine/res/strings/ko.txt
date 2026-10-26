@@ -242,6 +242,8 @@ loop = 반복
 one-shot = 한 번 재생
 Culled (newest first) = 끊긴 소리 (최근 것부터)
 Sound voices mixed at once = 동시에 섞는 소리 목소리 수
+Lighting model (Pbr, Toon, Unlit) = 조명 모델 (Pbr 물리 기반, Toon 툰, Unlit 조명 없음)
+Toon ramp image (under assets, left is shadow, right is lit, empty for 3 steps) = 툰 램프 그림 (assets 아래, 왼쪽 = 그늘, 오른쪽 = 밝은 면. 비우면 기본 3단계)
 Default language (assets/strings/<language>.txt) = 기본 언어 (assets/strings/<언어>.txt)
 
 # ---- 연출 ([연출] 패널, 연출 표의 열)
@@ -455,6 +457,7 @@ Normals = 법선
 LOD Level = LOD 단계
 Overdraw = 오버드로
 Over Budget = 예산 초과
+Material Features = 머티리얼 기능
 GPU Capture (%s) = GPU 캡처 (%s)
 GPU capture: next frame -> %s = GPU 캡처: 다음 프레임 -> %s
 Tools = 도구

@@ -12,7 +12,15 @@
     "skinning": false,
     "animation": false
   },
-  "materialFeatures": [],
+  "materialFeatures": [
+    {"key": "outline", "label": "Outline width (m)", "feature": "outline", "color": false, "default": 0.02},
+    {"key": "outlineColor", "label": "Outline color", "feature": "outline", "color": true, "default": [0, 0, 0]},
+    {"key": "wind", "label": "Wind sway (m, vertex alpha)", "feature": "wind", "color": false, "default": 0.1},
+    {"key": "rim", "label": "Rim light strength", "feature": "rim", "color": false, "default": 0.5},
+    {"key": "rimColor", "label": "Rim light color", "feature": "rim", "color": true, "default": [1, 1, 1]},
+    {"key": "dissolve", "label": "Dissolve edge width", "feature": "dissolve", "color": false, "default": 0.05},
+    {"key": "dissolveColor", "label": "Dissolve edge glow", "feature": "dissolve", "color": true, "default": [4, 1.6, 0.4]}
+  ],
   "budgets": {
     "kinds": [
       {"folder": "characters", "key": "budgetCharacters", "triangles": 15000, "textureSize": 2048, "bones": 64, "materials": 4},

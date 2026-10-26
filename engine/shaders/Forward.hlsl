@@ -1,10 +1,21 @@
 // MealKit forward shading.
 // 인스턴스 데이터(위치/회전/스케일/색)를 업로드 링에서 읽어 정점 셰이더에서 변환한다.
 // CPU는 행렬을 만들지 않고 48바이트 인스턴스만 쓴다. 머티리얼은 glTF PBR metallic-roughness(정점의 material 번호 →
-// 업로드 링의 머티리얼 표 → bindless 텍스처). 조명: 태양 (감싼 확산 + GGX 정반사) + 반구 환경광 + 지수 안개.
-// 확산은 예전처럼 하프 램버트를 제곱해 부드럽게 감싼다 (조명 모델은 "텍스처와 머티리얼" 2부에서 프로젝트 설정으로)
+// 업로드 링의 머티리얼 표 → bindless 텍스처). 조명: 태양 + 반구 환경광 + 지수 안개.
+// 스타일 프리셋 (docs/CODING_MODEL.md "셰이더 코드"): 조명 모델은 LIGHTING_MODEL로 빌드 때 변형 셋(PSMain),
+// 머티리얼 기능(외곽선·바람·림·디졸브)은 머티리얼 표의 비트로 셰이더 안에서 고른다. 외곽선은 VSOutline/PSOutline 패스
+//   0 PBR: 감싼 확산(하프 램버트 제곱) + GGX 정반사   1 툰: 램프 텍스처 확산 + 끊어진 하이라이트   2 조명 없음: 색 그대로
 
 #include "Bindless.hlsli"
+
+#ifndef LIGHTING_MODEL
+#define LIGHTING_MODEL 0
+#endif
+
+static const uint kMaterialOutline = 1u; // render::kMaterial* (Renderer.h)
+static const uint kMaterialWind = 2u;
+static const uint kMaterialRim = 4u;
+static const uint kMaterialDissolve = 8u;
 
 struct Instance // 48바이트 (render::InstanceData)
 {
@@ -12,10 +23,11 @@ struct Instance // 48바이트 (render::InstanceData)
     uint color;      // RGBA8 (sRGB), A는 사용 안 함
     float4 rotation; // 쿼터니언
     float3 scale;
-    uint flags;      // bit0: 체커 패턴, bit1: 선택 강조, bit2: 예산 초과, bit8~9: LOD (에디터 보기 모드)
+    uint flags;      // bit0: 체커 패턴, bit1: 선택 강조, bit2: 예산 초과, bit8~9: LOD (에디터 보기 모드),
+                     // bit16~23: 번쩍임, bit24~31: 디졸브 진행도 (render::instanceFlash/instanceDissolve)
 };
 
-struct FrameConstants // 192바이트 (Renderer.cpp FrameConstants)
+struct FrameConstants // 224바이트 (Renderer.cpp FrameConstants)
 {
     float4x4 viewProj;
     float4 cameraPos;
@@ -26,10 +38,12 @@ struct FrameConstants // 192바이트 (Renderer.cpp FrameConstants)
     float4 fogColor;    // a = 안개 밀도
     float4 screenTint;  // 화면 번쩍임 (rgb 선형 색, a = 세기): 연출 표의 flash
     uint4 materials;    // x = 머티리얼 표의 링 위치, y = 개수
+    float4 wind;        // xy = 수평 방향 (월드 xz), z = 세기, w = 화면 시간 (초)
+    uint4 style;        // x = 툰 램프 텍스처 (bindless)
 };
 
 static const uint kNoTexture = 0xFFFFFFFFu;
-struct Material // 64바이트 (Renderer.cpp MaterialGpu)
+struct Material // 128바이트 (Renderer.cpp MaterialGpu)
 {
     float4 baseColor;
     float3 emissive;
@@ -37,7 +51,15 @@ struct Material // 64바이트 (Renderer.cpp MaterialGpu)
     float metallic;
     float roughness;
     float normalScale;
+    uint features;  // kMaterial* 비트
     uint4 textures; // baseColor, normal, metallicRoughness, emissive
+    float3 outlineColor;
+    float outlineWidth;
+    float3 rimColor;
+    float rimStrength;
+    float3 dissolveColor;
+    float dissolveEdge;
+    float windStrength;
 };
 
 struct PushConstants
@@ -45,7 +67,7 @@ struct PushConstants
     uint ring;           // 업로드 링의 g_buffers[] 번호
     uint frameOffset;    // FrameConstants 위치
     uint instanceOffset; // 이번 드로우의 Instance 배열 위치
-    uint debugView;      // render::DebugView: 0 없음, 1 와이어프레임, 2 법선, 3 LOD, 4 오버드로, 5 예산
+    uint debugView;      // render::DebugView: 0 없음, 1 와이어프레임, 2 법선, 3 LOD, 4 오버드로, 5 예산, 6 머티리얼 기능
 };
 [[vk::push_constant]] ConstantBuffer<PushConstants> pc : register(b0);
 
@@ -64,13 +86,15 @@ FrameConstants loadFrame()
     f.fogColor = loadFloat4(b, o + 144);
     f.screenTint = loadFloat4(b, o + 160);
     f.materials = b.Load4(o + 176);
+    f.wind = loadFloat4(b, o + 192);
+    f.style = b.Load4(o + 208);
     return f;
 }
 
 Material loadMaterial(FrameConstants frame, uint index)
 {
     ByteAddressBuffer b = g_buffers[pc.ring];
-    uint o = frame.materials.x + min(index, frame.materials.y - 1) * 64;
+    uint o = frame.materials.x + min(index, frame.materials.y - 1) * 128;
     Material m;
     m.baseColor = loadFloat4(b, o);
     float4 e = loadFloat4(b, o + 16);
@@ -80,7 +104,16 @@ Material loadMaterial(FrameConstants frame, uint index)
     m.metallic = p.x;
     m.roughness = p.y;
     m.normalScale = p.z;
+    m.features = asuint(p.w);
     m.textures = b.Load4(o + 48);
+    float4 outline = loadFloat4(b, o + 64), rim = loadFloat4(b, o + 80), dissolve = loadFloat4(b, o + 96);
+    m.outlineColor = outline.xyz;
+    m.outlineWidth = outline.w;
+    m.rimColor = rim.xyz;
+    m.rimStrength = rim.w;
+    m.dissolveColor = dissolve.xyz;
+    m.dissolveEdge = dissolve.w;
+    m.windStrength = asfloat(b.Load(o + 112));
     return m;
 }
 
@@ -101,7 +134,7 @@ struct VSInput
 {
     float3 position : POSITION;
     float3 normal : NORMAL;
-    float4 color : COLOR; // 정점 색 (sRGB, glTF COLOR_0)
+    float4 color : COLOR; // 정점 색 (sRGB, glTF COLOR_0). 알파는 바람 세기
     float2 uv : TEXCOORD;
     uint2 material : MATERIAL; // x = 머티리얼 표 번호
     uint instanceId : SV_InstanceID;
@@ -111,6 +144,7 @@ struct VSOutput
 {
     float4 position : SV_Position;
     float3 worldPos : WORLDPOS;
+    float3 localPos : LOCALPOS; // 디졸브 무늬 (물체에 붙어 움직인다)
     float3 normal : NORMAL;
     float3 albedo : COLOR; // 인스턴스 색 × 정점 색 (머티리얼 기본 색은 픽셀 셰이더에서)
     float2 uv : TEXCOORD;
@@ -130,22 +164,41 @@ float3 unpackAlbedo(uint c)
     return srgb * srgb; // sRGB -> 선형 근사 (감마 2.0)
 }
 
-VSOutput VSMain(VSInput input)
+// 정점 변환 (본 패스와 외곽선 패스가 같이 쓴다). outline이면 법선 방향으로 부풀리고, 외곽선 없는 머티리얼의 정점은 접는다
+VSOutput transformVertex(VSInput input, bool outline)
 {
     Instance inst = loadInstance(input.instanceId);
     FrameConstants frame = loadFrame();
+    Material mat = loadMaterial(frame, input.material.x);
     float3 world = rotateByQuat(inst.rotation, input.position * inst.scale) + inst.position;
+    float3 normal = rotateByQuat(inst.rotation, input.normal / inst.scale);
+
+    if (mat.features & kMaterialWind) // 바람: 정점 알파 = 세기 (뿌리 0, 끝 1로 칠한다). 자리마다 위상이 달라 함께 흔들리지 않는다
+    {
+        float phase = dot(world.xz, float2(0.37, 0.23));
+        float t = frame.wind.w;
+        float sway = sin(t * 1.7 + phase) * 0.7 + sin(t * 3.3 + phase * 1.9) * 0.3;
+        world.xz += frame.wind.xy * (sway * input.color.a * mat.windStrength * frame.wind.z);
+    }
+    if (outline)
+        world += normalize(normal) * mat.outlineWidth;
 
     VSOutput o;
     o.position = mul(float4(world, 1.0), frame.viewProj);
+    if (outline && !(mat.features & kMaterialOutline))
+        o.position = float4(0.0, 0.0, 0.0, 0.0); // 넓이 0 삼각형은 래스터라이저가 버린다
     o.worldPos = world;
-    o.normal = rotateByQuat(inst.rotation, input.normal / inst.scale);
+    o.localPos = input.position;
+    o.normal = normal;
     o.albedo = unpackAlbedo(inst.color) * (input.color.rgb * input.color.rgb);
     o.uv = input.uv;
     o.flags = inst.flags;
     o.material = input.material.x;
     return o;
 }
+
+VSOutput VSMain(VSInput input) { return transformVertex(input, false); }
+VSOutput VSOutline(VSInput input) { return transformVertex(input, true); }
 
 float4 sampleTexture(uint index, float2 uv, float4 fallback)
 {
@@ -165,6 +218,51 @@ float3 perturbNormal(float3 n, float3 worldPos, float2 uv, float3 mapNormal)
     return normalize(mapNormal.x * t * invmax - mapNormal.y * b * invmax + mapNormal.z * n);
 }
 
+// 값 무늬 (정수 해시라 GPU마다 같은 무늬). 디졸브가 쓴다
+float hash3(uint3 p)
+{
+    uint h = p.x * 0x8da6b343u ^ p.y * 0xd8163841u ^ p.z * 0xcb1ab31fu;
+    h ^= h >> 16;
+    h *= 0x7feb352du;
+    h ^= h >> 15;
+    return float(h & 0xFFFFFFu) / 16777215.0;
+}
+
+float valueNoise(float3 p)
+{
+    float3 i = floor(p), f = frac(p);
+    f = f * f * (3.0 - 2.0 * f);
+    uint3 c = uint3(int3(i) + 0x4000);
+    float x00 = lerp(hash3(c), hash3(c + uint3(1, 0, 0)), f.x);
+    float x10 = lerp(hash3(c + uint3(0, 1, 0)), hash3(c + uint3(1, 1, 0)), f.x);
+    float x01 = lerp(hash3(c + uint3(0, 0, 1)), hash3(c + uint3(1, 0, 1)), f.x);
+    float x11 = lerp(hash3(c + uint3(0, 1, 1)), hash3(c + uint3(1, 1, 1)), f.x);
+    return lerp(lerp(x00, x10, f.y), lerp(x01, x11, f.y), f.z);
+}
+
+// 디졸브: 무늬가 진행도보다 낮은 픽셀은 버리고, 남은 경계 폭 안은 0..1(발광 세기)을 돌려준다. 진행도 1이면 모두 사라진다
+float dissolveEdge(Material mat, VSOutput input)
+{
+    float progress = float((input.flags >> 24) & 0xFFu) / 255.0;
+    if (!(mat.features & kMaterialDissolve) || progress <= 0.0)
+        return 0.0;
+    float n = valueNoise(input.localPos * 6.0) * 0.7 + valueNoise(input.localPos * 17.0) * 0.3;
+    float cut = progress * (1.0 + mat.dissolveEdge);
+    if (n < cut)
+        discard;
+    return 1.0 - saturate((n - cut) / max(mat.dissolveEdge, 1e-4));
+}
+
+// 인스턴스 번쩍임 + 안개 + 화면 번쩍임 (본 패스와 외곽선이 같이)
+float4 finishColor(FrameConstants frame, VSOutput input, float3 color)
+{
+    float flash = float((input.flags >> 16) & 0xFFu) / 255.0;
+    color = lerp(color, float3(1.0, 1.0, 1.0), flash);
+    float dist = distance(input.worldPos, frame.cameraPos.xyz);
+    float fog = exp(-dist * frame.fogColor.a);
+    return float4(lerp(lerp(frame.fogColor.rgb, color, fog), frame.screenTint.rgb, frame.screenTint.a), 1.0);
+}
+
 float4 PSMain(VSOutput input) : SV_Target
 {
     FrameConstants frame = loadFrame();
@@ -172,6 +270,7 @@ float4 PSMain(VSOutput input) : SV_Target
     float4 base = mat.baseColor * sampleTexture(mat.textures.x, input.uv, float4(1, 1, 1, 1));
     if (mat.alphaCutoff > 0.0 && base.a < mat.alphaCutoff)
         discard;
+    float edge = dissolveEdge(mat, input);
     float3 n = normalize(input.normal);
     if (mat.textures.y != kNoTexture)
     {
@@ -207,13 +306,25 @@ float4 PSMain(VSOutput input) : SV_Target
         float3 tint = pc.debugView == 3 ? lodColor : ((input.flags & 4u) ? float3(0.95, 0.2, 0.15) : float3(0.6, 0.6, 0.6));
         return float4(tint * (0.35 + 0.65 * halfLambert), 1.0);
     }
+    if (pc.debugView == 6) // 머티리얼 기능: 외곽선 빨강, 바람 초록, 림 파랑, 디졸브 노랑 (섞이면 더한 색)
+    {
+        uint f = mat.features;
+        float3 tint = float3((f & kMaterialOutline) ? 0.9 : 0.0, (f & kMaterialWind) ? 0.8 : 0.0, (f & kMaterialRim) ? 0.9 : 0.0);
+        if (f & kMaterialDissolve)
+            tint += float3(0.8, 0.7, 0.0);
+        if (f == 0)
+            tint = float3(0.45, 0.45, 0.45);
+        return float4(saturate(tint) * (0.35 + 0.65 * halfLambert), 1.0);
+    }
 
     float3 ambient = lerp(frame.groundColor.rgb, frame.skyColor.rgb, n.y * 0.5 + 0.5);
-
-    // GGX 정반사 (태양 하나) + 금속은 확산 없이 색이 정반사로. 환경 반사는 하늘 HDRI 항목에서
     float3 v = normalize(frame.cameraPos.xyz - input.worldPos);
+    float ndv = max(dot(n, v), 1e-4);
+
+#if LIGHTING_MODEL == 0
+    // GGX 정반사 (태양 하나) + 금속은 확산 없이 색이 정반사로. 환경 반사는 하늘 HDRI 항목에서
     float3 h = normalize(l + v);
-    float ndl = saturate(dot(n, l)), ndv = max(dot(n, v), 1e-4), ndh = saturate(dot(n, h)), vdh = saturate(dot(v, h));
+    float ndl = saturate(dot(n, l)), ndh = saturate(dot(n, h)), vdh = saturate(dot(v, h));
     float a = roughness * roughness, a2 = a * a;
     float d = a2 / (3.14159265 * pow(ndh * ndh * (a2 - 1.0) + 1.0, 2.0));
     float k = a * 0.5;
@@ -225,11 +336,40 @@ float4 PSMain(VSOutput input) : SV_Target
     float3 ambientSpecular = f0 * ambient * (1.0 - roughness * 0.7); // 반사 프로브 전까지의 어림
     float3 color = diffuse * (frame.sunColor.rgb * (halfLambert * halfLambert) + ambient) + specular * frame.sunColor.rgb +
                    ambientSpecular + emissive;
+#elif LIGHTING_MODEL == 1
+    // 툰: 확산은 램프 텍스처(하프 램버트 → 색 단계), 하이라이트는 가장자리가 끊어진 점 하나. 금속은 하이라이트·환경에 색이 실린다
+    float3 ramp = g_textures[NonUniformResourceIndex(frame.style.x)].SampleLevel(g_linearClamp, float2(saturate(halfLambert), 0.5), 0).rgb;
+    ramp *= ramp; // sRGB 그림 → 선형 근사
+    float3 h = normalize(l + v);
+    float shininess = 2.0 / max(roughness * roughness * roughness * roughness, 1e-3) - 2.0;
+    float highlight = smoothstep(0.45, 0.55, pow(saturate(dot(n, h)), shininess)) * step(0.0, dot(n, l)) * (1.0 - roughness * 0.8);
+    float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
+    float3 diffuse = albedo * (1.0 - metallic);
+    float3 color = diffuse * (frame.sunColor.rgb * ramp + ambient) + highlight * f0 * frame.sunColor.rgb * 4.0 +
+                   f0 * ambient * (1.0 - roughness * 0.7) + emissive;
+#else
+    // 조명 없음: 색 그대로 (림·안개·번쩍임은 받는다)
+    float3 color = albedo + emissive;
+#endif
+
+    if (mat.features & kMaterialRim) // 림: 보는 방향과 거의 직각인 가장자리
+        color += mat.rimColor * (mat.rimStrength * pow(1.0 - ndv, 3.0));
+    color += mat.dissolveColor * edge;
 
     if (input.flags & 2u) // 에디터 선택 강조
         color = lerp(color, float3(1.0, 0.45, 0.05), 0.45) + float3(0.08, 0.03, 0.0);
 
-    float dist = distance(input.worldPos, frame.cameraPos.xyz);
-    float fog = exp(-dist * frame.fogColor.a);
-    return float4(lerp(lerp(frame.fogColor.rgb, color, fog), frame.screenTint.rgb, frame.screenTint.a), 1.0);
+    return finishColor(frame, input, color);
+}
+
+// 외곽선 (뒤집은 껍질): 앞면을 버리고 부푼 뒷면만 단색으로. 알파 마스크·디졸브는 본 패스와 같게 잘린다
+float4 PSOutline(VSOutput input) : SV_Target
+{
+    FrameConstants frame = loadFrame();
+    Material mat = loadMaterial(frame, input.material);
+    float4 base = mat.baseColor * sampleTexture(mat.textures.x, input.uv, float4(1, 1, 1, 1));
+    if (mat.alphaCutoff > 0.0 && base.a < mat.alphaCutoff)
+        discard;
+    float edge = dissolveEdge(mat, input);
+    return finishColor(frame, input, mat.outlineColor + mat.dissolveColor * edge);
 }

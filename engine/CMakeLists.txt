@@ -19,7 +19,18 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     endif()
     list(APPEND MEALKIT_SPIRV_FLAGS -spirv -fspv-target-env=vulkan1.3)
 
+    # 나머지 인자는 전처리 정의 (예: LIGHTING_MODEL=1 → -D LIGHTING_MODEL=1, 스타일 프리셋 변형)
     function(mealkit_shader source entry profile name)
+        set(defines "")
+        foreach(d ${ARGN})
+            list(APPEND defines -D ${d})
+        endforeach()
+        # Vulkan 백엔드는 진입점 이름 VSMain·PSMain으로 파이프라인을 만든다: 다른 진입점(VSOutline 등)은 SPIR-V에서 이름을 바꾼다
+        if(profile MATCHES "^vs_")
+            set(spirv_entry -fspv-entrypoint-name=VSMain)
+        else()
+            set(spirv_entry -fspv-entrypoint-name=PSMain)
+        endif()
         if(MEALKIT_RHI STREQUAL "Vulkan")
             set(dxil ${MEALKIT_SHADER_OUT}/other/${name}.h)
             set(spirv ${MEALKIT_SHADER_OUT}/${name}.h)
@@ -30,13 +41,13 @@ if(NOT MEALKIT_HEADLESS_ONLY)
         set(deps ${CMAKE_CURRENT_SOURCE_DIR}/${source} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/Bindless.hlsli)
         add_custom_command(
             OUTPUT ${dxil}
-            COMMAND ${MEALKIT_SHADER_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${dxil} ${MEALKIT_DXIL_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+            COMMAND ${MEALKIT_SHADER_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${dxil} ${MEALKIT_DXIL_FLAGS} ${defines} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
             DEPENDS ${deps}
             COMMENT "DXC ${source} (${entry}, DXIL)"
             VERBATIM)
         add_custom_command(
             OUTPUT ${spirv}
-            COMMAND ${MEALKIT_SHADER_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${spirv} ${MEALKIT_SPIRV_FLAGS} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+            COMMAND ${MEALKIT_SHADER_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${spirv} ${MEALKIT_SPIRV_FLAGS} ${spirv_entry} ${defines} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
             DEPENDS ${deps}
             COMMENT "DXC ${source} (${entry}, SPIR-V)"
             VERBATIM)
@@ -44,8 +55,13 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     endfunction()
 
     # SM 6.6 = 최소 사양. 바인딩 모양은 shaders/Bindless.hlsli (mealkit/rhi/Rhi.h)
+    # 조명 모델(render::LightingModel)마다 픽셀 셰이더 하나 + 외곽선 패스. 모두 exe에 들어가고 렌더러 init이 파이프라인을 만든다
     mealkit_shader(shaders/Forward.hlsl VSMain vs_6_6 g_ForwardVS)
-    mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardPS)
+    mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardPbrPS LIGHTING_MODEL=0)
+    mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardToonPS LIGHTING_MODEL=1)
+    mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardUnlitPS LIGHTING_MODEL=2)
+    mealkit_shader(shaders/Forward.hlsl VSOutline vs_6_6 g_OutlineVS)
+    mealkit_shader(shaders/Forward.hlsl PSOutline ps_6_6 g_OutlinePS)
     mealkit_shader(shaders/Ui.hlsl VSMain vs_6_6 g_UiVS)
     mealkit_shader(shaders/Ui.hlsl PSMain ps_6_6 g_UiPS)
 endif()
@@ -168,6 +184,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/game/Benchmark.cpp
     src/mealkit/game/Frontend.h
     src/mealkit/game/Frontend.cpp
+    src/mealkit/game/RenderStyle.h
+    src/mealkit/game/RenderStyle.cpp
     src/mealkit/game/MatchService.h
     src/mealkit/game/MatchService.cpp
     src/mealkit/game/GameMain.h

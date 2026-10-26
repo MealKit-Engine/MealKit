@@ -54,7 +54,20 @@ def main():
     painted.node_tree.links.new(attr.outputs["Color"], painted.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
     sphere.data.materials.append(painted)
 
-    blend = os.path.join(root, "art", "props.blend")
+    # 스타일 프리셋 머티리얼 기능: 패널의 Add 단추(연산자)가 커스텀 속성 = glTF extras를 만든다. 바람 세기는 정점 알파
+    for c in colors.data:
+        c.color = (1.0, 0.2, 0.1, 0.5)
+    features = {f["key"]: f for f in mealkit.schema()["materialFeatures"]}
+    sphere.active_material = painted
+    bpy.context.view_layer.objects.active = sphere
+    for key in ("outline", "outlineColor", "wind"):
+        with bpy.context.temp_override(material=painted):
+            bpy.ops.mealkit.feature_add(key="mealkit_" + key, value=json.dumps(features[key]["default"]),
+                                        color=features[key]["color"])
+    painted["mealkit_outline"] = 0.04
+    expect(painted.id_properties_ui("mealkit_outlineColor").as_dict().get("subtype") == "COLOR", "color feature uses a color picker")
+
+    blend =os.path.join(root, "art", "props.blend")
     bpy.ops.wm.save_as_mainfile(filepath=blend)
 
     expect(mealkit.find_project(blend) == root, "project found from art/props.blend")
@@ -84,6 +97,14 @@ def main():
         expect(any("COLOR_0" in p["attributes"] for p in prims), "vertex colors exported as COLOR_0")
         expect(any("TEXCOORD_0" in p["attributes"] for p in prims), "texture coordinates exported")
         expect(len(gltf.get("images", [])) == 1, "the texture image is in the .glb")
+        mats = {m.get("name"): m for m in gltf.get("materials", [])}
+        extras = mats.get("Painted", {}).get("extras", {})
+        expect(extras.get("mealkit_outline") == 0.04 and len(extras.get("mealkit_outlineColor", [])) == 3
+               and "mealkit_wind" in extras, "material features exported as extras")
+        accessors = gltf.get("accessors", [])
+        colored = [p for p in prims if "COLOR_0" in p["attributes"]]
+        expect(bool(colored) and accessors[colored[0]["attributes"]["COLOR_0"]]["type"] == "VEC4",
+               "vertex color alpha (wind amount) exported")
 
     # 에셋 예산: 이름의 첫 폴더가 종류, 한도는 mealkit.project (소품 삼각형 500으로 낮춘다)
     with open(os.path.join(root, "mealkit.project"), "a", encoding="utf-8") as f:

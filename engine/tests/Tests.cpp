@@ -786,6 +786,32 @@ TEST_CASE(asset_schema) {
     TEST_CHECK(text == expected);
 }
 
+// 스타일 프리셋 머티리얼 기능: glTF extras(Blender 커스텀 속성)의 mealkit_ 키 → 머티리얼 비트와 값, 틀린 키·값은 문제로
+TEST_CASE(material_extras) {
+    render::MaterialData m;
+    std::vector<std::string> problems;
+    asset::applyMaterialExtras(R"({"mealkit_outline": 0.05, "mealkit_outlineColor": [0.1, 0.2, 0.3], "other": {"a": [1, "x"]},
+                                   "mealkit_rimColor": [1, 0, 0], "mealkit_wind": 1e-1})",
+                               m, problems);
+    TEST_CHECK(problems.empty());
+    TEST_CHECK(m.features == (render::kMaterialOutline | render::kMaterialWind)); // 색만 있는 림은 켜지지 않는다
+    TEST_CHECK(m.outlineWidth == 0.05f && m.outlineColor[2] == 0.3f && m.rimColor[1] == 0.0f && m.windStrength == 0.1f);
+
+    render::MaterialData d;
+    asset::applyMaterialExtras(R"({"mealkit_dissolve": [1, 2], "mealkit_rim": "big", "mealkit_glow": 1, "mealkit_rimColor": 2})", d,
+                               problems);
+    TEST_CHECK(problems.size() == 4 && d.features == 0);
+    asset::applyMaterialExtras(nullptr, d, problems); // extras 없음
+    asset::applyMaterialExtras("not json", d, problems);
+    TEST_CHECK(problems.size() == 4 && d.features == 0);
+
+    // 인스턴스 값은 flags 위 16비트에 (48바이트 그대로)
+    const u32 flags = render::instanceDissolve(render::instanceFlash(render::kInstanceHighlight, 1.0f), 0.5f);
+    TEST_CHECK((flags & 0xFFFFu) == render::kInstanceHighlight && ((flags >> render::kInstanceFlashShift) & 0xFFu) == 255 &&
+               (flags >> render::kInstanceDissolveShift) == 128);
+    TEST_CHECK(render::instanceFlash(flags, 0.0f) >> render::kInstanceFlashShift == 128u << 8);
+}
+
 // 텍스처 캐시의 밉맵: 크기가 반씩 줄고, sRGB는 선형으로 평균하고, 법선은 다시 길이 1. half 변환
 TEST_CASE(texture_mips) {
     std::vector<u8> rgba(4 * 2 * 4); // 4x2: 왼쪽 반 흰색, 오른쪽 반 검정

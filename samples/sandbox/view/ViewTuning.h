@@ -41,6 +41,8 @@ MEALKIT_STRUCT(PawnLook) {
     MEALKIT_FIELD(f32, markerSize, 0.3f, "내 캐릭터 표시 크기 (m)");
     MEALKIT_FIELD(f32, markerSpin, 3.0f, "내 캐릭터 표시 회전 (rad/s)");
     MEALKIT_FIELD(Color, markerColor, (Color::rgb(255, 230, 80)), "내 캐릭터 표시 색");
+    MEALKIT_FIELD(f32, hitFlash, 0.8f, "밀쳐졌을 때 번쩍임 세기 (0..1)");
+    MEALKIT_FIELD(f32, hitFlashSeconds, 0.2f, "밀쳐졌을 때 번쩍임이 사라지는 시간 (초)");
 };
 
 MEALKIT_STRUCT(ShockwaveLook) {

@@ -240,10 +240,16 @@ class MEALKIT_PT_material(bpy.types.Panel):
         if not features:
             layout.label(text="No engine material features yet: base color and vertex color are used")
             return
-        # 기능마다 커스텀 속성 "mealkit_<키>" (glTF extras로 나간다). 스키마가 종류·기본값을 준다
+        # 기능마다 커스텀 속성 "mealkit_<키>" (glTF extras로 나간다). 스키마가 종류·기본값을 준다.
+        # 큰 키(feature와 이름이 같은 것)가 기능을 켜고, 색 같은 딸린 키는 그 기능이 켜져 있을 때만 보인다
         for feature in features:
             key = "mealkit_" + feature["key"]
+            owner = feature.get("feature", feature["key"])
+            if owner != feature["key"] and "mealkit_" + owner not in material:
+                continue
             row = layout.row()
+            if owner != feature["key"]:
+                row.separator(factor=2.0)
             if key in material:
                 row.prop(material, f'["{key}"]', text=feature.get("label", feature["key"]))
                 row.operator("mealkit.feature_remove", text="", icon="X").key = key
@@ -251,6 +257,9 @@ class MEALKIT_PT_material(bpy.types.Panel):
                 op = row.operator("mealkit.feature_add", text="Add " + feature.get("label", feature["key"]))
                 op.key = key
                 op.value = json.dumps(feature.get("default", 0))
+                op.color = bool(feature.get("color", False))
+        if any("mealkit_" + f["key"] in material for f in features if f.get("feature") == "wind"):
+            layout.label(text="Wind: paint the sway amount into the color attribute alpha (0 = root, 1 = tip)", icon="INFO")
 
 
 class MEALKIT_OT_feature_add(bpy.types.Operator):
@@ -258,9 +267,18 @@ class MEALKIT_OT_feature_add(bpy.types.Operator):
     bl_label = "Add MealKit feature"
     key: bpy.props.StringProperty()
     value: bpy.props.StringProperty()
+    color: bpy.props.BoolProperty()
 
     def execute(self, context):
-        context.material[self.key] = json.loads(self.value)
+        value = json.loads(self.value)
+        # 엔진 값은 모두 실수: [0, 0, 0]이 정수 배열 속성이 되지 않게
+        if isinstance(value, list):
+            value = [float(v) for v in value]
+        elif isinstance(value, (int, float)) and not isinstance(value, bool):
+            value = float(value)
+        context.material[self.key] = value
+        if self.color:  # 색 고르기 상자 (선형 색, 1보다 큰 값은 더 밝은 발광)
+            context.material.id_properties_ui(self.key).update(subtype="COLOR", min=0.0, soft_max=1.0)
         return {"FINISHED"}
 
 

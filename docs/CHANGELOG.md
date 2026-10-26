@@ -3,6 +3,25 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
+
+### [x] 텍스처와 머티리얼 2부 — 스타일 프리셋 셰이더 (완료 2026-10-26)
+- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 스타일 프리셋 구현): 조명 모델만 셰이더 변형(셋) + 머티리얼 기능은 머티리얼 표 비트로 셰이더 안 분기 + 외곽선은 파이프라인 하나 더 / 인스턴스 값은 flags 위 16비트(48바이트 그대로) / 바람 세기는 정점 색 알파 / 툰은 램프 PNG + 엔진 기본 3단계.
+- **조명 모델** (`render::LightingModel`, 프로젝트 설정 `lightingModel` = `game::LightingModelSetting` Pbr·Toon·Unlit, 해시 밖): `Forward.hlsl`을 `LIGHTING_MODEL=0/1/2`로 세 번 컴파일(`g_ForwardPbrPS`·`g_ForwardToonPS`·`g_ForwardUnlitPS`, CMake `mealkit_shader`가 나머지 인자를 `-D` 정의로 받는다). `Renderer::init`이 셋 + 외곽선 + 보기 모드 파이프라인을 모두 만들고 `setLightingModel`은 고르기만 한다(플레이 중 PSO를 만들지 않는다). PBR은 1부 그대로(기준 그림 5장이 같다). 툰은 하프 램버트로 램프 텍스처(256×1, `setToonRamp`: 프로젝트 `toonRamp` 그림의 첫 줄을 가장 가까운 픽셀로, 없으면 3단계 0.35·0.72·1.0)를 읽고 하이라이트는 끊어진 점 하나. 조명 없음은 albedo + 발광(안개·번쩍임·림은 받는다).
+- **적용** `game::applyRenderStyle`(`game/RenderStyle.h`, 바뀐 것만, 램프 파일 시각까지 본다): 출시 exe는 매치 데이터를 읽은 뒤, 에디터는 `setProject`와 0.5초 핫 리로드(프로젝트 설정 창에서 바꾸거나 램프 그림을 밖에서 고치면 바로 보인다).
+- **머티리얼 기능** (`render::kMaterialOutline·Wind·Rim·Dissolve`, 머티리얼 표 64 → 128바이트): glTF 머티리얼 `extras`의 `mealkit_outline`·`outlineColor`·`wind`·`rim`·`rimColor`·`dissolve`·`dissolveColor`를 `asset::applyMaterialExtras`가 읽는다(작은 JSON 읽기, 큰 키만 기능을 켜고 색 키는 값만, 모르는 `mealkit_` 키·틀린 값은 모델·머티리얼 이름과 함께 경고). 스키마 `materialFeatures`(라벨·기능·색 여부·엔진 기본값)를 같은 표에서 만든다.
+  - 외곽선: `VSOutline`/`PSOutline`, `PipelineDesc::cullFront`(DX12·Vulkan) 뒤집은 껍질, 법선 방향으로 월드 미터만큼 부풀림, 외곽선 없는 머티리얼의 정점은 넓이 0으로 접는다. `createMesh`가 외곽선 머티리얼이 있는 메시를 표시하고 `drawInstances`가 같은 인스턴스를 한 번 더 그린다(드로우 콜 +1, 보기 모드에서는 그리지 않는다). 나뉜 법선(각진 모서리)에서는 선이 끊긴다.
+  - 바람: 정점 셰이더, 정점 알파 × 머티리얼 세기 × `FrameParams::windStrength`, 방향 `windDirection`, 위상은 월드 위치, 시간 `FrameParams::time`(출시 exe·에디터가 `fmod(now, 4096)`, 기준 그림은 0).
+  - 림: (1 − n·v)³ × 세기 × 색. 디졸브: 물체 공간 위치의 정수 해시 값 무늬 두 옥타브, 진행도보다 낮으면 버리고 경계 폭은 발광, 두 패스 모두.
+- **인스턴스 값** (flags 비트 16~23 번쩍임, 24~31 디졸브 진행도, `render::instanceFlash`·`instanceDissolve`): 번쩍임은 안개 전에 흰색으로 섞는다(모든 머티리얼). 프레임 상수 192 → 224바이트(바람, 툰 램프 번호). 텍스처 올리기 큐를 UI 아틀라스와 같이 쓰고 `beginFrame`에서도 비운다.
+- **셰이더 핫 리로드**: `ShaderReloader::add`가 진입점·정의를 받아 변형 넷(조명 셋 + 외곽선)을 따로 다시 만든다.
+- **에디터**: [보기] > 보기 모드 > 머티리얼 기능(외곽선 빨강·바람 초록·림 파랑·디졸브 노랑, 더한 색), 프로젝트 설정 창의 조명 모델·툰 램프(한국어 글자).
+- **Blender 애드온**: 머티리얼 패널이 스키마로 기능 단추를 만들고, 색 키는 그 기능이 켜졌을 때만 보이며 색 고르기 상자(COLOR), 값은 실수로 저장(정수 배열 속성이 되지 않게), 바람이 있으면 정점 알파 안내. 애드온 시험에 기능 추가 → extras·정점 색 VEC4 내보내기를 더했다.
+- **예제**: `tools/make_sample_models.py`의 `props/style_figure`(외곽선 + 림, 매끈한 법선)·`style_grass`(바람, 알파 뿌리 0 → 끝 1)·`style_orb`(디졸브 + 림), `assets/scenes/styles.scene`(씬 물체 flags로 번쩍임·디졸브 진행도). sandbox: 밀치기 범위 안의 다른 Pawn이 번쩍인다(`view/Draw.cpp` `onWorldEvent`, 화면 시계라 화면 정지 동안 멈춤, 화면용 튜닝 `pawn.hitFlash`·`hitFlashSeconds`).
+- **시험**: 단위 테스트 `material_extras`(키·값·문제·인스턴스 비트), `asset_schema`(스키마 다시 씀). 그래픽 회귀 테스트 `shots.txt`에 조명 모델 열(선택)을 더하고 `styles_pbr`·`styles_toon`·`styles_unlit`·`materials_toon`(DX12 기준 그림, Vulkan 비교).
+- **검증**: check.ps1 전체(기준 그림 5장 그대로, 새 4장 DX12·Vulkan, Vulkan 검증 레이어, Blender 애드온). 출시 exe 3,713,536 → 3,763,200바이트(셰이더 변형 + 외곽선). Vulkan은 진입점 이름으로 파이프라인을 만들어 SPIR-V 진입점을 `-fspv-entrypoint-name`으로 VSMain·PSMain으로 바꾼다(핫 리로드도).
+- **남은 것**: 외곽선 굵기를 화면 픽셀로 두는 옵션, 툰 그림자 경계 색(그늘 색조), 바람 방향·세기를 씬 환경에 두는 것은 쓸 게임이 생길 때. 3부 룩데브에서 조명 모델을 바꿔 보기. 최소 사양 실기에서 외곽선·디졸브 비용 측정.
+
 ## v0.5.2 — 오디오 저작 도구
 
 ### [x] 오디오 3: 저작 도구 (완료 2026-10-26)
@@ -59,7 +78,8 @@
 - **남은 것**: 2부 스타일 프리셋(조명 모델 PBR/툰/없음, 외곽선·바람·림·디졸브, PSO 미리 만들기), 3부 룩데브. 오클루전 텍스처, 양면 머티리얼, 알파 블렌드(반투명 패스와 같이). 하늘 HDRI가 오면 환경 반사. 텍스처 핫 리로드는 모델 핫 리로드가 같이 한다(캐시 키가 내용 해시).
 
 ### [x] GPU 캡처 버튼과 에디터 보기 모드 (완료 2026-10-21)
-- **GPU 캡처** (`rhi/GpuCapture.h`, 그래픽 프로그래머용): 디버그 UI가 있는 빌드(에디터·개발 exe)에서 `--gpu-capture`로 시작하면, 장치를 만들기 전에(`DeviceDesc::gpuCapture`, 두 도구 모두 장치 생성 때 API를 가로챈다) `%ProgramFiles%\RenderDocenderdoc.dll`(DX12·Vulkan) 또는 `%ProgramFiles%\Microsoft PIX\<가장 새 버전>\WinPixGpuCapturer.dll`(DX12)을 불러온다. 에디터 [보기] > GPU 캡처(도구가 없으면 숨김)·F11, 게임 exe F11이 다음 프레임을 캡처하고 RenderDoc 창을 연다. 캡처는 `%LOCALAPPDATA%\MealKit\gpu-captures`. 자동 시험용 `--gpu-capture-at <프레임>`(창 없이). 항상 불러오지 않고 시작 옵션으로 둔 것은 도구가 API를 가로채 성능·검증 레이어에 끼어들기 때문. 출시 빌드에는 코드가 없다(빈 함수).
+- **GPU 캡처** (`rhi/GpuCapture.h`, 그래픽 프로그래머용): 디버그 UI가 있는 빌드(에디터·개발 exe)에서 `--gpu-capture`로 시작하면, 장치를 만들기 전에(`DeviceDesc::gpuCapture`, 두 도구 모두 장치 생성 때 API를 가로챈다) `%ProgramFiles%\RenderDoc
+enderdoc.dll`(DX12·Vulkan) 또는 `%ProgramFiles%\Microsoft PIX\<가장 새 버전>\WinPixGpuCapturer.dll`(DX12)을 불러온다. 에디터 [보기] > GPU 캡처(도구가 없으면 숨김)·F11, 게임 exe F11이 다음 프레임을 캡처하고 RenderDoc 창을 연다. 캡처는 `%LOCALAPPDATA%\MealKit\gpu-captures`. 자동 시험용 `--gpu-capture-at <프레임>`(창 없이). 항상 불러오지 않고 시작 옵션으로 둔 것은 도구가 API를 가로채 성능·검증 레이어에 끼어들기 때문. 출시 빌드에는 코드가 없다(빈 함수).
 - **외부 라이브러리**: RenderDoc in-application API 헤더 `third_party/renderdoc/renderdoc_app.h`(1.46, MIT, 헤더만. DLL은 사용자의 RenderDoc 설치에서). PIX는 `PIXGpuCaptureNextFrames`를 DLL에서 찾는다(WinPixEventRuntime 없이).
 - **플랫폼 계층**: `environmentVariable`(Windows `GetEnvironmentVariableW`, POSIX `getenv`), `listDirectories`.
 - **보기 모드** (`render::DebugView`, 에디터 [보기] > 보기 모드, `--view-mode <n>`): 와이어프레임, 법선, LOD 단계(초록·노랑·빨강), 오버드로(깊이 없이 더하기, 검정 바탕), 예산 초과(빨강/회색). 셰이더는 푸시 상수의 빈칸이던 `debugView`로 고르고, 에디터는 보기 모드일 때만 인스턴스 플래그(LOD 비트 8~9, `kInstanceOverBudget`)를 채운다. RHI `PipelineDesc`에 `wireframe`·`additiveBlend`·`depthTest`(DX12 FillMode·블렌드·깊이, Vulkan polygonMode LINE — `fillModeNonSolid`가 있으면 켠다 — ·블렌드·깊이). 보기 모드 파이프라인은 디버그 UI 빌드만 만들고 셰이더 핫 리로드도 같이 바꾼다. `Renderer::supportsDebugView`.

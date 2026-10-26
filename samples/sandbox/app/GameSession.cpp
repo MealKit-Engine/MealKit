@@ -132,6 +132,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
             if (e.player == session.localPlayer() && e.kind == EventKind::Fall) ++m_save.falls, saveNow = true;
             if (e.player == session.localPlayer() && e.kind == EventKind::Push) ++m_save.pushes;
             m_effects.onEvent(e, m_viewTime, look.shockwave, world.tuning.pawnHalfHeight);
+            onWorldEvent(e, world.state, m_viewTime, m_view); // 밀쳐진 캐릭터 번쩍임
             ctx.feedback.trigger(e, session.localPlayer()); // 소리·흔들림·번쩍임·화면 정지는 연출 표가 정한다
         }
         if (saveNow) game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
@@ -220,7 +221,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     applyEnvironment(m_scene.environment, frame);
 
     drawScene(m_scene, ctx.models, frame.cameraPos, out);
-    drawWorld(previous, current, alpha, localPlayer, now, look, ctx.models.boxMesh(), m_view, out, m_prediction.offset);
+    drawWorld(previous, current, alpha, localPlayer, now, m_viewTime, look, ctx.models.boxMesh(), m_view, out, m_prediction.offset);
     // 캐릭터 위 이름표 (월드 위 UI): 보간한 위치 위에
     for (u32 slot = 0; slot < current.playerCount && slot < m_tagVms.size(); ++slot) {
         const Pawn* pawn = playerPawn(current, slot);

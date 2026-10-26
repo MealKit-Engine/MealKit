@@ -1,8 +1,14 @@
 # 그래픽 회귀 테스트 장면 (tools\check.ps1 "Graphics regression"): MealKitEditor --render-golden <이 파일> <폴더>
-# 이름 씬(assets 기준) 카메라 x y z yaw pitch (도). 기준 그림은 같은 폴더의 <이름>.png, 다시 만들기는 check.ps1 -UpdateGolden
-# materials: 텍스처·법선·금속/거칠기·알파 마스크 (tools/make_sample_models.py의 crate·fence). 조명 모델·포스트 프로세싱이 생기면 그것을 켜고 끈 장면을 더한다
+# 이름 씬(assets 기준) 카메라 x y z yaw pitch (도) [조명 모델 pbr|toon|unlit, 없으면 프로젝트 설정].
+# 기준 그림은 같은 폴더의 <이름>.png, 다시 만들기는 check.ps1 -UpdateGolden. 바람은 화면 시간 0으로 그린다
+# materials: 텍스처·법선·금속/거칠기·알파 마스크 (tools/make_sample_models.py의 crate·fence). 포스트 프로세싱이 생기면 그것을 켜고 끈 장면을 더한다
+# styles: 스타일 프리셋 (조명 모델 셋 × 외곽선·림·바람·디졸브, 인스턴스 번쩍임·디졸브 진행도는 씬 물체 flags)
 arena_overview  scenes/arena.scene   0 24 -48      0 -24
 arena_models    scenes/arena.scene   0  5  32      0 -12
 arena_low       scenes/arena.scene  14  2 -18    -35  -4
 materials_crate  scenes/materials.scene   2.6 2.0 -3.2  -35 -22
 materials_close  scenes/materials.scene   0.9 1.4 -1.6  -20 -18
+styles_pbr      scenes/styles.scene   0.3 2.2 -4.6   0 -16  pbr
+styles_toon     scenes/styles.scene   0.3 2.2 -4.6   0 -16  toon
+styles_unlit    scenes/styles.scene   0.3 2.2 -4.6   0 -16  unlit
+materials_toon  scenes/materials.scene   2.6 2.0 -3.2  -35 -22  toon

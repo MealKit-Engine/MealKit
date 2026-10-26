@@ -1,6 +1,6 @@
 """MealKit 샘플 모델 생성기: 표준 라이브러리만으로 glTF 2.0 바이너리(.glb)를 만든다.
 
-    python tools/make_sample_models.py            -> assets/models/{tree,rock,ring}.glb, models/props/{crate,fence}.glb
+    python tools/make_sample_models.py            -> assets/models/{tree,rock,ring}.glb, models/props/{crate,fence,style_*}.glb
 
 tree·rock·ring은 정점 색 없이 재질 색만 쓰고(씬·고정 기록이 쓴다, 바꾸면 콘텐츠 해시가 바뀐다), crate·fence는 텍스처
 예제다 (glTF PBR: 기본 색·법선·금속/거칠기 텍스처, 알파 마스크. assets/scenes/materials.scene, 그래픽 회귀 테스트).
@@ -366,6 +366,122 @@ def make_fence():
                        [fence_texture()])
 
 
+# ---------------------------------------------------------------- 스타일 프리셋 예제 (외곽선·림·바람·디졸브)
+# 머티리얼 기능은 glTF extras "mealkit_<키>" (Blender 애드온의 커스텀 속성과 같다). assets/scenes/styles.scene, 그래픽 회귀 테스트
+
+def write_style_glb(path, name, parts):
+    """parts: (positions, normals, indices, colors(RGBA 또는 None), material) 목록. 메시 하나에 프리미티브 여러 개."""
+    blob = bytearray()
+    views, accessors, materials, primitives = [], [], [], []
+
+    def add(data, target, count, kind, ctype=5126, extra=None):
+        while len(blob) % 4:
+            blob.append(0)
+        views.append({"buffer": 0, "byteOffset": len(blob), "byteLength": len(data), "target": target})
+        blob.extend(data)
+        acc = {"bufferView": len(views) - 1, "componentType": ctype, "count": count, "type": kind}
+        acc.update(extra or {})
+        accessors.append(acc)
+        return len(accessors) - 1
+
+    for positions, normals, indices, colors, material in parts:
+        flat = [c for p in positions for c in p]
+        lo = [min(p[k] for p in positions) for k in range(3)]
+        hi = [max(p[k] for p in positions) for k in range(3)]
+        attrs = {"POSITION": add(struct.pack("<%df" % len(flat), *flat), 34962, len(positions), "VEC3", extra={"min": lo, "max": hi}),
+                 "NORMAL": add(struct.pack("<%df" % (3 * len(normals)), *[c for n in normals for c in n]), 34962, len(normals), "VEC3")}
+        if colors:
+            attrs["COLOR_0"] = add(struct.pack("<%df" % (4 * len(colors)), *[c for col in colors for c in col]), 34962,
+                                   len(colors), "VEC4")
+        idx = add(struct.pack("<%dH" % len(indices), *indices), 34963, len(indices), "SCALAR", ctype=5123)
+        materials.append(material)
+        primitives.append({"attributes": attrs, "indices": idx, "material": len(materials) - 1})
+
+    while len(blob) % 4:
+        blob.append(0)
+    gltf = {
+        "asset": {"version": "2.0", "generator": "MealKit make_sample_models.py"},
+        "scene": 0, "scenes": [{"nodes": [0]}], "nodes": [{"mesh": 0, "name": name}],
+        "meshes": [{"name": name, "primitives": primitives}], "materials": materials,
+        "buffers": [{"byteLength": len(blob)}], "bufferViews": views, "accessors": accessors,
+    }
+    js = json.dumps(gltf, separators=(",", ":")).encode("utf-8")
+    js += b" " * ((4 - len(js) % 4) % 4)
+    total = 12 + 8 + len(js) + 8 + len(blob)
+    with open(path, "wb") as f:
+        f.write(struct.pack("<III", 0x46546C67, 2, total))
+        f.write(struct.pack("<II", len(js), 0x4E4F534A))
+        f.write(js)
+        f.write(struct.pack("<II", len(blob), 0x004E4942))
+        f.write(blob)
+    tris = sum(len(p[2]) for p in parts) // 3
+    print("wrote %s (%d triangles, %d bytes)" % (os.path.relpath(path, ROOT), tris, total))
+
+
+def smooth_sphere(center, radius, rings=16, segments=24, squash=1.0):
+    """매끈한 법선의 구 (외곽선 껍질이 갈라지지 않게 정점을 나누지 않는다). glTF 앞면 = 반시계."""
+    positions, normals, indices = [], [], []
+    for r in range(rings + 1):
+        theta = math.pi * r / rings
+        for s in range(segments + 1):
+            phi = 2 * math.pi * s / segments
+            n = (math.sin(theta) * math.cos(phi), math.cos(theta), math.sin(theta) * math.sin(phi))
+            positions.append((center[0] + radius * n[0], center[1] + radius * squash * n[1], center[2] + radius * n[2]))
+            normals.append(normalize((n[0], n[1] / squash, n[2])))
+    for r in range(rings):
+        for s in range(segments):
+            a = r * (segments + 1) + s
+            b = a + segments + 1
+            indices += [a, a + 1, b, a + 1, b + 1, b]
+    return positions, normals, indices
+
+
+def pbr(name, color, roughness=0.6, metallic=0.0, **extras):
+    m = {"name": name, "pbrMetallicRoughness": {"baseColorFactor": list(color) + [1.0], "metallicFactor": metallic,
+                                                "roughnessFactor": roughness}}
+    if extras:
+        m["extras"] = {"mealkit_" + k: v for k, v in extras.items()}
+    return m
+
+
+def make_styles():
+    out = os.path.join(OUT_DIR, "props")
+    os.makedirs(out, exist_ok=True)
+    # 인형: 몸(외곽선 + 림) + 머리(외곽선만, 굵게) — 툰 조명에서 가장 잘 보인다
+    body = smooth_sphere((0.0, 0.75, 0.0), 0.5, squash=1.4)
+    head = smooth_sphere((0.0, 1.75, 0.0), 0.35)
+    write_style_glb(os.path.join(out, "style_figure.glb"), "style_figure", [
+        body + (None, pbr("figure_body", (0.85, 0.35, 0.25), outline=0.03, outlineColor=[0.05, 0.02, 0.02], rim=0.8,
+                         rimColor=[1.0, 0.85, 0.6])),
+        head + (None, pbr("figure_head", (0.95, 0.8, 0.6), roughness=0.4, outline=0.04)),
+    ])
+    # 풀: 얇은 잎 여러 장, 정점 알파 = 바람 세기 (뿌리 0 → 끝 1). 양면이 보이게 앞뒤 두 장
+    positions, normals, indices, colors = [], [], [], []
+    for i in range(14):
+        h = ((i * 2654435761) & 0xFFFFFFFF) / 0xFFFFFFFF
+        angle = 2 * math.pi * i / 14 + h
+        x, z = 0.45 * math.cos(angle) * (0.3 + h), 0.45 * math.sin(angle) * (0.3 + h)
+        side = (0.06 * math.cos(angle + math.pi / 2), 0.06 * math.sin(angle + math.pi / 2))
+        height = 0.7 + 0.5 * h
+        tip = (x + 0.15 * math.cos(angle), height, z + 0.15 * math.sin(angle))
+        n = normalize((math.cos(angle), 0.3, math.sin(angle)))
+        for flip in (1, -1):
+            base = len(positions)
+            positions += [(x - side[0], 0.0, z - side[1]), (x + side[0], 0.0, z + side[1]), tip]
+            normals += [tuple(c * flip for c in n)] * 3
+            colors += [(0.35, 0.75, 0.25, 0.0), (0.35, 0.75, 0.25, 0.0), (0.75, 0.95, 0.4, 1.0)]
+            indices += [base, base + 1, base + 2] if flip == 1 else [base, base + 2, base + 1]
+    write_style_glb(os.path.join(out, "style_grass.glb"), "style_grass", [
+        (positions, normals, indices, colors, pbr("grass", (1.0, 1.0, 1.0), roughness=0.8, wind=0.12)),
+    ])
+    # 구슬: 디졸브(씬 물체 flags의 진행도로 반쯤 사라진 모습) + 림
+    orb = smooth_sphere((0.0, 0.6, 0.0), 0.6)
+    write_style_glb(os.path.join(out, "style_orb.glb"), "style_orb", [
+        orb + (None, pbr("orb", (0.3, 0.45, 0.9), roughness=0.3, metallic=0.5, dissolve=0.08,
+                        dissolveColor=[3.0, 1.2, 0.3], rim=0.6, rimColor=[0.6, 0.8, 1.0])),
+    ])
+
+
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
     make_tree()
@@ -373,3 +489,4 @@ if __name__ == "__main__":
     make_ring()
     make_crate()
     make_fence()
+    make_styles()
