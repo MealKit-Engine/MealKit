@@ -5,6 +5,15 @@
 
 ## v0.5.1 — 도구 제품군 시작
 
+### [x] 오디오 2: 런타임을 별도 저장소로 (완료 2026-10-26)
+- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 오디오 런타임 저장소): 저장소 `MealKit-Audio`(로컬 `D:\MealKit-Audio`, 주소 `github.com/MealKit-Engine/MealKit-Audio`, MIT), 코드 이름 `mkaudio` 그대로. 이 PC에 gh가 없어 GitHub 저장소 만들기와 push는 사용자가 한다.
+- **새 저장소** (커밋 8982b8a, 태그 `v0.1.0`): `engine/libs/mkaudio`의 `include/`·`src/`를 옮기고, 혼자 빌드되게 `CMakeLists.txt`(`project(mkaudio VERSION 0.1.0)`, `MKAUDIO_MINIAUDIO_DIR`·`MKAUDIO_STB_DIR`가 없으면 자기 `third_party/`, `MKAUDIO_BUILD_TESTS`는 혼자 빌드할 때만, Linux·macOS 링크 라이브러리), `third_party/miniaudio`(0.11.25)·`third_party/stb`(stb_vorbis), `README.md`, `LICENSE`, CI `.github/workflows/ci.yml`(Windows MSVC, Linux Clang, macOS ARM64 Clang: 빌드 + ctest).
+- **장치 없는 섞기**: `Desc::noDevice`·`Desc::sampleRate` + `Mixer::render(out, frames)`(`ma_engine_read_pcm_frames`). 시험·오프라인 렌더용, 엔진은 쓰지 않는다.
+- **시험** `tests/MixerTests.cpp`(25개, 시험이 사인파 WAV를 만든다): 재생·멈춤 소리 크기, 없는 이벤트·클립, 쿨다운, 같은 프레임 묶기, 상한(끊지 않음), 먼 루프의 가상 목소리와 돌아오기, 페이드, 음소거와 자막, 버스 볼륨, 정의를 바꿀 때 이름으로 잇기. Windows에서 통과(Linux·macOS는 CI가 처음 돌 때 확인).
+- **엔진**: `engine/libs/mkaudio`를 지우고 `third_party/mkaudio/`(CMakeLists·include·src·LICENSE·`mealkit.txt`, `version v0.1.0 (8982b8a)`)로 바꿨다. 가져오기 `tools\update_mkaudio.ps1 -From <체크아웃> [-Ref <태그>]`(git archive라 고치는 중인 파일은 들어오지 않는다, 버전 줄을 바꾸고 `gen_notices.ps1`을 돌린다). 같이 고칠 때는 CMake `-DMEALKIT_MKAUDIO_DIR=<체크아웃>`(그 체크아웃으로 엔진 전체를 빌드해 확인했다). miniaudio·stb는 엔진의 것을 넘긴다. `VERSIONS.txt`·`THIRD_PARTY_NOTICES.txt`에 mkaudio가 올랐다. 출시 exe 크기는 오디오 1과 같다(3,662,848바이트).
+- **경계 검사** `tools\check_libs.ps1`: 대상이 `engine/libs/*`에서 "`third_party/` 중 `mealkit.txt`의 source가 MealKit-Engine 저장소인 것"으로 바뀌었고, `-Path <체크아웃>`으로 로컬 체크아웃도 검사한다.
+- **남은 것**: GitHub에 저장소를 만들고 `main`과 `v0.1.0`을 push한 뒤 CI 결과 확인(Linux·macOS 빌드는 아직 아무도 돌려 보지 않았다). 오디오 3(저작 도구).
+
 ### [x] 오디오 1: 엔진 안에서 런타임 층 나누기 (완료 2026-10-26)
 - **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 오디오 런타임): 런타임은 엔진 밖 라이브러리 폴더 `engine/libs/mkaudio/`(자체 `CMakeLists.txt`·`include/mkaudio/`·`src/`), 임시 이름 `mkaudio`(저장소 이름을 정하는 오디오 2에서 바꾼다), C++20.
 - **런타임** `mkaudio::Mixer`(`include/mkaudio/Mixer.h`): 예전 `audio::Engine::Impl`의 섞기·버스·버스 미터·클립 풀기·컨테이너(무작위·스위치·블렌드)·파라미터 곡선·로우패스·쿨다운·동시 재생 상한과 끊기·같은 프레임 묶기·가상 목소리·자막을 그대로 옮겼다. 엔진 기능 대신: 자체 `Vec3`, 이벤트 정의 `EventDef`(Reflect 없는 일반 구조체, 클립은 `ClipRef{name, file}`로 쓰는 쪽이 찾은 파일), 로그는 `Desc::log` 함수, 화면용 무작위는 자체 PCG32, 시간 재기는 `std::chrono`. 정의는 `setEvents(vector<EventDef>)`로 받고(쿨다운·직전 클립·재생 중인 소리를 이름으로 잇는다), `sampleRate`·`channels`·`maxVoices`를 더했다. `MiniaudioConfig.h`·`MiniaudioImpl.cpp`는 런타임으로 옮겼다.

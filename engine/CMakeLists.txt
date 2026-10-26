@@ -274,13 +274,22 @@ target_include_directories(${mealkit_core_target} PUBLIC src)
 target_include_directories(${mealkit_core_target} SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf)
 if(NOT MEALKIT_HEADLESS_ONLY)
     target_include_directories(mealkit PRIVATE ${MEALKIT_SHADER_OUT})
-    # 소리: 런타임 mkaudio (engine/libs/mkaudio, miniaudio + stb_vorbis 위. MealKit 헤더를 쓰지 않는 엔진 밖 라이브러리)를
-    # mealkit/audio/(접착층)가 감싼다. 게임은 mealkit/audio/Audio.h가 쓰는 mkaudio 헤더의 타입(Handle 등)만 보므로 include 경로만 넘긴다
+    # 소리: 런타임 mkaudio (별도 저장소 MealKit-Audio, third_party/mkaudio에 버전 고정. miniaudio + stb_vorbis는 엔진의 것)를
+    # mealkit/audio/(접착층)가 감싼다. 게임은 mealkit/audio/Audio.h가 쓰는 mkaudio 헤더의 타입(Handle 등)만 보므로 include 경로만 넘긴다.
+    # 런타임과 같이 고칠 때는 -DMEALKIT_MKAUDIO_DIR=<MealKit-Audio 체크아웃> (끝나면 tools\update_mkaudio.ps1로 가져온다)
+    set(MEALKIT_MKAUDIO_DIR "" CACHE PATH "로컬 MealKit-Audio 체크아웃 (비면 third_party/mkaudio)")
+    if(MEALKIT_MKAUDIO_DIR)
+        set(mealkit_mkaudio_dir ${MEALKIT_MKAUDIO_DIR})
+        message(STATUS "MealKit: audio runtime from ${MEALKIT_MKAUDIO_DIR} (local checkout)")
+    else()
+        set(mealkit_mkaudio_dir ${MEALKIT_THIRD_PARTY}/mkaudio)
+    endif()
     set(MKAUDIO_MINIAUDIO_DIR ${MEALKIT_THIRD_PARTY}/miniaudio)
     set(MKAUDIO_STB_DIR ${MEALKIT_THIRD_PARTY}/stb)
-    add_subdirectory(libs/mkaudio ${CMAKE_CURRENT_BINARY_DIR}/mkaudio)
+    set(MKAUDIO_BUILD_TESTS OFF)
+    add_subdirectory(${mealkit_mkaudio_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkaudio)
     target_link_libraries(mealkit PRIVATE mkaudio)
-    target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/mkaudio/include>)
+    target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${mealkit_mkaudio_dir}/include>)
     # 외부 코드 구현 파일은 경고를 끈다
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb
                                ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp

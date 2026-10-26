@@ -5,7 +5,7 @@ version 0.11.25
 license MIT-0
 licenseFile LICENSE
 source https://github.com/mackron/miniaudio
-usedIn engine (audio)
+usedIn engine (audio runtime third_party/mkaudio)
 inGame yes
 kept miniaudio.h
 why audio devices on every target platform (WASAPI, CoreAudio, ALSA/PulseAudio, AAudio, Web Audio), node graph, 3D attenuation, WAV decoding and streaming in one file. The engine's sound events, voice management and buses (mealkit/audio) are built on it. SDL3 was measured instead and not used (+1.6-1.9 MB exe, docs/DECISIONS.md 2026-10-18).

@@ -1,0 +1,12 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+# Update with tools\update_mkaudio.ps1 -From <MealKit-Audio checkout>; work on both with -DMEALKIT_MKAUDIO_DIR=<checkout>.
+name mkaudio (MealKit Audio runtime)
+version v0.1.0 (8982b8a)
+license MIT
+licenseFile LICENSE
+source https://github.com/MealKit-Engine/MealKit-Audio
+usedIn engine (audio)
+inGame yes
+kept CMakeLists.txt, include/, src/ (tests and its own miniaudio/stb copies are left out; the engine's are used)
+why the sound event runtime of the MealKit tool family (events, containers, voices, buses), built on miniaudio. Its own repository so the audio authoring tool and other engines can use it (docs/DECISIONS.md 2026-10-26).

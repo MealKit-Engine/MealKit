@@ -577,8 +577,12 @@ bool Mixer::init(const Desc& desc) {
     ma_engine_config config = ma_engine_config_init();
     config.listenerCount = 1;
     config.channels = 2; // 스테레오로 섞고 장치 채널(7.1 등)로는 miniaudio가 바꾼다 (섞는 비용이 채널 수에 비례)
+    if (desc.noDevice) {
+        config.noDevice = MA_TRUE;
+        config.sampleRate = desc.sampleRate;
+    }
     if (ma_engine_init(&config, &m->engine) != MA_SUCCESS) {
-        m->log(LogLevel::Warn, "no output device - running without sound");
+        m->log(LogLevel::Warn, desc.noDevice ? "cannot start the mixer" : "no output device - running without sound");
         return false;
     }
     m->ready = true;
@@ -704,6 +708,13 @@ void Mixer::update(double dt) {
     m->startPending();
     m->manageVoices(dt);
     m->stats.updateMs = (now() - begin) * 1000.0;
+}
+
+uint64_t Mixer::render(float* out, uint64_t frames) {
+    if (!m->ready || !m->desc.noDevice) return 0;
+    ma_uint64 read = 0;
+    if (ma_engine_read_pcm_frames(&m->engine, out, frames, &read) != MA_SUCCESS) return 0;
+    return read;
 }
 
 std::vector<std::string> Mixer::eventNames() const {

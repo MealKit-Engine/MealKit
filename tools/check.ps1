@@ -97,7 +97,7 @@ Invoke-Check "Engine layers (include order)" {
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
-# 엔진 밖 라이브러리(engine/libs, 오디오 런타임 mkaudio)는 엔진 헤더·매크로를 쓰지 않는다 (별도 저장소로 옮길 것)
+# 도구 제품군 런타임(third_party/mkaudio = 별도 저장소 MealKit-Audio)은 엔진 헤더·매크로를 쓰지 않는다
 Invoke-Check "Engine libs (no engine headers)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_libs.ps1" 2>&1

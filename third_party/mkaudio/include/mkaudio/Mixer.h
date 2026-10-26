@@ -8,11 +8,11 @@
 #include <string_view>
 #include <vector>
 
-// mkaudio: 소리 이벤트 런타임 (MealKit 오디오, 임시 이름. docs/DECISIONS.md 2026-10-26).
+// mkaudio: 소리 이벤트 런타임 (MealKit Audio, https://github.com/MealKit-Engine/MealKit-Audio, MIT).
 // miniaudio 위에 FMOD·Wwise식 이벤트를 얹는다: 이벤트 이름 + 파라미터로 재생하고, 클립 고르기(무작위·스위치·블렌드 컨테이너),
 // 무작위 볼륨·피치, 파라미터 곡선(볼륨·피치·로우패스), 3D 감쇠, 버스, 동시 재생 상한·끊기, 쿨다운, 같은 프레임 묶기,
 // 목소리 관리(실제로 섞는 수 상한, 들리지 않는 루프는 가상 목소리)를 런타임이 맡는다.
-// 이 라이브러리는 MealKit 헤더를 include하지 않는다(miniaudio·stb_vorbis·표준 라이브러리만, tools\check_libs.ps1).
+// 이 라이브러리는 엔진에 기대지 않는다(miniaudio·stb_vorbis·표준 라이브러리만. MealKit 엔진은 tools\check_libs.ps1로 확인한다).
 // 이벤트 정의를 어디서 읽는지(MealKit은 assets/sounds.table), 클립 파일을 어디서 찾는지, 로그를 어디에 쓰는지는 쓰는 쪽이 정한다.
 // 모든 함수는 한 스레드(게임의 메인 스레드)에서 부른다. 오디오 스레드는 miniaudio가 돌리고, 버스 미터만 원자 값으로 나눈다.
 namespace mkaudio {
@@ -71,6 +71,9 @@ enum class LogLevel : uint8_t { Info, Warn };
 struct Desc {
     uint32_t maxVoices = 32; // 실제로 섞는 목소리 수
     bool muted = false;
+    // 장치 없이 섞는다 (시험, 오프라인 렌더): 소리는 render()로 꺼낸다. 이때 sampleRate를 쓴다(장치가 있으면 장치 값)
+    bool noDevice = false;
+    uint32_t sampleRate = 48000;
     uint64_t seed = 0;                                             // 화면용 무작위 (0이면 시각에서)
     std::function<void(LogLevel level, const std::string&)> log; // 없으면 아무것도 쓰지 않는다
 };
@@ -141,6 +144,8 @@ public:
 
     // 매 프레임 한 번: 재생 요청 처리, 목소리 관리, 끝난 소리 정리 (dt는 초)
     void update(double dt);
+    // Desc::noDevice일 때: 섞은 소리 frames 프레임을 out(프레임 × channels()개의 float)에 쓴다. 쓴 프레임 수
+    uint64_t render(float* out, uint64_t frames);
 
     // 확인용 (에디터 패널 등)
     std::vector<std::string> eventNames() const;
