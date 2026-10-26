@@ -27,6 +27,7 @@
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
 #if MEALKIT_TEST_UI
+#include "mealkit/asset/Environment.h"
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/game/FrameStats.h"
 #include "mealkit/live/Server.h"
@@ -810,6 +811,36 @@ TEST_CASE(material_extras) {
     TEST_CHECK((flags & 0xFFFFu) == render::kInstanceHighlight && ((flags >> render::kInstanceFlashShift) & 0xFFu) == 255 &&
                (flags >> render::kInstanceDissolveShift) == 128);
     TEST_CHECK(render::instanceFlash(flags, 0.0f) >> render::kInstanceFlashShift == 128u << 8);
+}
+
+// 하늘 HDRI 굽기: RGB9E5 왕복, 큐브 면 방향, 고른 밝기 1의 하늘은 환경광·반사·하늘이 모두 1
+TEST_CASE(environment_bake) {
+    for (const f32 v : {0.0f, 0.001f, 0.5f, 1.0f, 3.7f, 250.0f}) {
+        f32 back[3];
+        asset::unpackRgb9e5(asset::packRgb9e5(v, v * 0.5f, 0.0f), back);
+        TEST_CHECK(std::abs(back[0] - v) <= v * 0.01f + 1e-6f && std::abs(back[1] - v * 0.5f) <= v * 0.01f + 1e-6f && back[2] == 0.0f);
+    }
+    f32 neg[3];
+    asset::unpackRgb9e5(asset::packRgb9e5(-1.0f, 1e9f, 0.25f), neg); // 음수는 0, 너무 크면 최대 (지수를 같이 써서 작은 채널은 0이 된다)
+    TEST_CHECK(neg[0] == 0.0f && neg[1] > 60000.0f && neg[2] < 1.0f);
+    const Vec3 px = asset::cubeDirection(0, 0, 0), py = asset::cubeDirection(2, 0, 0), nz = asset::cubeDirection(5, 0, 0);
+    TEST_CHECK(px.x > 0.99f && py.y > 0.99f && nz.z < -0.99f);
+    const Vec3 corner = asset::cubeDirection(4, 1, -1); // +Z 면 오른쪽 위 = +x, +y
+    TEST_CHECK(corner.x > 0.5f && corner.y > 0.5f && corner.z > 0.5f);
+
+    std::vector<f32> flat(64 * 32 * 3, 1.0f);
+    asset::EnvironmentMap env;
+    asset::bakeEnvironment(flat.data(), 64, 32, env);
+    TEST_CHECK(env.skySize == 16 && env.sky.size() == 16u * 16 * 6 && env.reflectMips == 6);
+    for (const Vec3 n : {Vec3{0, 1, 0}, Vec3{0, -1, 0}, Vec3{1, 0, 0}, normalize(Vec3{1, 1, -1})}) {
+        const Vec3 a = asset::evalSh(env.sh, n);
+        TEST_CHECK(std::abs(a.x - 1.0f) < 0.03f && std::abs(a.y - 1.0f) < 0.03f && std::abs(a.z - 1.0f) < 0.03f);
+    }
+    f32 texel[3];
+    asset::unpackRgb9e5(env.sky[123], texel);
+    TEST_CHECK(std::abs(texel[0] - 1.0f) < 0.02f);
+    asset::unpackRgb9e5(env.reflect.back(), texel); // 가장 거친 밉
+    TEST_CHECK(std::abs(texel[1] - 1.0f) < 0.02f);
 }
 
 // 텍스처 캐시의 밉맵: 크기가 반씩 줄고, sRGB는 선형으로 평균하고, 법선은 다시 길이 1. half 변환

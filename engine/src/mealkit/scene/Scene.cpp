@@ -158,6 +158,8 @@ bool save(const Scene& scene, const std::string& path) {
     writeVec3(f, "sky", env.skyColor);
     writeVec3(f, "groundColor", env.groundColor);
     fprintf(f, "fog %.9g %.9g %.9g %.9g\n", env.fogColor.x, env.fogColor.y, env.fogColor.z, env.fogDensity);
+    if (!env.hdri.empty())
+        fprintf(f, "hdri %s\nhdriIntensity %.9g\nhdriRotation %.9g\n", env.hdri.c_str(), env.hdriIntensity, env.hdriRotation);
     for (const Entity& e : scene.entities) {
         fprintf(f, "\nentity\nid %u\nname %s\nkind %s\n", e.id, e.name.c_str(), e.type.c_str());
         if (e.parent) fprintf(f, "parent %u\n", e.parent);
@@ -195,7 +197,7 @@ bool load(Scene& out, const std::string& path, std::string* error) {
         char* p = line;
         while (*p == ' ' || *p == '\t') ++p;
         if (*p == '\0' || *p == '#') continue;
-        u32 version = text::kScene.version; // 버전 1·2 모두 지금 모양 그대로 읽는다 (migrate 없음)
+        u32 version = text::kScene.version; // 버전 1~3 모두 지금 모양 그대로 읽는다 (3은 hdri 줄을 더했을 뿐, migrate 없음)
         if (text::readFormatLine(p, text::kScene, path, version)) continue;
 
         char* rest = p;
@@ -249,7 +251,10 @@ bool load(Scene& out, const std::string& path, std::string* error) {
                 ok = readFloats(rest, v, 4);
                 env.fogColor = {v[0], v[1], v[2]};
                 env.fogDensity = v[3];
-            } else MEALKIT_WARN("%s:%d: unknown key '%s' ignored", path.c_str(), lineNo, key);
+            } else if (std::strcmp(key, "hdri") == 0) env.hdri = rest;
+            else if (std::strcmp(key, "hdriIntensity") == 0) ok = readFloats(rest, &env.hdriIntensity, 1);
+            else if (std::strcmp(key, "hdriRotation") == 0) ok = readFloats(rest, &env.hdriRotation, 1);
+            else MEALKIT_WARN("%s:%d: unknown key '%s' ignored", path.c_str(), lineNo, key);
         }
         if (!ok) {
             snprintf(message, sizeof(message), "line %d: invalid '%s'", lineNo, key);

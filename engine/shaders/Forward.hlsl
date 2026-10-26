@@ -1,7 +1,8 @@
 // MealKit forward shading.
 // 인스턴스 데이터(위치/회전/스케일/색)를 업로드 링에서 읽어 정점 셰이더에서 변환한다.
 // CPU는 행렬을 만들지 않고 48바이트 인스턴스만 쓴다. 머티리얼은 glTF PBR metallic-roughness(정점의 material 번호 →
-// 업로드 링의 머티리얼 표 → bindless 텍스처). 조명: 태양 + 반구 환경광 + 지수 안개.
+// 업로드 링의 머티리얼 표 → bindless 텍스처). 조명: 태양 + 환경광(하늘 HDRI의 SH, 없으면 반구 그라디언트) + 지수 안개.
+// 하늘 HDRI가 있으면 VSSky/PSSky가 3D 전에 스카이박스를 그리고, 반사는 구운 큐브(밉 = 거칠기)에서 읽는다.
 // 스타일 프리셋 (docs/CODING_MODEL.md "셰이더 코드"): 조명 모델은 LIGHTING_MODEL로 빌드 때 변형 셋(PSMain),
 // 머티리얼 기능(외곽선·바람·림·디졸브)은 머티리얼 표의 비트로 셰이더 안에서 고른다. 외곽선은 VSOutline/PSOutline 패스
 //   0 PBR: 감싼 확산(하프 램버트 제곱) + GGX 정반사   1 툰: 램프 텍스처 확산 + 끊어진 하이라이트   2 조명 없음: 색 그대로
@@ -27,7 +28,7 @@ struct Instance // 48바이트 (render::InstanceData)
                      // bit16~23: 번쩍임, bit24~31: 디졸브 진행도 (render::instanceFlash/instanceDissolve)
 };
 
-struct FrameConstants // 224바이트 (Renderer.cpp FrameConstants)
+struct FrameConstants // 464바이트 (Renderer.cpp FrameConstants)
 {
     float4x4 viewProj;
     float4 cameraPos;
@@ -40,6 +41,10 @@ struct FrameConstants // 224바이트 (Renderer.cpp FrameConstants)
     uint4 materials;    // x = 머티리얼 표의 링 위치, y = 개수
     float4 wind;        // xy = 수평 방향 (월드 xz), z = 세기, w = 화면 시간 (초)
     uint4 style;        // x = 툰 램프 텍스처 (bindless)
+    float4x4 invViewProj; // 스카이박스: 화면 → 월드
+    uint4 env;          // x = 하늘 큐브, y = 반사 큐브 (g_cubes), z = 반사 밉 수, w = 있음
+    float4 envParams;   // x = 세기, y = cos(회전), z = sin(회전)
+    float4 sh[9];       // 환경광 SH (rgb)
 };
 
 static const uint kNoTexture = 0xFFFFFFFFu;
@@ -88,6 +93,11 @@ FrameConstants loadFrame()
     f.materials = b.Load4(o + 176);
     f.wind = loadFloat4(b, o + 192);
     f.style = b.Load4(o + 208);
+    f.invViewProj = float4x4(loadFloat4(b, o + 224), loadFloat4(b, o + 240), loadFloat4(b, o + 256), loadFloat4(b, o + 272));
+    f.env = b.Load4(o + 288);
+    f.envParams = loadFloat4(b, o + 304);
+    [unroll] for (uint i = 0; i < 9; ++i)
+        f.sh[i] = loadFloat4(b, o + 320 + i * 16);
     return f;
 }
 
@@ -218,6 +228,51 @@ float3 perturbNormal(float3 n, float3 worldPos, float2 uv, float3 mapNormal)
     return normalize(mapNormal.x * t * invmax - mapNormal.y * b * invmax + mapNormal.z * n);
 }
 
+// ---- 하늘 HDRI 환경 (asset/Environment.cpp가 굽는다)
+
+// 월드 방향 → 환경 방향 (y축 회전)
+float3 envDirection(FrameConstants f, float3 d)
+{
+    return float3(f.envParams.y * d.x - f.envParams.z * d.z, d.y, f.envParams.z * d.x + f.envParams.y * d.z);
+}
+
+// 실수 구면 조화 0~2차 (asset/Environment.cpp shBasis와 같다). 계수에 Lambert 합성곱이 들어 있어 결과가 환경광 색이다
+float3 evalSh(FrameConstants f, float3 n)
+{
+    float3 c = f.sh[0].rgb * 0.282095;
+    c += f.sh[1].rgb * (0.488603 * n.y) + f.sh[2].rgb * (0.488603 * n.z) + f.sh[3].rgb * (0.488603 * n.x);
+    c += f.sh[4].rgb * (1.092548 * n.x * n.y) + f.sh[5].rgb * (1.092548 * n.y * n.z);
+    c += f.sh[6].rgb * (0.315392 * (3.0 * n.z * n.z - 1.0)) + f.sh[7].rgb * (1.092548 * n.x * n.z);
+    c += f.sh[8].rgb * (0.546274 * (n.x * n.x - n.y * n.y));
+    return max(c, 0.0);
+}
+
+// 환경광: HDRI의 SH, 없으면 하늘·땅 색 반구 그라디언트
+float3 ambientLight(FrameConstants f, float3 n)
+{
+    if (f.env.w != 0)
+        return evalSh(f, envDirection(f, n)) * f.envParams.x;
+    return lerp(f.groundColor.rgb, f.skyColor.rgb, n.y * 0.5 + 0.5);
+}
+
+// 반사 큐브 (밉 = 거칠기). HDRI가 없으면 0 (쓰는 쪽이 예전 어림을 쓴다)
+float3 reflection(FrameConstants f, float3 r, float roughness)
+{
+    float mips = float(max(f.env.z, 1u) - 1);
+    return g_cubes[NonUniformResourceIndex(f.env.y)].SampleLevel(g_linearClamp, envDirection(f, r), roughness * mips).rgb * f.envParams.x;
+}
+
+// 거칠기·시야각에 따른 정반사 적분 (Karis의 근사, 표 텍스처 없이)
+float3 envBrdf(float3 f0, float roughness, float ndv)
+{
+    const float4 c0 = float4(-1.0, -0.0275, -0.572, 0.022);
+    const float4 c1 = float4(1.0, 0.0425, 1.04, -0.04);
+    float4 r = roughness * c0 + c1;
+    float a004 = min(r.x * r.x, exp2(-9.28 * ndv)) * r.x + r.y;
+    float2 ab = float2(-1.04, 1.04) * a004 + r.zw;
+    return f0 * ab.x + ab.y;
+}
+
 // 값 무늬 (정수 해시라 GPU마다 같은 무늬). 디졸브가 쓴다
 float hash3(uint3 p)
 {
@@ -317,7 +372,7 @@ float4 PSMain(VSOutput input) : SV_Target
         return float4(saturate(tint) * (0.35 + 0.65 * halfLambert), 1.0);
     }
 
-    float3 ambient = lerp(frame.groundColor.rgb, frame.skyColor.rgb, n.y * 0.5 + 0.5);
+    float3 ambient = ambientLight(frame, n);
     float3 v = normalize(frame.cameraPos.xyz - input.worldPos);
     float ndv = max(dot(n, v), 1e-4);
 
@@ -333,7 +388,8 @@ float4 PSMain(VSOutput input) : SV_Target
     float3 fresnel = f0 + (1.0 - f0) * pow(1.0 - vdh, 5.0);
     float3 specular = d * vis * fresnel * ndl;
     float3 diffuse = albedo * (1.0 - metallic);
-    float3 ambientSpecular = f0 * ambient * (1.0 - roughness * 0.7); // 반사 프로브 전까지의 어림
+    float3 ambientSpecular = frame.env.w != 0 ? reflection(frame, reflect(-v, n), roughness) * envBrdf(f0, roughness, ndv)
+                                              : f0 * ambient * (1.0 - roughness * 0.7); // HDRI가 없으면 예전 어림
     float3 color = diffuse * (frame.sunColor.rgb * (halfLambert * halfLambert) + ambient) + specular * frame.sunColor.rgb +
                    ambientSpecular + emissive;
 #elif LIGHTING_MODEL == 1
@@ -345,8 +401,9 @@ float4 PSMain(VSOutput input) : SV_Target
     float highlight = smoothstep(0.45, 0.55, pow(saturate(dot(n, h)), shininess)) * step(0.0, dot(n, l)) * (1.0 - roughness * 0.8);
     float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
     float3 diffuse = albedo * (1.0 - metallic);
-    float3 color = diffuse * (frame.sunColor.rgb * ramp + ambient) + highlight * f0 * frame.sunColor.rgb * 4.0 +
-                   f0 * ambient * (1.0 - roughness * 0.7) + emissive;
+    float3 envSpecular = frame.env.w != 0 ? reflection(frame, reflect(-v, n), roughness) * envBrdf(f0, roughness, ndv)
+                                          : f0 * ambient * (1.0 - roughness * 0.7);
+    float3 color = diffuse * (frame.sunColor.rgb * ramp + ambient) + highlight * f0 * frame.sunColor.rgb * 4.0 + envSpecular + emissive;
 #else
     // 조명 없음: 색 그대로 (림·안개·번쩍임은 받는다)
     float3 color = albedo + emissive;
@@ -372,4 +429,29 @@ float4 PSOutline(VSOutput input) : SV_Target
         discard;
     float edge = dissolveEdge(mat, input);
     return finishColor(frame, input, mat.outlineColor + mat.dissolveColor * edge);
+}
+
+// 스카이박스: 화면 가득 삼각형 하나 (정점 버퍼 없이). 깊이 없이 3D 전에 그리고 3D가 덮는다. 안개는 받지 않는다
+struct SkyOutput
+{
+    float4 position : SV_Position;
+    float2 clip : CLIP;
+};
+
+SkyOutput VSSky(uint id : SV_VertexID)
+{
+    float2 uv = float2((id << 1) & 2, id & 2);
+    SkyOutput o;
+    o.clip = uv * float2(2.0, -2.0) + float2(-1.0, 1.0);
+    o.position = float4(o.clip, 0.0, 1.0);
+    return o;
+}
+
+float4 PSSky(SkyOutput input) : SV_Target
+{
+    FrameConstants frame = loadFrame();
+    float4 world = mul(float4(input.clip, 1.0, 1.0), frame.invViewProj); // 가까운 면 (reversed-Z)
+    float3 d = normalize(world.xyz / world.w - frame.cameraPos.xyz);
+    float3 color = g_cubes[NonUniformResourceIndex(frame.env.x)].SampleLevel(g_linearClamp, envDirection(frame, d), 0).rgb * frame.envParams.x;
+    return float4(lerp(color, frame.screenTint.rgb, frame.screenTint.a), 1.0);
 }

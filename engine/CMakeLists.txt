@@ -62,6 +62,8 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardUnlitPS LIGHTING_MODEL=2)
     mealkit_shader(shaders/Forward.hlsl VSOutline vs_6_6 g_OutlineVS)
     mealkit_shader(shaders/Forward.hlsl PSOutline ps_6_6 g_OutlinePS)
+    mealkit_shader(shaders/Forward.hlsl VSSky vs_6_6 g_SkyVS)
+    mealkit_shader(shaders/Forward.hlsl PSSky ps_6_6 g_SkyPS)
     mealkit_shader(shaders/Ui.hlsl VSMain vs_6_6 g_UiVS)
     mealkit_shader(shaders/Ui.hlsl PSMain ps_6_6 g_UiPS)
 endif()
@@ -138,6 +140,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/asset/Budget.h
     src/mealkit/asset/TextureCache.h # 헤더만 (ModelCache.h의 텍스처 올리기). 구현은 화면 쪽
     src/mealkit/asset/ModelCache.h
+    src/mealkit/asset/Environment.h # 선언만 (굽기 Environment.cpp는 화면 쪽, ModelCache::setRenderer 인라인이 부른다)
     src/mealkit/asset/ModelCache.cpp
     src/mealkit/render/DrawList.h
     src/mealkit/render/Culling.h
@@ -192,6 +195,7 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/game/GameMain.cpp
     src/mealkit/render/Renderer.cpp
     src/mealkit/asset/TextureCache.cpp
+    src/mealkit/asset/Environment.cpp
     src/mealkit/render/ShaderReload.h
     src/mealkit/rhi/GpuCapture.h
     src/mealkit/rhi/GpuCapture.cpp

@@ -49,6 +49,11 @@ struct Environment {
     Vec3 groundColor{0.20f, 0.17f, 0.14f};
     Vec3 fogColor{0.50f, 0.62f, 0.78f};
     f32 fogDensity = 0.008f;
+    // 하늘 HDRI (assets 기준 .hdr, 비면 위의 하늘·땅 색 그라디언트와 안개 색 배경). 있으면 스카이박스·환경광·반사가 이것에서 온다.
+    // 태양은 위 sunDirection·sunColor 그대로다 (HDRI의 해와 맞춰 둔다). 화면 전용이라 콘텐츠 해시에 들어가지 않는다
+    std::string hdri;
+    f32 hdriIntensity = 1.0f; // 하늘·환경광·반사 세기
+    f32 hdriRotation = 0.0f;  // y축 회전 (도)
 };
 
 using TypeList = std::vector<const reflect::TypeInfo*>;

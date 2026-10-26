@@ -6,13 +6,16 @@ using namespace mealkit;
 
 namespace sandbox {
 
-void applyEnvironment(const scene::Environment& env, render::FrameParams& frame) {
+void applyEnvironment(const scene::Environment& env, asset::ModelCache& models, render::FrameParams& frame) {
     frame.sunDirection = env.sunDirection;
     frame.sunColor = env.sunColor;
     frame.skyColor = env.skyColor;
     frame.groundColor = env.groundColor;
     frame.fogColor = env.fogColor;
     frame.fogDensity = env.fogDensity;
+    frame.environment = models.environment(env.hdri);
+    frame.environmentIntensity = env.hdriIntensity;
+    frame.environmentRotation = env.hdriRotation * (3.14159265f / 180.0f);
 }
 
 void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3& eye, render::DrawList& out) {

@@ -5,6 +5,18 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 하늘 HDRI와 환경광 (완료 2026-10-26)
+- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 하늘 HDRI): 큐브맵, CPU 굽기 + 캐시, RGB9E5, Poly Haven CC0 1k 예제.
+- **RHI**: `Format::Rgb9e5`(DX12 `R9G9B9E5_SHAREDEXP`, Vulkan `E5B9G9R9_UFLOAT_PACK32`), `TextureInit::cube`(면 여섯 × 밉, DX12 하위 자원·`TEXTURECUBE` SRV, Vulkan `CUBE_COMPATIBLE` + 큐브 뷰), `TextureCube g_cubes[]`(DX12 루트 서명에 space3 표 = 텍스처와 같은 힙 칸, Vulkan 바인딩 4 = 텍스처와 같은 번호, 풀 크기 2배).
+- **굽기** (`asset/Environment.h`·`.cpp`): `.hdr`를 stb_image로 읽고(개발 빌드만 `STBI_ONLY_HDR`) 정거리원통 밉 피라미드 → 하늘 큐브(면 = 가로/4, 최대 512), 반사 큐브 128² 6밉(0 = 거울, 나머지 GGX 중요도 표본 64 + 걸러 읽기, 밝기 16에서 자름), 환경광 SH9(가로 128 단계 적분 × Lambert A_l/π). 캐시 `build/cache/environments/<내용 해시>.mkenv`(텍스처 캐시처럼 출시 exe는 exe 옆 `cache/environments`만 읽고 Export가 복사). 1k HDRI 굽기 약 0.5초.
+- **렌더러**: `Renderer::createEnvironment(EnvironmentData)` → 번호, `FrameParams::environment`·`environmentIntensity`·`environmentRotation`. 프레임 상수 224 → 464바이트(역 viewProj, 큐브 번호·밉 수, 세기·회전, SH 9). 환경이 있으면 3D 전에 스카이박스(`VSSky`/`PSSky`, 화면 가득 삼각형, 깊이 없음, 안개 없음, 화면 번쩍임은 받음)를 그리고(본 화면과 오프스크린 대상), 환경광은 SH, PBR 반사는 큐브 밉 = 거칠기 × Karis 근사 BRDF(표 텍스처 없이), 툰도 같은 환경광·반사. 환경이 없으면 예전 그라디언트·어림 그대로(기준 그림 9장 같음).
+- **에셋**: `ModelCache::environment(path)`(경로마다 한 번, 실패는 한 번 경고하고 0, `reloadChanged`가 파일이 바뀌면 다음 요청에 다시 굽는다), `asset::listHdris`(assets/textures 아래 .hdr).
+- **씬**: `Environment::hdri`·`hdriIntensity`·`hdriRotation`(도), 줄 `hdri`·`hdriIntensity`·`hdriRotation`(HDRI가 있을 때만 쓴다), 형식 `@format scene 3`(예전 1·2 그대로 읽음). 콘텐츠 해시와 무관.
+- **에디터**: [환경] 창에 하늘 HDRI 고르기(없음 = 색 그라디언트)·세기·회전, 룩데브 조명 목록에 HDRI. sandbox `applyEnvironment(env, models, frame)`.
+- **예제**: `assets/textures/hdri/kloofendal_partly_cloudy_1k.hdr`(Poly Haven "Kloofendal 48d Partly Cloudy (Pure Sky)", CC0, 1024×512), `assets/scenes/hdri.scene`(재질 예제 + 금속 구슬 + 인형).
+- **시험**: 단위 테스트 `environment_bake`(RGB9E5 왕복, 큐브 방향, 고른 하늘 → 환경광·반사·하늘 1), 기준 그림 `hdri_view`·`hdri_up`(DX12, Vulkan 비교 같음). check.ps1 전체.
+- **남은 것**: 톤 매핑·노출(포스트 프로세싱 항목), HDRI의 해 방향을 씬 태양에 맞추는 단추, 큐브 지우기(바꾼 HDRI의 옛 텍스처가 남는다), 땅이 없는 하늘 HDRI의 아래쪽 색.
+
 ### [x] 텍스처와 머티리얼 3부 — 룩데브 미리보기 (완료 2026-10-26)
 - **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 룩데브): HDRI 전에 조명 프리셋으로, 별도 창 + 오프스크린 대상.
 - **RHI 오프스크린 대상** (`rhi::RenderTarget`, `Device::createRenderTarget`·`renderTargetTexture`, `CommandList::beginTarget`·`endTarget`): 색 + 깊이(D32), 형식이 장면과 같아 장면 파이프라인을 그대로 쓴다. DX12는 TYPELESS 자원에 sRGB RTV + UNORM SRV(bindless 칸), 대상마다 RTV·DSV 힙. Vulkan은 형식을 바꿀 수 있는 이미지(스왑체인 UNORM + 장면 sRGB 뷰), dynamic rendering, 끝나면 SHADER_READ. 지우는 색이 그때마다 달라 DX12 최적 지우기 값은 주지 않고 그 성능 안내 메시지는 디버그 로그에서 거른다. `rhi::imguiTextureId`(DX12 GPU 서술자, Vulkan `ImGui_ImplVulkan_AddTexture` 세트를 텍스처마다 한 번)로 `ImGui::Image`에 띄운다.

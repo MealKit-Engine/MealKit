@@ -147,6 +147,10 @@ Sun light = 태양 빛
 Sky ambient = 하늘 환경광
 Ground bounce = 지면 반사광
 Fog / background = 안개·배경
+Sky HDRI = 하늘 HDRI
+None (sky colors) = 없음 (하늘 색)
+HDRI intensity = HDRI 세기
+HDRI rotation = HDRI 회전 (도)
 Fog density = 안개 밀도
 Colors are linear values. = 색은 선형(linear) 값입니다.
 

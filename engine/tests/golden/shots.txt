@@ -12,3 +12,6 @@ styles_pbr      scenes/styles.scene   0.3 2.2 -4.6   0 -16  pbr
 styles_toon     scenes/styles.scene   0.3 2.2 -4.6   0 -16  toon
 styles_unlit    scenes/styles.scene   0.3 2.2 -4.6   0 -16  unlit
 materials_toon  scenes/materials.scene   2.6 2.0 -3.2  -35 -22  toon
+# hdri: 하늘 HDRI(스카이박스, SH 환경광, 반사 큐브) — 처음 그릴 때 build/cache/environments에 굽는다
+hdri_view       scenes/hdri.scene     2.6 2.0 -3.2  -35 -12
+hdri_up         scenes/hdri.scene     0.5 1.0 -4.5    0  20

@@ -22,7 +22,8 @@ struct WorldView {
 // 틱 이벤트 → 화면 상태: 밀치기 범위 안의 다른 Pawn이 번쩍인다 (viewTime: 화면 정지 동안 멈추는 화면 시계)
 void onWorldEvent(const GameEvent& e, const WorldState& state, mealkit::f64 viewTime, WorldView& view);
 
-void applyEnvironment(const mealkit::scene::Environment& env, mealkit::render::FrameParams& frame);
+// 씬 환경 → 화면 (하늘 HDRI는 models가 굽거나 캐시에서 읽어 번호를 준다)
+void applyEnvironment(const mealkit::scene::Environment& env, mealkit::asset::ModelCache& models, mealkit::render::FrameParams& frame);
 // 씬의 정적 물체 (스폰 지점과 영역은 그리지 않는다)
 void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, const Vec3& eye,
                mealkit::render::DrawList& out);
