@@ -3,17 +3,21 @@
 #include "mealkit/core/Math.h"
 #include "mealkit/core/Reflect.h"
 
+#include <mkaudio/Mixer.h>
+
 #include <deque>
 #include <initializer_list>
 #include <string>
 #include <string_view>
 #include <vector>
 
-// 소리 (docs/CODING_MODEL.md "소리를 내는 방법"): 소리 이벤트 이름 + 파라미터 하나. miniaudio 위의 얇은 층이다.
+// 소리 (docs/CODING_MODEL.md "소리를 내는 방법"): 소리 이벤트 이름 + 파라미터 하나.
 //   ctx.audio.play("hit", position, {{"speed", 6.0f}});   // view/에서만. sim/은 틱 이벤트만 남긴다 (SimCheck가 audio/ 헤더를 막는다)
 // 이벤트는 assets/sounds.table의 행(SoundEvent): 클립·컨테이너(무작위 / 스위치 / 블렌드), 무작위 볼륨·피치, 파라미터 곡선,
 // 감쇠 거리, 버스, 우선순위, 동시 재생 상한과 넘칠 때 끊을 것, 쿨다운. 표는 화면 전용(콘텐츠 해시 밖)이라 플레이 중에 고치면 바로 들린다.
 // 목소리 관리(실제로 믹싱하는 수 상한, 가상 목소리, 같은 프레임 묶기)는 엔진이 맡는다. 게임은 고르지 않는다.
+// 층 (docs/DECISIONS.md 2026-10-26 오디오 런타임): 섞기·목소리·버스·컨테이너는 엔진 밖 런타임 mkaudio(engine/libs/mkaudio, MealKit 헤더 없음)가 하고,
+// 이 폴더는 접착층이다: 표 읽기와 다시 읽기, SoundEvent(Reflect 행 타입) → mkaudio::EventDef, 에셋 경로 찾기, 로그, 프로파일 마커.
 namespace mealkit::audio {
 
 // 소리 이벤트 한 행 (assets/sounds.table). 필드 설명은 에디터 글자라 영어, 한국어는 engine/res/strings/ko.txt.
@@ -53,54 +57,18 @@ inline constexpr const char* kSoundTable = "sounds.table"; // assets 기준
 // 엔진이 등록하는 표 (에디터 [표] 패널): 소리 이벤트 (화면 전용)
 const reflect::TableList& engineTables();
 
-struct Param {
-    const char* name;
-    f32 value;
-};
-
-// 재생 중인 소리 하나. 끝나거나 끊기면 무효가 된다(그 뒤 호출은 무시된다).
-struct Handle {
-    u32 index = 0xFFFFFFFFu;
-    u32 generation = 0;
-    bool valid() const { return index != 0xFFFFFFFFu; }
-};
+// 런타임의 값 타입을 그대로 쓴다 (재생 핸들, 파라미터, [소리] 패널 정보)
+using Param = mkaudio::Param;
+using Handle = mkaudio::Handle;     // 재생 중인 소리 하나. 끝나거나 끊기면 무효가 된다(그 뒤 호출은 무시된다)
+using VoiceInfo = mkaudio::VoiceInfo;
+using CullInfo = mkaudio::CullInfo; // reason은 런타임의 영어 낱말 (에디터 [소리] 패널이 번역한다)
+using BusInfo = mkaudio::BusInfo;
+using Subtitle = mkaudio::Subtitle; // 자막이 있는 소리가 났다 (같은 키는 한 줄로 합치고 시간을 늘린다)
+using Stats = mkaudio::Stats;
 
 struct EngineDesc {
     u32 maxVoices = 32; // 실제로 믹싱하는 목소리 수 (프로젝트 설정 audioVoices)
     bool muted = false; // 처음부터 음소거 (에디터 여러 명 플레이의 참가 창)
-};
-
-// 에디터 [소리] 패널용 정보
-struct VoiceInfo {
-    std::string event;
-    bool virtualVoice = false; // 믹싱하지 않고 재생 위치만 센다 (멀거나 작거나 상한 밖)
-    bool loop = false;
-    f32 audibility = 0.0f; // 볼륨 × 거리 감쇠 (0..)
-    f32 distance = 0.0f;
-    f64 age = 0.0;
-};
-struct CullInfo {
-    std::string event;
-    const char* reason; // "cooldown", "max instances", "voice limit", "same frame", "missing event", "missing clip"
-    f64 time = 0.0;
-};
-struct BusInfo {
-    std::string name;
-    f32 volume = 1.0f;
-    f32 peak = 0.0f; // 최근 출력 최댓값 (0..1+)
-};
-// 자막이 있는 소리가 났다 (같은 키는 한 줄로 합치고 시간을 늘린다)
-struct Subtitle {
-    std::string key;
-    f32 secondsLeft = 0.0f;
-};
-
-struct Stats {
-    u32 realVoices = 0;
-    u32 virtualVoices = 0;
-    u32 playsThisFrame = 0;
-    u32 culledThisFrame = 0;
-    f64 updateMs = 0.0;
 };
 
 class Engine {

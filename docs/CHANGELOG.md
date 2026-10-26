@@ -5,6 +5,14 @@
 
 ## v0.5.1 — 도구 제품군 시작
 
+### [x] 오디오 1: 엔진 안에서 런타임 층 나누기 (완료 2026-10-26)
+- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 오디오 런타임): 런타임은 엔진 밖 라이브러리 폴더 `engine/libs/mkaudio/`(자체 `CMakeLists.txt`·`include/mkaudio/`·`src/`), 임시 이름 `mkaudio`(저장소 이름을 정하는 오디오 2에서 바꾼다), C++20.
+- **런타임** `mkaudio::Mixer`(`include/mkaudio/Mixer.h`): 예전 `audio::Engine::Impl`의 섞기·버스·버스 미터·클립 풀기·컨테이너(무작위·스위치·블렌드)·파라미터 곡선·로우패스·쿨다운·동시 재생 상한과 끊기·같은 프레임 묶기·가상 목소리·자막을 그대로 옮겼다. 엔진 기능 대신: 자체 `Vec3`, 이벤트 정의 `EventDef`(Reflect 없는 일반 구조체, 클립은 `ClipRef{name, file}`로 쓰는 쪽이 찾은 파일), 로그는 `Desc::log` 함수, 화면용 무작위는 자체 PCG32, 시간 재기는 `std::chrono`. 정의는 `setEvents(vector<EventDef>)`로 받고(쿨다운·직전 클립·재생 중인 소리를 이름으로 잇는다), `sampleRate`·`channels`·`maxVoices`를 더했다. `MiniaudioConfig.h`·`MiniaudioImpl.cpp`는 런타임으로 옮겼다.
+- **접착층** `mealkit/audio/Audio.cpp`(770줄 → 180줄): `sounds.table` 읽기와 0.25초마다 다시 읽기, `SoundEvent`(`MEALKIT_STRUCT`, 에디터 [표] 패널) → `EventDef` 바꾸기(컨테이너·끊기 낱말, 없는 클립은 한 번만 경고), `findAsset`으로 클립 파일 찾기, 로그를 `MEALKIT_INFO/WARN`으로, `MEALKIT_ZONE("Audio")`. `Handle`·`Param`·`VoiceInfo`·`CullInfo`·`BusInfo`·`Subtitle`·`Stats`는 런타임 타입의 별칭이라 게임·에디터·`FrameStats` 코드는 그대로다(`ctx.audio` API, `sounds.table` 형식 변경 없음).
+- **빌드**: `engine/CMakeLists.txt`가 `MKAUDIO_MINIAUDIO_DIR`·`MKAUDIO_STB_DIR`를 정해 `add_subdirectory(libs/mkaudio)`, `mealkit`이 PRIVATE으로 링크하고 include 경로만 PUBLIC(게임은 런타임 헤더의 값 타입만 본다, mealkit.dll이 내보내는 기호는 그대로). 출시 exe는 9 KB 커졌다(3,653,632 → 3,662,848바이트: `std::function` 로그, 정의 복사).
+- **경계 검사** `tools\check_libs.ps1`(check.ps1 "Engine libs (no engine headers)"): `engine/libs/*`가 `mealkit/` 헤더·`engine/src` 경로·`MEALKIT_` 매크로·라이브러리 밖 상대 include를 쓰거나, CMake가 엔진 변수(`MEALKIT_`·`mealkit_`)를 쓰면 실패한다.
+- **남은 것**: 오디오 2(새 저장소, 자체 CI, `third_party/`로 버전 고정, 로컬 체크아웃 CMake 변수, 이름 정하기). 런타임만의 단위 테스트(장치 없이 섞기)는 그 저장소에서 miniaudio의 null 장치로.
+
 ### [x] 도구 사이 약속 (완료 2026-10-26)
 - **왜**: MealKit을 엔진 + 담당별 작은 도구(별도 저장소, MIT)로 나누기 전에, 도구와 엔진이 이어지는 면을 하나로 정한다(`docs/DECISIONS.md` 2026-10-26 두 행). 세 가지는 사용자와 정했다: 모든 형식에 형식 줄, 새 `live/` 층, 매니페스트로 도구 찾기.
 - **형식 줄** (`core/TextFormat.h`: `text::Format`, `formatLine`, `readFormatLine`, 종류별 상수 `kProject`·`kTuning`·`kSettings`·`kTable`·`kScene`·`kUi`·`kStrings`·`kTool`): 주석 머리 다음 첫 줄 `@format <종류> <N>`. 없으면 버전 1, 다른 종류·더 새 버전·틀린 모양은 경고. `version N`이 아니라 `@format`인 것은 `mealkit.project`(게임 `version` 필드)·튜닝처럼 필드 이름이 키인 파일과 겹치지 않게. 쓰는 곳: `reflect::saveTextFile/loadTextFile`(형식 인자를 받는다: 튜닝·화면용 튜닝·플레이어 설정), 표(`data/Tables`), `mealkit.project`(형식 줄은 머리말에 넣지 않는다), 씬(`version 2` → `@format scene 2`, 예전 줄도 읽는다), `.ui`·`theme.ui`(Penpot 플러그인 `convert.ts`가 쓰고 dist 다시 빌드, 가져오기의 테마 합치기가 새 파일의 머리말·형식 줄을 그대로), 문자열 표(`loc/Strings`, `mealkit_stringcheck`). 저장소의 예제 데이터 27개와 템플릿 `mealkit.project`에 줄을 넣었다(콘텐츠 해시는 읽은 값으로 계산해 바뀌지 않는다, 리플레이 그대로). 세이브는 게임 데이터 버전이 따로 있어 그대로. 플레이어 설정 머리말의 `# #` 겹침도 고쳤다.

@@ -147,8 +147,6 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/online/Online.h
     src/mealkit/audio/Audio.h
     src/mealkit/audio/Audio.cpp
-    src/mealkit/audio/MiniaudioConfig.h
-    src/mealkit/audio/MiniaudioImpl.cpp
     src/mealkit/feedback/Feedback.h
     src/mealkit/feedback/Feedback.cpp
     src/mealkit/ui/Atlas.h
@@ -276,12 +274,19 @@ target_include_directories(${mealkit_core_target} PUBLIC src)
 target_include_directories(${mealkit_core_target} SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf)
 if(NOT MEALKIT_HEADLESS_ONLY)
     target_include_directories(mealkit PRIVATE ${MEALKIT_SHADER_OUT})
-    # 소리: miniaudio + stb_vorbis (audio/Miniaudio.h). 외부 코드 구현 파일은 경고를 끈다
-    target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/miniaudio ${MEALKIT_THIRD_PARTY}/stb
+    # 소리: 런타임 mkaudio (engine/libs/mkaudio, miniaudio + stb_vorbis 위. MealKit 헤더를 쓰지 않는 엔진 밖 라이브러리)를
+    # mealkit/audio/(접착층)가 감싼다. 게임은 mealkit/audio/Audio.h가 쓰는 mkaudio 헤더의 타입(Handle 등)만 보므로 include 경로만 넘긴다
+    set(MKAUDIO_MINIAUDIO_DIR ${MEALKIT_THIRD_PARTY}/miniaudio)
+    set(MKAUDIO_STB_DIR ${MEALKIT_THIRD_PARTY}/stb)
+    add_subdirectory(libs/mkaudio ${CMAKE_CURRENT_BINARY_DIR}/mkaudio)
+    target_link_libraries(mealkit PRIVATE mkaudio)
+    target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/mkaudio/include>)
+    # 외부 코드 구현 파일은 경고를 끈다
+    target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb
                                ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp
                                ${MEALKIT_THIRD_PARTY}/bc7enc)   # asset/TextureCache.cpp
     if(MSVC)
-        set_source_files_properties(src/mealkit/audio/MiniaudioImpl.cpp src/mealkit/ui/StbImpl.cpp
+        set_source_files_properties(src/mealkit/ui/StbImpl.cpp
             ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp PROPERTIES COMPILE_OPTIONS "/W0")
     endif()
 endif()

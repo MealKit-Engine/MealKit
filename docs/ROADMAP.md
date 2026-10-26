@@ -561,8 +561,7 @@ MealKit은 엔진 + 범용 에디터를 가운데 두고, 담당마다 워크플
 
 - [x] 도구 사이 약속 (형식 줄 `@format <종류> <N>`, 라이브 연결 `live::Server` + `build/live/*.json` + `tools\live_probe.ps1`, 에디터 [도구] 메뉴 + 매니페스트 `mealkit-tool.txt`) — 2026-10-26 (v0.5.1), 상세는 `docs/CHANGELOG.md`. 런타임 조각의 로컬 체크아웃 CMake 변수는 오디오 2에서 처음 쓸 때
 
-### [ ] 오디오 1: 엔진 안에서 런타임 층 나누기
-- `mealkit/audio/`를 MealKit 헤더를 include하지 않는 런타임(믹서·목소리·버스·컨테이너·파라미터, miniaudio·표준 라이브러리만)과 엔진 접착(표 읽기·`Reflect`·경로·로그·`FrameStats`)으로 나누고 검사 스크립트로 경계를 막는다. 게임 쪽 `ctx.audio` API와 `sounds.table`은 그대로.
+- [x] 오디오 1: 엔진 안에서 런타임 층 나누기 (런타임 `engine/libs/mkaudio`(임시 이름, `mkaudio::Mixer`, MealKit 헤더 없음) + 접착 `mealkit/audio`, 검사 `tools\check_libs.ps1`, 게임 API·`sounds.table` 그대로) — 2026-10-26, 상세는 `docs/CHANGELOG.md`
 
 ### [ ] 오디오 2: 런타임을 별도 저장소로
 - 런타임을 새 저장소(이름은 이때 정한다, MIT)로 옮기고 자체 CI(Windows·Linux·macOS)를 둔다. 엔진은 `third_party/`로 버전 고정해 가져오고 `tools\gen_notices.ps1`에 오른다. 출시 exe 크기는 지금과 같아야 한다.
@@ -581,7 +580,7 @@ MealKit은 엔진 + 범용 에디터를 가운데 두고, 담당마다 워크플
 3. 중간 참가 → 리플레이 → 디싱크 진단 → 버그 리포트 묶음 → EOS 백엔드 → 호스트 이전 **(v0.7)**. 첫 게임 장르가 맞으면: 한 PC 여러 명
 4. 게임 흐름 프레임워크 → 캐릭터 이동 모드(키네마틱 → 플로팅 → 액티브 래그돌) → 가상 카메라 + 컷신 → 소스 모듈 시스템(+ 공식 모듈: 체력·데미지, 쿨타임, 인벤토리, 미니맵, 절차적 생성, 기본 오브젝트) → AI 길찾기 → 프리팹 → 에셋 브라우저 → 지형(+ 뿌리기 브러시) → Job System → 공간 음향·인터랙티브 음악 → 크래시 리포트 → 업적·리더보드(온라인 서비스) → 에셋 쿠킹 + 팩 파일 → 에디터·디버깅 편의(디버그 그리기, 성능 패널, 코드 이동, 로그 콘솔, 다중 선택, 스냅, 씬 여러 개, 템플릿, 여기서 플레이, 환경설정, 쿡북) **(v0.8)**
 5. 플랫폼 사이 결정론(실기기) → Linux·Steam Deck(Vulkan, 에디터 포함) → macOS(Metal, 에디터 포함) → 크로스플레이 **(v0.9)** → 약속 고정 **(v1.0)** → 2군: Android·iOS → 웹(WebGPU) → 콘솔(개발 키트가 생기면, Xbox → PlayStation → Switch)
-- 도구 제품군(단계와 따로, 시작은 사용자가 정함): ~~도구 사이 약속~~ → 오디오 1(엔진 안 층 나누기) → 오디오 2(별도 저장소) → 오디오 3(저작 도구) → 다음 도구
+- 도구 제품군(단계와 따로, 시작은 사용자가 정함): ~~도구 사이 약속~~ → ~~오디오 1(엔진 안 층 나누기)~~ → 오디오 2(별도 저장소) → 오디오 3(저작 도구) → 다음 도구
 
 각 기능을 끝낼 때 확인할 것: Release 빌드 경고 없음, `mp_test.ps1 -Clients 3 -Ticks 900` PASS, 최소 사양(11세대 Xe) 내장 그래픽에서 예산 안, 기준 샘플에서 실제로 씀, `platform/`·RHI 밖에 OS·그래픽 API 호출 없음, CI의 모든 빌드에서 틱별 해시 같음, (2단계부터) Vulkan 백엔드에서도 같은 그림, 문서 저장소에 영어·한국어로 반영(`tools/build.py check` 통과),
 새 외부 라이브러리는 `third_party/<lib>/`에 `LICENSE`와 `mealkit.txt`를 두고 `tools\gen_notices.ps1`로 `third_party/VERSIONS.txt`(외부 라이브러리 표 정본)와 `THIRD_PARTY_NOTICES.txt`를 다시 만든다.
