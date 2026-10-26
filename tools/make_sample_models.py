@@ -482,6 +482,16 @@ def make_styles():
     ])
 
 
+def make_probe_ball():
+    # 반사 프로브 확인용 거울 구슬 (assets/scenes/probes.scene): 금속 1, 거칠기 0.08이라 주변이 그대로 비친다
+    out = os.path.join(OUT_DIR, "props")
+    os.makedirs(out, exist_ok=True)
+    ball = smooth_sphere((0.0, 0.5, 0.0), 0.5)
+    write_style_glb(os.path.join(out, "probe_ball.glb"), "probe_ball", [
+        ball + (None, pbr("chrome", (0.95, 0.95, 0.95), roughness=0.08, metallic=1.0)),
+    ])
+
+
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
     make_tree()
@@ -490,3 +500,4 @@ if __name__ == "__main__":
     make_crate()
     make_fence()
     make_styles()
+    make_probe_ball()

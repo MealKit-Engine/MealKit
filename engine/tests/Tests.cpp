@@ -844,6 +844,42 @@ TEST_CASE(asset, environment_bake) {
     TEST_CHECK(std::abs(texel[1] - 1.0f) < 0.02f);
 }
 
+// 반사 프로브: 에디터가 그리는 큐브 면 카메라가 cubeDirection과 같은 배치이고, 굽기·파일 왕복이 값을 지킨다
+TEST_CASE(asset, reflection_probe) {
+    static const Vec3 kForward[6] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}; // editor/Editor.cpp와 같다
+    static const Vec3 kUp[6] = {{0, 1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}, {0, 1, 0}, {0, 1, 0}};
+    const Mat4 proj = perspectiveReversedZ(3.14159265f * 0.5f, 1.0f, 0.05f, 100.0f);
+    for (u32 face = 0; face < 6; ++face) {
+        const Mat4 viewProj = lookAtLH({}, kForward[face], kUp[face]) * proj;
+        for (const f32 s : {-0.5f, 0.25f})
+            for (const f32 t : {-0.75f, 0.5f}) {
+                const Vec3 d = asset::cubeDirection(face, s, t);
+                const f32 x = d.x * viewProj.m[0][0] + d.y * viewProj.m[1][0] + d.z * viewProj.m[2][0] + viewProj.m[3][0];
+                const f32 y = d.x * viewProj.m[0][1] + d.y * viewProj.m[1][1] + d.z * viewProj.m[2][1] + viewProj.m[3][1];
+                const f32 w = d.x * viewProj.m[0][3] + d.y * viewProj.m[1][3] + d.z * viewProj.m[2][3] + viewProj.m[3][3];
+                TEST_CHECK(std::abs(x / w - s) < 1e-4f && std::abs(y / w + t) < 1e-4f); // 그림 줄은 위에서 아래 (t = -NDC y)
+            }
+    }
+    // 면마다 다른 색: 거울 밉은 그 면 색, 가장 거친 밉은 섞인 색
+    const u32 size = 32;
+    std::vector<f32> faces(size * size * 18);
+    for (u32 face = 0; face < 6; ++face)
+        for (u32 i = 0; i < size * size; ++i) faces[(face * size * size + i) * 3 + face % 3] = 1.0f;
+    asset::ProbeMap probe;
+    asset::bakeProbe(faces.data(), size, probe);
+    TEST_CHECK(probe.size == 32 && probe.mips == 4); // 32 → 4
+    f32 texel[3];
+    asset::unpackRgb9e5(probe.reflect[size * size / 2 + size / 2], texel); // +X 면 가운데 = 빨강
+    TEST_CHECK(texel[0] > 0.95f && texel[1] < 0.05f && texel[2] < 0.05f);
+    const std::string path = executableDirectory() + "/test_probe.mkprobe";
+    TEST_CHECK(asset::saveProbe(path, probe));
+    asset::ProbeMap back;
+    std::string error;
+    TEST_CHECK(asset::loadProbe(path, back, error) && back.size == probe.size && back.mips == probe.mips && back.reflect == probe.reflect);
+    removeFile(path);
+    TEST_CHECK(!asset::loadProbe(path, back, error) && !error.empty());
+}
+
 // 텍스처 캐시의 밉맵: 크기가 반씩 줄고, sRGB는 선형으로 평균하고, 법선은 다시 길이 1. half 변환
 TEST_CASE(asset, texture_mips) {
     std::vector<u8> rgba(4 * 2 * 4); // 4x2: 왼쪽 반 흰색, 오른쪽 반 검정

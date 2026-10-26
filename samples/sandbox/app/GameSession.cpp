@@ -190,6 +190,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
         menuCamera.distance = look.camera.startDistance * 1.6f;
         menuCamera.apply(Vec3{0.0f, look.camera.focusHeight, 0.0f}, ctx.viewport, camera, frame);
         applyEnvironment(m_scene.environment, ctx.models, frame);
+        applyProbes(m_scene, ctx.models, m_probes, frame);
         drawScene(m_scene, ctx.models, frame.cameraPos, out);
         return;
     }
@@ -219,6 +220,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     camera.fovDegrees = ctx.settings.values().display.fov; // 시야각은 플레이어 설정
     m_camera.apply(m_focus + ctx.feedback.cameraShake(m_focus), ctx.viewport, camera, frame); // 흔들림은 연출 표
     applyEnvironment(m_scene.environment, ctx.models, frame);
+    applyProbes(m_scene, ctx.models, m_probes, frame);
 
     drawScene(m_scene, ctx.models, frame.cameraPos, out);
     drawWorld(previous, current, alpha, localPlayer, now, m_viewTime, look, ctx.models.boxMesh(), m_view, out, m_prediction.offset);

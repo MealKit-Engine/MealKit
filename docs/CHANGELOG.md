@@ -5,6 +5,17 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 반사 프로브 (완료 2026-10-27)
+- **왜**: 실내·그늘에서도 유광·금속 표면에 하늘 HDRI가 비쳐 어색했다.
+- **씬**: 엔진 기본 종류 `reflection_probe`("반사 프로브", `kObjectArea | kObjectCosmetic`: 에디터는 상자 모서리로 그리고 게임은 그리지 않으며 콘텐츠 해시에서 빠진다). 위치 = 찍는 자리 = 영향 상자 중심, 크기 = 영향 상자(축 정렬). 구운 파일은 필드 줄 `field bake probes/<씬>_<id>.mkprobe`(`scene::probeFile`·`probeFileFor`). 씬 형식은 그대로.
+- **RHI**: `Capture::source`(오프스크린 대상을 백버퍼 대신 `endFrame`에서 읽는다, DX12 복사 원본 상태 전환, Vulkan 대상 이미지에 `TRANSFER_SRC`).
+- **굽기**: 에디터가 프레임마다 면 하나를 90° 카메라(`lookAtLH` 앞·위가 `cubeDirection` 배치와 같다, 단위 테스트)로 `drawToTarget` → `Renderer::captureTarget` → 다음 프레임에 sRGB → 선형. 면 여섯이면 `asset::bakeProbe`(면 큐브 밉 피라미드 `CubeSource` + 하늘 HDRI와 같은 `prefilterReflect`: 밉 0 거울, 나머지 GGX 64표본, RGB9E5, 128 → 6밉) → `saveProbe`(`MKPR` 머리 + 텍셀). 찍을 때는 게임에 보이는 물체만, 선택 강조·보기 모드·다른 프로브 없이. 하늘 HDRI 굽기는 같은 함수로 옮겨 결과가 비트 단위로 같다(기준 그림 11장 그대로). DX12와 Vulkan으로 구운 파일의 텍셀 차이 최대 0.006.
+- **렌더러**: `createProbe(size, mips, texels)` → 번호, `FrameParams::probes`·`probeCount`(`ReflectionProbe`: 위치, 반 크기, 번호, 최대 `kMaxReflectionProbes` 64). 프레임 상수 464 → 480바이트(프로브 표 링 위치·개수), 표는 프로브당 32바이트. 정점 셰이더 `nearestProbe`가 인스턴스 위치를 담은 상자 중 중심이 가장 가까운 것을 고르고(섞지 않음), PBR·툰의 환경 반사가 하늘 대신 그 큐브를 읽는다(HDRI 회전·세기 없이). HDRI가 없어도 프로브가 있으면 반사를 쓴다.
+- **에셋**: `ModelCache::probe(path)`·`probes(scene, out)`(월드 좌표, `setProbeLimit` = 프로젝트 설정 `probeMaxCount`), `reloadChanged`가 다시 구운 파일을 다시 올린다. 폴더 규칙에 종류 폴더 `probes/`(`.mkprobe`, `tools/check_layout.ps1`, `docs/CODING_MODEL.md`). Export는 assets를 통째로 복사하므로 그대로 들어간다.
+- **에디터·설정**: 인스펙터 [반사 프로브] 굽기·프로브 모두 굽기, 한도를 넘으면 경고. `--bake-probes`(굽는 동안 `--frames`를 세지 않는다). 프로젝트 설정 `probeMaxCount`(8)·`probeSize`(128, 2의 거듭제곱으로 내린다).
+- **샘플**: `assets/scenes/probes.scene`(색 벽 방 + 거울 구슬 `models/props/probe_ball.glb`, `make_sample_models.py`의 `make_probe_ball`), 구운 `assets/probes/probes_9.mkprobe`, 골든 `probes_inside`·`probes_outside`(방 안 구슬은 방, 밖 구슬은 하늘). sandbox `applyProbes`.
+- **남은 것**: 8비트 sRGB로 찍어 1보다 밝은 빛(창밖 해)이 잘린다 — 포스트 프로세싱의 HDR 대상이 생기면 그것으로 찍는다. 템플릿 문서(`templates/project/CLAUDE.md`·`README.md`)의 종류 폴더 목록에 `probes/`는 다음 템플릿 변경(버전 올림) 때 더한다. 상자 투영(parallax) 보정은 하지 않는다.
+
 ### 허브 앱 MealKit Manager 1부 (2026-10-27, 로드맵 밖)
 - **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-27): 프로젝트 관리자를 별도 저장소 `D:\MealKit-Engine\MealKit-Manager`(MIT, v0.1.0)로. 엔진을 링크하지 않는 SDL3 + SDL_Renderer + Dear ImGui exe(약 3.3 MB, MealKit-Audio와 같은 SDL·ImGui 버전).
 - **Manager 0.1.0**: [프로젝트](최근·즐겨찾기 목록은 에디터와 같은 파일, 검색, 새 프로젝트 = 엔진 `new_project.ps1`, 가져오기, 에디터에서 열기 = 그 프로젝트 `engine` 줄의 `build\Editor\bin\MealKitEditor.exe --project`, 엔진 버전이 다르면 업그레이드 = `upgrade_project.ps1`, 폴더 보기, 목록에서 빼기) · [엔진](프로젝트가 가리키는 엔진 + `engines.txt` + `--engine`, 에디터가 없으면 `build.bat Editor`) · [도구](`mealkit-tool.txt`, 고른 프로젝트로 연다). 스크립트는 콘솔 창 없이 배경 스레드에서 돌고 실패하면 출력을 보여 준다. 글자는 에디터 설정의 `language`(한국어 기본). 창 없는 명령 `--list`·`--new <이름> --path <위치>`·`--open <폴더>`, 화면 시험 `--frames N --capture`.

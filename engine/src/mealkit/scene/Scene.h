@@ -18,6 +18,8 @@ namespace mealkit::scene {
 inline constexpr const char* kTypeSolid = "solid";           // 보이고 충돌하는 상자·모델
 inline constexpr const char* kTypeDecoration = "decoration"; // 보이기만 하는 상자·모델
 inline constexpr const char* kTypeSpawn = "spawn";           // 플레이어 시작 위치 (게임에서는 보이지 않음)
+inline constexpr const char* kTypeProbe = "reflection_probe"; // 반사 프로브 (화면 전용, 크기 = 영향 상자, 게임에서는 보이지 않음, 에디터가 굽는다)
+inline constexpr const char* kProbeFileField = "bake";        // 반사 프로브의 구운 파일 (assets 기준, 필드 텍스트로 저장)
 
 // 엔진 기본 종류의 설명 (필드 없음, 라벨과 플래그만)
 const std::vector<const reflect::TypeInfo*>& builtinTypes();
@@ -103,6 +105,10 @@ struct Bounds {
     Vec3 min, max;
 };
 Bounds areaBounds(const Entity& e);
+
+// 반사 프로브의 구운 파일 경로 (assets 기준, 굽기 전이면 빈 문자열) / 굽기가 정하는 경로 probes/<씬 이름>_<물체 id>.mkprobe
+std::string probeFile(const Entity& probe);
+std::string probeFileFor(const std::string& sceneName, const Entity& probe);
 
 // 게임 종류의 필드를 읽는다. 씬에 없는 필드는 선언의 기본값.
 template <class T>

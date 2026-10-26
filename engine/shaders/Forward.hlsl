@@ -3,6 +3,7 @@
 // CPU는 행렬을 만들지 않고 48바이트 인스턴스만 쓴다. 머티리얼은 glTF PBR metallic-roughness(정점의 material 번호 →
 // 업로드 링의 머티리얼 표 → bindless 텍스처). 조명: 태양 + 환경광(하늘 HDRI의 SH, 없으면 반구 그라디언트) + 지수 안개.
 // 하늘 HDRI가 있으면 VSSky/PSSky가 3D 전에 스카이박스를 그리고, 반사는 구운 큐브(밉 = 거칠기)에서 읽는다.
+// 반사 프로브가 있으면 정점 셰이더가 인스턴스 위치를 담은 영향 상자 중 중심이 가장 가까운 프로브 하나를 골라 하늘 반사 대신 그 큐브를 읽는다.
 // 스타일 프리셋 (docs/CODING_MODEL.md "셰이더 코드"): 조명 모델은 LIGHTING_MODEL로 빌드 때 변형 셋(PSMain),
 // 머티리얼 기능(외곽선·바람·림·디졸브)은 머티리얼 표의 비트로 셰이더 안에서 고른다. 외곽선은 VSOutline/PSOutline 패스
 //   0 PBR: 감싼 확산(하프 램버트 제곱) + GGX 정반사   1 툰: 램프 텍스처 확산 + 끊어진 하이라이트   2 조명 없음: 색 그대로
@@ -28,7 +29,7 @@ struct Instance // 48바이트 (render::InstanceData)
                      // bit16~23: 번쩍임, bit24~31: 디졸브 진행도 (render::instanceFlash/instanceDissolve)
 };
 
-struct FrameConstants // 464바이트 (Renderer.cpp FrameConstants)
+struct FrameConstants // 480바이트 (Renderer.cpp FrameConstants)
 {
     float4x4 viewProj;
     float4 cameraPos;
@@ -45,6 +46,7 @@ struct FrameConstants // 464바이트 (Renderer.cpp FrameConstants)
     uint4 env;          // x = 하늘 큐브, y = 반사 큐브 (g_cubes), z = 반사 밉 수, w = 있음
     float4 envParams;   // x = 세기, y = cos(회전), z = sin(회전)
     float4 sh[9];       // 환경광 SH (rgb)
+    uint4 probes;       // x = 반사 프로브 표의 링 위치, y = 개수 (표 32바이트: 위치 xyz, 큐브 번호 | 밉 수 << 24, 상자 반 크기 xyz, 0)
 };
 
 static const uint kNoTexture = 0xFFFFFFFFu;
@@ -98,6 +100,7 @@ FrameConstants loadFrame()
     f.envParams = loadFloat4(b, o + 304);
     [unroll] for (uint i = 0; i < 9; ++i)
         f.sh[i] = loadFloat4(b, o + 320 + i * 16);
+    f.probes = b.Load4(o + 464);
     return f;
 }
 
@@ -160,6 +163,7 @@ struct VSOutput
     float2 uv : TEXCOORD;
     nointerpolation uint flags : FLAGS;
     nointerpolation uint material : MATERIAL;
+    nointerpolation uint probe : PROBE; // 반사 프로브 큐브 번호 | 밉 수 << 24 (0 = 하늘 반사)
 };
 
 float3 rotateByQuat(float4 q, float3 v)
@@ -172,6 +176,26 @@ float3 unpackAlbedo(uint c)
 {
     float3 srgb = float3(c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF) / 255.0;
     return srgb * srgb; // sRGB -> 선형 근사 (감마 2.0)
+}
+
+// 인스턴스 위치를 담은 영향 상자 중 중심이 가장 가까운 반사 프로브 (물체 하나는 프로브 하나, 섞지 않는다). 없으면 0
+uint nearestProbe(FrameConstants frame, float3 position)
+{
+    ByteAddressBuffer b = g_buffers[pc.ring];
+    uint best = 0;
+    float bestDistance = 3.4e38;
+    for (uint i = 0; i < frame.probes.y; ++i)
+    {
+        uint o = frame.probes.x + i * 32;
+        float3 d = loadFloat3(b, o) - position;
+        float distance = dot(d, d);
+        if (all(abs(d) <= loadFloat3(b, o + 16)) && distance < bestDistance)
+        {
+            bestDistance = distance;
+            best = b.Load(o + 12) + 1; // 0과 구분 (큐브 번호 0도 있을 수 있다)
+        }
+    }
+    return best;
 }
 
 // 정점 변환 (본 패스와 외곽선 패스가 같이 쓴다). outline이면 법선 방향으로 부풀리고, 외곽선 없는 머티리얼의 정점은 접는다
@@ -204,6 +228,7 @@ VSOutput transformVertex(VSInput input, bool outline)
     o.uv = input.uv;
     o.flags = inst.flags;
     o.material = input.material.x;
+    o.probe = nearestProbe(frame, inst.position);
     return o;
 }
 
@@ -255,9 +280,17 @@ float3 ambientLight(FrameConstants f, float3 n)
     return lerp(f.groundColor.rgb, f.skyColor.rgb, n.y * 0.5 + 0.5);
 }
 
-// 반사 큐브 (밉 = 거칠기). HDRI가 없으면 0 (쓰는 쪽이 예전 어림을 쓴다)
-float3 reflection(FrameConstants f, float3 r, float roughness)
+// 반사 큐브 (밉 = 거칠기): 반사 프로브가 있으면 그 큐브 (월드 방향, 장면을 구운 밝기 그대로), 없으면 하늘 HDRI
+bool hasReflection(FrameConstants f, uint probe) { return probe != 0 || f.env.w != 0; }
+
+float3 reflection(FrameConstants f, float3 r, float roughness, uint probe)
 {
+    if (probe != 0)
+    {
+        uint cube = (probe - 1) & 0xFFFFFFu;
+        float probeMips = float(max((probe - 1) >> 24, 1u) - 1);
+        return g_cubes[NonUniformResourceIndex(cube)].SampleLevel(g_linearClamp, r, roughness * probeMips).rgb;
+    }
     float mips = float(max(f.env.z, 1u) - 1);
     return g_cubes[NonUniformResourceIndex(f.env.y)].SampleLevel(g_linearClamp, envDirection(f, r), roughness * mips).rgb * f.envParams.x;
 }
@@ -388,7 +421,7 @@ float4 PSMain(VSOutput input) : SV_Target
     float3 fresnel = f0 + (1.0 - f0) * pow(1.0 - vdh, 5.0);
     float3 specular = d * vis * fresnel * ndl;
     float3 diffuse = albedo * (1.0 - metallic);
-    float3 ambientSpecular = frame.env.w != 0 ? reflection(frame, reflect(-v, n), roughness) * envBrdf(f0, roughness, ndv)
+    float3 ambientSpecular = hasReflection(frame, input.probe) ? reflection(frame, reflect(-v, n), roughness, input.probe) * envBrdf(f0, roughness, ndv)
                                               : f0 * ambient * (1.0 - roughness * 0.7); // HDRI가 없으면 예전 어림
     float3 color = diffuse * (frame.sunColor.rgb * (halfLambert * halfLambert) + ambient) + specular * frame.sunColor.rgb +
                    ambientSpecular + emissive;
@@ -401,7 +434,7 @@ float4 PSMain(VSOutput input) : SV_Target
     float highlight = smoothstep(0.45, 0.55, pow(saturate(dot(n, h)), shininess)) * step(0.0, dot(n, l)) * (1.0 - roughness * 0.8);
     float3 f0 = lerp(float3(0.04, 0.04, 0.04), albedo, metallic);
     float3 diffuse = albedo * (1.0 - metallic);
-    float3 envSpecular = frame.env.w != 0 ? reflection(frame, reflect(-v, n), roughness) * envBrdf(f0, roughness, ndv)
+    float3 envSpecular = hasReflection(frame, input.probe) ? reflection(frame, reflect(-v, n), roughness, input.probe) * envBrdf(f0, roughness, ndv)
                                           : f0 * ambient * (1.0 - roughness * 0.7);
     float3 color = diffuse * (frame.sunColor.rgb * ramp + ambient) + highlight * f0 * frame.sunColor.rgb * 4.0 + envSpecular + emissive;
 #else

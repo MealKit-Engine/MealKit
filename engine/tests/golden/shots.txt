@@ -15,3 +15,6 @@ materials_toon  scenes/materials.scene   2.6 2.0 -3.2  -35 -22  toon
 # hdri: 하늘 HDRI(스카이박스, SH 환경광, 반사 큐브) — 처음 그릴 때 build/cache/environments에 굽는다
 hdri_view       scenes/hdri.scene     2.6 2.0 -3.2  -35 -12
 hdri_up         scenes/hdri.scene     0.5 1.0 -4.5    0  20
+# probes: 반사 프로브 (assets/probes/probes_9.mkprobe, 다시 굽기 MealKitEditor --scene assets\scenes\probes.scene --bake-probes). 방 안 구슬은 프로브, 밖 구슬은 하늘
+probes_inside   scenes/probes.scene  -1.0 1.6 -2.0  -60 -15
+probes_outside  scenes/probes.scene   7 2.5 -5  -70 -12

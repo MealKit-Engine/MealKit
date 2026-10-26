@@ -78,6 +78,7 @@ private:
     LocalInput m_input;
     LocalPrediction m_prediction; // 내 캐릭터 겉모습만 미리 움직이기 (입력 지연을 가린다)
     WorldView m_view;
+    std::vector<mealkit::render::ReflectionProbe> m_probes; // 반사 프로브 (프레임마다 채운다)
     Vec3 m_focus{0.0f, 1.0f, 0.0f}; // 카메라가 따라가는 점 (내 Pawn이 없으면 마지막 위치)
     Effects m_effects;              // 틱 이벤트 → 화면 효과
     mealkit::f64 m_viewTime = 0.0;  // 화면 효과용 시계 (update의 dt 합)

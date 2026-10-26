@@ -18,6 +18,13 @@ void applyEnvironment(const scene::Environment& env, asset::ModelCache& models, 
     frame.environmentRotation = env.hdriRotation * (3.14159265f / 180.0f);
 }
 
+void applyProbes(const scene::Scene& scene, asset::ModelCache& models, std::vector<render::ReflectionProbe>& probes,
+                 render::FrameParams& frame) {
+    models.probes(scene, probes);
+    frame.probes = probes.data();
+    frame.probeCount = static_cast<u32>(probes.size());
+}
+
 void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3& eye, render::DrawList& out) {
     const render::MeshId box = models.boxMesh();
     for (const scene::Entity& e : scene.entities) {

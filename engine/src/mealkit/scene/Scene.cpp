@@ -65,8 +65,20 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
     static const reflect::TypeInfo decoration =
         makeBuiltin(kTypeDecoration, "Decoration (no collision)", reflect::kObjectCosmetic);
     static const reflect::TypeInfo spawn = makeBuiltin(kTypeSpawn, "Spawn point", reflect::kObjectMarker);
-    static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn};
+    static const reflect::TypeInfo probe =
+        makeBuiltin(kTypeProbe, "Reflection probe", reflect::kObjectArea | reflect::kObjectCosmetic); // 크기 = 영향 상자
+    static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn, &probe};
     return list;
+}
+
+std::string probeFile(const Entity& probe) {
+    for (const auto& [key, value] : probe.fields)
+        if (key == kProbeFileField) return value;
+    return {};
+}
+
+std::string probeFileFor(const std::string& sceneName, const Entity& probe) {
+    return "probes/" + (sceneName.empty() ? std::string("scene") : sceneName) + "_" + std::to_string(probe.id) + ".mkprobe";
 }
 
 const reflect::TypeInfo* findType(const std::string& name, const TypeList* gameTypes) {

@@ -1,0 +1,113 @@
+# MealKit scene
+@format scene 3
+
+sun 0.400000006 0.800000012 0.300000012
+sunColor 1 0.949999988 0.850000024
+sky 0.300000012 0.379999995 0.5
+groundColor 0.200000003 0.170000002 0.140000001
+fog 0.5 0.620000005 0.779999971 0.00400000019
+hdri textures/hdri/kloofendal_partly_cloudy_1k.hdr
+hdriIntensity 1
+hdriRotation 0
+
+entity
+id 1
+name Ground
+kind solid
+position 0 -0.5 0
+rotation 0 0 0 1
+scale 40 1 40
+color FF609676
+flags 1
+end
+
+entity
+id 2
+name Room Floor
+kind solid
+position -3 0.05 0
+rotation 0 0 0 1
+scale 6 0.1 6
+color FFD8D8D8
+flags 0
+end
+
+entity
+id 3
+name Room Wall Back
+kind solid
+position -3 1.5 3.1
+rotation 0 0 0 1
+scale 6.4 3 0.2
+color FF2828C8
+flags 0
+end
+
+entity
+id 4
+name Room Wall Front
+kind solid
+position -3 1.5 -3.1
+rotation 0 0 0 1
+scale 6.4 3 0.2
+color FFC86428
+flags 0
+end
+
+entity
+id 5
+name Room Wall Left
+kind solid
+position -6.1 1.5 0
+rotation 0 0 0 1
+scale 0.2 3 6
+color FF3CC83C
+flags 0
+end
+
+entity
+id 6
+name Room Roof
+kind solid
+position -3 3.1 0
+rotation 0 0 0 1
+scale 6.4 0.2 6.4
+color FFB4B4B4
+flags 0
+end
+
+entity
+id 7
+name Ball Inside
+kind decoration
+position -3 0.1 0
+rotation 0 0 0 1
+scale 1.2 1.2 1.2
+model models/props/probe_ball.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 8
+name Ball Outside
+kind decoration
+position 3 0 0
+rotation 0 0 0 1
+scale 1.2 1.2 1.2
+model models/props/probe_ball.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 9
+name Probe Room
+kind reflection_probe
+position -4.5 1.6 1.5
+rotation 0 0 0 1
+scale 7 3.6 7
+color FF5ADCFF
+flags 0
+field bake probes/probes_9.mkprobe
+end
