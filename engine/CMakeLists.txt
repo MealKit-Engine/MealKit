@@ -518,6 +518,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/BuildPanel.cpp
         src/mealkit/editor/LogPanel.h
         src/mealkit/editor/LogPanel.cpp
+        src/mealkit/editor/EditorCommands.cpp
         src/mealkit/editor/Strings.h
         src/mealkit/editor/Strings.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit)
