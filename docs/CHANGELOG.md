@@ -5,6 +5,17 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 포스트 프로세싱 (완료 2026-10-27)
+- **방식** (`docs/DECISIONS.md` 2026-10-27): 장면은 HDR 대상(R11G11B10F + D32, 픽셀당 4바이트)에 그리고, 블룸만 절반 해상도 듀얼 필터 사슬(5단, 내려가며 반씩 → 더하기 섞기로 올라온다), 나머지는 우버 패스 하나(`shaders/Post.hlsl` `PSUber`)가 백버퍼에 sRGB 값으로 낸다: FXAA(이웃 HDR 값을 밝기로 눌러 가장자리 찾기·섞기) → 색수차 → 노출 × 밝기 설정 + 블룸 → AgX(Wrensch 다항식 근사, MIT) → 색 보정 LUT → 비네트 → 그레인·디더. 효과 하나를 끄면 셰이더가 그 단계를 건너뛴다.
+- **RHI**: `Target::Scene`이 백버퍼가 아니라 HDR 장면 대상이 됐다(`Target::Hdr` 블룸, `Target::Overlay` = 백버퍼·`TargetKind::Ldr`). `createRenderTarget(w, h, TargetKind)`·`destroyRenderTarget`(창 크기 대상), `beginTarget`의 `clearColor` nullptr = 내용 유지(블룸 더하기). 백버퍼의 sRGB 뷰·깊이와 `beginScene`을 지웠고 Vulkan은 `VK_KHR_swapchain_mutable_format`이 필요 없어졌다(대신 B10G11R11 그리기·섞기·선형 샘플을 최소 사양 검사에 더함).
+- **렌더러**: `FrameParams::post`(`PostParams`: 톤 매핑, 노출 EV, LUT 번호, 블룸 세기·문턱·색, 비네트, 그레인, 색수차), `setPostOptions`(`PostOptions`: 플레이어 설정의 효과 끄기·밝기·색맹 보정), `createLut`. 본 화면은 `drawToTarget`·`beginOverlay`·`drawUi`·`endFrame` 중 처음 오는 곳에서 포스트를 거친다(`resolveScene`, GPU 패스 `post`). 오프스크린(`createRenderTarget`)은 같은 크기의 HDR 대상을 짝으로 갖는다. 보기 모드와 `toneMapping = false`(반사 프로브 굽기)는 선형 값을 잘라 sRGB로만 — 예전 그림과 같다(`post_off` 기준 그림 = 예전 `styles_pbr`).
+- **LUT**: `.cube`(3D, 아무 크기, `DOMAIN_MIN/MAX`) → 32³으로 세 선형 보간(`asset::parseCubeLut`) → 1024 × 32 RGBA8 띠, 셰이더는 파랑 두 조각을 섞는다. 종류 폴더 `assets/lut/`(레이아웃 규칙에 이미 있던 자리), `ModelCache::lut`·`postParams`(핫 리로드). 색맹 보정(1·2·3형, Machado 2009 + daltonize)은 CPU가 LUT 위에 겹쳐 LUT 하나로 만든다(셰이더 비용 없음, 설정을 바꾸면 LUT를 다시 올린다).
+- **씬·에디터**: `scene::PostFields`(`MEALKIT_STRUCT`, 씬 파일 `post <필드> <값>` 줄, `@format scene 4`, 콘텐츠 해시 제외). [환경] 패널 [포스트 프로세싱] 칸: 톤 매핑, 노출, LUT 고르기, 블룸 세기·문턱·색, 비네트, 그레인, 색수차, [보정용 캡처](씬 뷰를 LUT 없이 `art/grading/<씬>.png` + `neutral.cube` → Resolve·Photoshop에서 보정해 `assets/lut/`로 내보낸다).
+- **설정**: `display.bloom`·`antiAliasing`·`filmGrain`·`chromaticAberration`(끄기), `display.brightness`(이제 노출에 곱한다), `gameplay.colorBlind`(끔·1형·2형·3형). 게임 문자열 en·ko.
+- **예제·시험**: `assets/lut/warm.cube`(8칸, 엔진이 32로 다시 뽑는다), `scenes/post.scene`(노출·LUT·블룸·비네트·그레인·색수차)·`post_off.scene`(톤 매핑 끔), 기준 그림 `post_graded`·`post_off`를 더하고 기존 17장은 톤 매핑이 생겨 다시 만들었다(DX12 = Vulkan 문턱 안). 단위 시험 `asset/cube_lut`(크기 2 표 보간, 중립 LUT 왕복, 1D·모자란 표 거절), `scene/scene_hierarchy`에 포스트 값 저장·읽기.
+- **측정**: `sandbox --benchmark 10`(arena 720p, Core Ultra 5 125U): GPU 프레임 2.30 ms 중 post 0.46 ms(예산 1.0, 블룸 + FXAA 켬), opaque 1.40, shadow 0.41. 출시 exe(Export) 3.14 → 3.19 MiB.
+- **남은 것**: AgX 기본은 채도가 낮다(Blender "AgX" 그대로, "Punchy" 같은 룩은 LUT로). FSR 1 업스케일은 동적 해상도 항목. 반사 프로브를 HDR로 굽기(지금도 선형을 잘라 찍는다). 에디터 씬 뷰 밖(뷰포트 바깥) 백버퍼는 지우지 않는다(ImGui가 덮는다). 최소 사양 실기에서 포스트 GPU 시간.
+
 ### [x] 파티클 (완료 2026-10-27)
 - **먼저 확인**: Effekseer 1.80.1 코어를 출시 exe와 같은 조건(정적 CRT, 크기 최적화)으로 링크해 +약 400 KB, 렌더러까지 +0.8~1 MB 예상. 공식 렌더러가 D3D12·LLGI를 직접 불러 RHI 규칙에 어긋나 자체 런타임으로 정했다(`docs/DECISIONS.md` 2026-10-27).
 - **데이터**: `assets/effects/<이름>.fx` = `feedback::Effect`(`@format effect 1`): 입자 수, 수명(+무작위), 시작 구 반지름, 주 방향·퍼짐, 속도(+무작위), 중력, 공기 저항, 크기 처음→끝, 색 처음→끝(알파 포함), 가장자리 흐림, 회전, 더하기. 연출 표 `Reaction`에 `effect` 열(위치가 있는 행만 띄운다, 세기만큼 입자 수).

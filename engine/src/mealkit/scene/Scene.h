@@ -53,6 +53,21 @@ struct Entity {
     }
 };
 
+// 포스트 프로세싱 값 (render::PostParams로 옮긴다, 에디터 [환경] 패널). 화면 전용이라 콘텐츠 해시에 들어가지 않는다.
+// 씬 파일에는 "post <필드> <값>" 줄로 (기본값과 같아도 모두)
+MEALKIT_STRUCT(PostFields) {
+    MEALKIT_FIELD(bool, toneMapping, true, "Tone mapping (AgX)");
+    MEALKIT_FIELD(f32, exposure, 0.0f, "Exposure (EV)");
+    MEALKIT_FIELD(std::string, lut, {}, "Color LUT (.cube)");
+    MEALKIT_FIELD(f32, bloomIntensity, 0.25f, "Bloom intensity");
+    MEALKIT_FIELD(f32, bloomThreshold, 1.0f, "Bloom threshold");
+    MEALKIT_FIELD(Vec3, bloomTint, (Vec3{1.0f, 1.0f, 1.0f}), "Bloom tint");
+    MEALKIT_FIELD(f32, vignette, 0.0f, "Vignette");
+    MEALKIT_FIELD(f32, vignetteSmoothness, 0.5f, "Vignette start");
+    MEALKIT_FIELD(f32, grain, 0.0f, "Film grain");
+    MEALKIT_FIELD(f32, chromaticAberration, 0.0f, "Chromatic aberration");
+};
+
 struct Environment {
     Vec3 sunDirection{0.4f, 0.8f, 0.3f};
     Vec3 sunColor{1.0f, 0.95f, 0.85f};
@@ -65,6 +80,7 @@ struct Environment {
     std::string hdri;
     f32 hdriIntensity = 1.0f; // 하늘·환경광·반사 세기
     f32 hdriRotation = 0.0f;  // y축 회전 (도)
+    PostFields post;
 };
 
 using TypeList = std::vector<const reflect::TypeInfo*>;

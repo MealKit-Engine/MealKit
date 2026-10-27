@@ -18,6 +18,7 @@ void applyEnvironment(const scene::Environment& env, asset::ModelCache& models, 
     frame.environment = models.environment(env.hdri);
     frame.environmentIntensity = env.hdriIntensity;
     frame.environmentRotation = env.hdriRotation * (3.14159265f / 180.0f);
+    frame.post = models.postParams(env.post);
 }
 
 void applyLights(const scene::Scene& scene, const WorldView& view, f64 viewTime, std::vector<render::PointLight>& lights,

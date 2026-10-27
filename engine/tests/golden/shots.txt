@@ -1,7 +1,7 @@
 # 그래픽 회귀 테스트 장면 (tools\check.ps1 "Graphics regression"): MealKitEditor --render-golden <이 파일> <폴더>
 # 이름 씬(assets 기준) 카메라 x y z yaw pitch (도) [조명 모델 pbr|toon|unlit, 없으면 프로젝트 설정].
 # 기준 그림은 같은 폴더의 <이름>.png, 다시 만들기는 check.ps1 -UpdateGolden. 바람은 화면 시간 0으로 그린다
-# materials: 텍스처·법선·금속/거칠기·알파 마스크 (tools/make_sample_models.py의 crate·fence). 포스트 프로세싱이 생기면 그것을 켜고 끈 장면을 더한다
+# materials: 텍스처·법선·금속/거칠기·알파 마스크 (tools/make_sample_models.py의 crate·fence)
 # styles: 스타일 프리셋 (조명 모델 셋 × 외곽선·림·바람·디졸브, 인스턴스 번쩍임·디졸브 진행도는 씬 물체 flags)
 arena_overview  scenes/arena.scene   0 24 -48      0 -24
 arena_models    scenes/arena.scene   0  5  32      0 -12
@@ -24,3 +24,6 @@ lights_toon     scenes/lights.scene   0 3.0 -6.5   0 -18  toon
 # anim: 스켈레탈 애니메이션 (models/characters/rig_figure.glb, 씬 필드 anim = 클립과 어긋남): 쉬는 자세·idle·run·wave, 앞과 옆
 anim_figures    scenes/anim.scene   0 1.6 6   180 -8
 anim_side       scenes/anim.scene   5 1.4 0.5  -90 -6
+# post: 포스트 프로세싱 (다른 장면은 모두 기본값 = AgX 톤 매핑 + 블룸 + FXAA). post는 노출·LUT(lut/warm.cube)·블룸·비네트·그레인·색수차, post_off는 톤 매핑 끔
+post_graded     scenes/post.scene      0.3 2.2 -4.6   0 -16
+post_off        scenes/post_off.scene  0.3 2.2 -4.6   0 -16

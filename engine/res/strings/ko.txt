@@ -532,3 +532,24 @@ Program not found: %s = 실행 파일이 없습니다: %s
 Open Tools Folder = 도구 폴더 열기
 Rescan Tools = 도구 다시 찾기
 Edit sound events in MealKit Audio (Tools menu). = 소리 이벤트는 MealKit Audio([도구] 메뉴)에서 고친다.
+
+# ---- 포스트 프로세싱
+Post processing = 포스트 프로세싱
+Tone mapping (AgX) = 톤 매핑 (AgX)
+Exposure (EV) = 노출 (EV)
+Color LUT = 색 보정 LUT
+Color LUT (.cube) = 색 보정 LUT (.cube)
+None = 없음
+Grading capture = 보정용 캡처
+Grading capture saved: %s = 보정용 캡처를 저장했습니다: %s
+Saves the scene view without the LUT to art/grading/ with a neutral .cube. Grade it in DaVinci Resolve or Photoshop, export a 32-point .cube into assets/lut/ and pick it above. = 씬 뷰를 LUT 없이 art/grading/에 중립 .cube와 함께 저장합니다. DaVinci Resolve나 Photoshop에서 보정하고 32칸 .cube로 assets/lut/ 아래에 내보낸 뒤 위에서 고릅니다.
+Bloom = 블룸 (빛 번짐)
+Bloom intensity = 블룸 세기
+Bloom threshold = 블룸 문턱
+Bloom tint = 블룸 색
+Vignette = 비네트
+Vignette start = 비네트 시작
+Film grain = 필름 그레인
+Chromatic aberration = 색수차
+Anti-aliasing (FXAA) = 안티에일리어싱 (FXAA)
+Color blindness correction = 색각 이상 보정

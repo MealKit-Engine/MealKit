@@ -1,0 +1,104 @@
+# MealKit scene
+@format scene 4
+
+sun 0.400000006 0.800000012 0.300000012
+sunColor 1 0.949999988 0.850000024
+sky 0.300000012 0.379999995 0.5
+groundColor 0.200000003 0.170000002 0.140000001
+fog 0.5 0.620000005 0.779999971 0.00400000019
+hdri textures/hdri/kloofendal_partly_cloudy_1k.hdr
+hdriIntensity 1
+hdriRotation 0
+post toneMapping true
+post exposure 0.3
+post lut lut/warm.cube
+post bloomIntensity 0.6
+post bloomThreshold 0.8
+post bloomTint 1 0.9 0.8
+post vignette 0.45
+post vignetteSmoothness 0.35
+post grain 0.15
+post chromaticAberration 0.006
+
+entity
+id 1
+name Ground
+kind solid
+position 0 -0.5 0
+rotation 0 0 0 1
+scale 30 1 30
+color FF609676
+flags 1
+end
+
+entity
+id 2
+name Figure
+kind solid
+position 0 0 0
+rotation 0 0 0 1
+scale 1 1 1
+model models/props/style_figure.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 3
+name Figure Flash
+kind solid
+position 1.1 0 -1.5
+rotation 0 0 0 1
+scale 0.6 0.6 0.6
+model models/props/style_figure.glb
+color FFFFFFFF
+flags 5832704
+end
+
+entity
+id 4
+name Orb Dissolve
+kind solid
+position 1.7 0 0.7
+rotation 0 0 0 1
+scale 1 1 1
+model models/props/style_orb.glb
+color FFFFFFFF
+flags 1929379840
+end
+
+entity
+id 5
+name Grass
+kind solid
+position -1.3 0 0.3
+rotation 0 0 0 1
+scale 1 1 1
+model models/props/style_grass.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 6
+name Grass 2
+kind solid
+position -1.8 0 -0.8
+rotation 0 0.382683456 0 0.923879504
+scale 1.2 1.2 1.2
+model models/props/style_grass.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 7
+name Grass 3
+kind solid
+position -0.6 0 -1.2
+rotation 0 0.707106769 0 0.707106769
+scale 0.8 0.8 0.8
+model models/props/style_grass.glb
+color FFFFFFFF
+flags 0
+end

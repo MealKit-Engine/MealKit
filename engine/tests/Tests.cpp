@@ -838,6 +838,32 @@ TEST_CASE(asset, material_extras) {
 }
 
 // 하늘 HDRI 굽기: RGB9E5 왕복, 큐브 면 방향, 고른 밝기 1의 하늘은 환경광·반사·하늘이 모두 1
+// 색 보정 LUT (.cube): 크기가 다른 표는 32칸으로 세 선형 보간, DOMAIN을 따르고, 1D·모자란 표는 거절
+TEST_CASE(asset, cube_lut) {
+    // 2칸 표: 빨강과 파랑을 바꾼다 (보간해도 선형이라 32칸 어디서나 정확히 바뀐다)
+    const std::string swap = "TITLE \"swap\"\n# comment\nLUT_3D_SIZE 2\n"
+                             "0 0 0\n0 0 1\n0 1 0\n0 1 1\n1 0 0\n1 0 1\n1 1 0\n1 1 1\n";
+    std::vector<f32> lut;
+    std::string error;
+    TEST_CHECK(asset::parseCubeLut(swap, lut, error));
+    constexpr u32 n = render::kLutSize;
+    TEST_CHECK(lut.size() == static_cast<size_t>(n) * n * n * 3);
+    const auto at = [&](u32 r, u32 g, u32 b, u32 c) { return lut[((static_cast<size_t>(b) * n + g) * n + r) * 3 + c]; };
+    TEST_CHECK(std::abs(at(31, 0, 0, 2) - 1.0f) < 1e-5f && at(31, 0, 0, 0) < 1e-5f); // 빨강 → 파랑
+    TEST_CHECK(std::abs(at(10, 20, 5, 0) - 5.0f / 31.0f) < 1e-5f && std::abs(at(10, 20, 5, 1) - 20.0f / 31.0f) < 1e-5f);
+
+    // 중립 LUT 파일은 항등으로 다시 읽힌다
+    const std::string path = std::string(MEALKIT_ENGINE_DIR) + "/build/check/neutral_test.cube";
+    createDirectories(parentDirectory(path));
+    TEST_CHECK(asset::saveNeutralCubeLut(path));
+    TEST_CHECK(asset::loadCubeLut(path, lut, error));
+    TEST_CHECK(std::abs(at(7, 13, 29, 0) - 7.0f / 31.0f) < 1e-5f && std::abs(at(7, 13, 29, 2) - 29.0f / 31.0f) < 1e-5f);
+    removeFile(path);
+
+    TEST_CHECK(!asset::parseCubeLut("LUT_1D_SIZE 4\n0 0 0\n", lut, error));
+    TEST_CHECK(!asset::parseCubeLut("LUT_3D_SIZE 2\n0 0 0\n", lut, error) && error.find("expected 8") != std::string::npos);
+}
+
 TEST_CASE(asset, environment_bake) {
     for (const f32 v : {0.0f, 0.001f, 0.5f, 1.0f, 3.7f, 250.0f}) {
         f32 back[3];
@@ -1668,11 +1694,16 @@ TEST_CASE(scene, scene_hierarchy) {
 
     // 저장 → 불러오기: 부모 유지, 잘못된 부모는 최상위로
     s.entities[0].parent = 99;
+    s.environment.post.exposure = -0.5f; // 포스트 값도 같이 (콘텐츠 해시와 무관)
+    s.environment.post.lut = "textures/grade warm.cube";
+    s.environment.post.bloomTint = {1.0f, 0.5f, 0.25f};
     const std::string path = executableDirectory() + "\\test_hierarchy.scene";
     TEST_CHECK(scene::save(s, path));
     scene::Scene loaded;
     TEST_CHECK(scene::load(loaded, path));
     TEST_CHECK(loaded.entities.size() == 3 && loaded.entities[0].parent == 0 && loaded.entities[2].parent == 2);
+    TEST_CHECK(loaded.environment.post.exposure == -0.5f && loaded.environment.post.lut == "textures/grade warm.cube" &&
+               loaded.environment.post.bloomTint.y == 0.5f && loaded.environment.post.toneMapping);
     TEST_CHECK(loaded.contentHash() == [&] {
         s.entities[0].parent = 0;
         return s.contentHash();
