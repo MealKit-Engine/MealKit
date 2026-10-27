@@ -12,17 +12,20 @@ namespace {
 
 std::mutex g_lock;
 bool g_dialogs = true;
+Sink g_sink = nullptr;
 
 void emit(Level level, const char* message) {
     const char* tag = level == Level::Info ? "INFO " : level == Level::Warn ? "WARN " : "ERROR";
+    const f64 seconds = nowSeconds();
     char line[2200];
-    snprintf(line, sizeof(line), "[%8.3f][%s] %s\n", nowSeconds(), tag, message);
+    snprintf(line, sizeof(line), "[%8.3f][%s] %s\n", seconds, tag, message);
 
     std::lock_guard<std::mutex> guard(g_lock);
     FILE* out = level == Level::Info ? stdout : stderr;
     fputs(line, out);
     fflush(out);
     debugOutput(line);
+    if (g_sink) g_sink(level, seconds, message);
 }
 
 } // namespace
@@ -48,6 +51,11 @@ void fatal(const char* fmt, ...) {
 }
 
 void setDialogs(bool enabled) { g_dialogs = enabled; }
+
+void setSink(Sink sink) {
+    std::lock_guard<std::mutex> guard(g_lock);
+    g_sink = sink;
+}
 
 void assertFailed(const char* condition, const char* file, int line) {
     write(Level::Error, "Assertion failed: %s (%s:%d)", condition, file, line);

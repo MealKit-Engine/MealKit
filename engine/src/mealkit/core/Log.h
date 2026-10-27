@@ -6,6 +6,10 @@ enum class Level { Info, Warn, Error };
 
 void write(Level level, const char* fmt, ...);
 
+// 로그 한 줄마다 불린다 (에디터 [로그] 창). 아무 스레드에서나 불리므로 받는 쪽이 잠근다. nullptr = 끄기
+using Sink = void (*)(Level level, double seconds, const char* message);
+void setSink(Sink sink);
+
 // 로그를 남기고 프로세스를 종료한다. 대화상자는 setDialogs(false)로 끌 수 있다(자동 테스트용).
 [[noreturn]] void fatal(const char* fmt, ...);
 void setDialogs(bool enabled);
