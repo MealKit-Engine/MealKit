@@ -28,6 +28,8 @@ public:
     // iniPath가 비어 있으면 창 위치를 저장하지 않는다
     bool init(Window& window, render::Renderer& renderer, const std::string& iniPath);
     void shutdown();
+    // 창 배치 파일을 바꾼다 (프로젝트별 레이아웃). 이미 읽은 배치는 예전 파일에 쓰고 새 파일을 읽는다. 새 파일이 있으면 true
+    bool setIniPath(const std::string& iniPath);
 
     void newFrame();
     // 렌더러 프레임이 열려 있으면 UI를 그려 넣는다. 열려 있지 않아도 ImGui 프레임은 반드시 닫는다.

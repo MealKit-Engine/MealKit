@@ -118,6 +118,20 @@ void ImGuiLayer::releaseTexture(ImTextureData* texture) {
     if (texture) texture->WantDestroyNextFrame = true; // 백엔드가 GPU 사용이 끝난 뒤 Destroyed로 바꾼다 (newFrame에서 지움)
 }
 
+bool ImGuiLayer::setIniPath(const std::string& iniPath) {
+    const bool exists = fileExists(iniPath);
+    if (!m_initialized || iniPath == m_iniPath) return exists;
+    ImGuiIO& io = ImGui::GetIO();
+    if (ImGui::GetCurrentContext()->SettingsLoaded) { // 첫 프레임 전이면 NewFrame이 새 파일을 읽는다
+        if (!m_iniPath.empty()) ImGui::SaveIniSettingsToDisk(m_iniPath.c_str());
+        ImGui::ClearIniSettings();
+        if (exists) ImGui::LoadIniSettingsFromDisk(iniPath.c_str());
+    }
+    m_iniPath = iniPath;
+    io.IniFilename = m_iniPath.c_str();
+    return exists;
+}
+
 void ImGuiLayer::newFrame() {
     for (size_t i = 0; i < m_textures.size();) {
         ImTextureData* tex = m_textures[i];

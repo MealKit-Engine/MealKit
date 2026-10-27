@@ -5,6 +5,13 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 에디터 다듬기: 환경설정 창과 단축키 도움말 (완료 2026-10-28)
+- **환경설정** (`editor/Preferences.h`, [파일] > [환경설정...]): 사용자별 `%LOCALAPPDATA%\MealKit\editor_settings.txt`의 `cameraSpeed`·`uiScale`·`autosaveSeconds`·`externalEditor`·`projectLayout` 줄. 같은 파일의 `language`·`toolPath` 줄은 그대로 둔다. 바꾸면 바로 저장한다.
+  카메라 속도는 켤 때 값(휠로 바꾼 값은 저장하지 않는다), 글자 크기는 `style.FontScaleMain`, 자동 저장 간격 0 = 끄기(예전 고정 90초), 코드 편집기는 "코드로 이동" 항목이 쓴다(기본 `code`).
+- **프로젝트별 창 배치** (`ImGuiLayer::setIniPath`): 프로젝트를 열면 `<프로젝트>\build\editor\layout.ini`를 쓴다. 처음 여는 프로젝트는 기본 레이아웃이라 예전 공용 `mealkit_editor.ini`로 [로그]가 떠 있던 문제도 없어진다. 끄면 예전처럼 공용 파일.
+- **F1 단축키** ([보기] > [단축키]): 명령 표의 단축키 + 마우스 조작 몇 줄.
+- **남은 것**: 단축키 바꾸기는 아직 없다(명령 표의 `chord`를 설정에서 덮어쓰는 방식으로 할 수 있다).
+
 ### [x] 에디터 다듬기: 명령 팔레트 (완료 2026-10-28)
 - **명령 표** (`editor/EditorCommands.cpp`, `Editor::Command`): 이름(영어 원문 = `tr` 키), 단축키 두 개까지(`ImGuiKeyChord`), 켜짐 조건, 실행. `runShortcuts()`가 예전 `handleShortcuts()`를 대신하고, 메뉴는 `commandMenuItem(이름)`으로 이름·단축키 글자·켜짐을 표에서 가져온다(파일·편집·보기·빌드의 고정 항목). [추가]·보기 모드·레이아웃 미리 설정·[도구]는 목록이 바뀌는 메뉴라 그대로.
 - **팔레트** (`Ctrl+P`, [보기] > [명령 팔레트]): 지금 켜진 명령, 씬 물체(이름·종류, 고르면 선택하고 카메라 이동), `assets/scenes`의 씬, 설치된 도구를 한국어·영어 이름(대소문자 무시)으로 찾는다. 위아래 화살표·Enter·Esc. 플레이 중에는 명령만.
