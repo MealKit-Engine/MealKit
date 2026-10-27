@@ -523,6 +523,8 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
 
     add_executable(MealKitEditor src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)
     target_link_libraries(MealKitEditor PRIVATE mealkit_editor)
+    # 창 프로그램: 뒤에 콘솔 창이 뜨지 않는다 (명령 창에서 실행하면 attachParentConsole이 붙인다)
+    target_link_options(MealKitEditor PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
     # 프로젝트 관리자의 새 프로젝트 만들기가 쓰는 엔진 폴더 (에디터는 배포하지 않는다)
     target_compile_definitions(MealKitEditor PRIVATE MEALKIT_ENGINE_DIR="${MEALKIT_ENGINE_DIR}")
 

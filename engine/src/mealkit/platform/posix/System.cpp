@@ -17,6 +17,7 @@ void debugOutput(const char*) {}
 bool debuggerAttached() { return false; } // 필요해지면 /proc/self/status의 TracerPid (5단계)
 void debugBreak() { std::raise(SIGTRAP); }
 void showErrorDialog(const char*, const char*) {}
+void attachParentConsole() {}
 void exitProcess(int code) { std::_Exit(code); }
 u32 processId() { return static_cast<u32>(getpid()); }
 

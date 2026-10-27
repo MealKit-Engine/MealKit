@@ -17,6 +17,10 @@ void debugBreak();
 // 치명적 오류 대화상자 (창이 없는 플랫폼·헤드리스에서는 아무것도 하지 않는다. 로그는 이미 남았다).
 void showErrorDialog(const char* title, const char* message);
 
+// 콘솔 창 없이 만든 exe(Windows 창 프로그램)가 명령 창에서 실행됐으면 그 창에 표준 출력·오류를 붙인다 (--help 등).
+// 출력이 파일·파이프로 넘어왔으면 그대로 둔다. 다른 플랫폼에서는 아무것도 하지 않는다.
+void attachParentConsole();
+
 // 정리 없이 바로 끝낸다 (치명적 오류). 표준 출력은 미리 비워 둔다.
 [[noreturn]] void exitProcess(int code);
 

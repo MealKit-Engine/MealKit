@@ -4,6 +4,7 @@
 #include <windows.h>
 #include <psapi.h>
 
+#include <cstdio>
 #include <cstring>
 
 #pragma comment(lib, "advapi32.lib") // GetUserNameW
@@ -16,6 +17,17 @@ void debugBreak() { __debugbreak(); }
 
 void showErrorDialog(const char* title, const char* message) {
     MessageBoxA(nullptr, message, title, MB_ICONERROR | MB_OK);
+}
+
+void attachParentConsole() {
+    if (GetConsoleWindow()) return; // 콘솔 프로그램이거나 이미 붙었다
+    const bool outRedirected = GetStdHandle(STD_OUTPUT_HANDLE) != nullptr;
+    const bool errRedirected = GetStdHandle(STD_ERROR_HANDLE) != nullptr;
+    if (outRedirected && errRedirected) return; // 파일·파이프로 받고 있다 (검사 스크립트)
+    if (!AttachConsole(ATTACH_PARENT_PROCESS)) return; // 탐색기에서 실행: 콘솔 없음
+    FILE* f = nullptr;
+    if (!outRedirected) freopen_s(&f, "CONOUT$", "w", stdout);
+    if (!errRedirected) freopen_s(&f, "CONOUT$", "w", stderr);
 }
 
 void exitProcess(int code) { ExitProcess(static_cast<UINT>(code)); }
