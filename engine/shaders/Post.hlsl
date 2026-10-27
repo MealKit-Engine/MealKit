@@ -3,7 +3,7 @@
 // 백버퍼(또는 Ldr 대상)에 sRGB 값으로 낸다: FXAA → 색수차 → 노출 + 블룸 → AgX 톤 매핑 → 색 보정 LUT → 비네트 → 그레인.
 // 내장 그래픽은 대역폭이 병목이라 효과마다 대상을 오가지 않는다. 화면 가득 삼각형 하나(정점 버퍼 없음).
 //
-// 읽는 좌표: 장면은 뷰포트(에디터 씬 뷰)의 픽셀 그대로 HDR 대상에 있다. 셰이더는 SV_Position(대상 픽셀)으로 읽고,
+// 읽는 좌표: 장면은 뷰포트(에디터 씬 뷰)의 픽셀 × 동적 해상도 배율로 HDR 대상에 있다 (sceneSize.zw가 출력 픽셀을 그 uv로). 셰이더는 SV_Position(대상 픽셀)으로 읽고,
 // 영역 밖(지우지 않은 곳)은 rect로 잘라 번지지 않게 한다.
 
 #include "Bindless.hlsli"
@@ -24,16 +24,17 @@ struct PostPush // 48바이트 (render::Renderer PostPush)
 struct PostConstants
 {
     float4 exposure;  // 노출 배율 (2^EV × 밝기 설정), 블룸 세기, 비네트 세기, 비네트 부드러움
-    float4 effects;   // 그레인 세기, 색수차 세기 (화면 너비 비율), 그레인 시간, 0
+    float4 effects;   // 그레인 세기, 색수차 세기 (화면 너비 비율), 그레인 시간, 샤프닝 (동적 해상도)
     uint4 textures;   // 블룸 사슬 맨 위 (0xFFFFFFFF = 블룸 없음), LUT (32³ 띠, 0xFFFFFFFF = 없음), 플래그, 0
     float4 bloom;     // 블룸 색 (rgb, 선형 곱), 문턱
     float4 region;    // 장면 영역 uv (min xy, max xy): 비네트·색수차 중심
-    float4 sceneSize; // 장면 대상 크기 (픽셀), 1 / 크기
+    float4 sceneSize; // 장면 대상 크기 (픽셀), 배율 / 크기 (출력 픽셀 → 장면 uv, 동적 해상도면 배율 < 1)
 };
 
 static const uint kPostToneMap = 1u;   // 끄면 선형 값을 자르기만 (반사 프로브 굽기·보기 모드)
 static const uint kPostFxaa = 2u;
 static const uint kPostDither = 4u;    // 8비트 띠 줄이기 (톤 매핑할 때)
+static const uint kPostSharpen = 8u;   // 동적 해상도로 줄여 그렸다: 늘린 뒤 대비 적응 샤프닝
 static const uint kNoTex = 0xFFFFFFFFu;
 
 PostConstants loadPost()
@@ -197,6 +198,24 @@ float3 fxaa(float2 uv)
     return uncompress(lumaB < lumaMin || lumaB > lumaMax ? a : b);
 }
 
+// 대비 적응 샤프닝 (AMD FidelityFX CAS·FSR 1 RCAS 계열, 탭 5개): 이웃 대비가 클수록 덜 세게 해 테두리 고리를 막는다.
+// 이중 선형으로 늘린 흐림을 되돌린다. HDR은 compress 공간에서 섞는다
+float3 sharpen(float2 uv, float3 c, float amount)
+{
+    float2 t = g_push.texel;
+    float3 m = compress(c);
+    float3 n = compress(sampleSource(uv + float2(0.0, -t.y)));
+    float3 s = compress(sampleSource(uv + float2(0.0, t.y)));
+    float3 e = compress(sampleSource(uv + float2(t.x, 0.0)));
+    float3 w = compress(sampleSource(uv + float2(-t.x, 0.0)));
+    float3 mn = min(m, min(min(n, s), min(e, w)));
+    float3 mx = max(m, max(max(n, s), max(e, w)));
+    float3 amp = sqrt(saturate(min(mn, 1.0 - mx) / max(mx, 1e-4)));
+    float3 wgt = -amp * lerp(0.125, 0.2, amount);
+    float3 r = (m + (n + s + e + w) * wgt) / (1.0 + 4.0 * wgt);
+    return uncompress(saturate(r));
+}
+
 float4 PSUber(PostVSOut input) : SV_Target
 {
     PostConstants post = loadPost();
@@ -206,6 +225,7 @@ float4 PSUber(PostVSOut input) : SV_Target
     float2 centered = (uv - post.region.xy) / max(regionSize, 1e-6) - 0.5; // 영역 가운데 0, 가장자리 ±0.5
 
     float3 color = (flags & kPostFxaa) ? fxaa(uv) : sampleSource(uv);
+    if (flags & kPostSharpen) color = sharpen(uv, color, post.effects.w);
     if (post.effects.y > 0.0) { // 색수차: 빨강·파랑을 가장자리 쪽으로 벌린다 (가운데는 그대로)
         float2 offset = centered * dot(centered, centered) * post.effects.y * regionSize;
         color.r = sampleSource(uv + offset).r;

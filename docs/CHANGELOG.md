@@ -5,6 +5,13 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 동적 해상도 (완료 2026-10-27)
+- **방식**: 본 화면 3D는 HDR 장면 대상(창 크기 그대로, 다시 만들지 않는다)의 왼쪽 위 `뷰포트 × 배율` 영역에 그린다. 우버 패스는 출력 픽셀 × 배율 / 크기(`sceneSize.zw`)로 읽어 이중 선형으로 늘리고, 줄였을 때만 대비 적응 샤프닝(`Post.hlsl` `sharpen`, CAS·FSR 1 RCAS 계열 탭 5개, HDR은 compress 공간)을 FXAA 다음에 한다. 블룸·비네트·색수차는 같은 uv 공간이라 그대로. UI·디버그 UI는 늘 백버퍼 원래 해상도. 오프스크린(룩데브·프로브 굽기)과 보기 모드는 배율 1.
+- **조절기** (`Renderer::Impl::updateResolution`): GPU 프레임 시간 지수 평균이 예산의 95%를 넘으면 배율 × √(예산 85% / 시간)로 한 번에, 75% 아래면 +0.02씩 올린다. 1/64 단위, 바꾼 뒤 8프레임 기다린다(타임스탬프가 2프레임 늦다). `RenderStats::resolutionScale`.
+- **설정**: 프로젝트 `dynamicResolution`(기본 켬), `dynamicResolutionMinScale`(0.5), `upscaleSharpness`(0.5), 예산은 `gpuBudget*` 합(`game::applyRenderStyle`). 플레이어 설정 렌더 배율(저장만 하던 값)이 위 한계(`Renderer::setRenderScale`). 자동 실행(`--exit-tick`·`--frames`·`--benchmark`)은 조절기를 끈다(그림이 GPU 속도에 따라 바뀌지 않게). `--render-scale <s>`는 배율 고정.
+- **검증**: `sandbox --render-scale 0.5` 캡처(3D 절반, UI 선명), `check.ps1 -Changed` 골든 DX12·Vulkan·검증 레이어 통과(배율 1은 그림 그대로).
+- **남은 것**: FSR 1 EASU(가장자리 방향 12탭 업스케일)는 넣지 않았다 — 이중 선형 + 샤프닝으로 먼저 보고 최소 사양에서 화질이 모자라면 우버 패스의 읽기만 바꾼다(`docs/DECISIONS.md` 2026-10-27). 블룸 사슬은 창 크기 기준이라 줄여도 블룸 비용은 같다. 최소 사양 실기에서 조절기 반응.
+
 ### [x] 포스트 프로세싱 (완료 2026-10-27)
 - **방식** (`docs/DECISIONS.md` 2026-10-27): 장면은 HDR 대상(R11G11B10F + D32, 픽셀당 4바이트)에 그리고, 블룸만 절반 해상도 듀얼 필터 사슬(5단, 내려가며 반씩 → 더하기 섞기로 올라온다), 나머지는 우버 패스 하나(`shaders/Post.hlsl` `PSUber`)가 백버퍼에 sRGB 값으로 낸다: FXAA(이웃 HDR 값을 밝기로 눌러 가장자리 찾기·섞기) → 색수차 → 노출 × 밝기 설정 + 블룸 → AgX(Wrensch 다항식 근사, MIT) → 색 보정 LUT → 비네트 → 그레인·디더. 효과 하나를 끄면 셰이더가 그 단계를 건너뛴다.
 - **RHI**: `Target::Scene`이 백버퍼가 아니라 HDR 장면 대상이 됐다(`Target::Hdr` 블룸, `Target::Overlay` = 백버퍼·`TargetKind::Ldr`). `createRenderTarget(w, h, TargetKind)`·`destroyRenderTarget`(창 크기 대상), `beginTarget`의 `clearColor` nullptr = 내용 유지(블룸 더하기). 백버퍼의 sRGB 뷰·깊이와 `beginScene`을 지웠고 Vulkan은 `VK_KHR_swapchain_mutable_format`이 필요 없어졌다(대신 B10G11R11 그리기·섞기·선형 샘플을 최소 사양 검사에 더함).
