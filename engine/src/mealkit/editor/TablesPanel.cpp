@@ -14,7 +14,6 @@
 namespace mealkit::editor {
 namespace {
 
-constexpr const char* kTablesWindow = "Tables###Tables";
 const FileFilter kCsvFilters[] = {{"CSV (*.csv)", "*.csv"}, {"All files (*.*)", "*.*"}};
 
 std::string backslashes(std::string path) {
@@ -149,7 +148,7 @@ std::string TablesPanel::uniqueId(const Doc& doc, const std::string& base) const
 
 void TablesPanel::draw(void* owner, bool editing, bool* open) {
     ImGui::SetNextWindowSize(ImVec2(960.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(trl(kTablesWindow), open)) {
+    if (!ImGui::Begin(trl(kWindow), open)) {
         ImGui::End();
         return;
     }

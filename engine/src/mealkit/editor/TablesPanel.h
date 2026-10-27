@@ -13,6 +13,7 @@ namespace mealkit::editor {
 
 class TablesPanel {
 public:
+    static constexpr const char* kWindow = "Tables###Tables";
     void setProjectDirectory(const std::string& directory) { m_projectDir = directory; }
     // 게임 DLL의 표 목록 (DLL을 내리기 전에 nullptr). 처음 받으면 파일에서 읽는다.
     void setTables(const reflect::TableList* tables);
