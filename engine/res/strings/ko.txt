@@ -564,3 +564,5 @@ Info = 정보
 Warnings = 경고
 Errors = 오류
 Search = 찾기
+Playing - scene values go back when you stop = 플레이 중 - 멈추면 씬 값은 되돌아갑니다
+The game code is not built yet. Build it to play. = 게임 코드가 아직 빌드되지 않았습니다. 빌드하면 플레이할 수 있습니다.
