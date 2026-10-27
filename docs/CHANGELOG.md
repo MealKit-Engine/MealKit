@@ -5,6 +5,15 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 파티클 (완료 2026-10-27)
+- **먼저 확인**: Effekseer 1.80.1 코어를 출시 exe와 같은 조건(정적 CRT, 크기 최적화)으로 링크해 +약 400 KB, 렌더러까지 +0.8~1 MB 예상. 공식 렌더러가 D3D12·LLGI를 직접 불러 RHI 규칙에 어긋나 자체 런타임으로 정했다(`docs/DECISIONS.md` 2026-10-27).
+- **데이터**: `assets/effects/<이름>.fx` = `feedback::Effect`(`@format effect 1`): 입자 수, 수명(+무작위), 시작 구 반지름, 주 방향·퍼짐, 속도(+무작위), 중력, 공기 저항, 크기 처음→끝, 색 처음→끝(알파 포함), 가장자리 흐림, 회전, 더하기. 연출 표 `Reaction`에 `effect` 열(위치가 있는 행만 띄운다, 세기만큼 입자 수).
+- **런타임** (`feedback/Feedback.cpp`): `Player`가 효과 파일을 처음 쓸 때 읽고 0.25초마다 파일 시각을 본다(핫 리로드). 화면 쪽 CPU 갱신(연출용 `Pcg32`, 결정론 밖), 화면 정지 중에는 멈춘다, 최대 16384개. `playEffect`(화면 코드·미리보기), `addParticles(drawList)`(엔진 루프·에디터가 buildFrame 뒤에), `clear`가 지운다.
+- **렌더러**: `render::Particle`(32바이트) → `DrawList::addParticles`, `submit` 마지막에 `Renderer::drawParticles`: 업로드 링에 쓰고 `shaders/Particle.hlsl`로 인스턴스마다 6정점 카메라 쿼드, 드로우 콜 1회. 깊이 시험만(RHI `PipelineDesc::depthWrite` 새로, DX12·Vulkan), 미리 곱한 알파 하나로 보통(색·알파)·더하기(알파 0) 함께, 안개만큼 옅어진다. GPU 시간은 `GpuPass::Vfx`. 셰이더 핫 리로드.
+- **에디터**: [연출] 패널 아래 [효과] 칸: 효과 고르기·새 효과, 필드 편집(0.3초 뒤 자동 저장), [효과 미리보기](카메라 초점). 행 미리보기도 효과를 띄운다.
+- **sandbox**: `spark.fx`(밀치기, 더하기 불꽃), `dust.fx`(튕김, 반투명 먼지). 출시 exe 3.92 → 3.95 MB.
+- **남은 것**: 연속 방출(발자국·불), 텍스처 시트, 크기·색 커브, 정렬(지금은 생성 순서, 반투명끼리 겹치면 틀릴 수 있다), 최소 사양 실기에서 수천 개 GPU 시간. 기준 그림 장면에는 파티클이 없다.
+
 ### [x] 스켈레탈 애니메이션 (완료 2026-10-27)
 - **불러오기** (`asset/ModelCache.cpp`, `asset/Animation.h`): glTF 첫 스킨 하나. 관절을 부모가 앞에 오게 다시 늘어놓고(깊이 순 안정 정렬), 쉬는 자세 TRS·역바인드·뿌리 위 노드 변환은 glTF 공간 그대로. 관절 64개(`kMaxJoints`)를 넘으면 스킨을 버리고 바인드 자세로(경고). 애니메이션마다 30 Hz로 구운 클립(관절 자세 × 프레임, 선형·계단·큐빅은 값만, 회전 nlerp). 스킨 메시는 LOD 없음, 정적 프리미티브는 가장 가까운 조상 관절에 붙는다. `Model::bones`가 예산(characters 64)에 들어간다.
 - **정점**: `render::SkinWeights`(관절 u8 ×4, 가중치 unorm8 ×4, 합 255), GPU에는 36바이트 정점 뒤에 붙여 44바이트. meshoptimizer 정리는 정점 형식 템플릿. RHI `VertexFormat::Uint8x4`.

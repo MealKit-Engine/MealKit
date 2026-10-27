@@ -24,6 +24,7 @@ inline constexpr Format kTuning{"tuning", 1};     // game.tuning, view.tuning
 inline constexpr Format kSettings{"settings", 1}; // 플레이어 설정 settings.ini
 inline constexpr Format kTable{"table", 1};       // *.table, input.bindings, feedback.table
 inline constexpr Format kScene{"scene", 3};       // *.scene (버전 2: 부모 기준 값, 3: 하늘 HDRI 줄. 예전 "version N" 줄도 읽는다)
+inline constexpr Format kEffect{"effect", 1};     // assets/effects/*.fx (파티클 효과)
 inline constexpr Format kUi{"ui", 1};             // *.ui, theme.ui
 inline constexpr Format kStrings{"strings", 1};   // strings/<언어>.txt
 inline constexpr Format kTool{"tool", 1};         // 도구 매니페스트 mealkit-tool.txt

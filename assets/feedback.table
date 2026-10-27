@@ -3,6 +3,7 @@
 
 row Push
 sound push
+effect spark
 shake 0.12
 shakeSeconds 0.2
 shakeRange 14
@@ -17,6 +18,7 @@ hitStop 0.05
 
 row Bounce
 sound bounce
+effect dust
 shake 0.08
 shakeRange 10
 
