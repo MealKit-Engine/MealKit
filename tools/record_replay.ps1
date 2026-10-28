@@ -40,6 +40,7 @@ $finals = @(Get-ChildItem $logDir -Filter *.txt | Where-Object { $_.Name -notmat
 if ($finals.Count -ne 1 -or $finals[0] -notmatch "desync=0") { Write-Host "FAIL: peers differ, see $logDir" -ForegroundColor Red; exit 1 }
 
 # 기록을 바로 재생해 본다
+$ErrorActionPreference = "Continue" # 경고 로그(stderr)를 PowerShell 5.1이 오류로 끊지 않게. 결과는 REPLAY 줄로 본다
 $replay = & $Exe --replay-inputs $Out 2>&1 | ForEach-Object { "$_" }
 if (-not ($replay -match "^REPLAY ok")) { Write-Host "FAIL: replay of $Out" -ForegroundColor Red; exit 1 }
 Write-Host "Recorded $Out ($Players players, seed $Seed, $Ticks ticks): $($finals[0])" -ForegroundColor Green

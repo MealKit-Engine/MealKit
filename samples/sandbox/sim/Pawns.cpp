@@ -73,8 +73,7 @@ void movePawn(World& world, Pawn& p, const Intent& intent, u8 player) {
     }
     world.physics.setLinearVelocity(p.body, v);
 
-    if (intent.push && p.pushReady.ready(world.state.tick)) {
-        p.pushReady.start(world.state.tick, t.pushCooldown);
+    if (intent.push && cooldown::tryUse(p.push, world.state.tick, t.pushCooldown.value)) {
         pushProps(world, p.position);
         world.events.push(makeEvent(EventKind::Push, player, p.position, t.pushRadius));
     }

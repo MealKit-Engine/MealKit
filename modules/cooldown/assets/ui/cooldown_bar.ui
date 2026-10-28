@@ -1,0 +1,18 @@
+# MealKit UI (hand-written): cooldown fill bar component (cooldown module). Use it with
+#   use <name> modules/cooldown/ui/cooldown_bar.ui
+#   set fill widthRatio <your view model field>      (0..1, cooldown::readiness)
+@format ui 1
+board cooldown_bar 260 14
+  frame bar
+    size fill 14
+    fill #FFFFFF22
+    radius 7
+    clip
+    frame fill
+      size fill fill
+      widthRatio cooldownReady
+      fill linear 0 0 1 0 #FF8A20 $accent
+      radius 7
+    end
+  end
+end

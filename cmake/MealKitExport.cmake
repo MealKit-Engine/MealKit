@@ -29,10 +29,19 @@ if(EXISTS "${ASSETS_DIR}")
 else()
     message(WARNING "MealKitExport: no assets folder at ${ASSETS_DIR}")
 endif()
+get_filename_component(project_dir "${PROJECT_FILE}" DIRECTORY)
+# 소스 모듈의 에셋 (docs/MODULES.md): modules/<이름>/assets/ → 출시 폴더 modules/<이름>/assets/ (에셋 경로 "modules/<이름>/...")
+file(GLOB module_asset_dirs LIST_DIRECTORIES true "${project_dir}/modules/*/assets")
+foreach(dir IN LISTS module_asset_dirs)
+    get_filename_component(module_dir "${dir}" DIRECTORY)
+    get_filename_component(module_name "${module_dir}" NAME)
+    file(COPY "${dir}" DESTINATION "${OUT_DIR}/modules/${module_name}"
+        PATTERN "*.autosave" EXCLUDE
+        PATTERN ".gitkeep" EXCLUDE)
+endforeach()
 # 모델 텍스처 캐시 (asset/TextureCache.h): 출시 빌드는 압축하지 않고 exe 옆 cache/textures의 BC 파일만 읽는다.
 # 캐시는 에디터나 개발 빌드가 모델을 불러올 때 만든다 (없으면 그 텍스처는 흰색으로 나오고 로그에 남는다)
 # 하늘 HDRI 캐시 (asset/Environment.h)도 같다: 출시 빌드는 굽지 않고 exe 옆 cache/environments만 읽는다
-get_filename_component(project_dir "${PROJECT_FILE}" DIRECTORY)
 file(REMOVE_RECURSE "${OUT_DIR}/cache")
 foreach(cache textures environments)
     if(EXISTS "${project_dir}/build/cache/${cache}")

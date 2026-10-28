@@ -45,6 +45,13 @@ Get-ChildItem $assets -Recurse -File | Where-Object { $_.Extension -ne ".autosav
     Copy-Item $_.FullName $target
 }
 
+# 4) 소스 모듈: 예제 게임이 쓰는 modules/<이름>/ (module.files 설치 기록째, 이후 tools\module.ps1 update로 갱신)
+$modules = Join-Path $engine "modules"
+if (Test-Path $modules) {
+    New-Item -ItemType Directory -Force (Join-Path $dest "modules") | Out-Null
+    Get-ChildItem $modules -Directory | ForEach-Object { Copy-Item $_.FullName (Join-Path $dest "modules") -Recurse -Force }
+}
+
 Write-Host "Created $dest (engine $(Get-MealKitVersion))" -ForegroundColor Green
 Write-Host "  engine : $engine"
 Write-Host "  build  : $dest\build.bat        (first build compiles the engine too, a few minutes)"

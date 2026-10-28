@@ -159,6 +159,17 @@ if ($Source) {
         if (-not $DryRun) { Backup $entry.Key; Write-TextFile $target $entry.Value }
         $changed++
     }
+    # 예제가 쓰는 소스 모듈 중 프로젝트에 없는 것을 더한다 (있는 모듈은 tools\module.ps1 update로 갱신)
+    $engineModules = Join-Path $MealKitEngine "modules"
+    if (Test-Path $engineModules) {
+        foreach ($m in Get-ChildItem $engineModules -Directory) {
+            $target = Join-Path $Project "modules\$($m.Name)"
+            if (Test-Path $target) { continue }
+            Report "added" "modules\$($m.Name)" Green
+            if (-not $DryRun) { New-Item -ItemType Directory -Force (Split-Path -Parent $target) | Out-Null; Copy-Item $m.FullName $target -Recurse }
+            $changed++
+        }
+    }
     # 예제가 쓰는 에셋 중 프로젝트에 없는 것만 더한다 (예: assets/game.tuning)
     $assets = Join-Path $MealKitEngine "assets"
     Get-ChildItem $assets -Recurse -File | Where-Object { $_.Extension -ne ".autosave" } | ForEach-Object {

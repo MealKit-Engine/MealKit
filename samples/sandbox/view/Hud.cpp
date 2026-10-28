@@ -1,5 +1,7 @@
 #include "view/Hud.h"
 
+#include "cooldown/view/CooldownView.h"
+
 #include <algorithm>
 
 using namespace mealkit;
@@ -30,9 +32,7 @@ void fillHud(const WorldState& state, const Tuning& tuning, u8 localPlayer, cons
     }
     const Pawn* pawn = playerPawn(state, localPlayer);
     vm.alive = pawn != nullptr;
-    vm.pushReady = 1.0f;
-    if (pawn && tuning.pushCooldown.value > 0)
-        vm.pushReady = 1.0f - static_cast<f32>(pawn->pushReady.remaining(state.tick)) / static_cast<f32>(tuning.pushCooldown.value);
+    vm.pushReady = pawn ? cooldown::readiness(pawn->push, state.tick) : 1.0f;
 }
 
 } // namespace sandbox

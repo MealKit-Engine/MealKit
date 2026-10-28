@@ -1,0 +1,9 @@
+# MealKit module files (sha256  path). tools\module.ps1 update replaces a file only while its hash matches.
+source folder D:\MealKit-Engine\module-cooldown
+001d7911aa7f1d5b0707ba778ca97bc74f45ce3e46f6c0ba787769af3f701749  assets/ui/cooldown_bar.ui
+a602528b49b650738049b752df62cf52f80fa35c4af97be027ef1c759897e9f6  docs/index.md
+f6f4c6eac2951520252a60a045ac4a2b0f6b6c65b345021dd2870212027187eb  LICENSE
+8fad9a9f930bb782cc0b78ad4de6c03a60d8d9efeaf84ada9c123a5501c4cad9  module.txt
+39cd932c75776ac7907a3f463a80be05c99f02a18689ac8125c832cbc6ffcbed  README.md
+d4a3156d88496be87366ffa8fb1f086217232ce1627bcbf4c9408d3b06bfd3fc  sim/Cooldown.h
+7d43ac91e144fb3bbc443429615f75a128d26bf3b291163e6b6619c7f119c20b  view/CooldownView.h

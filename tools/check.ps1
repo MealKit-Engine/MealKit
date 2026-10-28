@@ -573,8 +573,8 @@ if (-not $Quick) {
         foreach ($f in "A", "B", "Gone") { [IO.File]::WriteAllText("$src\sim\$f.h", "$f 1") }
         [IO.File]::WriteAllText("$src\tests\T.cpp", "t")
         $tool = "$PSScriptRoot\module.ps1"
-        $out = @()
-        function Mod { $script:out += & powershell -NoProfile -ExecutionPolicy Bypass -File $tool @args -Project $proj 2>&1 | ForEach-Object { "$_" }; return $LASTEXITCODE }
+        $modOut = [Collections.Generic.List[string]]::new() # $out은 check.ps1의 로그 폴더다
+        function Mod { & powershell -NoProfile -ExecutionPolicy Bypass -File $tool @args -Project $proj 2>&1 | ForEach-Object { $modOut.Add("$_") }; return $LASTEXITCODE }
         $ok = (Mod add $src) -eq 0 -and -not (Test-Path "$proj\modules\cool\tests") -and (Test-Path "$proj\modules\cool\module.files")
         [IO.File]::WriteAllText("$proj\modules\cool\sim\B.h", "B mine")
         [IO.File]::WriteAllText("$src\module.txt", "@format module 1`nname cool`nversion 0.2.0`n")
@@ -591,7 +591,7 @@ if (-not $Quick) {
         Pop-Location
         $ok = $ok -and (Mod add "file:///$($src.Replace('\', '/'))#v0.2.0") -eq 0 -and
             ((Get-Content "$proj\modules\cool\module.files") -match "^source git .* v0\.2\.0 [0-9a-f]{40}$").Count -eq 1
-        $out | Out-File -Encoding utf8 $log
+        $modOut | Out-File -Encoding utf8 $log
         Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue
         return $ok
     }

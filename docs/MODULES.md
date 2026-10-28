@@ -43,7 +43,7 @@ module-cooldown/             (저장소 = 프로젝트에 복사되면 modules/c
   .github/workflows/  레지스트리가 주는 공용 워크플로 한 줄 (아래 "모듈 CI")
 ```
 
-- 복사할 때 `.git`, `.github/`, `tests/`, `*.new`는 빼고, `module.files`(설치 기록)를 더한다. `module.files`는 첫 줄 `source folder <경로>` 또는 `source git <주소> <태그|-> <커밋> [modules/<이름>]`, 그 뒤 `<sha256>  <모듈 기준 경로>` 줄들이다. 해시는 텍스트 파일이면 줄바꿈과 무관하게, 그 밖은 바이트로 잰다.
+- 복사하는 것은 모듈 구조뿐이다: `module.txt`, `sim/`, `view/`, `assets/`, `art/`, `docs/`, 루트의 `LICENSE*`·`README*`(`*.new` 제외). 빌드 폴더·`tests/`·`.git`·`.github/`는 가지 않는다. 이때 `module.files`(설치 기록)를 더한다. `module.files`는 첫 줄 `source folder <경로>` 또는 `source git <주소> <태그|-> <커밋> [modules/<이름>]`, 그 뒤 `<sha256>  <모듈 기준 경로>` 줄들이다. 해시는 텍스트 파일이면 줄바꿈과 무관하게, 그 밖은 바이트로 잰다.
 - `app/`은 없다. 화면 흐름과 세션은 게임 것이다. 모듈 하나는 기능 하나이고, 큰 기능은 작은 모듈 여럿과 의존으로 쪼갠다.
 - 공식 모듈 저장소는 `github.com/MealKit-Engine/module-<이름>` (MIT)이다. 다른 사람 모듈도 이름 규칙만 권장하고 강제하지 않는다.
 - 새 모듈은 레지스트리의 템플릿 저장소(`module-template`)로 시작한다.
@@ -114,6 +114,8 @@ void World::step(...) {
 - **자동 등록·호출은 없다.** 순서가 게임 코드에 그대로 보여야 결정론 디버깅이 된다. 붙이는 코드는 모듈 문서의 "추가 방법"에 그대로 싣는다.
 
 ## 에셋 경로
+
+Export는 `modules/*/assets/`를 출시 폴더 `modules/<이름>/assets/`로 같이 복사한다(`cmake/MealKitExport.cmake`). `.ui`의 `use <이름> modules/<모듈>/ui/x.ui`로 모듈 컴포넌트를 게임 화면에 넣는다.
 
 `modules/<이름>/<종류>/...`로 시작하는 경로는 그 모듈의 `assets/` 아래로 푼다. 예: `modules/health/ui/healthbar.ui` → `<프로젝트>/modules/health/assets/ui/healthbar.ui`.
 `assets/` 바로 밑에는 종류 폴더만 올 수 있으므로 프로젝트 에셋과 겹치지 않는다. 경로는 `platform/Paths.h`의 `assetFilePath`(파일 찾기는 `findAssetFile`) 한 곳에서만 푼다(맨 아래 층이라 표·UI·소리·모델·에디터가 모두 쓸 수 있다). 콘텐츠 해시, 에셋 브라우저, 에셋 쿠킹도 같은 함수를 쓴다.
@@ -197,6 +199,8 @@ tools\module.ps1 remove  -Project <폴더> <이름>
 - 기준 샘플(엔진 저장소 루트의 sandbox 프로젝트)도 다른 게임과 똑같이 `modules/cooldown/` 복사본을 커밋한다. 엔진 저장소에 있는 모듈은 이것뿐이다.
 
 ## 모듈 CI (모듈 저장소마다)
+
+모듈 단위 시험은 `tests/CMakeLists.txt`(엔진 `cmake/MealKit.cmake`를 include해 `mealkit_core`에 링크, 빌드 폴더에 `#include "<이름>/..."` 전달 헤더를 만든다) + `tests/*.cpp`(`main`). `cmake -S tests -B build/tests -G Ninja -DMEALKIT_ROOT=<엔진> -DMEALKIT_HEADLESS_ONLY=ON`으로 혼자 빌드한다. 공용 워크플로는 이것을 돌린다.
 
 템플릿에 워크플로 한 줄이 들어 있다. 레지스트리의 공용 워크플로(`uses: MealKit-Engine/MealKit-Modules/.github/workflows/module.yml@v1`)를 부른다.
 공용 워크플로는 `module.txt`의 엔진 버전을 받아 빈 프로젝트에 모듈을 넣고 빌드하고, SimCheck와 `tests/`를 돌리고, Windows·Linux에서 결정론 시나리오 해시를 비교한다.

@@ -6,7 +6,7 @@
 #
 # - 원본은 모듈 폴더(루트에 module.txt) 또는 그런 폴더를 가진 git 저장소. 저장소에 modules/<이름>/module.txt가 여럿이면 -Name으로 고른다.
 #   레지스트리 이름으로 찾기(MealKit-Modules)는 아직 없다.
-# - 복사하지 않는 것: .git, .github, tests/, module.files, *.new. 복사한 파일의 해시와 가져온 곳은 modules/<이름>/module.files에 남는다.
+# - 복사하는 것: module.txt, sim/, view/, assets/, art/, docs/, 루트의 LICENSE*·README* (*.new 제외). 복사한 파일의 해시와 가져온 곳은 modules/<이름>/module.files에 남는다.
 # - update는 upgrade_project.ps1과 같은 규칙: 고치지 않은 파일(해시가 기록과 같음)만 새것으로 바꾸고, 고친 파일은 남기고 <파일>.new를 쓴다.
 #   새 버전에서 없어진 파일은 고치지 않았으면 지우고, 고쳤으면 남기고 알린다. -Force면 고친 파일도 바꾼다.
 # - remove는 다른 모듈의 requires에 있거나 게임 source/가 include하면 거절한다(-Force로 강행). 되돌리기는 git이 맡는다.
@@ -27,7 +27,8 @@ $Project = (Get-Item -LiteralPath (Resolve-Path $Project).Path -Force).FullName.
 if (-not (Test-Path (Join-Path $Project "mealkit.project"))) { Write-Error "$Project has no mealkit.project"; exit 1 }
 $modulesDir = Join-Path $Project "modules"
 $filesName = "module.files"
-$skipTop = @(".git", ".github", "tests", $filesName)
+# 복사하는 것은 모듈 구조뿐이다 (docs/MODULES.md): .git, .github, tests/, 빌드 폴더 등은 프로젝트에 가지 않는다
+$copyTop = @("module.txt", "sim", "view", "assets", "art", "docs")
 $textExtensions = @(".h", ".hpp", ".cpp", ".c", ".inl", ".txt", ".md", ".ui", ".table", ".tuning", ".scene", ".events", ".bindings",
     ".json", ".yml", ".yaml", ".gltf", ".cube", ".fx", ".gitignore", ".gitattributes")
 $engineMinor = ((Get-MealKitVersion) -replace '^(\d+\.\d+).*$', '$1')
@@ -64,7 +65,8 @@ function Get-ModuleFiles([string]$dir) {
     Get-ChildItem -LiteralPath $base -Recurse -File -Force | Sort-Object FullName | ForEach-Object {
         $rel = $_.FullName.Substring($base.Length + 1).Replace("\", "/")
         $top = $rel.Split("/")[0]
-        if ($skipTop -contains $top -or $_.Extension -eq ".new") { return }
+        $keep = $copyTop -contains $top -or ($rel -notmatch "/" -and $top -match "^(license|readme)")
+        if (-not $keep -or $_.Extension -eq ".new") { return }
         $files[$rel] = $_.FullName
     }
     return $files

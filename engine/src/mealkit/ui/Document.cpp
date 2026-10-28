@@ -607,6 +607,7 @@ struct Parser {
         Document sub;
         if (includeDepth >= 8 || !loadNested(path, sub, theme, includeDepth + 1)) { // 서로 쓰는 컴포넌트에서 멈춘다
             error(line, "cannot use component " + path);
+            for (const std::string& e : sub.errors) doc.errors.push_back(e); // 왜 못 썼는지 (찾지 못함, 구문 오류)
             return open(NodeKind::Frame, name, line);
         }
         for (const std::string& e : sub.errors) doc.errors.push_back(e);

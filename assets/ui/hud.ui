@@ -103,17 +103,9 @@ board hud 1920 1080
       fontSize 20
       color $textDim
     end
-    frame pushBar
+    use pushBar modules/cooldown/ui/cooldown_bar.ui
       size fill 14
-      fill #FFFFFF22
-      radius 7
-      clip
-      frame pushFill
-        size fill fill
-        widthRatio pushReady
-        fill linear 0 0 1 0 #FF8A20 $accent
-        radius 7
-      end
+      set fill widthRatio pushReady
     end
   end
   frame shockwave

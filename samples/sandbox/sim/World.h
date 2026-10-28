@@ -9,6 +9,7 @@
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
+#include "cooldown/sim/Cooldown.h" // 소스 모듈 modules/cooldown (docs/MODULES.md)
 #include "sim/Objects.h"
 #include "sim/Tables.h"
 #include "sim/Tuning.h"
@@ -64,7 +65,7 @@ MEALKIT_STRUCT(Pawn) {
     MEALKIT_FIELD(Vec3, position, {}, "위치");
     MEALKIT_FIELD(Vec3, velocity, {}, "속도");
     MEALKIT_FIELD(u32, grounded, 0, "땅에 닿음"); // 발밑에 무언가 있는가
-    MEALKIT_FIELD(TickTimer, pushReady, {}, "다음 밀치기");
+    MEALKIT_FIELD(cooldown::Cooldown, push, {}, "밀치기 쿨타임");
     MEALKIT_FIELD(mealkit::physics::BodyId, body, mealkit::physics::kInvalidBody, "물리 바디");
 };
 

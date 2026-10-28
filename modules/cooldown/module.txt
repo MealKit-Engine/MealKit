@@ -1,0 +1,9 @@
+# MealKit source module (docs/MODULES.md in the engine). Read by the engine build and tools\module.ps1.
+@format module 1
+name cooldown
+version 0.1.0
+engine 0.5
+title Cooldowns
+summary Tick-based cooldowns for skills and actions, with a fill bar .ui component
+tags gameplay timer ui
+requires
