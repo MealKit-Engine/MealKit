@@ -10,6 +10,8 @@
 #   build\desync에 덤프를 쓰고, tools\desync_diff.ps1이 처음 갈라진 틱으로 그 틱을 짚으면 PASS
 # 중간 참가·재접속 시험은 -LateJoin: 클라이언트 1(--name c1)이 -Ticks의 1/4에서 나갔다가 같은 이름으로 다시 들어오고,
 #   매치가 시작된 뒤 새 클라이언트(late) 하나가 빈 슬롯으로 들어온다. 끝까지 간 피어가 모두 같은 해시면 PASS
+# 호스트 이전 시험은 -HostLeave (클라이언트 2명 이상): 호스트가 -Ticks의 1/4에서 정상으로 나가고(Handoff), 이어받은
+#   클라이언트가 1/2에서 튕긴다(--abort-host-at, 그때 호스트인 쪽만). 남은 클라이언트가 모두 끝까지 같은 해시이고 두 번 넘어갔으면 PASS
 param(
     [int]$Clients = 1,
     [int]$Ticks = 900,
@@ -25,7 +27,8 @@ param(
     [double]$Loss = 0,  # --net-loss (%)
     [switch]$Headless,
     [int]$DesyncTest = 0,
-    [switch]$LateJoin
+    [switch]$LateJoin,
+    [switch]$HostLeave
 )
 
 if ($Exe -eq "") {
@@ -53,10 +56,13 @@ if ($Scene -ne "") { $common += " --scene `"$((Resolve-Path $Scene).Path)`"" }
 if ($Tuning -ne "") { $common += " --tuning `"$((Resolve-Path $Tuning).Path)`"" }
 if ($Lag -gt 0 -or $Jitter -gt 0 -or $Loss -gt 0) { $common += " --net-lag $Lag --net-jitter $Jitter --net-loss $Loss" }
 $hostExtra = if ($ClientExe -ne "") { " --any-build" } else { "" }
+if ($HostLeave -and $Clients -lt 2) { Write-Error "-HostLeave needs -Clients 2 or more"; exit 1 }
 $procs = @()
 $started = Get-Date
+$hostArgs = "--host $Port --local --players $maxPlayers --auto-start $players --match-data $Bodies --seed 12345$hostExtra $common"
+if ($HostLeave) { $hostArgs = $hostArgs -replace "--exit-tick $Ticks", "--exit-tick $([int]($Ticks / 4))" }
 $procs += Start-Process -FilePath $exe -PassThru -NoNewWindow `
-    -ArgumentList "--host $Port --local --players $maxPlayers --auto-start $players --match-data $Bodies --seed 12345$hostExtra $common" `
+    -ArgumentList $hostArgs `
     -RedirectStandardOutput "$logDir\host.txt" -RedirectStandardError "$logDir\host_err.txt"
 Start-Sleep -Milliseconds 500
 $leaver = $null
@@ -64,6 +70,7 @@ for ($i = 1; $i -le $Clients; $i++) {
     $extra = if ($DesyncTest -gt 0 -and $i -eq 1) { " --desync-test $DesyncTest" } else { "" }
     $clientArgs = "--join 127.0.0.1:$Port --threads $i $common$extra"
     if ($LateJoin -and $i -eq 1) { $clientArgs = ($clientArgs -replace "--exit-tick $Ticks", "--exit-tick $([int]($Ticks / 4))") + " --name c1" }
+    if ($HostLeave) { $clientArgs += " --abort-host-at $([int]($Ticks / 2))" }
     $p = Start-Process -FilePath $clientPath -PassThru -NoNewWindow -ArgumentList $clientArgs `
         -RedirectStandardOutput "$logDir\client$i.txt" -RedirectStandardError "$logDir\client${i}_err.txt"
     if ($LateJoin -and $i -eq 1) { $leaver = $p } else { $procs += $p }
@@ -89,6 +96,13 @@ $names = @("host") + (1..$Clients | ForEach-Object { "client$_" })
 if ($LateJoin) {
     $names = @($names | Where-Object { $_ -ne "client1" }) + @("late", "rejoin")
     $players = $names.Count
+}
+if ($HostLeave) { # 나간 호스트와 튕긴 승계자(누가 될지는 접속 순서)는 끝까지 가지 않는다
+    $names = @($names | Where-Object { $_ -ne "host" -and -not (Select-String -Path "$logDir\${_}_err.txt" -Pattern "--abort-host-at" -Quiet) })
+    $players = $names.Count
+    $took = @(Select-String -Path ($names | ForEach-Object { "$logDir\${_}_err.txt" }) -Pattern "takes over the session").Count
+    Write-Host "$took host migration log line(s) in the remaining clients"
+    if ($took -lt 2 * $players) { Write-Host "FAIL: expected two host migrations in every remaining client, see $logDir" -ForegroundColor Red; exit 1 }
 }
 foreach ($n in $names) {
     $line = Select-String -Path "$logDir\$n.txt" -Pattern "^FINAL" | Select-Object -Last 1

@@ -288,6 +288,14 @@ Invoke-Check det "Late join + rejoin (mp_test -LateJoin)" {
     return ($output -match "^PASS: 4 peers").Count -gt 0
 }
 
+# 호스트 이전: 호스트가 정상으로 나가고(Handoff) 이어받은 사람이 튕겨도 남은 두 클라이언트가 끝까지 같은 해시인가 (헤드리스 1+3)
+Invoke-Check det "Host migration (mp_test -HostLeave)" {
+    param($log)
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 3 -Ticks 3000 -Headless -HostLeave 2>&1
+    $output | Out-File -Encoding utf8 $log
+    return ($output -match "^PASS: 2 peers").Count -gt 0
+}
+
 # 저장소의 고정 입력 기록(samples/*/replays/*.rec, CI가 모든 OS에서 재생한다)이 지금 코드와 맞는가.
 # 시뮬레이션 결과를 일부러 바꿨다면 기록을 다시 만든다 (문서 저장소 "엔진 개발 > 테스트").
 Invoke-Check det "Committed replays (samples/*/replays)" {
