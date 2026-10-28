@@ -112,6 +112,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/game/GameContext.h
     src/mealkit/game/GameInstance.h
     src/mealkit/game/BuildInfo.h
+    src/mealkit/game/DesyncDump.h
     src/mealkit/game/GameData.h
     src/mealkit/game/GameData.cpp
     src/mealkit/data/Tables.h

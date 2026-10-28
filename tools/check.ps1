@@ -52,7 +52,7 @@ $pathRules = @(
     @('^mealkit\.project$', 'det game editor'),
     @('^(templates/|VERSION$|tools/(new|upgrade|rename)_project|tools/project_common)', 'project'),
     @('^tools/(penpot-plugin|blender-addon)/', 'tools'),
-    @('^tools/(mp_test|record_replay|ci_)', 'det!'), @('^tools/(live_probe|compare_images)', 'game render tools'),
+    @('^tools/(mp_test|record_replay|ci_|desync_diff)', 'det!'), @('^tools/(live_probe|compare_images)', 'game render tools'),
     @('^tools/(check_|gen_notices)', 'static'), @('^tools/check\.ps1$', ''), @('^tools/update_mkaudio', 'folder:audio'),
     @('^(cmake/|CMakeLists\.txt$|engine/CMakeLists\.txt$|build\.bat$|editor\.bat$|tools/build_project)', 'full')
 )
@@ -270,6 +270,14 @@ Invoke-Check det "Headless (mp_test, record + replay)" {
     if ($code -ne 0 -or -not (Has "$log.replay" "^REPLAY ok")) { return "replay failed" }
     if ((Get-FileHash "$out\headless-hashes.txt").Hash -ne (Get-FileHash "$out\replay-hashes.txt").Hash) { return "hash logs differ" }
     return $true
+}
+
+# 디싱크 진단: 클라이언트 하나가 일부러 갈라지면 모두 디싱크를 알고, 덤프 비교가 그 틱을 짚는가 (헤드리스 1+1)
+Invoke-Check det "Desync dumps + desync_diff" {
+    param($log)
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 1 -Ticks 400 -Headless -DesyncTest 200 2>&1
+    $output | Out-File -Encoding utf8 $log
+    return ($output -match "^PASS").Count -gt 0
 }
 
 # 저장소의 고정 입력 기록(samples/*/replays/*.rec, CI가 모든 OS에서 재생한다)이 지금 코드와 맞는가.

@@ -10,6 +10,14 @@
 
 ## v0.5.3 이후 — 3단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 3단계: 디싱크 진단 도구 (완료 2026-10-28)
+- **남겨 두기**: `game::Simulation`이 여러 명 매치(`!session.isOffline()`)이고 `PlayOptions::desyncDumpDir`가 있으면 되감기 기록과 같은 코드로 입력·해시·스냅샷을 남긴다. 스냅샷은 150틱마다 `kKeepDesyncSnapshots` = 3개(되감기는 40개)라 호스트가 알아채는 지연(창 256틱 안)을 덮는다.
+- **덤프** (`game/DesyncDump.h`, 형식 `@format desync 1`): 세션이 `desynced()`를 알리면 한 번, 그 틱 앞 스냅샷을 불러 그 틱까지 다시 돌린 상태(그 틱을 실행한 직후)를 쓰고 지금 상태로 되돌린다. 머리(플레이어·틱·시드·콘텐츠 해시, 문제가 있으면 `note`), `[hashes]` 남은 틱 해시, `[state]` 상태 필드(`reflect::toText`), `[bodies]` 바디마다 위치·회전·속도(`physics::PhysicsWorld::writeState`, `%.9g`). 다시 돌린 해시가 이 피어의 기록과 다르면 note에 "선언하지 않은 상태"를 적는다.
+  파일은 `desync_<시드>_t<틱>_p<플레이어>.txt`, 폴더는 개발 중이면 프로젝트 `build/desync/`, 출시본은 사용자 폴더 `desync/`(`desyncDumpFolder`). 게임 exe·헤드리스·에디터 여러 명 플레이(참가 창 포함)가 쓴다. 매치는 그대로 계속한다.
+- **비교** `tools\desync_diff.ps1 -A <덤프> -B <덤프>`(또는 `-Folder build\desync`: 같은 매치·틱끼리 첫 파일과): 처음 해시가 다른 틱, 값이 다른 상태 필드, 다른 바디(위치·회전·속도 중 무엇이). 종료 코드 0 같음, 1 다름, 2 읽기 실패.
+- **시험**: `--desync-test <틱>`(게임·헤드리스)이 그 틱 전에 처음 만든 움직이는 바디 속도를 0.001 m/s 바꾼다(`PhysicsWorld::nudgeForTest`, 덤프용 다시 돌리기에도 같게). `mp_test.ps1 -Headless -Clients 1 -DesyncTest 200` → 둘 다 디싱크, 덤프 2개, 비교가 200틱과 그 바디를 짚으면 PASS. `check.ps1` det 묶음 "Desync dumps + desync_diff".
+- **남은 것**: 에디터에서 덤프 두 개를 나란히 보기, 바디 이름(씬 물체) 표시, CI의 다른 OS 사이 해시가 다를 때 자동 덤프(지금은 헤드리스 해시 비교만).
+
 ### [x] 3단계: 리플레이 저장 (완료 2026-10-28)
 - **기록**: 매치마다 `<사용자 폴더>/replays/current.rec`에 입력 기록(`game/InputRecord.h`, 형식은 `--record-inputs`와 같은 `MKINPUT1` 버전 3: 시드·매치 데이터·로드아웃·콘텐츠 해시 + 틱별 입력·확정 명령·해시)을 이어 쓰고, 매치가 끝나면(로비로·나가기·창 닫기) `keepReplay`가 `YYYY-MM-DD_HH-MM[-n].rec`로 옮기고 최근 `keepReplays`개(프로젝트 설정, 기본 20, 0 = 끔)만 남긴다. 튕겨서 남은 `current.rec`은 다음 실행 때 같은 식으로 남는다(끝까지 읽은 틱만큼). 틱이 없는 기록은 지운다.
   게임 exe(`GameMain`)와 에디터 혼자 플레이(`PlaySession`, `--bot`은 빼고)가 남긴다. 자동 실행·참가 창(사용자 폴더 없음)과 `--record-inputs`를 준 실행은 남기지 않는다. 에디터 혼자 플레이는 이제 콘텐츠 해시를 계산해 기록에 넣는다.

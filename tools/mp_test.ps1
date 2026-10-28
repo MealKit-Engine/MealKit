@@ -6,6 +6,8 @@
 # 다른 컴파일러 빌드와 맞붙이려면 -ClientExe build\ClangCL\bin\sandbox.exe (호스트는 -Exe, 클라이언트는 이것)
 # 먼 상대·손실을 흉내 내려면 -Lag <ms> -Jitter <ms> -Loss <%> (모든 프로세스에 --net-lag 등)
 # 창 없이(헤드리스) 돌리려면 -Headless (각 실행 파일에 --headless를 붙인다. 입력이 허락하는 만큼 빨리 돈다)
+# 디싱크 진단 시험은 -DesyncTest <틱>: 클라이언트 1이 그 틱에 물리를 조금 바꾼다(--desync-test). 모두 디싱크를 알고, 피어마다
+#   build\desync에 덤프를 쓰고, tools\desync_diff.ps1이 처음 갈라진 틱으로 그 틱을 짚으면 PASS
 param(
     [int]$Clients = 1,
     [int]$Ticks = 900,
@@ -19,7 +21,8 @@ param(
     [int]$Lag = 0,      # 네트워크 상태 흉내 (ms, 모든 프로세스: --net-lag)
     [int]$Jitter = 0,   # --net-jitter (ms)
     [double]$Loss = 0,  # --net-loss (%)
-    [switch]$Headless
+    [switch]$Headless,
+    [int]$DesyncTest = 0
 )
 
 if ($Exe -eq "") {
@@ -47,13 +50,14 @@ if ($Tuning -ne "") { $common += " --tuning `"$((Resolve-Path $Tuning).Path)`"" 
 if ($Lag -gt 0 -or $Jitter -gt 0 -or $Loss -gt 0) { $common += " --net-lag $Lag --net-jitter $Jitter --net-loss $Loss" }
 $hostExtra = if ($ClientExe -ne "") { " --any-build" } else { "" }
 $procs = @()
+$started = Get-Date
 $procs += Start-Process -FilePath $exe -PassThru -NoNewWindow `
     -ArgumentList "--host $Port --local --players $players --auto-start $players --match-data $Bodies --seed 12345$hostExtra $common" `
     -RedirectStandardOutput "$logDir\host.txt" -RedirectStandardError "$logDir\host_err.txt"
 Start-Sleep -Milliseconds 500
 for ($i = 1; $i -le $Clients; $i++) {
     $procs += Start-Process -FilePath $clientPath -PassThru -NoNewWindow `
-        -ArgumentList "--join 127.0.0.1:$Port --threads $i $common" `
+        -ArgumentList "--join 127.0.0.1:$Port --threads $i $common$(if ($DesyncTest -gt 0 -and $i -eq 1) { " --desync-test $DesyncTest" })" `
         -RedirectStandardOutput "$logDir\client$i.txt" -RedirectStandardError "$logDir\client${i}_err.txt"
 }
 
@@ -69,6 +73,25 @@ foreach ($n in $names) {
     $text = if ($line) { $line.Line } else { "(no FINAL line)" }
     Write-Host ("{0,-8} {1}" -f $n, $text)
     $finals += $text
+}
+
+if ($DesyncTest -gt 0) {
+    # 덤프는 실행 파일의 프로젝트 폴더 build\desync (seed 12345 = 3039)
+    $dumpDir = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe))) "desync"
+    $dumps = @(Get-ChildItem $dumpDir -Filter "desync_0000000000003039_t*.txt" -ErrorAction SilentlyContinue |
+        Where-Object { $_.LastWriteTime -ge $started })
+    $desynced = @($finals | Where-Object { $_ -match "desync=1" }).Count
+    Write-Host "$desynced of $players peer(s) report a desync, $($dumps.Count) dump(s) in $dumpDir"
+    if ($dumps.Count -ge 2) {
+        $diff = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\desync_diff.ps1" -A $dumps[0].FullName -B $dumps[1].FullName
+        $diff | ForEach-Object { Write-Host $_ }
+        if ($desynced -eq $players -and ($diff -match "first diverging tick: $DesyncTest ").Count -gt 0) {
+            Write-Host "PASS: desync at tick $DesyncTest found by the dumps" -ForegroundColor Green
+            exit 0
+        }
+    }
+    Write-Host "FAIL: see $logDir" -ForegroundColor Red
+    exit 1
 }
 
 $unique = @($finals | Sort-Object -Unique)
