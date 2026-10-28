@@ -446,7 +446,8 @@ if (-not $Quick) {
         $common = "--project `"$root`" --frames 60 --select 25 --capture"
         if ((Run "$log.dx12" $editor "$common `"$dx`"") -ne 0 -or -not (Test-Path $dx)) { return "DX12 capture failed" }
         if ((Run "$log.vulkan" $vkEditor "$common `"$vk`"") -ne 0 -or -not (Test-Path $vk)) { return "Vulkan capture failed" }
-        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $dx -B $vk -IgnoreBottom 40 -DiffOut (Join-Path $out "backend-diff.png") 2>&1
+        # 아래 가로 칸(로그: DLL 경로·포트·시각이 실행마다 다르다)과 상태 표시줄은 빼고 본다. 1600x900 기본 배치에서 아래 칸은 약 y = 615부터
+        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $dx -B $vk -IgnoreBottom 290 -DiffOut (Join-Path $out "backend-diff.png") 2>&1
         $output | Out-File -Encoding utf8 $log
         if ($LASTEXITCODE -ne 0) { return ($output | Select-Object -First 1) }
         return $true

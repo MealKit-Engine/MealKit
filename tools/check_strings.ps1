@@ -43,10 +43,18 @@ foreach ($file in Get-ChildItem $editorDir -File -Include *.cpp, *.h -Recurse) {
         $joined = ([regex]::Matches($m.Groups[1].Value, $literal) | ForEach-Object { $_.Groups[1].Value }) -join ""
         Add-Key (Key-Of (Unescape-C $joined)) $name
     }
-    # 창·팝업 이름 상수 ("Scene Tree###Hierarchy")
+    # 창·팝업 이름 상수 ("Scene Tree###Hierarchy"). 앞부분이 printf 형식뿐이면("%s (%u)###level") 번역할 글자가 없다
     foreach ($m in [regex]::Matches($text, $literal)) {
         if ($m.Groups[1].Value.Contains("###") -and -not $m.Groups[1].Value.StartsWith("#")) {
+            $k = Key-Of (Unescape-C $m.Groups[1].Value)
+            if (($k -replace '%[-+ #0]*\d*(?:\.\d+)?[hlzjt]*[diuxXfFeEgGcsp%]', '') -match '[A-Za-z]') { Add-Key $k $name }
+        }
+    }
+    # 명령 표 (EditorCommands.cpp): {"이름", 단축키, ...} 줄의 이름과 단축키 도움말 고정 줄 {"할 일", "키"}는 tr(c.name)·tr(row[n])로 번역한다
+    if ($name -eq "EditorCommands.cpp") {
+        foreach ($m in [regex]::Matches($text, '\{\s*' + $literal + '(?:\s*,\s*' + $literal + '\s*\})?')) {
             Add-Key (Key-Of (Unescape-C $m.Groups[1].Value)) $name
+            if ($m.Groups[2].Success) { Add-Key (Key-Of (Unescape-C $m.Groups[2].Value)) $name }
         }
     }
     # 한글 문자열
