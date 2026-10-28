@@ -544,6 +544,16 @@ if (-not $Quick) {
         $sim = & "$root\build\Release\tools\mealkit_simcheck.exe" "$projects\stamp" --third-party $lib "$projects\CheckGame\source\sim\ZzLib.cpp" 2>&1
         $output += $sim
         $simOk = ($sim -match "SIM011").Count -gt 0
+        # 소스 모듈: 모듈 sim/이 게임 source/를 include하면 SIM013, requires에 없는 모듈이면 SIM014 (docs/MODULES.md)
+        $mod = "$projects\CheckGame\modules\checkmod"
+        New-Item -ItemType Directory -Force "$mod\sim" | Out-Null
+        Set-Content "$mod\module.txt" "@format module 1`r`nname checkmod`r`nversion 0.1.0`r`nrequires`r`n" -Encoding UTF8
+        Set-Content "$mod\sim\Bad.cpp" "#include `"sim/World.h`"`r`n#include `"othermod/sim/X.h`"`r`n" -Encoding UTF8
+        New-Item -ItemType Directory -Force "$projects\CheckGame\modules\othermod\sim" | Out-Null
+        Set-Content "$projects\CheckGame\modules\othermod\module.txt" "@format module 1`r`nname othermod`r`nversion 0.1.0`r`n" -Encoding UTF8
+        $msim = & "$root\build\Release\tools\mealkit_simcheck.exe" "$projects\stamp" --modules "$projects\CheckGame\modules" "$mod\sim\Bad.cpp" 2>&1
+        $output += $msim
+        $simOk = $simOk -and ($msim -match "SIM013").Count -gt 0 -and ($msim -match "SIM014").Count -gt 0
         $output | Out-File -Encoding utf8 $log
         $ok = (Test-Path "$projects\CheckGame\.mealkit-template") -and (($output -match "^Done: 0 change").Count -gt 0) -and $layoutOk -and $simOk
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue

@@ -27,7 +27,7 @@
 | 생성과 파괴 | 즉시 생성·삭제 / 오브젝트 풀링 | **시뮬레이션 객체는 전부 `Pool<T>`(`mealkit/sim/Pool.h`)에서.** 생성은 즉시(이번 틱에 id로 바로 쓸 수 있다). 다만 **만든 틱에는 순회에 나오지 않는다.** 삭제는 표시만 하고(그 뒤로 `get`·순회에서 빠진다) `World::step()` 끝의 `endTick(onDestroy)`가 슬롯 순서로 일괄 처리한다(물리 바디 삭제는 `onDestroy`에서). id에 세대 번호를 붙인다 | 풀링 여부를 고민하지 않는다. 순회 중 생성·삭제 버그, 할당 스파이크, 결정론 문제를 한 번에 없앤다. 생성이 즉시라 발사체가 한 틱 늦게 나오지 않는다 |
 | Pool이 가득 찼을 때 | - | 용량은 매치 시작 때 데이터에서 정한다(`World::reset`: sandbox는 상자 = 씬 상자 생성 영역의 합, 컨트롤러 = 플레이어 + 튜닝의 AI 수, Pawn = 컨트롤러 × 2). 넘치면 생성이 실패하고(무효 id, 모든 피어가 같다) `MEALKIT_ASSERT`가 걸린다 | 결정론을 지키면서 Dev에서 바로 알 수 있다 |
 | 매치·씬이 바뀌어도 남는 데이터 | 안 지워지는 싱글톤 / 정적 클래스 | **매치 안은 `World`(점수는 `PlayerSlot`), 매치 밖은 `app/`(화면 흐름 `Flow`의 화면 상태, 세이브 `SaveData`를 가진 `GameSession`), 디스크는 사용자 데이터 폴더.** `GameInstance`는 매치 사이에도 살아 있고 매치마다 `start`·`stop`만 다시 불린다 | 어디에 둘지 고민할 곳이 세 군데뿐이다 |
-| 여러 게임에서 다시 쓰는 기능 (체력, 쿨타임, 인벤토리, 미니맵, 절차적 생성) | 엔진 기본 기능 / 프리팹 / 바이너리 플러그인 / 에셋 스토어 패키지 | **(4단계)** **소스 모듈**(`modules/<이름>/`: `sim/`·`view/`·`.ui`·튜닝·프리팹). 프로젝트에 소스째 복사해 고쳐 쓰고, 업그레이드 도구 방식(고치지 않은 파일만 갱신)으로 업데이트한다. 모듈 함수는 게임의 `World`를 모르고 자기 상태만 받는다(`cooldown::step(Cooldowns&, u32 tick)`). 게임이 상태를 `WorldState` 필드로 넣고 `World::step()`에서 부른다 | 엔진이 무거워지지 않고, 프리팹은 데이터만 담아 로직을 옮길 수 없고, DLL은 정적 출시 exe·SimCheck와 맞지 않는다. 소스라 SimCheck·해시·스냅샷이 그대로 적용된다 |
+| 여러 게임에서 다시 쓰는 기능 (체력, 쿨타임, 인벤토리, 미니맵, 절차적 생성) | 엔진 기본 기능 / 프리팹 / 바이너리 플러그인 / 에셋 스토어 패키지 | **(4단계)** **소스 모듈**(`modules/<이름>/`: `module.txt`·`sim/`·`view/`·`assets/<종류>/`, 상세 `docs/MODULES.md`). 모듈 하나 = git 저장소 하나(공식도 같다), 레지스트리 `MealKit-Modules`에서 찾아 `tools\module.ps1`로 프로젝트에 소스째 복사해 고쳐 쓰고, 업그레이드 도구 방식(고치지 않은 파일만 갱신)으로 업데이트한다. 모듈 함수는 게임의 `World`를 모르고 자기 상태만 받는다(`cooldown::step(Cooldowns&, u32 tick)`, 모듈 `sim/`은 `source/`를 include하지 못한다). 게임이 상태를 `WorldState` 필드로, 튜닝을 `Tuning` 중첩 필드로 넣고 `World::step()`에서 부른다 | 엔진이 무거워지지 않고, 프리팹은 데이터만 담아 로직을 옮길 수 없고, DLL은 정적 출시 exe·SimCheck와 맞지 않는다. 소스라 SimCheck·해시·스냅샷이 그대로 적용된다 |
 
 ### 흐름
 
@@ -114,7 +114,7 @@
 2. **`sim/` 금지 검사.** static 가변 변수, `new`/`delete`/`make_unique`, `virtual`, `co_await`, `std::thread`/`async`/`future`, `<chrono>`, CRT 삼각함수, `unordered_map`, 렌더러·플랫폼·설정 헤더.
    주석과 문자열은 빼고 검사한다. 걸리면 빌드가 실패하고 대신 쓸 것을 알려 준다("`Pool<T>`를 쓰세요").
    실수 리터럴(0·1·2·0.5 제외, 필드 선언 매크로 안 제외)은 경고 SIM012만 낸다(`// const-ok: <이유>`로 끈다).
-   구현: `engine/tools/SimCheck.cpp` (`mealkit_add_game()`이 빌드 전에 실행, 오류 코드 `SIM001`~`SIM011`, SIM011은 프로젝트 `third_party/` 헤더). 규칙을 바꾸면 이 문서와 도구를 같이 고친다.
+   구현: `engine/tools/SimCheck.cpp` (`mealkit_add_game()`이 빌드 전에 실행, 오류 코드 `SIM001`~`SIM011`·`SIM013`·`SIM014`, SIM011은 프로젝트 `third_party/` 헤더, SIM013·SIM014는 소스 모듈 `sim/`이 게임 `source/`나 `requires`에 없는 모듈을 include할 때). 규칙을 바꾸면 이 문서와 도구를 같이 고친다.
 3. **시뮬레이션 상태 타입 제한.** 상태 필드는 `f32/i32/u32/bool/Vec3/Quat/Id<T>/physics::BodyId/고정 배열`만 쓴다. Pool 항목은 `static_assert(std::is_trivially_copyable_v<T>)`,
    `WorldState`의 `std::string` 필드는 `game::Simulation`의 `static_assert(!reflect::hasStringField<State>())`가 막는다(문자열 필드는 설정·데이터용).
    포인터, `std::string`, `vector`가 상태에 들어가지 않으므로 해시와 스냅샷이 항상 맞는다.

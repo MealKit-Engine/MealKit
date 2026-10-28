@@ -1,7 +1,9 @@
 // SimCheck: 게임 코드 sim/ 폴더의 결정론 규칙 검사 (빌드 도구, mealkit_add_game이 빌드 전에 실행한다).
 //
-//   mealkit_simcheck <stamp 파일> [--third-party <폴더>]... <sim/ 소스...>
+//   mealkit_simcheck <stamp 파일> [--third-party <폴더>]... [--modules <폴더>] <sim/ 소스...>
 //   --third-party: 프로젝트 third_party/<lib>/의 include 폴더. 이 안의 헤더를 sim/에서 include하면 SIM011
+//   --modules: 프로젝트 modules/ 폴더. 그 아래 모듈의 sim/ 파일은 게임 source/를 include하면 SIM013,
+//              module.txt의 requires에 없는 다른 모듈을 include하면 SIM014 (docs/MODULES.md)
 //
 // 실수 리터럴(0, 1, 2, 0.5 제외)은 경고 SIM012다(빌드는 계속): 게임 값은 튜닝·씬 데이터에 둔다. 알고리즘 상수면 줄 끝에 "// const-ok: 이유".
 // MEALKIT_FIELD 같은 필드 선언의 기본값은 데이터 자체라 보지 않는다.
@@ -282,6 +284,10 @@ constexpr const char* kMsgThirdParty =
     "game libraries are for view/ and app/ only. Simulation code uses the engine's verified tools (docs/CODING_MODEL.md "
     "\"Where external libraries go\")";
 constexpr const char* kMsgUsingStd = "write std:: explicitly so the check can see what is used";
+constexpr const char* kMsgModuleGame =
+    "module code does not know the game. Take the module's own state as arguments and return results; the game calls "
+    "the module from World::step() (docs/MODULES.md)";
+constexpr const char* kMsgModuleRequires = "add the module to 'requires' in this module's module.txt";
 
 enum class Qual {
     Any,       // 어디서든 (멤버 접근 .x / ->x 은 제외)
@@ -461,10 +467,21 @@ std::string normalizeInclude(const std::string& path) {
 
 // ---------------------------------------------------------------- 검사
 
+// 소스 모듈 (프로젝트 modules/<이름>/, docs/MODULES.md): 파일이 어느 모듈에 있고 무엇을 include해도 되는지
+struct ModuleInfo {
+    std::filesystem::path modulesDir;
+    std::string name;
+    std::vector<std::string> requires_; // module.txt "requires 이름 [최소버전] ..."
+
+    bool allows(const std::string& other) const {
+        return other == name || std::find(requires_.begin(), requires_.end(), other) != requires_.end();
+    }
+};
+
 class Checker {
 public:
-    Checker(std::string path, const std::vector<std::string>& thirdParty)
-        : m_path(std::move(path)), m_thirdParty(thirdParty) {}
+    Checker(std::string path, const std::vector<std::string>& thirdParty, const ModuleInfo* module)
+        : m_path(std::move(path)), m_thirdParty(thirdParty), m_module(module) {}
 
     int run(const Lexed& lexed) {
         for (const Include& inc : lexed.includes) checkInclude(inc);
@@ -557,9 +574,38 @@ private:
         bool thirdParty = startsWithNoCase(p, "third_party/") || p.find("/third_party/") != std::string::npos;
         for (const std::string& dir : m_thirdParty)
             thirdParty = thirdParty || std::filesystem::is_regular_file(std::filesystem::path(dir) / p, ec);
-        if (thirdParty)
+        if (thirdParty) {
             report(inc.line, inc.col, "SIM011",
                    inc.angle ? "#include <" + inc.path + ">" : "#include \"" + inc.path + "\"", kMsgThirdParty);
+            return;
+        }
+        if (m_module) checkModuleInclude(inc, p);
+    }
+
+    // 모듈 sim/ 파일: 엔진 헤더, 표준 헤더, 자기 모듈, requires의 모듈만 include한다
+    void checkModuleInclude(const Include& inc, const std::string& p) {
+        namespace fs = std::filesystem;
+        const std::string what = inc.angle ? "#include <" + inc.path + ">" : "#include \"" + inc.path + "\"";
+        std::error_code ec;
+        if (!inc.angle) {
+            const fs::path near = fs::path(m_path).parent_path() / inc.path;
+            if (fs::is_regular_file(near, ec)) {
+                const fs::path rel = fs::weakly_canonical(near, ec).lexically_relative(m_module->modulesDir);
+                const std::string first = rel.empty() ? std::string() : rel.begin()->string();
+                if (first.empty() || first == ".." || !m_module->allows(first))
+                    report(inc.line, inc.col, first.empty() || first == ".." ? "SIM013" : "SIM014", what,
+                           first.empty() || first == ".." ? kMsgModuleGame : kMsgModuleRequires);
+                return;
+            }
+        }
+        const std::string first = p.substr(0, p.find('/'));
+        if (first.size() < p.size() && fs::is_regular_file(m_module->modulesDir / first / "module.txt", ec)) {
+            if (!m_module->allows(first)) report(inc.line, inc.col, "SIM014", what, kMsgModuleRequires);
+            return;
+        }
+        if (startsWithNoCase(p, "mealkit/")) return;
+        // 따옴표 include가 모듈 안에서 찾아지지 않으면 게임 source/의 헤더다("sim/World.h"). <sim/...>도 같다
+        if (!inc.angle || startsWithNoCase(p, "sim/")) report(inc.line, inc.col, "SIM013", what, kMsgModuleGame);
     }
 
     // 한정자: 바로 앞이 . / -> 이면 멤버 접근, :: 이면 그 앞 이름이 한정자
@@ -731,6 +777,7 @@ private:
 
     std::string m_path;
     const std::vector<std::string>& m_thirdParty;
+    const ModuleInfo* m_module = nullptr; // 모듈 파일이 아니면 nullptr
     const std::vector<Token>* m_t = nullptr;
     std::vector<Report> m_reports;
     std::vector<Report> m_warnings; // 빌드를 멈추지 않는다
@@ -742,6 +789,29 @@ bool readFile(const char* path, std::string& out) {
     std::ostringstream ss;
     ss << f.rdbuf();
     out = ss.str();
+    return true;
+}
+
+// 파일이 modulesDir/<이름>/ 아래면 그 모듈의 module.txt에서 requires를 읽는다
+bool findModule(const std::filesystem::path& modulesDir, const char* file, ModuleInfo& out) {
+    namespace fs = std::filesystem;
+    if (modulesDir.empty()) return false;
+    std::error_code ec;
+    const fs::path rel = fs::weakly_canonical(fs::path(file), ec).lexically_relative(modulesDir);
+    if (rel.empty() || rel.begin()->string() == "..") return false;
+    out.modulesDir = modulesDir;
+    out.name = rel.begin()->string();
+    out.requires_.clear();
+    std::string text;
+    if (!readFile((modulesDir / out.name / "module.txt").string().c_str(), text)) return true;
+    std::istringstream lines(text);
+    for (std::string line; std::getline(lines, line);) {
+        std::istringstream words(line);
+        std::string key;
+        if (!(words >> key) || key != "requires") continue;
+        for (std::string w; words >> w;)
+            if (!(w[0] >= '0' && w[0] <= '9')) out.requires_.push_back(w); // 숫자로 시작하면 앞 모듈의 최소 버전
+    }
     return true;
 }
 
@@ -759,6 +829,12 @@ int main(int argc, char** argv) {
         thirdParty.push_back(argv[first + 1]);
         first += 2;
     }
+    std::filesystem::path modulesDir;
+    if (first + 1 < argc && std::string(argv[first]) == "--modules") {
+        std::error_code ec;
+        modulesDir = std::filesystem::weakly_canonical(argv[first + 1], ec);
+        first += 2;
+    }
     int errors = 0;
     for (int i = first; i < argc; ++i) {
         std::string src;
@@ -767,7 +843,9 @@ int main(int argc, char** argv) {
             ++errors;
             continue;
         }
-        Checker checker(argv[i], thirdParty);
+        ModuleInfo module;
+        const bool inModule = findModule(modulesDir, argv[i], module);
+        Checker checker(argv[i], thirdParty, inModule ? &module : nullptr);
         errors += checker.run(Lexer(src).run());
     }
     if (errors) {
