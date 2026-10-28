@@ -313,6 +313,7 @@ Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX
 - **확인할 것**: EOS P2P 패킷 크기 상한(지금 엔진 상한 1200바이트보다 작으면 엔진 상한을 낮춘다), 릴레이 RTT, 4인 대역폭이 예산(10 KB/s) 안인지, 호스트 이전과 로비 소유자 변경.
 - **비용**: Epic 개발자 포털 등록(무료). SDK DLL은 exe 예산 밖이지만 출시 폴더 크기에 들어간다.
 - **결정론**: 영향 없음 (`mp_test`에 EOS 전송 시나리오).
+- **진행 (2026-10-28)**: 1부 끝 — `OnlineEOS.cpp`(기기 ID 로그인, 로비 코드, P2P), `MEALKIT_ONLINE`·`build.bat EOS`, 엔진 패킷 상한 1170바이트. 남은 것: PC 두 대 참가·RTT·대역폭 측정, Steam 계정 로그인(Steam + EOS 같이 켜기), `mp_test` EOS 시나리오. 상세는 `docs/CHANGELOG.md`
 
 - [x] 호스트 이전 (호스트가 1초마다 승계 목록, 정상 퇴장 `Handoff`·매치 중 침묵 3초 → 다음 연결자가 호스트, 앞선 확정 틱을 `TickFill`로 받아 이어 붙임, 옛 호스트는 끊김 `Presence`, Steam 로비 소유자 맞춤, `mp_test -HostLeave`) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
 

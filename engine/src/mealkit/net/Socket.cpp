@@ -7,8 +7,8 @@ namespace mealkit::net {
 
 std::string Address::toString() const {
     char text[40];
-    if (steamId) {
-        snprintf(text, sizeof(text), "steam:%llu", static_cast<unsigned long long>(steamId));
+    if (userId) {
+        snprintf(text, sizeof(text), "user:%llu", static_cast<unsigned long long>(userId));
         return text;
     }
     snprintf(text, sizeof(text), "%u.%u.%u.%u:%u", (ip >> 24) & 0xFF, (ip >> 16) & 0xFF, (ip >> 8) & 0xFF, ip & 0xFF,

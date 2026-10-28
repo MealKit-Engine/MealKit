@@ -17,8 +17,11 @@ $sdks = @(
     [ordered]@{ name = "Steamworks SDK"; version = "(not included, see the docs)"; license = "Valve"; usedIn = "engine when present"
         source = "https://partner.steamgames.com/"
         why = "lobbies, friend invites, relay. Valve's terms forbid redistributing it, so it is not in the repository; put it in third_party/steamworks/sdk and CMake picks it up." }
+    [ordered]@{ name = "EOS SDK (Epic Online Services)"; version = "(not included, see the docs)"; license = "Epic"; usedIn = "engine when present"
+        source = "https://dev.epicgames.com/portal"
+        why = "cross-play lobbies and P2P relay. Epic's terms forbid redistributing it, so it is not in the repository; put its SDK folder in third_party/eos/sdk and the portal values in third_party/eos/credentials.txt, then build.bat EOS." }
 )
-$sdkFolders = @("steamworks")
+$sdkFolders = @("steamworks", "eos")
 
 # mealkit.txt: "키 값" 줄 (# 주석)
 function Read-Meta([string]$dir) {
@@ -91,7 +94,7 @@ function Build-Versions($libs) {
 
 function Build-EngineNotices($libs) {
     $text = "MealKit uses the following third-party software. Their licenses require these notices to be distributed with the game.`n"
-    $text += "Steamworks SDK (when used) is covered by the Steamworks SDK Access Agreement and is not reproduced here.`n`n"
+    $text += "Steamworks SDK and EOS SDK (when used) are covered by the Steamworks SDK Access Agreement and the Epic Online Services terms and are not reproduced here.`n`n"
     $blocks = @()
     foreach ($m in $libs) { $blocks += Notice-Block (Title-Of $m) (License-Text $m) }
     return $text + ($blocks -join "`n")
@@ -113,7 +116,7 @@ if ($Project -ne "") {
     if ($Out -eq "") { Write-Error "-Out is required with -Project"; exit 1 }
     $Project = (Resolve-Path $Project).Path.TrimEnd("\")
     $text = "This game is made with MealKit and uses the following software. Their licenses require these notices to be distributed with the game.`n"
-    $text += "Steamworks SDK (when used) is covered by the Steamworks SDK Access Agreement and is not reproduced here.`n`n"
+    $text += "Steamworks SDK and EOS SDK (when used) are covered by the Steamworks SDK Access Agreement and the Epic Online Services terms and are not reproduced here.`n`n"
     $blocks = @(Notice-Block "MealKit $(([IO.File]::ReadAllText((Join-Path $engine 'VERSION'))).Trim())" (([IO.File]::ReadAllText((Join-Path $engine "LICENSE"), $utf8)).Replace("`r`n", "`n").TrimEnd()))
     foreach ($m in $engineLibs) { if ($m["inGame"] -eq "yes") { $blocks += Notice-Block (Title-Of $m) (License-Text $m) } }
     if ($Project -ine $engine) {

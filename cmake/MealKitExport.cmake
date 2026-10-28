@@ -1,5 +1,5 @@
 # 출시 폴더 만들기 (game_export 타깃이 cmake -P로 실행한다).
-# 입력: GAME_EXE, ASSETS_DIR, PROJECT_FILE, OUT_DIR, STEAM_DLL(없으면 빈 값), STEAM_APP_ID, NOTICES(합친 고지문), EXE_BUDGET_MB
+# 입력: GAME_EXE, ASSETS_DIR, PROJECT_FILE, OUT_DIR, STEAM_DLL·EOS_DLL(없으면 빈 값), STEAM_APP_ID, NOTICES(합친 고지문), EXE_BUDGET_MB
 foreach(var GAME_EXE ASSETS_DIR PROJECT_FILE OUT_DIR NOTICES)
     if(NOT ${var})
         message(FATAL_ERROR "MealKitExport: ${var} is not set")
@@ -55,6 +55,9 @@ else()
     message(WARNING "MealKitExport: no project file at ${PROJECT_FILE} - the game uses the default project settings")
 endif()
 
+if(EOS_DLL)
+    file(COPY "${EOS_DLL}" DESTINATION "${OUT_DIR}")
+endif()
 if(STEAM_DLL)
     file(COPY "${STEAM_DLL}" DESTINATION "${OUT_DIR}")
     # 480(테스트 앱)이면 Steam 없이 실행해도 SteamAPI_Init이 되도록 넣는다. 내 앱 ID라면 Steam이 실행하므로 넣지 않는다.

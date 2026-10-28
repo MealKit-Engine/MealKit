@@ -108,6 +108,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT MEALKIT_IS_ENGINE)
     endif()
     include("${MEALKIT_EDITOR_SDK}/MealKitTargets.cmake")
     set(MEALKIT_STEAM_DLL "")
+    set(MEALKIT_EOS_DLL "")
 else()
     # ---------------------------------------------------------------- 엔진을 소스에서 빌드
 
@@ -420,6 +421,10 @@ function(mealkit_add_game name)
         # 개발 중 실행용. 출시할 때는 내 앱 ID로 바꾸고, 480이 아니면 출시 폴더에 넣지 않는다.
         file(WRITE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/steam_appid.txt "${ARG_STEAM_APP_ID}")
     endif()
+    if(MEALKIT_EOS_DLL)
+        add_custom_command(TARGET ${name} POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different ${MEALKIT_EOS_DLL} $<TARGET_FILE_DIR:${name}>)
+    endif()
 
     # 출시 전 검사: 폴더 구조(tools/check_layout.ps1, 어기면 실패) → 고지문 합치기(MealKit + 게임 exe의 엔진 라이브러리 + 게임 라이브러리 + 글꼴)
     # → 출시 폴더 (MealKitExport.cmake가 exe 크기 예산도 본다)
@@ -452,6 +457,7 @@ function(mealkit_add_game name)
             -DPROJECT_FILE=${project_dir}/mealkit.project
             -DOUT_DIR=${export_dir}
             -DSTEAM_DLL=${MEALKIT_STEAM_DLL}
+            -DEOS_DLL=${MEALKIT_EOS_DLL}
             -DSTEAM_APP_ID=${ARG_STEAM_APP_ID}
             -DNOTICES=${export_notices}
             -DEXE_BUDGET_MB=5

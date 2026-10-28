@@ -12,7 +12,7 @@ inline constexpr u32 kLoopbackIp = 0x7F000001u;  // 127.0.0.1
 struct Address {
     u32 ip = 0; // 호스트 바이트 순서 IPv4
     u16 port = 0;
-    u64 steamId = 0; // Steam 전송일 때 상대의 Steam ID (그때 ip/port는 0)
+    u64 userId = 0; // 온라인 백엔드 전송일 때 상대 사용자 id (Steam ID, EOS는 Product User ID 해시). 그때 ip/port는 0
 
     bool operator==(const Address&) const = default;
     std::string toString() const;

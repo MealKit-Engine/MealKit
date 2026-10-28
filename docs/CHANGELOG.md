@@ -5,6 +5,16 @@
 
 ## v0.5.4 이후 — 3단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [ ] 3단계: EOS 백엔드 — 1부 (2026-10-28, 항목 진행 중)
+- **백엔드** (`online/OnlineEOS.cpp`, `Backend::EOS`): `EOS_Initialize` + `EOS_Platform_Create`(오버레이 끔) → EOS Connect **기기 ID** 로그인(처음이면 기기 ID·사용자 만들기, `init`이 최대 15초 기다린다). 표시 이름은 OS 사용자 이름. EOS 로그는 경고 이상만 엔진 로그로.
+- **주소**: `net::Address::steamId`를 `userId`(온라인 백엔드 사용자 id)로 바꿨다. EOS는 Product User ID 문자열의 FNV-1a 64비트 해시이고, 백엔드가 해시 → id 표를 로비 멤버·받은 패킷·연결 요청에서 채운다. 승계 목록 패킷 형식은 그대로(u64).
+- **로비**: `createLobby`는 공개 광고 로비(버킷 `mealkit`, presence 끔) + 속성 `MKCODE`에 여섯 자리 무작위 코드. `lobbyId()`가 그 코드이고 `joinLobby(코드)`·`--steam-join <코드>`가 속성 검색으로 들어간다. Epic 계정이 없으면 친구 목록이 없어 `inviteFriends`는 코드를 로그에 쓴다. 소유자·멤버 수는 매 `update`에 SDK 로컬 사본에서 읽고, `setLobbyOwner`는 `EOS_Lobby_PromoteMember`.
+- **전송**: EOS P2P(소켓 `mealkit`, 채널 0, 비신뢰·순서 없음, 연결 중 지연 전달 허용), 연결 요청은 모두 받는다. EOS P2P 상한이 1170바이트라 락스텝 `kMaxPacket`을 1200 → 1170으로 낮췄다(스냅샷 조각 1100 + 머리는 그 안).
+- **빌드**: CMake `MEALKIT_ONLINE`(Auto·Steam·EOS·None, Auto는 Steam 먼저). EOS는 `third_party/eos/sdk` + `third_party/eos/credentials.txt`(포털 값 다섯 개, "이름: 값") → 빌드 폴더 `generated/EosCredentials.h`. `build.bat EOS` = `build\EOS`. DLL은 exe 옆·출시 폴더에(`MEALKIT_EOS_DLL`). `third_party/eos/`는 `.gitignore`, 레이아웃 검사·고지문 도구는 Steamworks처럼 저장소 밖 SDK로 본다.
+- **GameMain**: 백엔드가 None이 아니면 로그인하고, `--steam`·`--steam-join`을 주면 자동 실행(`--frames`)이어도 로그인한다.
+- **확인**: `build\EOS\bin\sandbox.exe --steam --frames 900` → 실제 포털 값으로 로그인, 로비 만들기·코드 설정까지. `check.ps1` 전체: 실패 셋(골든 이미지, Vulkan = DX12 캡처, 실패 때 옛 DLL 유지)은 이 변경 전 HEAD에서도 같이 실패한다.
+- **남은 것 (이 항목)**: 다른 PC에서 참가(한 OS 사용자 = 기기 ID 하나라 같은 PC 두 프로세스는 같은 사용자), 릴레이 RTT·4인 대역폭 측정, 호스트 이전 때 로비 소유자, Steam 계정으로 EOS 로그인(Steam 친구 초대 + EOS 로비 같이 켜기), `mp_test` EOS 시나리오.
+
 ### [x] 3단계: 호스트 이전 (완료 2026-10-28)
 - **승계 목록** (`net::LockstepSession`, 패킷 `Succession`): 호스트가 1초마다(매치 시작 때 바로) 자신·클라이언트·매치 중 끊긴 사람의 번호·연결·토큰·이름·주소를 보낸다. 다음 호스트는 목록에서 지금 호스트를 뺀 첫 연결자다. 투표 없이 모두 같은 답이다.
 - **알아채기**: 호스트가 세션을 닫으면(`shutdown`, 나가기·창 닫기) `Disconnect` 대신 마지막 목록 + `Handoff`. 튕기면 매치가 흐르는 중(이번 매치 묶음에 틱이 실려 온 뒤) 호스트 침묵 3초(`kHostLost`), 로비·매치 시작 로딩은 지금처럼 10초(호스트가 로딩으로 몇 초 멈춰도 넘어가지 않게). 내가 0.5초 넘게 update를 못 했으면(내 로딩) 그동안은 침묵으로 세지 않는다. 승계자가 먼저 호스트가 되어 보낸 패킷이 오면(Handoff를 놓쳤다) 바로 넘어간다. `end()`의 `Disconnect`는 그대로 세션을 끝낸다.

@@ -35,7 +35,7 @@ $sourceFormats = @(".blend", ".blend1", ".psd", ".psb", ".kra", ".xcf", ".penpot
     ".max", ".ma", ".mb", ".fbx", ".obj", ".aup3", ".rpp", ".flp", ".als", ".efkproj", ".drp", ".zip", ".7z")
 $alwaysOk = @(".gitkeep", ".autosave")
 $licenses = @("MIT", "MIT-0", "BSD-2-Clause", "BSD-3-Clause", "Zlib", "Unlicense", "PublicDomain", "CC0-1.0", "OFL-1.1", "BSL-1.0", "ISC")
-$sdkFolders = @("steamworks")
+$sdkFolders = @("steamworks", "eos")
 $topFolders = @("source", "assets", "art", "modules", "third_party")
 
 $errors = @()

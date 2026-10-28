@@ -1,5 +1,5 @@
 MealKit uses the following third-party software. Their licenses require these notices to be distributed with the game.
-Steamworks SDK (when used) is covered by the Steamworks SDK Access Agreement and is not reproduced here.
+Steamworks SDK and EOS SDK (when used) are covered by the Steamworks SDK Access Agreement and the Epic Online Services terms and are not reproduced here.
 
 ==============================================================================
 bc7enc_rdo (bc7enc, rgbcx) b943862 (2026-07-30)

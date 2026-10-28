@@ -11,5 +11,7 @@
 mealkit_editor.ini
 # Steamworks SDK: Valve 약관상 공개 저장소에 올리지 않는다 (문서 저장소 "매뉴얼 > 멀티플레이와 결정론 > Steamworks")
 third_party/steamworks/
+# EOS SDK와 Epic 개발자 포털 값(credentials.txt): Epic 약관상 올리지 않고, 클라이언트 비밀값은 저장소에 두지 않는다
+third_party/eos/
 tools/penpot-plugin/node_modules/
 __pycache__/

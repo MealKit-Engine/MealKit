@@ -13,7 +13,7 @@ rem                 engine repository: mealkit.dll + MealKitEditor.exe + sample 
 rem                 game project:      <name>_game.dll only (builds the engine editor first if needed)
 setlocal
 if "%~1"=="" (
-    echo usage: build_project.bat ^<project folder^> [Release^|Debug^|Profile^|Export^|Editor]
+    echo usage: build_project.bat ^<project folder^> [Release^|Debug^|Profile^|Export^|Editor^|EOS]
     exit /b 1
 )
 set PROJECT_DIR=%~f1
@@ -39,6 +39,10 @@ if /I "%CONFIG%"=="ClangCL" set BUILD_TYPE=Release
 if /I "%CONFIG%"=="Vulkan" (
     set BUILD_TYPE=Release
     set EXTRA=-DMEALKIT_RHI=Vulkan
+)
+if /I "%CONFIG%"=="EOS" (
+    set BUILD_TYPE=Release
+    set EXTRA=-DMEALKIT_ONLINE=EOS
 )
 if /I "%CONFIG%"=="VulkanEditor" (
     set BUILD_TYPE=RelWithDebInfo
