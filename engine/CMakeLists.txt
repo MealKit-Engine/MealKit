@@ -523,6 +523,8 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/Preferences.cpp
         src/mealkit/editor/PerfPanel.h
         src/mealkit/editor/PerfPanel.cpp
+        src/mealkit/editor/CodeLink.h
+        src/mealkit/editor/CodeLink.cpp
         src/mealkit/editor/Strings.h
         src/mealkit/editor/Strings.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit)

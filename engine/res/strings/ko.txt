@@ -646,3 +646,6 @@ Draw calls = 드로우 콜
 Network sent = 네트워크 송신
 Budgets: docs/ROADMAP.md "Performance budget" (minimum spec, 1280x720, 60 fps). Values are from this PC. = 예산: docs/ROADMAP.md "성능 예산" (최소 사양, 1280×720, 60 fps). 값은 이 PC에서 잰 것입니다.
 %u instances, %u culled, worst frame %.1f ms, 1%% low %.1f ms = 인스턴스 %u개, 컬링 %u개, 가장 긴 프레임 %.1f ms, 1%% 최악 %.1f ms
+Click to open in the code editor = 누르면 코드 편집기로 엽니다
+Open Code = 코드 열기
+Could not find MEALKIT_OBJECT(%s) in the project code = 프로젝트 코드에서 MEALKIT_OBJECT(%s)를 찾지 못했습니다
