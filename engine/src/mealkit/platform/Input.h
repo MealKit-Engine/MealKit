@@ -25,6 +25,7 @@ inline constexpr u8 F2 = 0x71;
 inline constexpr u8 F3 = 0x72;
 inline constexpr u8 F4 = 0x73;
 inline constexpr u8 F11 = 0x7A;
+inline constexpr u8 F9 = 0x78;
 inline constexpr u8 F12 = 0x7B;
 } // namespace key
 

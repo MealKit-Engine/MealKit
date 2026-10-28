@@ -2,6 +2,7 @@
 #include "mealkit/platform/Paths.h"
 
 #include <filesystem>
+#include <share.h>
 #include <windows.h>
 
 namespace mealkit {
@@ -47,8 +48,8 @@ std::string executableDirectory() {
 }
 
 FILE* openFile(const std::string& path, const char* mode) {
-    FILE* f = nullptr;
-    return _wfopen_s(&f, fromUtf8(path).c_str(), widen(mode).c_str()) == 0 ? f : nullptr;
+    // 다른 곳이 열고 있어도 읽고 쓸 수 있게 (POSIX와 같이): 버그 리포트가 쓰는 중인 입력 기록을 읽는다
+    return _wfsopen(fromUtf8(path).c_str(), widen(mode).c_str(), _SH_DENYNO);
 }
 
 bool writeTextFile(const std::string& path, const std::string& text) {

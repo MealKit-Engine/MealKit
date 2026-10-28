@@ -3,6 +3,17 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.5.4 이후 — 3단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
+
+### [x] 3단계: 버그 리포트 묶음 (완료 2026-10-28)
+- **남기기** (`game/BugReport.h`): 게임 exe에서 F9 → 개발 빌드는 한 줄을 적는 ImGui 창(Enter 저장, Esc 취소), 출시 빌드(ImGui 없음)는 글 없이 → 스크린샷을 요청하고 다음 프레임에 사용자 폴더 `bugreports/YYYY-MM-DD_HH-MM[-n].zip`을 쓴다. 안에 `replay.rec`(매치 중 리플레이 기록 `current.rec` 그대로, 매치 밖이면 없음), `info.txt`(엔진·게임 버전, 커밋, 시뮬레이션 버전, 결정론 그룹, 콘텐츠 해시, 씬·튜닝, 틱, 인원, CPU, 글), `log.txt`(`log::recentLines`, 최근 2000줄), `screenshot.png`.
+  프로젝트 설정 `bugReports`(기본 켬)로 끈다. 시험용 `--bug-report-at <프레임>`.
+- **zip** (`core/Zip.h`): 압축 없는 zip 쓰기·읽기 + CRC32를 직접 썼다(스크린샷 PNG·기록은 이미 작거나 압축돼 있어 deflate 라이브러리를 들이지 않았다). 탐색기·7-Zip으로 열린다. 읽기는 압축 없는 항목만.
+- **기록 읽기**: `InputRecordWriter`가 틱마다 `fflush`하고, Windows `openFile`이 공유 모드(`_wfsopen` `_SH_DENYNO`, POSIX와 같게)로 연다. 그래서 쓰는 중인 기록을 묶을 수 있고, 튕겨도 그 틱까지 남는다.
+- **보기**: 에디터 [파일] > [리플레이 열기](필터에 `.zip`)·`--replay <zip>`이 `replay.rec`를 `build/<Editor>/play/`에 꺼내 혼자 플레이로 재생하고, 기록이 끝난 틱(F9를 누른 때)에서 일시정지한다. 글은 알림으로, info는 로그로. 데이터가 다르면 리플레이와 같은 경고.
+- **확인**: `sandbox.exe --bot --frames 200 --bug-report-at 150 --record-inputs x.rec` → zip(39틱) → 에디터 `--replay <zip>`이 38틱에서 멈춘 캡처. 단위 테스트 `core zip_files`, `game bug_report`.
+- **남은 것**: F9는 엔진 키(F12처럼 `window.input()`)라 입력 바인딩 표에 없다. 출시 빌드에서 글 적기(게임 UI `.ui` 창), 리포트 보내기(업로드)는 없다. 에디터 혼자 플레이 중 F9는 없다(에디터는 리플레이가 이미 남는다).
+
 ## v0.5.4 — 3단계: 중간 참가와 재접속 (2026-10-28)
 
 - **끊김**: 매치 중에 누가 나가거나(끊김 패킷) 10초 동안 소식이 없으면 매치를 끝내지 않고 그 사람만 뺀다. 호스트는 그 슬롯의 입력을 기다리지 않고(`requiredFrom`) 빈 입력으로 확정하며, 엔진 확정 명령 `mealkit.net.Presence`(끊김)를 보내 모든 피어가 같은 틱에 안다. 호스트가 끊기면 지금처럼 끝난다(호스트 이전은 다음 항목).

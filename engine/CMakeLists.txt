@@ -121,6 +121,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/core/Hash.h
     src/mealkit/core/Compress.h
     src/mealkit/core/Compress.cpp
+    src/mealkit/core/Zip.h
+    src/mealkit/core/Zip.cpp
     src/mealkit/core/Profile.h
     src/mealkit/game/GameContext.h
     src/mealkit/game/GameInstance.h
@@ -220,6 +222,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/game/MatchService.cpp
     src/mealkit/game/GameMain.h
     src/mealkit/game/GameMain.cpp
+    src/mealkit/game/BugReport.h
+    src/mealkit/game/BugReport.cpp
     src/mealkit/render/Renderer.cpp
     src/mealkit/asset/TextureCache.cpp
     src/mealkit/asset/Environment.cpp

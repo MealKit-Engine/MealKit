@@ -8,6 +8,8 @@
 #include "mealkit/core/Random.h"
 #include "mealkit/data/Tables.h"
 #include "mealkit/game/InputRecord.h"
+#include "mealkit/game/BugReport.h"
+#include "mealkit/core/Zip.h"
 #include "mealkit/game/Loadout.h"
 #include "mealkit/game/ProjectSettings.h"
 #include "mealkit/game/Save.h"
@@ -600,6 +602,46 @@ TEST_CASE(game, replay_files) {
     for (const std::string& path : game::listReplays(user)) removeFile(path);
 }
 
+TEST_CASE(core, zip_files) {
+    const u8 digits[] = {'1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    TEST_CHECK(crc32(digits, sizeof(digits)) == 0xCBF43926u);
+    const std::string path = executableDirectory() + "/test_zip.zip";
+    const std::vector<ZipEntry> in = {{"a.txt", {'h', 'i'}}, {"dir/empty.bin", {}}};
+    TEST_CHECK(writeZip(path, in));
+    std::vector<ZipEntry> out;
+    std::string error;
+    TEST_CHECK(readZip(path, out, error) && out.size() == 2 && out[0].name == "a.txt" && out[0].data == in[0].data &&
+               out[1].name == "dir/empty.bin" && out[1].data.empty());
+    removeFile(path);
+    TEST_CHECK(!readZip(path, out, error));
+}
+
+TEST_CASE(game, bug_report) {
+    // 묶음 = 입력 기록 + info + 로그 (스크린샷은 없으면 뺀다). 에디터는 replay.rec를 꺼내 재생한다
+    const std::string user = executableDirectory() + "/test_bugreports";
+    const std::string rec = user + "/current.rec";
+    createDirectories(user);
+    {
+        game::InputRecordWriter w;
+        TEST_CHECK(w.open(rec, game::MatchInfo{3, 1, 0, {{}}}, 9));
+        w.write(net::TickInputs{}, 42);
+    }
+    game::BugReportInfo info;
+    info.tick = 1;
+    info.note = "fell through\nthe floor";
+    const std::string zip = game::writeBugReport(user, info, rec, user + "/missing.png");
+    TEST_CHECK(!zip.empty() && fileExists(zip));
+    std::string extracted, text, error;
+    TEST_CHECK(game::extractBugReport(zip, user + "/out", extracted, text, error));
+    TEST_CHECK(text.find("note = fell through the floor\n")!= std::string::npos);
+    game::InputRecording loaded;
+    TEST_CHECK(game::loadInputRecording(extracted, loaded, error) && loaded.hashes.size() == 1 && loaded.hashes[0] == 42 &&
+               loaded.contentHash == 9);
+    removeFile(zip);
+    removeFile(extracted);
+    removeFile(rec);
+}
+
 MEALKIT_STRUCT(TestSaveV1) {
     MEALKIT_FIELD(u32, coins, 0, "코인");
     MEALKIT_FIELD(u32, oldName, 0, "예전 이름");
@@ -835,7 +877,7 @@ TEST_CASE(asset, asset_schema) {
     const std::string expected = asset::modelSchemaJson();
     std::string text;
     TEST_CHECK(readTextFile(path, text));
-    std::erase(text, ''); // git autocrlf
+    std::erase(text, '\r'); // git autocrlf
     TEST_CHECK(text == expected);
 }
 
