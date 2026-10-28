@@ -171,7 +171,9 @@ author KingProtea99
 |---|---|
 | 사이트 (`mealkit-engine.github.io/MealKit-Modules`) | 검색, 태그, 엔진 버전 필터. 모듈마다 `docs/index.md`를 그린 페이지, 버전·빌드 상태, 저장소 링크, 추가 명령 한 줄 |
 | MealKit Manager [모듈] 탭 | 사이트와 같은 목록과 검색. 고른 프로젝트에 추가(그 프로젝트 엔진의 `tools\module.ps1`을 부른다). 받은 목록은 `%LOCALAPPDATA%\MealKit\module-index.json`에 캐시하고, 오프라인이면 캐시를 보여 준다(`module.ps1`도 같은 캐시를 쓴다. 목록 주소 `raw.githubusercontent.com/MealKit-Engine/MealKit-Modules/main/index.json`, `-Index`·`MEALKIT_MODULE_INDEX`로 바꾼다) |
-| 에디터 [프로젝트 설정] > [모듈] | 설치된 모듈 표(이름, 버전, 새 버전 있음, 출처, 고친 파일 수, 문서), [추가…]는 같은 목록 창. 갱신 미리 보기와 제거 |
+| 에디터 [파일] > [모듈...] (`editor/ModulesPanel`) | 설치된 모듈 표(이름, 버전과 새 버전, 고친 파일·`.new` 수, 출처, [갱신]·[제거]·[문서])와 레지스트리 목록([추가]). 플레이 중에는 바꾸지 않고, 바꾸면 게임 코드를 다시 빌드한다 |
+
+에디터와 Manager는 `module.ps1 search -Tsv -Project <폴더>` 한 번으로 설치된 모듈(`installed` 줄)과 레지스트리(`module` 줄, 받지 못하면 `error` 줄)를 받는다. 줄 모양은 `module.ps1`, 에디터 `ModulesPanel.cpp`, Manager `Catalog.cpp`의 `parseModuleList` 세 곳이 같이 안다.
 
 레지스트리 모듈을 처음 추가할 때는 한 번 경고한다(어떤 모듈이든 같다). "이 코드는 에디터와 게임 안에서 실행됩니다. 레지스트리 CI는 빌드만 확인하고 코드를 검토하지 않습니다."
 

@@ -1,5 +1,5 @@
 ﻿# 소스 모듈을 프로젝트 modules/<이름>/에 넣고, 갱신하고, 뺀다 (docs/MODULES.md). 에디터·MealKit Manager도 이것을 부른다.
-#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 search [<검색어>] [-Tag <태그>]
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 search [<검색어>] [-Tag <태그>] [-Project <폴더>] [-Tsv]   (-Tsv: 에디터·Manager용 줄)
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 list   -Project <폴더>
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 add    -Project <폴더> <이름[@버전] | 폴더 | git주소[#태그]> [-Name <모듈>] [-WithRequires]
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 update -Project <폴더> <모듈> [-To <버전>] [-From <폴더 | git주소[#태그]>] [-DryRun] [-Force]
@@ -22,6 +22,7 @@ param(
     [string]$Tag = "",
     [string]$Index = "",
     [switch]$WithRequires,
+    [switch]$Tsv,
     [switch]$DryRun,
     [switch]$Force
 )
@@ -216,6 +217,18 @@ function Test-ModuleWarnings([hashtable]$info) {
     }
 }
 
+# 설치된 모듈 하나: module.txt, 기록과 다른(고친) 파일 수, 남은 .new 수, 출처
+function Get-ModuleState([string]$dir) {
+    $record = Read-FilesRecord $dir
+    $modified = 0
+    foreach ($rel in $record.hashes.Keys) {
+        $file = Join-Path $dir $rel
+        if (-not (Test-Path $file) -or (Get-ModuleFileHash $file) -ne $record.hashes[$rel]) { $modified++ }
+    }
+    return @{ info = (Read-ModuleInfo $dir); modified = $modified; pending = @(Get-ChildItem $dir -Recurse -File -Filter *.new).Count
+        source = $(if ($record.source) { $record.source } else { "(no module.files)" }) }
+}
+
 function Get-Installed {
     if (-not (Test-Path $modulesDir)) { return @() }
     return @(Get-ChildItem $modulesDir -Directory | Where-Object { Test-Path (Join-Path $_.FullName "module.txt") } | Sort-Object Name)
@@ -225,6 +238,26 @@ function Get-Installed {
 
 switch ($Command) {
     "search" {
+        if ($Tsv) {
+            # 에디터 [모듈] 창과 MealKit Manager [모듈] 탭이 읽는 줄 (탭으로 나눔, UTF-8). 한 번 불러 설치된 것과 목록을 같이 받는다:
+            #   installed <이름> <버전> <고친 파일 수> <.new 수> <출처>
+            #   module <이름> <이 엔진용 버전 또는 -> <가장 새 버전> <그 버전의 엔진> <제목> <요약> <태그(공백)> <작성자> <저장소>
+            #   error <문구>   (목록을 받지 못했다. installed 줄은 그대로 나온다)
+            [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false
+            $clean = { param($s) "$s" -replace "[`t`r`n]", " " }
+            foreach ($m in Get-Installed) {
+                $st = Get-ModuleState $m.FullName
+                Write-Output (@("installed", $st.info.name, $st.info.version, $st.modified, $st.pending, (& $clean $st.source)) -join "`t")
+            }
+            try { $all = @((Get-Registry).modules) } catch { Write-Output "error`t$(& $clean $_.Exception.Message)"; $all = @() }
+            foreach ($m in $all) {
+                $fit = @($m.versions | Where-Object { $_.engine -eq $engineMinor })
+                $first = @($m.versions)[0]
+                Write-Output (@("module", $m.name, $(if ($fit.Count) { $fit[0].version } else { "-" }), $first.version, $first.engine,
+                    (& $clean $m.title), (& $clean $m.summary), ($m.tags -join " "), (& $clean $m.author), $m.repo) -join "`t")
+            }
+            break
+        }
         $words = @("$Target".ToLowerInvariant() -split '\s+' | Where-Object { $_ })
         $hits = @((Get-Registry).modules | Where-Object {
             $m = $_
@@ -248,16 +281,8 @@ switch ($Command) {
         $installed = Get-Installed
         if ($installed.Count -eq 0) { Write-Host "No modules in $modulesDir"; break }
         foreach ($m in $installed) {
-            $info = Read-ModuleInfo $m.FullName
-            $record = Read-FilesRecord $m.FullName
-            $modified = 0
-            foreach ($rel in $record.hashes.Keys) {
-                $file = Join-Path $m.FullName $rel
-                if (-not (Test-Path $file) -or (Get-ModuleFileHash $file) -ne $record.hashes[$rel]) { $modified++ }
-            }
-            $pending = @(Get-ChildItem $m.FullName -Recurse -File -Filter *.new).Count
-            $source = if ($record.source) { $record.source } else { "(no module.files)" }
-            Write-Host ("{0} {1}  modified {2}, .new {3}  from {4}" -f $info.name, $info.version, $modified, $pending, $source)
+            $st = Get-ModuleState $m.FullName
+            Write-Host ("{0} {1}  modified {2}, .new {3}  from {4}" -f $st.info.name, $st.info.version, $st.modified, $st.pending, $st.source)
         }
     }
 

@@ -596,6 +596,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/ProjectSettingsPanel.cpp
         src/mealkit/editor/BuildPanel.h
         src/mealkit/editor/BuildPanel.cpp
+        src/mealkit/editor/ModulesPanel.cpp
         src/mealkit/editor/LogPanel.h
         src/mealkit/editor/LogPanel.cpp
         src/mealkit/editor/EditorCommands.cpp
