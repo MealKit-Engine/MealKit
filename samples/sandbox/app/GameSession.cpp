@@ -1,6 +1,6 @@
 #include "app/GameSession.h"
 #include "app/Headless.h"
-#include "app/Loadout.h"
+#include "sim/Loadout.h"
 #include "sim/Commands.h"
 
 #include "mealkit/feedback/Feedback.h"

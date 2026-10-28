@@ -89,6 +89,17 @@ else()
     target_compile_options(mealkit_meshopt PRIVATE -w)
 endif()
 
+# --- LZ4 (중간 참가 스냅샷 압축) ---
+set_source_files_properties(${MEALKIT_THIRD_PARTY}/lz4/lz4.c PROPERTIES LANGUAGE CXX) # 프로젝트는 C++만 켠다
+add_library(mealkit_lz4 STATIC ${MEALKIT_THIRD_PARTY}/lz4/lz4.c)
+set_target_properties(mealkit_lz4 PROPERTIES LINKER_LANGUAGE CXX)
+target_include_directories(mealkit_lz4 SYSTEM PUBLIC ${MEALKIT_THIRD_PARTY}/lz4)
+if(MSVC)
+    target_compile_options(mealkit_lz4 PRIVATE /W0)
+else()
+    target_compile_options(mealkit_lz4 PRIVATE -w)
+endif()
+
 # --- 엔진 라이브러리 ---
 # 코어(MEALKIT_CORE_SOURCES): 시뮬레이션·물리·네트워크·데이터·플랫폼 최소 기능. 창·그래픽 없이 돈다 (헤드리스, Linux·macOS도).
 # 화면 쪽(MEALKIT_FRONT_SOURCES): 창·입력·렌더러·온라인 서비스·에디터용 플랫폼 기능. Windows만 (다른 OS는 5단계).
@@ -108,6 +119,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/core/TextFormat.cpp
     src/mealkit/core/Random.h
     src/mealkit/core/Hash.h
+    src/mealkit/core/Compress.h
+    src/mealkit/core/Compress.cpp
     src/mealkit/core/Profile.h
     src/mealkit/game/GameContext.h
     src/mealkit/game/GameInstance.h
@@ -366,7 +379,7 @@ else()
     target_compile_options(${mealkit_core_target} PUBLIC -Wall -Wextra -fno-rtti -ffp-contract=off -fno-fast-math)
 endif()
 
-target_link_libraries(${mealkit_core_target} PUBLIC mealkit_tracy PRIVATE Jolt mealkit_meshopt)
+target_link_libraries(${mealkit_core_target} PUBLIC mealkit_tracy PRIVATE Jolt mealkit_meshopt mealkit_lz4)
 if(WIN32)
     target_link_libraries(${mealkit_core_target} PUBLIC ws2_32 shell32 ole32)
 else()

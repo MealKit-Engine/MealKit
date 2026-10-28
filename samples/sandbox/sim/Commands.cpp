@@ -10,6 +10,10 @@ namespace sandbox {
 
 void applyCommands(World& world, const mealkit::net::TickInputs& inputs) {
     mealkit::sim::forEachCommand(inputs, [&](const mealkit::sim::Command& c) {
+        if (mealkit::sim::Presence p; mealkit::sim::readPresence(c, p)) {
+            setPresence(world, p);
+            return;
+        }
         if (DebugShockwave d; c.read(d)) {
             const Pawn* pawn = playerPawn(world.state, c.player);
             if (!pawn) return;

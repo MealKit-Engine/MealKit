@@ -3,6 +3,19 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.5.4 — 3단계: 중간 참가와 재접속 (2026-10-28)
+
+- **끊김**: 매치 중에 누가 나가거나(끊김 패킷) 10초 동안 소식이 없으면 매치를 끝내지 않고 그 사람만 뺀다. 호스트는 그 슬롯의 입력을 기다리지 않고(`requiredFrom`) 빈 입력으로 확정하며, 엔진 확정 명령 `mealkit.net.Presence`(끊김)를 보내 모든 피어가 같은 틱에 안다. 호스트가 끊기면 지금처럼 끝난다(호스트 이전은 다음 항목).
+- **들어오기** (`net::LockstepSession`): 매치 중 접속 요청은 끊긴 사람(같은 세션 토큰, 아니면 같은 이름)이면 그 슬롯, 아니면 빈 슬롯(`maxPlayers`까지). 같은 이름인데 예전 연결이 1초 넘게 조용하면 예전 연결을 끊은 셈 친다(알리지 못하고 꺼졌다가 다시 켠 경우).
+  호스트는 Presence(접속 + 로드아웃) 명령을 보내고 게임에게 스냅샷을 달라고 한다(`snapshotWanted` → `provideSnapshot(틱, 바이트)`, `game::Simulation`이 틱 사이에 준다). LZ4(`third_party/lz4` v1.10.0, `core/Compress.h`)로 압축해 1100바이트 조각으로 보낸다(확인 안 받은 것 32조각까지, 순서가 바뀌어도 받아 두고, 0.25초 동안 확인이 나아가지 않으면 확인받은 곳부터 다시).
+  다른 사람은 멈추지 않는다. 들어오는 사람에게 보낼 확정 틱은 링 버퍼(256틱)에서 밀려나도 `joinLog`에 남겨 둔다. 묶음 패킷은 플레이어 수(`width`)를 싣는다(중간에 늘 수 있다).
+- **따라잡기**: 클라이언트는 스냅샷을 다 받을 때까지 접속 중(Connecting)으로 있다가 `joinTick()`부터 Running. `Simulation`이 첫 update에서 `takeJoinSnapshot`으로 World를 바꾸고(물리 바디는 모두 지우고 스냅샷의 것으로: 같은 id에 다른 바디가 있을 수 있다), `catchingUp()` 동안 한 프레임에 240틱까지 돌린다. 내 입력은 따라잡은 뒤부터 보내고, 호스트는 그 입력의 첫 틱부터 기다린다. 해시가 다르면 이어서 오는 해시 보고로 디싱크가 난다.
+- **스냅샷 바이트**: `physics::PhysicsSnapshot::write/read`(바디 id·`BodyDesc`·Jolt 모양 `SaveWithChildren`(같은 모양은 한 번)·id 할당·`SaveState`), `PhysicsWorld::clearBodies`, `game::writeSnapshotBytes/readSnapshotBytes`.
+- **게임 쪽**: `sim::readPresence(command, p)`(`sim/Commands.h`, `p.readLoadout(T&)`), `sim::Pool::grow`(매치 중 용량 늘리기, 스냅샷에 들어간다), `LockstepSession::connectedMask()`. sandbox: 새 슬롯이면 컨트롤러를 만들고(다음 틱 Pawn), 끊긴 사람의 Pawn을 지우고 다시 들어올 때까지 리스폰하지 않는다. 로드아웃 `Loadout`을 `app/`에서 `sim/Loadout.h`로 옮겼다(시뮬레이션이 Presence의 로드아웃을 읽는다). 템플릿 코드가 바뀌어 버전을 올린다.
+- **옵션**: `--name <이름>`(게임·헤드리스 로비 이름, 재접속 시험).
+- **확인**: `mp_test.ps1 -Headless -Clients 2 -Ticks 3000 -LateJoin` — 클라이언트 1(`--name c1`)이 750틱에 나가고 1.5초 뒤 같은 이름으로 다시 들어오고, 시작 1.5초 뒤 새 클라이언트가 빈 슬롯으로 들어와 모두 3000틱에 같은 해시. `-Lag 80 -Jitter 20 -Loss 3`에서도 통과(스냅샷 약 0.5 MB 압축, 받는 데 약 6초). `check.ps1` det 묶음 "Late join + rejoin". 단위 테스트 `physics physics_snapshot_bytes`.
+- **남은 것**: sandbox 스냅샷이 크다(물리 상태 약 0.7 MB → 압축 0.5 MB, 먼 상대는 몇 초). 들어오는 화면(로딩 진행률), 매치 중 들어오기를 끄는 프로젝트 설정, 끊긴 사람 슬롯을 새 사람에게 넘기기, 녹화(`replays/`)는 0틱부터 본 사람만 남긴다(들어온 사람은 남기지 않는다), 창 있는 게임으로 늦게 들어오는 것은 헤드리스와 같은 코드지만 따로 돌려 보지 않았다.
+
 ## v0.5.3 — 템플릿 CLAUDE.md 고침 (2026-10-28)
 
 - 템플릿 `CLAUDE.md`의 "DirectX 12 전용"을 "Windows + DirectX 12(기준)·Vulkan"으로 고쳤다(Vulkan 백엔드가 생긴 뒤 남은 문구). 템플릿을 바꿨으므로 버전을 올린다. `upgrade_project.ps1`이 고치지 않은 프로젝트 `CLAUDE.md`만 바꾼다.

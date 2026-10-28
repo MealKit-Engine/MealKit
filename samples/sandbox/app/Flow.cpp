@@ -1,6 +1,6 @@
 #include "app/Flow.h"
 
-#include "app/Loadout.h"
+#include "sim/Loadout.h"
 #include "view/ViewTuning.h"
 
 #include "mealkit/core/Version.h"

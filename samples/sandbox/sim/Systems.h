@@ -2,6 +2,8 @@
 
 #include "sim/World.h"
 
+#include "mealkit/sim/Commands.h"
+
 // sim/ 시스템 함수. World::step()이 정해진 순서로 직접 부른다 (World.cpp). 각자 Update를 도는 방식은 쓰지 않는다.
 // 시스템끼리 알릴 일이 있으면 함수를 직접 호출한다 (예: controlPawns → pushProps).
 namespace sandbox {
@@ -18,6 +20,7 @@ void controlPawns(World& world);      // 입력·AI → 속도, 점프, 밀치�
 void usePads(World& world);           // 점프대 위의 Pawn을 튕겨 올린다
 void removeFallenPawns(World& world); // 떨어진 Pawn을 없애고 리스폰을 기다린다
 void sensePawns(World& world);        // 물리 결과 → 위치, 속도, 접지
+void setPresence(World& world, const mealkit::sim::Presence& presence); // 매치 중 접속·끊김 (엔진 명령)
 
 // Match.cpp
 void startMatch(World& world);         // 매치 시작: 카운트다운 (World::reset)

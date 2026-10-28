@@ -1,6 +1,8 @@
 // 플레이어 슬롯·컨트롤러·Pawn: 빙의, 이동, 점프, 밀치기, 점프대, 떨어지면 리스폰 대기, AI.
 #include "sim/Systems.h"
 
+#include "sim/Loadout.h"
+
 #include "mealkit/core/DetMath.h"
 
 #include <algorithm>
@@ -157,6 +159,7 @@ void respawnPawns(World& world) {
     WorldState& s = world.state;
     for (auto [id, c] : s.controllers) {
         if (s.pawns.alive(c.pawn) || !c.respawn.ready(s.tick)) continue;
+        if (c.kind == ControllerKind::Player && !s.slots[c.slot].connected) continue; // 끊긴 사람은 다시 들어올 때까지
         const Vec3 at = spawnPosition(world, c.spawnIndex);
         const u8 player = c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer;
         const BodyKind* body = bodyOf(world, player);
@@ -214,6 +217,38 @@ void removeFallenPawns(World& world) {
         world.events.push(makeEvent(EventKind::Fall, player, p.position, 0.0f));
         s.pawns.destroy(pawnId); // 바디는 틱 끝에 지운다 (World::step)
     }
+}
+
+// 매치 중에 들어온 사람: 새 슬롯이면 컨트롤러를 만들고(다음 틱에 Pawn), 다시 들어온 사람은 그 슬롯을 다시 켠다.
+// 끊긴 사람의 Pawn은 지운다 (점수·슬롯은 남는다)
+void setPresence(World& world, const mealkit::sim::Presence& presence) {
+    WorldState& s = world.state;
+    if (presence.player >= mealkit::net::kMaxPlayers) return;
+    PlayerSlot& slot = s.slots[presence.player];
+    if (!presence.connected) {
+        slot.connected = false;
+        if (Controller* c = s.controllers.get(slot.controller)) {
+            if (Pawn* p = s.pawns.get(c->pawn)) {
+                const Id<Pawn> pawn = c->pawn;
+                world.events.push(makeEvent(EventKind::Fall, presence.player, p->position, 0.0f));
+                unpossess(world, slot.controller);
+                s.pawns.destroy(pawn);
+            }
+        }
+        return;
+    }
+    slot.connected = true;
+    if (presence.player < s.playerCount && s.controllers.alive(slot.controller)) return; // 다시 들어왔다
+    s.playerCount = std::max(s.playerCount, presence.player + 1u);
+    Loadout l;
+    slot.body = presence.readLoadout(l) && l.body < world.bodyKinds.size() ? l.body : 0u;
+    if (s.controllers.count() >= s.controllers.capacity()) s.controllers.grow(s.controllers.capacity() + 1);
+    s.pawns.grow(s.controllers.capacity() * 2); // World::reset과 같은 비율
+    Controller c;
+    c.kind = ControllerKind::Player;
+    c.slot = presence.player;
+    c.spawnIndex = s.controllers.count(); // 지금 있는 컨트롤러와 겹치지 않는 스폰 자리
+    slot.controller = s.controllers.create(c);
 }
 
 void sensePawns(World& world) {

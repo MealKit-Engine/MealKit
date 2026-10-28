@@ -5,6 +5,7 @@ cgltf                                      v1.15                                
 Dear ImGui                                 v1.92.9b-docking (b48d1af)                                                   MIT           editor only                                                                                https://github.com/ocornut/imgui
 ImGuizmo                                   18cef5e (2026-08-08)                                                         MIT           editor only                                                                                https://github.com/CedricGuillemet/ImGuizmo
 Jolt Physics                               v5.6.0                                                                       MIT           engine (game)                                                                              https://github.com/jrouwe/JoltPhysics
+LZ4                                        v1.10.0                                                                      BSD-2-Clause  engine (network snapshots)                                                                 https://github.com/lz4/lz4
 meshoptimizer                              v1.3                                                                         MIT           engine (model loading)                                                                     https://github.com/zeux/meshoptimizer
 miniaudio                                  0.11.25                                                                      MIT-0         engine (audio runtime third_party/mkaudio)                                                 https://github.com/mackron/miniaudio
 mkaudio (MealKit Audio runtime)            v0.2.0 (0914bba)                                                             MIT           engine (audio)                                                                             https://github.com/MealKit-Engine/MealKit-Audio
@@ -22,6 +23,7 @@ Why each library (this file is the canonical external library table; the docs re
 - Dear ImGui: editor UI (never linked into the shipped game exe).
 - ImGuizmo: 3D gizmo in the editor (never linked into the shipped game exe).
 - Jolt Physics: deterministic build support, multithreaded, fast. Built with CROSS_PLATFORM_DETERMINISTIC and SSE4.2 only (AVX/FMA off) so it runs on office CPUs (Pentium, Celeron) and gives the same results everywhere.
+- LZ4: fast compression of the world snapshot a late-joining or reconnecting player downloads.
 - meshoptimizer: model optimization and LOD generation.
 - miniaudio: audio devices on every target platform (WASAPI, CoreAudio, ALSA/PulseAudio, AAudio, Web Audio), node graph, 3D attenuation, WAV decoding and streaming in one file. The engine's sound events, voice management and buses (mealkit/audio) are built on it. SDL3 was measured instead and not used (+1.6-1.9 MB exe, docs/DECISIONS.md 2026-10-18).
 - mkaudio (MealKit Audio runtime): the sound event runtime of the MealKit tool family (events, containers, voices, buses), built on miniaudio. Its own repository so the audio authoring tool and other engines can use it (docs/DECISIONS.md 2026-10-26).

@@ -1669,6 +1669,43 @@ TEST_CASE(physics, physics_snapshot) {
     std::printf("  physics snapshot: %zu bytes for 61 bodies\n", snap.byteSize());
 }
 
+// 중간 참가: 바이트로 쓴 스냅샷을 다른 World(다른 바디가 있는)에 지우고 불러와도 같은 결과
+TEST_CASE(physics, physics_snapshot_bytes) {
+    auto build = [](physics::PhysicsWorld& w, int count, std::vector<physics::BodyId>& bodies) {
+        w.init(1024, 2);
+        w.setGravity({0.0f, -20.0f, 0.0f});
+        physics::BodyDesc ground;
+        ground.motion = physics::Motion::Static;
+        ground.position = {0.0f, -0.5f, 0.0f};
+        w.createBox({20.0f, 0.5f, 20.0f}, ground);
+        Pcg32 rng(9);
+        for (int i = 0; i < count; ++i) {
+            physics::BodyDesc d;
+            d.position = {rng.range(-3.0f, 3.0f), rng.range(1.0f, 10.0f), rng.range(-3.0f, 3.0f)};
+            bodies.push_back(i % 2 ? w.createSphere(0.3f, d) : w.createCapsule(0.3f, 0.2f, d));
+        }
+    };
+    physics::PhysicsWorld host, joiner;
+    std::vector<physics::BodyId> hostBodies, joinerBodies;
+    build(host, 40, hostBodies);
+    build(joiner, 7, joinerBodies); // 같은 id에 다른 모양
+    runPhysics(host, hostBodies, 20, 0);
+
+    physics::PhysicsSnapshot snap, received;
+    host.save(snap);
+    std::vector<u8> bytes;
+    snap.write(bytes);
+    TEST_CHECK(received.read(bytes.data(), bytes.size()));
+    TEST_CHECK(!received.read(bytes.data(), bytes.size() / 2)); // 잘린 데이터
+    joiner.clearBodies();
+    TEST_CHECK(joiner.restore(received));
+    joinerBodies = hostBodies;
+    const std::vector<u64> a = runPhysics(host, hostBodies, 40, 20);
+    const std::vector<u64> b = runPhysics(joiner, joinerBodies, 40, 20);
+    TEST_CHECK(a == b);
+    std::printf("  physics snapshot bytes: %zu for 41 bodies\n", bytes.size());
+}
+
 // 접촉 이벤트: 물리 스레드 수가 달라도 같은 목록 (정렬 순서), 해시도 같다
 std::vector<physics::ContactEvent> runContacts(u32 threads, u64& hash) {
     physics::PhysicsWorld w;

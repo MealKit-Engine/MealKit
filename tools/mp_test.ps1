@@ -8,6 +8,8 @@
 # 창 없이(헤드리스) 돌리려면 -Headless (각 실행 파일에 --headless를 붙인다. 입력이 허락하는 만큼 빨리 돈다)
 # 디싱크 진단 시험은 -DesyncTest <틱>: 클라이언트 1이 그 틱에 물리를 조금 바꾼다(--desync-test). 모두 디싱크를 알고, 피어마다
 #   build\desync에 덤프를 쓰고, tools\desync_diff.ps1이 처음 갈라진 틱으로 그 틱을 짚으면 PASS
+# 중간 참가·재접속 시험은 -LateJoin: 클라이언트 1(--name c1)이 -Ticks의 1/4에서 나갔다가 같은 이름으로 다시 들어오고,
+#   매치가 시작된 뒤 새 클라이언트(late) 하나가 빈 슬롯으로 들어온다. 끝까지 간 피어가 모두 같은 해시면 PASS
 param(
     [int]$Clients = 1,
     [int]$Ticks = 900,
@@ -22,7 +24,8 @@ param(
     [int]$Jitter = 0,   # --net-jitter (ms)
     [double]$Loss = 0,  # --net-loss (%)
     [switch]$Headless,
-    [int]$DesyncTest = 0
+    [int]$DesyncTest = 0,
+    [switch]$LateJoin
 )
 
 if ($Exe -eq "") {
@@ -43,6 +46,7 @@ $logDir = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent 
 New-Item -ItemType Directory -Force $logDir | Out-Null
 
 $players = $Clients + 1
+$maxPlayers = if ($LateJoin) { $players + 1 } else { $players }
 $common = "--bot --mute --vsync 0 --fps 120 --size 640 360 --exit-tick $Ticks"
 if ($Headless) { $common = "--headless $common" }
 if ($Scene -ne "") { $common += " --scene `"$((Resolve-Path $Scene).Path)`"" }
@@ -52,13 +56,27 @@ $hostExtra = if ($ClientExe -ne "") { " --any-build" } else { "" }
 $procs = @()
 $started = Get-Date
 $procs += Start-Process -FilePath $exe -PassThru -NoNewWindow `
-    -ArgumentList "--host $Port --local --players $players --auto-start $players --match-data $Bodies --seed 12345$hostExtra $common" `
+    -ArgumentList "--host $Port --local --players $maxPlayers --auto-start $players --match-data $Bodies --seed 12345$hostExtra $common" `
     -RedirectStandardOutput "$logDir\host.txt" -RedirectStandardError "$logDir\host_err.txt"
 Start-Sleep -Milliseconds 500
+$leaver = $null
 for ($i = 1; $i -le $Clients; $i++) {
-    $procs += Start-Process -FilePath $clientPath -PassThru -NoNewWindow `
-        -ArgumentList "--join 127.0.0.1:$Port --threads $i $common$(if ($DesyncTest -gt 0 -and $i -eq 1) { " --desync-test $DesyncTest" })" `
+    $extra = if ($DesyncTest -gt 0 -and $i -eq 1) { " --desync-test $DesyncTest" } else { "" }
+    $clientArgs = "--join 127.0.0.1:$Port --threads $i $common$extra"
+    if ($LateJoin -and $i -eq 1) { $clientArgs = ($clientArgs -replace "--exit-tick $Ticks", "--exit-tick $([int]($Ticks / 4))") + " --name c1" }
+    $p = Start-Process -FilePath $clientPath -PassThru -NoNewWindow -ArgumentList $clientArgs `
         -RedirectStandardOutput "$logDir\client$i.txt" -RedirectStandardError "$logDir\client${i}_err.txt"
+    if ($LateJoin -and $i -eq 1) { $leaver = $p } else { $procs += $p }
+}
+if ($LateJoin) {
+    # 새 사람: 매치가 시작되고 조금 뒤. 다시 들어오는 사람: 클라이언트 1이 나간 뒤 같은 이름으로
+    Start-Sleep -Milliseconds 1500
+    $procs += Start-Process -FilePath $clientPath -PassThru -NoNewWindow -ArgumentList "--join 127.0.0.1:$Port --threads 2 $common" `
+        -RedirectStandardOutput "$logDir\late.txt" -RedirectStandardError "$logDir\late_err.txt"
+    if (-not $leaver.WaitForExit(60000)) { $leaver.Kill() }
+    Start-Sleep -Milliseconds 1500 # 다시 켜는 시간: 끊김 알림이 사라져도(-Loss, -Lag) 예전 연결이 조용해져 같은 이름이 슬롯을 받는다
+    $procs += Start-Process -FilePath $clientPath -PassThru -NoNewWindow -ArgumentList "--join 127.0.0.1:$Port --threads 1 --name c1 $common" `
+        -RedirectStandardOutput "$logDir\rejoin.txt" -RedirectStandardError "$logDir\rejoin_err.txt"
 }
 
 $timeoutMs = [int](($Ticks / 30.0 + 30) * 1000 * (1 + ($Lag + $Jitter) / 100.0)) # 지연이 입력 지연보다 크면 매치가 느려진다
@@ -68,6 +86,10 @@ foreach ($p in $procs) {
 
 $finals = @()
 $names = @("host") + (1..$Clients | ForEach-Object { "client$_" })
+if ($LateJoin) {
+    $names = @($names | Where-Object { $_ -ne "client1" }) + @("late", "rejoin")
+    $players = $names.Count
+}
 foreach ($n in $names) {
     $line = Select-String -Path "$logDir\$n.txt" -Pattern "^FINAL" | Select-Object -Last 1
     $text = if ($line) { $line.Line } else { "(no FINAL line)" }
