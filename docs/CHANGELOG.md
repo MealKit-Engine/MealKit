@@ -3,6 +3,11 @@
 끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
 로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
 
+## v0.5.3 — 템플릿 CLAUDE.md 고침 (2026-10-28)
+
+- 템플릿 `CLAUDE.md`의 "DirectX 12 전용"을 "Windows + DirectX 12(기준)·Vulkan"으로 고쳤다(Vulkan 백엔드가 생긴 뒤 남은 문구). 템플릿을 바꿨으므로 버전을 올린다. `upgrade_project.ps1`이 고치지 않은 프로젝트 `CLAUDE.md`만 바꾼다.
+- 문서 규칙 정리: 엔진 `CLAUDE.md`에 "MINOR가 바뀌면 문서 `ENGINE_VERSION`도", MealKit-docs에 `CLAUDE.md`를 더했고 기여 안내의 엔진 규칙 사본(달라져 있던 것)을 엔진 `CLAUDE.md` 링크로 바꿨다.
+
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
 ### [x] 에디터 다듬기: 에디터 에셋 브라우저 (완료 2026-10-28)

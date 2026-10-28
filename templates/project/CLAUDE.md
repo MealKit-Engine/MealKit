@@ -1,6 +1,6 @@
 # @NAME@
 
-MealKit 엔진(`@MEALKIT_ROOT@`, DirectX 12 전용 3D 멀티플레이, C++20/MSVC/CMake+Ninja)으로 만드는 게임 프로젝트.
+MealKit 엔진(`@MEALKIT_ROOT@`, 3D 멀티플레이, Windows + DirectX 12(기준)·Vulkan, C++20/MSVC/CMake+Ninja)으로 만드는 게임 프로젝트.
 사용자와는 한국어로 대화한다. 코드 주석과 에디터 UI는 한국어, 로그 메시지와 씬 파일 키는 영어로 쓴다.
 
 ## 명령
