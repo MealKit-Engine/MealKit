@@ -2,6 +2,7 @@
 
 #include "mealkit/core/Log.h"
 
+#include <charconv>
 #include <cstdlib>
 
 namespace mealkit::text {
@@ -35,6 +36,20 @@ bool readFormatLine(std::string_view line, const Format& expected, const std::st
         MEALKIT_WARN("%s: written in %s format %u, this engine reads up to %u - unknown keys are ignored (update the engine)", path.c_str(),
                      expected.kind, version, expected.version);
     return true;
+}
+
+char* writeFloats(char* out, size_t capacity, const f32* values, u32 count) {
+    char* p = out;
+    char* const end = out + capacity - 1; // 널 문자 자리
+    for (u32 i = 0; i < count && p < end; ++i) {
+        if (i > 0) *p++ = ' ';
+        const f32 v = values[i] == 0.0f ? 0.0f : values[i]; // -0은 0으로
+        const std::to_chars_result r = std::to_chars(p, end, v);
+        if (r.ec != std::errc{}) break;
+        p = r.ptr;
+    }
+    *p = '\0';
+    return p;
 }
 
 } // namespace mealkit::text

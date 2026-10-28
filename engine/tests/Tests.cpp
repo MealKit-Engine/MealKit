@@ -21,6 +21,7 @@
 #include "mealkit/net/Rooms.h"
 #include "mealkit/net/Socket.h"
 #include "mealkit/core/Reflect.h"
+#include "mealkit/core/TextFormat.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/platform/Input.h"
 #include "mealkit/platform/Paths.h"
@@ -46,6 +47,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <cstring>
 
 using namespace mealkit;
 
@@ -329,6 +331,26 @@ TEST_CASE(core, reflect_string) {
     Named c;
     reflect::ByteReader r(w.data().data(), w.data().size());
     TEST_CHECK(reflect::loadStruct(t, &c, r) && r.atEnd() && c.title == a.title);
+}
+
+TEST_CASE(core, text_floats) {
+    char text[96];
+    text::writeFloat(text, sizeof(text), 0.4f);
+    TEST_CHECK(std::strcmp(text, "0.4") == 0);
+    const f32 v[4] = {0.28f, -20.0f, -0.0f, 1e-5f};
+    text::writeFloats(text, sizeof(text), v, 4);
+    TEST_CHECK(std::strcmp(text, "0.28 -20 0 1e-05") == 0);
+    // 다시 읽으면 비트까지 같다
+    Pcg32 rng(7);
+    for (int i = 0; i < 2000; ++i) {
+        const u32 bits = rng.next();
+        f32 x;
+        std::memcpy(&x, &bits, 4);
+        if (!std::isfinite(x)) continue;
+        text::writeFloat(text, sizeof(text), x);
+        const f32 y = std::strtof(text, nullptr);
+        TEST_CHECK(std::memcmp(&x, &y, 4) == 0 || (x == 0.0f && y == 0.0f));
+    }
 }
 
 MEALKIT_STRUCT(Timed) {

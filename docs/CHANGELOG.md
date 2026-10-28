@@ -5,6 +5,10 @@
 
 ## v0.5.4 이후 — 3단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### 텍스트 파일 실수 출력 정리 (2026-10-29)
+- 필드 텍스트(`.table`·`.tuning`·`mealkit.project`·씬 물체 필드, `reflect::toText`)와 `.scene` 줄의 실수를 `%.9g`(`0.400000006`) 대신 다시 읽으면 같은 float가 되는 가장 짧은 표현(`0.4`, `std::to_chars`)으로 쓴다: `text::writeFloats`(`core/TextFormat.h`). -0은 0으로 쓴다.
+- 읽는 쪽과 형식 버전은 그대로라 예전 파일도 읽히고 값은 비트 단위로 같다. 저장하면 줄이 짧아져 diff가 한 번 크게 난다. 테스트 `core/text_floats`(무작위 비트 2000개 왕복).
+
 ### [ ] 3단계: EOS 백엔드 — 1부 (2026-10-28, 항목 진행 중)
 - **백엔드** (`online/OnlineEOS.cpp`, `Backend::EOS`): `EOS_Initialize` + `EOS_Platform_Create`(오버레이 끔) → EOS Connect **기기 ID** 로그인(처음이면 기기 ID·사용자 만들기, `init`이 최대 15초 기다린다). 표시 이름은 OS 사용자 이름. EOS 로그는 경고 이상만 엔진 로그로.
 - **주소**: `net::Address::steamId`를 `userId`(온라인 백엔드 사용자 id)로 바꿨다. EOS는 Product User ID 문자열의 FNV-1a 64비트 해시이고, 백엔드가 해시 → id 표를 로비 멤버·받은 패킷·연결 요청에서 채운다. 승계 목록 패킷 형식은 그대로(u64).

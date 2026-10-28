@@ -1,6 +1,7 @@
 #include "mealkit/core/Reflect.h"
 
 #include "mealkit/core/Log.h"
+#include "mealkit/core/TextFormat.h"
 #include "mealkit/platform/Paths.h"
 
 #include <algorithm>
@@ -389,15 +390,17 @@ std::string formatScalar(const ValueInfo& v, const void* data) {
         snprintf(text, sizeof(text), "%llu", x);
         break;
     }
-    case Kind::Float: snprintf(text, sizeof(text), "%.9g", *static_cast<const f32*>(data)); break;
+    case Kind::Float: text::writeFloat(text, sizeof(text), *static_cast<const f32*>(data)); break;
     case Kind::Vec3: {
         const Vec3& p = *static_cast<const Vec3*>(data);
-        snprintf(text, sizeof(text), "%.9g %.9g %.9g", p.x, p.y, p.z);
+        const f32 v[3] = {p.x, p.y, p.z};
+        text::writeFloats(text, sizeof(text), v, 3);
         break;
     }
     case Kind::Quat: {
         const Quat& q = *static_cast<const Quat*>(data);
-        snprintf(text, sizeof(text), "%.9g %.9g %.9g %.9g", q.x, q.y, q.z, q.w);
+        const f32 v[4] = {q.x, q.y, q.z, q.w};
+        text::writeFloats(text, sizeof(text), v, 4);
         break;
     }
     case Kind::String: return *static_cast<const std::string*>(data);

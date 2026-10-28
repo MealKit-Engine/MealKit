@@ -56,7 +56,14 @@ bool validTypeName(const char* text) {
     return true;
 }
 
-void writeVec3(FILE* f, const char* key, Vec3 v) { fprintf(f, "%s %.9g %.9g %.9g\n", key, v.x, v.y, v.z); }
+// "key a b c ..." 한 줄 (실수는 text::writeFloats의 가장 짧은 표현)
+void writeFloats(FILE* f, const char* key, std::initializer_list<f32> values) {
+    char text[128];
+    text::writeFloats(text, sizeof(text), values.begin(), static_cast<u32>(values.size()));
+    fprintf(f, "%s %s\n", key, text);
+}
+
+void writeVec3(FILE* f, const char* key, Vec3 v) { writeFloats(f, key, {v.x, v.y, v.z}); }
 
 } // namespace
 
@@ -184,9 +191,12 @@ bool save(const Scene& scene, const std::string& path) {
     writeVec3(f, "sunColor", env.sunColor);
     writeVec3(f, "sky", env.skyColor);
     writeVec3(f, "groundColor", env.groundColor);
-    fprintf(f, "fog %.9g %.9g %.9g %.9g\n", env.fogColor.x, env.fogColor.y, env.fogColor.z, env.fogDensity);
-    if (!env.hdri.empty())
-        fprintf(f, "hdri %s\nhdriIntensity %.9g\nhdriRotation %.9g\n", env.hdri.c_str(), env.hdriIntensity, env.hdriRotation);
+    writeFloats(f, "fog", {env.fogColor.x, env.fogColor.y, env.fogColor.z, env.fogDensity});
+    if (!env.hdri.empty()) {
+        fprintf(f, "hdri %s\n", env.hdri.c_str());
+        writeFloats(f, "hdriIntensity", {env.hdriIntensity});
+        writeFloats(f, "hdriRotation", {env.hdriRotation});
+    }
     reflect::TextFields post;
     reflect::toText(reflect::typeOf<PostFields>(), &env.post, post);
     for (const auto& [key, value] : post) fprintf(f, "post %s %s\n", key.c_str(), value.c_str());
@@ -194,7 +204,7 @@ bool save(const Scene& scene, const std::string& path) {
         fprintf(f, "\nentity\nid %u\nname %s\nkind %s\n", e.id, e.name.c_str(), e.type.c_str());
         if (e.parent) fprintf(f, "parent %u\n", e.parent);
         writeVec3(f, "position", e.position);
-        fprintf(f, "rotation %.9g %.9g %.9g %.9g\n", e.rotation.x, e.rotation.y, e.rotation.z, e.rotation.w);
+        writeFloats(f, "rotation", {e.rotation.x, e.rotation.y, e.rotation.z, e.rotation.w});
         writeVec3(f, "scale", e.scale);
         if (!e.model.empty()) fprintf(f, "model %s\n", e.model.c_str());
         fprintf(f, "color %08X\nflags %u\n", e.color, e.flags);

@@ -37,4 +37,9 @@ std::string formatLine(const Format& format);
 // 종류가 다르거나, 이 엔진보다 새 버전이거나, 모양이 틀리면 path와 함께 경고한다(새 버전이면 아는 키만 읽는다).
 bool readFormatLine(std::string_view line, const Format& expected, const std::string& path, u32& version);
 
+// 텍스트 파일에 쓰는 실수: 다시 읽으면 같은 float가 되는 가장 짧은 표현(0.4, 1e-05). %.9g처럼 0.400000006이 되지 않는다.
+// values를 공백으로 이어 out에 쓰고 끝(널 문자 위치)을 돌려준다. out은 값마다 16바이트면 충분하다.
+char* writeFloats(char* out, size_t capacity, const f32* values, u32 count);
+inline char* writeFloat(char* out, size_t capacity, f32 value) { return writeFloats(out, capacity, &value, 1); }
+
 } // namespace mealkit::text
