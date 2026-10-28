@@ -11,9 +11,10 @@
 - **로비**: `createLobby`는 공개 광고 로비(버킷 `mealkit`, presence 끔) + 속성 `MKCODE`에 여섯 자리 무작위 코드. `lobbyId()`가 그 코드이고 `joinLobby(코드)`·`--steam-join <코드>`가 속성 검색으로 들어간다. Epic 계정이 없으면 친구 목록이 없어 `inviteFriends`는 코드를 로그에 쓴다. 소유자·멤버 수는 매 `update`에 SDK 로컬 사본에서 읽고, `setLobbyOwner`는 `EOS_Lobby_PromoteMember`.
 - **전송**: EOS P2P(소켓 `mealkit`, 채널 0, 비신뢰·순서 없음, 연결 중 지연 전달 허용), 연결 요청은 모두 받는다. EOS P2P 상한이 1170바이트라 락스텝 `kMaxPacket`을 1200 → 1170으로 낮췄다(스냅샷 조각 1100 + 머리는 그 안).
 - **빌드**: CMake `MEALKIT_ONLINE`(Auto·Steam·EOS·None, Auto는 Steam 먼저). EOS는 `third_party/eos/sdk` + `third_party/eos/credentials.txt`(포털 값 다섯 개, "이름: 값") → 빌드 폴더 `generated/EosCredentials.h`. `build.bat EOS` = `build\EOS`. DLL은 exe 옆·출시 폴더에(`MEALKIT_EOS_DLL`). `third_party/eos/`는 `.gitignore`, 레이아웃 검사·고지문 도구는 Steamworks처럼 저장소 밖 SDK로 본다.
+- **Steam 계정 로그인** (Steam SDK도 있으면 `MEALKIT_EOS_STEAM=1`): `SteamAPI_Init` → `GetAuthTicketForWebApi("epiconlineservices")` → 16진 문자열로 `EOS_ECT_STEAM_SESSION_TICKET` 로그인, 이름은 Steam 이름. Steam이 없거나 실패하면(포털에 Steam 공급자 없음 = `EOS_Connect_ExternalServiceConfigurationFailure`) 경고 뒤 기기 ID. 초대는 `ActivateGameOverlayInviteDialogConnectString("+connect_lobby <코드>")`, 로비에 있는 동안 rich presence `connect`, 실행 중 수락은 `GameRichPresenceJoinRequested_t` → `takeJoinRequest`. `steam_api64.dll`·`steam_appid.txt`도 EOS 빌드에 놓인다. 매치 전송은 EOS 하나.
 - **GameMain**: 백엔드가 None이 아니면 로그인하고, `--steam`·`--steam-join`을 주면 자동 실행(`--frames`)이어도 로그인한다.
-- **확인**: `build\EOS\bin\sandbox.exe --steam --frames 900` → 실제 포털 값으로 로그인, 로비 만들기·코드 설정까지. `check.ps1` 전체: 실패 셋(골든 이미지, Vulkan = DX12 캡처, 실패 때 옛 DLL 유지)은 이 변경 전 HEAD에서도 같이 실패한다.
-- **남은 것 (이 항목)**: 다른 PC에서 참가(한 OS 사용자 = 기기 ID 하나라 같은 PC 두 프로세스는 같은 사용자), 릴레이 RTT·4인 대역폭 측정, 호스트 이전 때 로비 소유자, Steam 계정으로 EOS 로그인(Steam 친구 초대 + EOS 로비 같이 켜기), `mp_test` EOS 시나리오.
+- **확인**: `build\EOS\bin\sandbox.exe --steam --frames 900` → 실제 포털 값으로 로그인, 로비 만들기·코드 설정까지. Steam 실행 중: 티켓을 받아 EOS에 보냈고, 포털에 Steam 공급자가 없어 Epic이 `steam configuration not found`로 거절 → 기기 ID로 이어서 로비까지 됐다(Steam 로그인 성공 자체는 포털 설정 뒤에 확인). `check.ps1` 전체: 실패 셋(골든 이미지, Vulkan = DX12 캡처, 실패 때 옛 DLL 유지)은 이 변경 전 HEAD에서도 같이 실패한다.
+- **남은 것 (이 항목)**: 다른 PC에서 참가(한 OS 사용자 = 기기 ID 하나라 같은 PC 두 프로세스는 같은 사용자), 릴레이 RTT·4인 대역폭 측정, 호스트 이전 때 로비 소유자, Steam 로그인·초대 실제 확인(포털 Identity Providers에 Steam, 내 Steam 앱 필요), `mp_test` EOS 시나리오.
 
 ### [x] 3단계: 호스트 이전 (완료 2026-10-28)
 - **승계 목록** (`net::LockstepSession`, 패킷 `Succession`): 호스트가 1초마다(매치 시작 때 바로) 자신·클라이언트·매치 중 끊긴 사람의 번호·연결·토큰·이름·주소를 보낸다. 다음 호스트는 목록에서 지금 호스트를 뺀 첫 연결자다. 투표 없이 모두 같은 답이다.

@@ -441,7 +441,7 @@ endif()
 
 # --- 온라인 서비스 (mealkit/online/): 빌드 때 백엔드 하나. 헤드리스는 쓰지 않는다 ---
 # 백엔드 고르기: MEALKIT_ONLINE = Auto | Steam | EOS | None. Auto는 Steam SDK가 있으면 Steam, 없고 EOS가 있으면 EOS.
-# 크로스플레이 빌드는 -DMEALKIT_ONLINE=EOS (Steam 계정으로 EOS 로그인하는 둘 같이 켜기는 아직 없다, ROADMAP "EOS 백엔드")
+# 크로스플레이 빌드는 -DMEALKIT_ONLINE=EOS (build.bat EOS). Steam SDK도 있으면 Steam 계정으로 EOS에 로그인한다
 set(MEALKIT_ONLINE "Auto" CACHE STRING "Online backend: Auto, Steam, EOS, None")
 set_property(CACHE MEALKIT_ONLINE PROPERTY STRINGS Auto Steam EOS None)
 # Steamworks (선택): SDK를 third_party/steamworks/sdk 에 풀면 쓸 수 있다
@@ -505,6 +505,14 @@ elseif(mealkit_online STREQUAL "EOS")
     target_link_libraries(mealkit PUBLIC ${MEALKIT_EOS_SDK}/Lib/EOSSDK-Win64-Shipping.lib)
     target_compile_definitions(mealkit PUBLIC MEALKIT_EOS=1)
     set(MEALKIT_EOS_DLL ${MEALKIT_EOS_SDK}/Bin/EOSSDK-Win64-Shipping.dll CACHE INTERNAL "")
+    # Steam SDK도 있으면: Steam 계정으로 EOS 로그인 + Steam 친구 초대(로비 코드를 싣는다). 매치 전송은 EOS 하나
+    if(mealkit_has_steam)
+        message(STATUS "MealKit: Steamworks SDK found - EOS logs in with the Steam account, invites go through Steam")
+        target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_STEAMWORKS_SDK}/public)
+        target_link_libraries(mealkit PUBLIC ${MEALKIT_STEAMWORKS_SDK}/redistributable_bin/win64/steam_api64.lib)
+        target_compile_definitions(mealkit PUBLIC MEALKIT_EOS_STEAM=1)
+        set(MEALKIT_STEAM_DLL ${MEALKIT_STEAMWORKS_SDK}/redistributable_bin/win64/steam_api64.dll CACHE INTERNAL "")
+    endif()
 else()
     if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
         message(STATUS "MealKit: no online SDK (third_party/steamworks/sdk, third_party/eos/sdk) - building without online backend")
