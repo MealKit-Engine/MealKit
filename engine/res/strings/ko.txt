@@ -596,3 +596,7 @@ Find (Ctrl+F) = 찾기 (Ctrl+F)
 Find in Scene Tree = 씬 트리에서 찾기
 Lock (cannot be picked in the scene view) = 잠금 (씬 뷰에서 클릭으로 고르지 않음)
 Hide in the scene view = 씬 뷰에서 숨기기
+Duplicated %zu objects = 물체 %zu개를 복제했습니다
+Deleted %zu objects = 물체 %zu개를 지웠습니다
+%zu objects selected - the gizmo moves all, this panel edits the last one = 물체 %zu개 선택 - 기즈모는 모두 옮기고, 이 패널은 마지막에 고른 것을 고칩니다
+Select All = 모두 선택
