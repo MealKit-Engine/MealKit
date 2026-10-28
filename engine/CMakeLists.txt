@@ -520,6 +520,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/LogPanel.h
         src/mealkit/editor/LogPanel.cpp
         src/mealkit/editor/EditorCommands.cpp
+        src/mealkit/editor/EditorAssets.cpp
         src/mealkit/editor/Preferences.h
         src/mealkit/editor/Preferences.cpp
         src/mealkit/editor/PerfPanel.h

@@ -81,6 +81,13 @@ bool removeFile(const std::string& path) {
     return fs::remove(fromUtf8(path), ec);
 }
 
+bool moveFile(const std::string& from, const std::string& to) {
+    std::error_code ec;
+    if (fs::exists(fromUtf8(to), ec)) return false;
+    fs::rename(fromUtf8(from), fromUtf8(to), ec);
+    return !ec;
+}
+
 std::vector<std::string> listFiles(const std::string& directory, const char* extension) {
     std::vector<std::string> out;
     std::error_code ec;

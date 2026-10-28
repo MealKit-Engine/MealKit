@@ -30,6 +30,8 @@ bool readTextFile(const std::string& path, std::string& out);
 bool writeTextFile(const std::string& path, const std::string& text);
 bool createDirectories(const std::string& path);
 bool removeFile(const std::string& path);
+// 파일 이름 바꾸기·옮기기 (to의 폴더는 있어야 한다, to가 있으면 실패)
+bool moveFile(const std::string& from, const std::string& to);
 // 폴더 안 파일 이름들 (하위 폴더 제외, 이름 순). extension(".txt")을 주면 그 확장자만
 std::vector<std::string> listFiles(const std::string& directory, const char* extension = nullptr);
 // 폴더 안 하위 폴더 이름들 (이름 순)
