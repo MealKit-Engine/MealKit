@@ -5,6 +5,13 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 에디터 다듬기: 디버그 그리기 API (완료 2026-10-28)
+- **API** (`debug/DebugDraw.h`): `debug::line(a, b, 색, 초)`, `debug::box(중심, 반 크기, 회전, 색, 초)`(모서리 12개), `debug::text(위치, 글자, 색, 초)`. 초 0 = 다음에 그리는 한 프레임. 색은 sRGB RGBA8(`kYellow`·`kRed`·`kGreen`·`kBlue`).
+- **결정론**: 요청을 잠금 있는 목록에 쌓기만 하고 시뮬레이션이 읽는 값은 없다. 그래서 게임 `sim/`에서 불러도 된다(SimCheck가 막지 않는 `mealkit/debug/`). 되감기·그림자 시뮬레이션이 같은 틱을 다시 돌리면 겹쳐 그려질 수 있다. 최대 20,000개.
+- **빌드**: `MEALKIT_DEBUG_UI` 빌드(에디터, 개발 게임 exe)에만 `DebugDraw.cpp`가 들어간다. 출시(Export)·헤드리스는 헤더의 빈 inline이라 호출이 빠진다.
+- **그리기** (`debug/DebugDrawRender.h` `flushDebugDraw`): 게임 exe(`GameMain`)와 에디터 플레이(`PlaySession::buildFrame`)가 게임 `buildFrame` 다음에 부른다. 선은 두께 3 cm 상자 인스턴스(깊이 있음), 글자는 ImGui 앞 그리기 목록이다(게임 exe는 F1 디버그 UI가 켜져 있을 때만).
+- **확인**: sandbox에 잠시 상자·선·글자를 넣어 에디터 플레이 캡처로 보고 되돌렸다. 샘플 코드에는 쓰는 곳을 남기지 않았다.
+
 ### [x] 에디터 다듬기: 에러·오브젝트에서 코드로 이동 (완료 2026-10-28)
 - **`editor/CodeLink`**: `parseFileLine`(MSVC `a.cpp(27):`, clang·일반 `a.cpp:27:` 모양, 소스 확장자만), `openInCodeEditor`(환경설정 "코드 편집기", 기본 `code`, `-g 파일:줄`. `.exe`가 아니면 `cmd /c`로 부른다), `findInHeaders`(폴더 아래 `.h`에서 글자 찾기, `build`·점 폴더 제외).
 - **빌드 로그**: 줄마다 그리게 바꿨다(`ImGuiListClipper`). 파일·줄이 있는 줄은 파란색이고 누르면 연다(상대 경로는 프로젝트 폴더 기준). **[로그] 창**도 같은 줄을 누르면 연다.

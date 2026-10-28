@@ -258,6 +258,7 @@ endif()
 # 디버그 UI (MEALKIT_DEBUG_UI, cmake/MealKit.cmake): ImGui 연결 층. 에디터와 개발용 게임 exe의 오버레이가 같이 쓴다
 if(MEALKIT_DEBUG_UI)
     list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/debug/ImGuiLayer.h src/mealkit/debug/ImGuiLayer.cpp
+        src/mealkit/debug/DebugDraw.h src/mealkit/debug/DebugDrawRender.h src/mealkit/debug/DebugDraw.cpp
         src/mealkit/platform/ImGuiPlatform.h src/mealkit/platform/win32/ImGuiPlatform.cpp
         ${mealkit_rhi_imgui}
         # 텍스처 압축 (asset/TextureCache.cpp): 개발 빌드만 만들고, 출시 빌드는 압축된 캐시만 읽는다
