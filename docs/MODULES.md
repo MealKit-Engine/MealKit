@@ -236,7 +236,7 @@ tools\module.ps1 remove  -Project <폴더> <이름>
 5. 레지스트리 저장소: `entries/`, 공용 워크플로(모듈 CI), PR 검사, `index.json` 만들기
 6. `module.ps1 search`와 이름으로 add, Manager [모듈] 탭, 에디터 [모듈] 창
 7. 레지스트리 사이트(정적 페이지: 검색, 필터, 문서 그리기)
-8. 문서 저장소: Modules 안내 페이지, Writing modules(영어·한국어)
+8. ~~문서 저장소: Modules 안내 페이지, Writing modules(영어·한국어)~~ (끝)
 9. 나머지 첫 모듈은 위 표 순서로, 각각 자기 저장소에서
 
 1~4는 GitHub 없이 로컬에서 끝난다. 5부터는 GitHub 저장소(`MealKit-Modules`, `module-cooldown`)가 필요하다. 저장소 만들기와 push는 사용자가 한다(오디오 2와 같음).
