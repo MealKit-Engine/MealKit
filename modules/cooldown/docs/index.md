@@ -9,7 +9,7 @@ Tick-based cooldowns for skills and actions: "push can be used again 0.5 s after
 ## Adding
 
 ```
-tools\module.ps1 add -Project <your project> https://github.com/MealKit-Engine/module-cooldown#v0.1.0
+tools\module.ps1 add -Project <your project> cooldown
 ```
 
 Then connect it to your game. A cooldown belongs to something in your simulation state, usually a pawn:
