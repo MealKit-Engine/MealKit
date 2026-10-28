@@ -8,6 +8,17 @@
 - 템플릿 `CLAUDE.md`의 "DirectX 12 전용"을 "Windows + DirectX 12(기준)·Vulkan"으로 고쳤다(Vulkan 백엔드가 생긴 뒤 남은 문구). 템플릿을 바꿨으므로 버전을 올린다. `upgrade_project.ps1`이 고치지 않은 프로젝트 `CLAUDE.md`만 바꾼다.
 - 문서 규칙 정리: 엔진 `CLAUDE.md`에 "MINOR가 바뀌면 문서 `ENGINE_VERSION`도", MealKit-docs에 `CLAUDE.md`를 더했고 기여 안내의 엔진 규칙 사본(달라져 있던 것)을 엔진 `CLAUDE.md` 링크로 바꿨다.
 
+## v0.5.3 이후 — 3단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
+
+### [x] 3단계: 리플레이 저장 (완료 2026-10-28)
+- **기록**: 매치마다 `<사용자 폴더>/replays/current.rec`에 입력 기록(`game/InputRecord.h`, 형식은 `--record-inputs`와 같은 `MKINPUT1` 버전 3: 시드·매치 데이터·로드아웃·콘텐츠 해시 + 틱별 입력·확정 명령·해시)을 이어 쓰고, 매치가 끝나면(로비로·나가기·창 닫기) `keepReplay`가 `YYYY-MM-DD_HH-MM[-n].rec`로 옮기고 최근 `keepReplays`개(프로젝트 설정, 기본 20, 0 = 끔)만 남긴다. 튕겨서 남은 `current.rec`은 다음 실행 때 같은 식으로 남는다(끝까지 읽은 틱만큼). 틱이 없는 기록은 지운다.
+  게임 exe(`GameMain`)와 에디터 혼자 플레이(`PlaySession`, `--bot`은 빼고)가 남긴다. 자동 실행·참가 창(사용자 폴더 없음)과 `--record-inputs`를 준 실행은 남기지 않는다. 에디터 혼자 플레이는 이제 콘텐츠 해시를 계산해 기록에 넣는다.
+- **재생**: `net::LockstepSession::startReplay(시드, 매치 데이터, 로드아웃, 입력, 해시)` — 네트워크 없이 바로 Running, `canExecute`는 기록된 틱까지, `inputs`는 기록에서, 내 입력·명령은 버린다. `tickExecuted`가 기록된 해시와 비교해 처음 다른 틱을 `desynced()`/`desyncTick()`으로 알린다. `game::MatchService::playReplay`가 이것을 부르고, 리플레이 중 `returnToLobby`는 `leave`(메뉴로)다. 시뮬레이션·`startWorld`·화면 코드는 그대로다.
+  - 게임 exe `--replay <파일>`: 콘텐츠 해시가 다르면 경고하고 재생, 갈라지면 `SimDebug::setPaused`로 그 틱에서 멈춘다.
+  - 에디터 [파일] > [리플레이 열기](명령 표, 기본 폴더는 사용자 폴더 `replays/`), `--replay <파일>`: 혼자 플레이로 재생하므로 일시정지·한 틱·되감기·[상태] 패널을 그대로 쓴다. 데이터가 다르면 알림, 갈라지면 멈추고 틱을 알린다.
+- **확인**: 봇 300틱 기록 → 창 `--replay` 최종 해시 같음(`dcdc7fffa20df597`), 튜닝을 바꾸면 경고 후 90틱에서 갈라짐을 알림, 에디터 `--replay` 캡처. 단위 테스트 `net replay_session`, `game replay_files`.
+- **남은 것**: 게임 화면의 리플레이 목록(결과 화면·메뉴, `listReplays`는 있다)과 재생 속도·탐색 UI는 게임 흐름 쪽에서. 에디터 플레이 중 튜닝을 고치면 그 판의 기록은 그 틱부터 갈라진다(되감기 기록처럼 다시 시작하지 않는다). 여러 명 플레이의 에디터 기록. 30분 리플레이는 메모리에 입력을 다 올린다(틱당 약 320바이트, 약 17 MB).
+
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
 ### [x] 에디터 다듬기: 에디터 에셋 브라우저 (완료 2026-10-28)

@@ -572,6 +572,34 @@ TEST_CASE(game, input_record) {
     removeFile(path);
 }
 
+TEST_CASE(game, replay_files) {
+    // 매치마다 current.rec → keepReplay가 날짜 이름으로 남기고 keep개만 둔다. 틱이 없는 기록은 지운다
+    const std::string user = executableDirectory() + "/test_replays";
+    for (const std::string& path : game::listReplays(user)) removeFile(path);
+    const game::MatchInfo match{7, 1, 0, {{}}};
+    const std::string current = game::replayRecordingPath(user);
+    TEST_CHECK(game::replayRecordingPath("").empty());
+    for (u32 i = 0; i < 3; ++i) {
+        game::InputRecordWriter w;
+        TEST_CHECK(w.open(current, match, 1));
+        w.write(net::TickInputs{}, i);
+        w.close();
+        TEST_CHECK(!game::keepReplay(user, 2).empty() && !fileExists(current));
+    }
+    std::vector<std::string> kept = game::listReplays(user);
+    TEST_CHECK(kept.size() == 2);
+    game::InputRecording rec;
+    std::string error;
+    TEST_CHECK(!kept.empty() && game::loadInputRecording(kept[0], rec, error) && rec.hashes.size() == 1 &&
+               rec.hashes[0] == 2); // 새 것부터
+    {
+        game::InputRecordWriter w;
+        TEST_CHECK(w.open(current, match, 1));
+    }
+    TEST_CHECK(game::keepReplay(user, 2).empty() && !fileExists(current) && game::listReplays(user).size() == 2);
+    for (const std::string& path : game::listReplays(user)) removeFile(path);
+}
+
 MEALKIT_STRUCT(TestSaveV1) {
     MEALKIT_FIELD(u32, coins, 0, "코인");
     MEALKIT_FIELD(u32, oldName, 0, "예전 이름");
@@ -1395,6 +1423,26 @@ TEST_CASE(net, net_conditions) {
     TEST_CHECK((host.waitingFor() & 2u) && !(host.waitingFor() & 1u) && (client.waitingFor() & 2u));
     client.shutdown();
     host.shutdown();
+}
+
+// 리플레이 세션: 기록된 입력만 내주고 기록 끝에서 멈춘다. 내 입력·명령은 버리고, 기록과 다른 해시는 디싱크로 알린다
+TEST_CASE(net, replay_session) {
+    std::vector<net::TickInputs> inputs(4);
+    for (u32 t = 0; t < inputs.size(); ++t) inputs[t].players[1].bytes[0] = static_cast<u8>(10 + t);
+    net::LockstepSession s;
+    TEST_CHECK(s.startReplay(42, 5, {{1, 2}, {3}}, inputs, {100, 101, 102, 103}));
+    TEST_CHECK(s.isReplay() && s.state() == net::SessionState::Running && s.replayTicks() == 4);
+    TEST_CHECK(s.seed() == 42 && s.matchData() == 5 && s.playerCount() == 2 && s.loadout(1).size() == 1);
+    TEST_CHECK(!s.submitCommand("x", 1));
+    u32 t = 0;
+    while (s.canExecute(t)) {
+        TEST_CHECK(s.inputs(t).players[1].bytes[0] == 10 + t);
+        s.submitLocalInput(t + s.inputDelay(), {});
+        s.tickExecuted(t, t == 2 ? 999 : 100 + t);
+        ++t;
+    }
+    TEST_CHECK(t == 4 && s.desynced() && s.desyncTick() == 2);
+    TEST_CHECK(!s.startReplay(1, 0, {{}}, {}, {})); // Running 중에는 못 연다
 }
 
 // 입력 지연 바꾸기: 매치 중에 늘리고 줄여도 두 피어가 같은 틱부터 바꾸고 같은 입력으로 끝까지 간다 (빈 틱 채우기, 겹친 틱 건너뛰기)

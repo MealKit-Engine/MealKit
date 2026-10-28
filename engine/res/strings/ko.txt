@@ -5,6 +5,11 @@
 File = 파일
 New Scene = 새 씬
 Open... = 열기...
+Open Replay... = 리플레이 열기...
+Could not read the replay: %s = 리플레이를 읽지 못했습니다: %s
+it has no ticks = 기록된 틱이 없습니다
+This replay was recorded with different game data (scene, models, tuning or project settings). It may diverge. = 이 리플레이는 다른 게임 데이터(씬, 모델, 튜닝, 프로젝트 설정)로 기록됐습니다. 도중에 갈라질 수 있습니다.
+The replay diverged from the recording at tick %u (different build or data). = 리플레이가 %u 틱에서 기록과 갈라졌습니다 (다른 빌드나 데이터).
 Save = 저장
 Save As... = 다른 이름으로 저장...
 Project Settings... = 프로젝트 설정...
@@ -264,6 +269,7 @@ loop = 반복
 one-shot = 한 번 재생
 Culled (newest first) = 끊긴 소리 (최근 것부터)
 Sound voices mixed at once = 동시에 섞는 소리 목소리 수
+Replays kept in the user folder (0: do not record) = 사용자 폴더에 남기는 리플레이 수 (0: 기록하지 않음)
 Lighting model (Pbr, Toon, Unlit) = 조명 모델 (Pbr 물리 기반, Toon 툰, Unlit 조명 없음)
 Toon ramp image (under assets, left is shadow, right is lit, empty for 3 steps) = 툰 램프 그림 (assets 아래, 왼쪽 = 그늘, 오른쪽 = 밝은 면. 비우면 기본 3단계)
 Default language (assets/strings/<language>.txt) = 기본 언어 (assets/strings/<언어>.txt)
