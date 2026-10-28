@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <filesystem>
+#include <string_view>
 #include <system_error>
 
 namespace mealkit {
@@ -43,6 +44,18 @@ std::string findAsset(const std::string& relative) {
     if (!ec && fs::exists(cwd, ec)) return toUtf8(cwd);
     return {};
 }
+
+std::string assetFilePath(const std::string& assetPath) {
+    constexpr std::string_view kModules = "modules/";
+    if (assetPath.compare(0, kModules.size(), kModules) == 0) {
+        const size_t slash = assetPath.find('/', kModules.size());
+        if (slash != std::string::npos && slash > kModules.size())
+            return assetPath.substr(0, slash) + "/assets" + assetPath.substr(slash);
+    }
+    return "assets/" + assetPath;
+}
+
+std::string findAssetFile(const std::string& assetPath) { return findAsset(assetFilePath(assetPath)); }
 
 bool fileExists(const std::string& path) {
     std::error_code ec;

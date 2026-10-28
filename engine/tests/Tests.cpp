@@ -483,6 +483,15 @@ MEALKIT_STRUCT(TestItem) {
 
 static_assert(reflect::hasStringField<TestItem>()); // RowRef에는 id 문자열이 있어 시뮬레이션 상태에 넣지 않는다
 
+// 에셋 경로 → 프로젝트 기준 파일 경로. 소스 모듈 에셋은 그 모듈의 assets/ 아래 (docs/MODULES.md)
+TEST_CASE(data, asset_file_path) {
+    TEST_CHECK(assetFilePath("ui/hud.ui") == "assets/ui/hud.ui");
+    TEST_CHECK(assetFilePath("modules/health/ui/bar.ui") == "modules/health/assets/ui/bar.ui");
+    TEST_CHECK(assetFilePath("modules/inventory/tables/items.table") == "modules/inventory/assets/tables/items.table");
+    TEST_CHECK(assetFilePath("modules/") == "assets/modules/");
+    TEST_CHECK(assetFilePath("modules//x.ui") == "assets/modules//x.ui");
+}
+
 TEST_CASE(data, tables) {
     const std::string dir = executableDirectory();
     // 파일: 쓰고 읽으면 같다. 겹친 id·잘못된 id는 버린다

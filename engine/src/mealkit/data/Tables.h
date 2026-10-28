@@ -27,7 +27,7 @@ struct TableText {
 bool readTableText(const std::string& path, TableText& out, std::string* warnings = nullptr);
 bool writeTableText(const std::string& path, const TableText& table, const char* rowTypeName);
 bool validRowId(const std::string& id);
-// assets 기준 경로 → 파일 (findAsset("assets/" + path)). 없으면 빈 문자열.
+// assets 기준 경로 → 파일 (findAssetFile, 모듈 에셋 경로 포함). 없으면 빈 문자열.
 std::string findTableFile(const char* assetPath);
 
 // 형식 없이 다루는 표 (에디터, 콘텐츠 해시): 행마다 행 타입 인스턴스

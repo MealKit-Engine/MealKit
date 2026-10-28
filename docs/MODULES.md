@@ -116,7 +116,7 @@ void World::step(...) {
 ## 에셋 경로
 
 `modules/<이름>/<종류>/...`로 시작하는 경로는 그 모듈의 `assets/` 아래로 푼다. 예: `modules/health/ui/healthbar.ui` → `<프로젝트>/modules/health/assets/ui/healthbar.ui`.
-`assets/` 바로 밑에는 종류 폴더만 올 수 있으므로 프로젝트 에셋과 겹치지 않는다. 경로는 `asset/` 층의 한 함수에서만 푼다. 콘텐츠 해시, 에셋 브라우저, 에셋 쿠킹도 같은 함수를 쓴다.
+`assets/` 바로 밑에는 종류 폴더만 올 수 있으므로 프로젝트 에셋과 겹치지 않는다. 경로는 `platform/Paths.h`의 `assetFilePath`(파일 찾기는 `findAssetFile`) 한 곳에서만 푼다(맨 아래 층이라 표·UI·소리·모델·에디터가 모두 쓸 수 있다). 콘텐츠 해시, 에셋 브라우저, 에셋 쿠킹도 같은 함수를 쓴다.
 게임이 모듈의 `.ui`를 크게 바꾸고 싶으면 프로젝트 `assets/ui/`에 복사해서 자기 경로를 쓴다. 이렇게 하면 모듈 파일이 고치지 않은 상태로 남아 갱신이 쉽다.
 
 ## 레지스트리 `MealKit-Modules`

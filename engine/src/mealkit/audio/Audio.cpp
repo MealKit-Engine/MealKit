@@ -74,7 +74,7 @@ struct Engine::Impl {
         for (const mkaudio::ParseMessage& msg : messages)
             MEALKIT_WARN("%s:%u: %s%s", path.c_str(), msg.line, msg.error ? "" : "(warning) ", msg.text.c_str());
         mkaudio::resolveClips(file, [this](const std::string& name) {
-            std::string found = findAsset("assets/" + name);
+            std::string found = findAssetFile(name);
             if (found.empty() && std::find(missingClips.begin(), missingClips.end(), name) == missingClips.end()) {
                 MEALKIT_WARN("Audio: clip assets/%s not found", name.c_str());
                 missingClips.push_back(name);

@@ -273,7 +273,7 @@ ImageInfo Atlas::image(const std::string& assetPath) {
         if (i.path == assetPath) return i.info;
     Image img;
     img.path = assetPath;
-    const std::string file = findAsset("assets/" + assetPath);
+    const std::string file = findAssetFile(assetPath);
     img.time = file.empty() ? 0 : fileWriteTime(file);
     std::string bytes;
     int w = 0, h = 0, channels = 0;
@@ -309,7 +309,7 @@ void Atlas::reloadChanged() {
         m->resetGlyphs();
     }
     for (size_t i = 0; i < m->images.size(); ++i) {
-        const std::string file = findAsset("assets/" + m->images[i].path);
+        const std::string file = findAssetFile(m->images[i].path);
         if ((file.empty() ? 0 : fileWriteTime(file)) != m->images[i].time) {
             m->images.erase(m->images.begin() + static_cast<std::ptrdiff_t>(i)); // 다음에 쓸 때 다시 읽는다 (아틀라스 자리는 버린다)
             --i;

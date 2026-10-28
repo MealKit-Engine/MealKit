@@ -118,7 +118,7 @@ bool validRowId(const std::string& id) {
     return true;
 }
 
-std::string findTableFile(const char* assetPath) { return findAsset(std::string("assets/") + assetPath); }
+std::string findTableFile(const char* assetPath) { return findAssetFile(assetPath); }
 
 bool readTableText(const std::string& path, TableText& out, std::string* warnings) {
     out = {};

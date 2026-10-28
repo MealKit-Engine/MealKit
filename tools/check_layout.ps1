@@ -4,6 +4,7 @@
 # - assets/ 바로 밑: 종류 폴더와 정해진 단일 파일만
 # - 종류 폴더 안: 그 종류의 확장자만 (하위 폴더는 자유)
 # - 외부 도구 원본(.blend, .psd ...)은 assets/에 두지 않는다 → art/
+# - modules/<이름>/: module.txt(name = 폴더 이름), 모듈 에셋은 modules/<이름>/assets/<종류>/ (위와 같은 규칙, docs/MODULES.md)
 # - third_party/<lib>/: LICENSE와 mealkit.txt(name·version·license·source), 허용 라이선스, 엔진에 이미 있는 라이브러리 금지
 # - 정해진 폴더가 없으면 경고 (tools\upgrade_project.ps1이 만든다)
 param(
@@ -50,34 +51,61 @@ foreach ($f in $wanted) {
     if (-not (Test-Path (Join-Path $Project $f))) { $warnings += "warning: $($f)/: missing folder (tools\upgrade_project.ps1 creates it)" }
 }
 
-# ---------------------------------------------------------------- assets/
-$assets = Join-Path $Project "assets"
-if (Test-Path $assets) {
-    foreach ($k in $kinds.Keys) {
-        if (-not (Test-Path (Join-Path $assets $k))) { $warnings += "warning: assets/$($k)/: missing kind folder (tools\upgrade_project.ps1 creates it)" }
+# ---------------------------------------------------------------- assets/ (프로젝트, 그리고 모듈마다 modules/<이름>/assets/)
+function Check-Assets([string]$assets, [bool]$wantKinds) {
+    if (-not (Test-Path $assets)) { return }
+    $label = (Rel $assets) + "/"
+    $depth = $label.Split("/").Count - 1 # 종류 폴더가 경로의 몇 번째 조각인가
+    if ($wantKinds) {
+        foreach ($k in $kinds.Keys) {
+            if (-not (Test-Path (Join-Path $assets $k))) { $script:warnings += "warning: $label$($k)/: missing kind folder (tools\upgrade_project.ps1 creates it)" }
+        }
     }
     foreach ($item in Get-ChildItem $assets -Force) {
         if ($item.PSIsContainer) {
             if (-not $kinds.Contains($item.Name.ToLowerInvariant())) {
-                Err $item.FullName "unknown folder in assets/ (kind folders: $($kinds.Keys -join ', '))"
+                Err $item.FullName "unknown folder in $label (kind folders: $($kinds.Keys -join ', '))"
             }
         } elseif ($alwaysOk -notcontains $item.Extension.ToLowerInvariant() -and $singleFiles -notcontains $item.Name.ToLowerInvariant()) {
-            Err $item.FullName "files directly in assets/ are only $($singleFiles -join ', '). Move it into a kind folder"
+            Err $item.FullName "files directly in $label are only $($singleFiles -join ', '). Move it into a kind folder"
         }
     }
     foreach ($file in Get-ChildItem $assets -Recurse -File -Force) {
         $ext = $file.Extension.ToLowerInvariant()
         if ($alwaysOk -contains $ext -or $file.Name -ieq ".gitkeep") { continue }
         if ($sourceFormats -contains $ext) {
-            Err $file.FullName "source files of external tools go in art/ (assets/ ships with the game)"
+            Err $file.FullName "source files of external tools go in art/ ($label ships with the game)"
             continue
         }
         $relParts = (Rel $file.FullName).Split("/")
-        if ($relParts.Count -lt 3) { continue } # assets 바로 밑 파일은 위에서 봤다
-        $kind = $relParts[1].ToLowerInvariant()
+        if ($relParts.Count -lt $depth + 2) { continue } # assets 바로 밑 파일은 위에서 봤다
+        $kind = $relParts[$depth].ToLowerInvariant()
         if ($kinds.Contains($kind) -and $kinds[$kind] -notcontains $ext) {
-            Err $file.FullName "'$ext' does not belong in assets/$kind/ (expected $($kinds[$kind] -join ' '))"
+            Err $file.FullName "'$ext' does not belong in $label$kind/ (expected $($kinds[$kind] -join ' '))"
         }
+    }
+}
+Check-Assets (Join-Path $Project "assets") $true
+
+# ---------------------------------------------------------------- modules/ (docs/MODULES.md)
+# 폴더마다 module.txt(name = 폴더 이름), 모듈 최상위는 정해진 것만, 에셋은 모듈의 assets/<종류>/ (위와 같은 규칙)
+$moduleTop = @("module.txt", "module.files", "sim", "view", "assets", "art", "docs", "tests", ".github", ".gitignore", ".gitattributes", "license", "license.md", "license.txt", "readme.md")
+$modulesDir = Join-Path $Project "modules"
+if (Test-Path $modulesDir) {
+    foreach ($m in Get-ChildItem $modulesDir -Directory -Force) {
+        $metaFile = Join-Path $m.FullName "module.txt"
+        if (-not (Test-Path $metaFile)) { Err $m.FullName "module.txt is missing (name, version, engine, requires)"; continue }
+        $name = ""
+        foreach ($line in [IO.File]::ReadAllLines($metaFile, $utf8)) {
+            if ($line -match '^\s*name\s+(\S+)') { $name = $Matches[1] }
+        }
+        if ($name -cne $m.Name) { Err $metaFile "'name $name' must match the folder name '$($m.Name)'" }
+        foreach ($item in Get-ChildItem $m.FullName -Force) {
+            if ($moduleTop -notcontains $item.Name.ToLowerInvariant() -and $item.Extension -ne ".new") {
+                Warn $item.FullName "unknown item in a module folder (expected $($moduleTop[0..7] -join ', '))"
+            }
+        }
+        Check-Assets (Join-Path $m.FullName "assets") $false
     }
 }
 

@@ -63,7 +63,7 @@ void TablesPanel::syncDocs(const std::vector<reflect::TableInfo>& infos) {
             }
         } else {
             doc.info = info;
-            doc.path = backslashes(m_projectDir + "/assets/" + info.path);
+            doc.path = backslashes(m_projectDir + "/" + assetFilePath(info.path));
             load(doc);
         }
         reflect::Instance defaults(*info.rowType);

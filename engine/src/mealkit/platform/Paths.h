@@ -15,6 +15,13 @@ std::string executableDirectory();
 // 개발 중에는 build\Release\bin 에서 실행해도 저장소의 assets 폴더를 찾을 수 있다. 없으면 빈 문자열.
 std::string findAsset(const std::string& relative);
 
+// 에셋 경로(assets 기준, "ui/hud.ui") → 프로젝트 기준 경로("assets/ui/hud.ui"). 에셋 경로를 파일로 바꾸는 곳은 모두 이것을 쓴다.
+// 소스 모듈의 에셋 "modules/<이름>/ui/x.ui"는 그 모듈의 assets/ 아래 "modules/<이름>/assets/ui/x.ui" (docs/MODULES.md).
+// assets/ 바로 밑에는 종류 폴더만 오므로 modules/로 시작하는 경로가 프로젝트 에셋과 겹치지 않는다.
+std::string assetFilePath(const std::string& assetPath);
+// findAsset(assetFilePath(assetPath))
+std::string findAssetFile(const std::string& assetPath);
+
 // 프로젝트 폴더를 정한다 (범용 에디터가 프로젝트를 열 때). 정하면 findAsset은 이 폴더에서만 찾는다
 // (에디터 실행 파일 위쪽의 엔진 저장소 assets를 잘못 집지 않도록).
 void setProjectRoot(const std::string& directory);

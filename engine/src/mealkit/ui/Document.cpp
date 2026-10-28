@@ -647,12 +647,12 @@ bool parseNested(const std::string& text, const std::string& assetPath, Document
 }
 
 bool loadNested(const std::string& assetPath, Document& out, const Theme* theme, u32 depth) {
-    const std::string path = findAsset("assets/" + assetPath);
+    const std::string path = findAssetFile(assetPath);
     std::string text;
     if (path.empty() || !readTextFile(path, text)) {
         out = {};
         out.path = assetPath;
-        out.errors.push_back("assets/" + assetPath + " not found");
+        out.errors.push_back(assetFilePath(assetPath) + " not found");
         return false;
     }
     return parseNested(text, assetPath, out, theme, depth);
