@@ -46,7 +46,7 @@ module-cooldown/             (저장소 = 프로젝트에 복사되면 modules/c
 - 복사하는 것은 모듈 구조뿐이다: `module.txt`, `sim/`, `view/`, `assets/`, `art/`, `docs/`, 루트의 `LICENSE*`·`README*`(`*.new` 제외). 빌드 폴더·`tests/`·`.git`·`.github/`는 가지 않는다. 이때 `module.files`(설치 기록)를 더한다. `module.files`는 첫 줄 `source folder <경로>` 또는 `source git <주소> <태그|-> <커밋> [modules/<이름>]`, 그 뒤 `<sha256>  <모듈 기준 경로>` 줄들이다. 해시는 텍스트 파일이면 줄바꿈과 무관하게, 그 밖은 바이트로 잰다.
 - `app/`은 없다. 화면 흐름과 세션은 게임 것이다. 모듈 하나는 기능 하나이고, 큰 기능은 작은 모듈 여럿과 의존으로 쪼갠다.
 - 공식 모듈 저장소는 `github.com/MealKit-Engine/module-<이름>` (MIT)이다. 다른 사람 모듈도 이름 규칙만 권장하고 강제하지 않는다.
-- 새 모듈은 레지스트리의 템플릿 저장소(`module-template`)로 시작한다.
+- 새 모듈은 레지스트리의 `template/`에서 `python tools/new_module.py <이름> <폴더> --author <이름>`으로 만든다(따로 `module-template` 저장소를 두지 않는다. 템플릿과 공용 CI·등록 검사가 한 저장소에 있어야 같이 고쳐진다).
 
 ### `module.txt`
 
@@ -203,7 +203,7 @@ tools\module.ps1 remove  -Project <폴더> <이름>
 모듈 단위 시험은 `tests/CMakeLists.txt`(엔진 `cmake/MealKit.cmake`를 include해 `mealkit_core`에 링크, 빌드 폴더에 `#include "<이름>/..."` 전달 헤더를 만든다) + `tests/*.cpp`(`main`). `cmake -S tests -B build/tests -G Ninja -DMEALKIT_ROOT=<엔진> -DMEALKIT_HEADLESS_ONLY=ON`으로 혼자 빌드한다. 공용 워크플로는 이것을 돌린다.
 
 템플릿에 워크플로 한 줄이 들어 있다. 레지스트리의 공용 워크플로(`uses: MealKit-Engine/MealKit-Modules/.github/workflows/module.yml@v1`)를 부른다.
-공용 워크플로는 `module.txt`의 엔진 버전을 받아 빈 프로젝트에 모듈을 넣고 빌드하고, SimCheck와 `tests/`를 돌리고, Windows·Linux에서 결정론 시나리오 해시를 비교한다.
+공용 워크플로는 `module.txt`의 엔진 버전에 맞는 가장 새 엔진 태그 `v<MAJOR.MINOR>.*`(없으면 `main`)를 받아, Windows·Linux에서 레지스트리 `tools/check_module.ps1`을 돌린다: `module.txt`·`LICENSE`·`docs/index.md` 확인, `tests/` 빌드·실행, `modules/<이름>/`에 놓고 SimCheck. 로컬에서도 같은 스크립트로 검사한다. 빈 프로젝트에 넣어 게임째 빌드하는 것과 플랫폼 간 해시 비교는 아직 없다(⑥ 뒤에 더한다).
 공식 모듈과 다른 사람 모듈이 같은 검사를 쓰므로, 저장소가 여러 개여도 CI는 한 곳에서 고친다.
 
 ## 문서
