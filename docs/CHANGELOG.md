@@ -5,6 +5,11 @@
 
 ## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
 
+### [x] 에디터 다듬기: 씬 여러 개 다루기 (완료 2026-10-28)
+- **[씬 목록] 창** ([파일] > [씬 목록], `Editor::drawSceneList`): `<프로젝트>\assets\scenes`의 `.scene`. ★ = 시작 씬(`mealkit.project`의 `scene`), "(열림)" = 지금 씬. 두 번 누르거나 [열기]로 열고(저장 안 된 변경은 자동 저장본으로 남긴다, `openSceneFile`), [시작 씬으로]는 `ProjectSettingsPanel::setStartScene`이 그 값만 바꿔 바로 저장한다(창에서 고치는 중인 다른 값은 저장하지 않는다).
+- **최근 씬** ([파일] > [최근 씬]): 프로젝트마다 `build\editor\recent_scenes.txt`, 열거나 저장한 씬 8개까지(없어진 파일은 뺀다). 명령 팔레트의 씬 열기도 같은 `openSceneFile`.
+- **남은 것**: 하위 폴더의 씬은 목록에 없다(`assets/scenes` 바로 아래만).
+
 ### [x] 에디터 다듬기: 디버그 그리기 API (완료 2026-10-28)
 - **API** (`debug/DebugDraw.h`): `debug::line(a, b, 색, 초)`, `debug::box(중심, 반 크기, 회전, 색, 초)`(모서리 12개), `debug::text(위치, 글자, 색, 초)`. 초 0 = 다음에 그리는 한 프레임. 색은 sRGB RGBA8(`kYellow`·`kRed`·`kGreen`·`kBlue`).
 - **결정론**: 요청을 잠금 있는 목록에 쌓기만 하고 시뮬레이션이 읽는 값은 없다. 그래서 게임 `sim/`에서 불러도 된다(SimCheck가 막지 않는 `mealkit/debug/`). 되감기·그림자 시뮬레이션이 같은 틱을 다시 돌리면 겹쳐 그려질 수 있다. 최대 20,000개.
