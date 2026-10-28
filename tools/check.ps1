@@ -50,7 +50,7 @@ $pathRules = @(
     @('^assets/sounds', 'folder:audio'), @('^assets/ui/', 'folder:ui'), @('^assets/strings/', 'folder:loc'),
     @('^assets/(game\.tuning|scenes/|models/|tables/)', 'det game editor render'), @('^assets/', 'game editor'),
     @('^mealkit\.project$', 'det game editor'),
-    @('^(templates/|VERSION$|tools/(new|upgrade|rename)_project|tools/project_common)', 'project'),
+    @('^(templates/|VERSION$|tools/(new|upgrade|rename)_project|tools/project_common|tools/module\.ps1$)', 'project'),
     @('^tools/(penpot-plugin|blender-addon)/', 'tools'),
     @('^tools/(mp_test|record_replay|ci_|desync_diff)', 'det!'), @('^tools/(live_probe|compare_images)', 'game render tools'),
     @('^tools/(check_|gen_notices)', 'static'), @('^tools/check\.ps1$', ''), @('^tools/update_mkaudio', 'folder:audio'),
@@ -557,6 +557,42 @@ if (-not $Quick) {
         $output | Out-File -Encoding utf8 $log
         $ok = (Test-Path "$projects\CheckGame\.mealkit-template") -and (($output -match "^Done: 0 change").Count -gt 0) -and $layoutOk -and $simOk
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
+        return $ok
+    }
+    Invoke-Check project "Module tool (add / update / remove)" {
+        param($log)
+        # tools\module.ps1 (docs/MODULES.md): 폴더에서 추가 → 게임이 한 파일을 고침 → 새 버전으로 갱신(고친 파일은 .new, 없어진 파일은 지움)
+        # → source/가 include하면 제거 거절 → git 태그에서 다시 추가
+        $ErrorActionPreference = "Continue" # 거절되는 경우와 git 알림이 stderr로 나온다. 결과는 종료 코드와 파일로 본다
+        $t = Join-Path $env:TEMP "mealkit-check-modules"
+        Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue
+        $proj = "$t\Game"; $src = "$t\mod-cool"
+        New-Item -ItemType Directory -Force "$proj\source\sim", "$src\sim", "$src\tests" | Out-Null
+        [IO.File]::WriteAllText("$proj\mealkit.project", "@format project 1`nname Game`n")
+        [IO.File]::WriteAllText("$src\module.txt", "@format module 1`nname cool`nversion 0.1.0`n")
+        foreach ($f in "A", "B", "Gone") { [IO.File]::WriteAllText("$src\sim\$f.h", "$f 1") }
+        [IO.File]::WriteAllText("$src\tests\T.cpp", "t")
+        $tool = "$PSScriptRoot\module.ps1"
+        $out = @()
+        function Mod { $script:out += & powershell -NoProfile -ExecutionPolicy Bypass -File $tool @args -Project $proj 2>&1 | ForEach-Object { "$_" }; return $LASTEXITCODE }
+        $ok = (Mod add $src) -eq 0 -and -not (Test-Path "$proj\modules\cool\tests") -and (Test-Path "$proj\modules\cool\module.files")
+        [IO.File]::WriteAllText("$proj\modules\cool\sim\B.h", "B mine")
+        [IO.File]::WriteAllText("$src\module.txt", "@format module 1`nname cool`nversion 0.2.0`n")
+        foreach ($f in "A", "B") { [IO.File]::WriteAllText("$src\sim\$f.h", "$f 2") }
+        Remove-Item "$src\sim\Gone.h"
+        $ok = $ok -and (Mod update cool) -eq 0
+        $ok = $ok -and (Get-Content "$proj\modules\cool\sim\A.h") -eq "A 2" -and (Get-Content "$proj\modules\cool\sim\B.h") -eq "B mine" -and
+            (Test-Path "$proj\modules\cool\sim\B.h.new") -and -not (Test-Path "$proj\modules\cool\sim\Gone.h")
+        [IO.File]::WriteAllText("$proj\source\sim\W.h", "#include `"cool/sim/A.h`"`n")
+        $ok = $ok -and (Mod remove cool) -ne 0 -and (Test-Path "$proj\modules\cool")
+        $ok = $ok -and (Mod remove cool -Force) -eq 0 -and -not (Test-Path "$proj\modules\cool")
+        Push-Location $src
+        git init -q; git -c user.name=check -c user.email=check@localhost add -A 2>$null; git -c user.name=check -c user.email=check@localhost commit -qm v 2>$null; git tag v0.2.0
+        Pop-Location
+        $ok = $ok -and (Mod add "file:///$($src.Replace('\', '/'))#v0.2.0") -eq 0 -and
+            ((Get-Content "$proj\modules\cool\module.files") -match "^source git .* v0\.2\.0 [0-9a-f]{40}$").Count -eq 1
+        $out | Out-File -Encoding utf8 $log
+        Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue
         return $ok
     }
     Invoke-Check export "Export build" {

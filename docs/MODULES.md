@@ -43,7 +43,7 @@ module-cooldown/             (저장소 = 프로젝트에 복사되면 modules/c
   .github/workflows/  레지스트리가 주는 공용 워크플로 한 줄 (아래 "모듈 CI")
 ```
 
-- 복사할 때 `.github/`, `tests/`, `.git`은 빼고, `module.files`(설치 기록)를 더한다.
+- 복사할 때 `.git`, `.github/`, `tests/`, `*.new`는 빼고, `module.files`(설치 기록)를 더한다. `module.files`는 첫 줄 `source folder <경로>` 또는 `source git <주소> <태그|-> <커밋> [modules/<이름>]`, 그 뒤 `<sha256>  <모듈 기준 경로>` 줄들이다. 해시는 텍스트 파일이면 줄바꿈과 무관하게, 그 밖은 바이트로 잰다.
 - `app/`은 없다. 화면 흐름과 세션은 게임 것이다. 모듈 하나는 기능 하나이고, 큰 기능은 작은 모듈 여럿과 의존으로 쪼갠다.
 - 공식 모듈 저장소는 `github.com/MealKit-Engine/module-<이름>` (MIT)이다. 다른 사람 모듈도 이름 규칙만 권장하고 강제하지 않는다.
 - 새 모듈은 레지스트리의 템플릿 저장소(`module-template`)로 시작한다.
