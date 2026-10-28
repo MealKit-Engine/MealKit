@@ -45,7 +45,7 @@ module-cooldown/             (저장소 = 프로젝트에 복사되면 modules/c
 
 - 복사하는 것은 모듈 구조뿐이다: `module.txt`, `sim/`, `view/`, `assets/`, `art/`, `docs/`, 루트의 `LICENSE*`·`README*`(`*.new` 제외). 빌드 폴더·`tests/`·`.git`·`.github/`는 가지 않는다. 이때 `module.files`(설치 기록)를 더한다. `module.files`는 첫 줄 `source folder <경로>` 또는 `source git <주소> <태그|-> <커밋> [modules/<이름>]`, 그 뒤 `<sha256>  <모듈 기준 경로>` 줄들이다. 해시는 텍스트 파일이면 줄바꿈과 무관하게, 그 밖은 바이트로 잰다.
 - `app/`은 없다. 화면 흐름과 세션은 게임 것이다. 모듈 하나는 기능 하나이고, 큰 기능은 작은 모듈 여럿과 의존으로 쪼갠다.
-- 공식 모듈 저장소는 `github.com/MealKit-Engine/module-<이름>` (MIT)이다. 다른 사람 모듈도 이름 규칙만 권장하고 강제하지 않는다.
+- **공식 모듈은 없다** (2026-10-28 사용자 결정). 첫 모듈들도 작성자 KingProtea99의 저장소(`github.com/KingProtea99/module-<이름>`, MIT)에 두고 다른 사람 모듈과 똑같이 등록한다. `index.json`·사이트·도구에 공식 표시가 없다. 저장소 이름 `module-<이름>`은 권장만 한다.
 - 새 모듈은 레지스트리의 `template/`에서 `python tools/new_module.py <이름> <폴더> --author <이름>`으로 만든다(따로 `module-template` 저장소를 두지 않는다. 템플릿과 공용 CI·등록 검사가 한 저장소에 있어야 같이 고쳐진다).
 
 ### `module.txt`
@@ -139,12 +139,12 @@ MealKit-Modules/
 ```
 @format module-entry 1
 name cooldown
-repo https://github.com/MealKit-Engine/module-cooldown
-author MealKit
+repo https://github.com/KingProtea99/module-cooldown
+author KingProtea99
 ```
 
 - 등록 파일에는 이름과 저장소만 적는다. 버전·요약·의존·엔진은 모듈 저장소의 태그와 `module.txt`에서 CI가 읽는다. 정보가 두 곳에 있지 않게 하려는 것이다.
-- **공식 표시**는 등록 파일에 적지 않는다. 저장소 주인이 `MealKit-Engine` 조직이면 공식이다. 적는 칸이 있으면 흉내 낼 수 있기 때문이다.
+- 공식 표시는 없다. 모든 모듈이 같은 대우를 받는다.
 
 ### CI가 하는 일
 
@@ -152,13 +152,13 @@ author MealKit
 |---|---|
 | 등록 PR | 이름이 비어 있는지와 규칙에 맞는지 본다. 저장소에서 `v*` 태그를 읽고 각 태그의 `module.txt`가 맞는지(이름·버전 일치), `LICENSE`, `docs/index.md`가 있는지 본다. 최신 태그를 **빈 프로젝트에 넣어 `module.txt`의 엔진 버전으로 빌드**하고, SimCheck와 모듈 `tests/`를 돌린다. 실패하면 PR이 막힌다 |
 | 매일 | 모든 등록 모듈의 새 태그를 읽어 `index.json`과 사이트를 다시 만든다. 새 태그는 위와 같이 검사하고, 최신 엔진 출시본으로도 빌드해서 "엔진 0.9에서 빌드 실패" 같은 상태를 남긴다 |
-| 엔진 출시 전 | 엔진 저장소 CI가 레지스트리의 공용 워크플로로 **공식 모듈 전부를 새 엔진에 빌드**해 본다. API를 바꿔 공식 모듈이 깨지면 출시 전에 안다(초안 1에서 엔진 저장소에 두려던 이유를 이것으로 대신한다) |
+| 엔진 출시 전 | 엔진 저장소 CI가 레지스트리의 공용 워크플로로 **등록 모듈 전부를 새 엔진에 빌드**해 본다. API를 바꿔 모듈이 깨지면 출시 전에 안다(초안 1에서 엔진 저장소에 두려던 이유를 이것으로 대신한다) |
 
 ### `index.json` (한 모듈 예)
 
 ```json
-{ "name": "cooldown", "repo": "https://github.com/MealKit-Engine/module-cooldown", "official": true,
-  "title": "Cooldowns", "summary": "...", "tags": ["gameplay","timer","ui"], "license": "MIT", "author": "MealKit",
+{ "name": "cooldown", "repo": "https://github.com/KingProtea99/module-cooldown",
+  "title": "Cooldowns", "summary": "...", "tags": ["gameplay","timer","ui"], "license": "MIT", "author": "KingProtea99",
   "versions": [ { "version": "0.1.0", "tag": "v0.1.0", "commit": "3f2a…", "engine": "0.8", "requires": [],
                   "checks": { "0.8": "pass", "0.9": "fail" } } ] }
 ```
@@ -169,11 +169,11 @@ author MealKit
 
 | 어디 | 무엇 |
 |---|---|
-| 사이트 (`mealkit-engine.github.io/MealKit-Modules`) | 검색, 태그, 엔진 버전 필터, 공식만 보기. 모듈마다 `docs/index.md`를 그린 페이지, 버전·빌드 상태, 저장소 링크, 추가 명령 한 줄 |
-| MealKit Manager [모듈] 탭 | 사이트와 같은 목록과 검색. 고른 프로젝트에 추가(그 프로젝트 엔진의 `tools\module.ps1`을 부른다). 받은 목록은 `%LOCALAPPDATA%\MealKit\module-index.json`에 캐시하고, 오프라인이면 캐시를 보여 준다 |
+| 사이트 (`mealkit-engine.github.io/MealKit-Modules`) | 검색, 태그, 엔진 버전 필터. 모듈마다 `docs/index.md`를 그린 페이지, 버전·빌드 상태, 저장소 링크, 추가 명령 한 줄 |
+| MealKit Manager [모듈] 탭 | 사이트와 같은 목록과 검색. 고른 프로젝트에 추가(그 프로젝트 엔진의 `tools\module.ps1`을 부른다). 받은 목록은 `%LOCALAPPDATA%\MealKit\module-index.json`에 캐시하고, 오프라인이면 캐시를 보여 준다(`module.ps1`도 같은 캐시를 쓴다. 목록 주소 `raw.githubusercontent.com/MealKit-Engine/MealKit-Modules/main/index.json`, `-Index`·`MEALKIT_MODULE_INDEX`로 바꾼다) |
 | 에디터 [프로젝트 설정] > [모듈] | 설치된 모듈 표(이름, 버전, 새 버전 있음, 출처, 고친 파일 수, 문서), [추가…]는 같은 목록 창. 갱신 미리 보기와 제거 |
 
-공식이 아닌 모듈을 추가할 때는 한 번 경고한다. "이 코드는 에디터와 게임 안에서 실행됩니다. 레지스트리 CI는 빌드만 확인하고 코드를 검토하지 않습니다."
+레지스트리 모듈을 처음 추가할 때는 한 번 경고한다(어떤 모듈이든 같다). "이 코드는 에디터와 게임 안에서 실행됩니다. 레지스트리 CI는 빌드만 확인하고 코드를 검토하지 않습니다."
 
 ## 추가·갱신·제거 (`tools\module.ps1`)
 
@@ -189,7 +189,7 @@ tools\module.ps1 remove  -Project <폴더> <이름>
 
 | 동작 | 하는 일 |
 |---|---|
-| add (이름) | `index.json`에서 프로젝트 엔진 MINOR에 맞는 가장 새 버전을 고른다. `git clone --depth 1 --branch <태그>`로 `%LOCALAPPDATA%\MealKit\module-cache\`에 받고, 커밋이 목록과 같은지 본다. `requires`에서 빠진 모듈은 목록을 보여 준다(`-WithRequires`면 같이 추가). 복사한 뒤 `module.files`에 파일별 sha256과 `source registry cooldown 0.1.0 <커밋>`을 쓰고, 모듈 문서의 "추가 방법"을 연다 |
+| add (이름) | `index.json`에서 프로젝트 엔진 MINOR에 맞는 가장 새 버전을 고른다. `git clone --depth 1 --branch <태그>`로 `%LOCALAPPDATA%\MealKit\module-cache\`에 받고, 커밋이 목록과 같은지 본다. `requires`에서 빠진 모듈은 목록을 보여 준다(`-WithRequires`면 같이 추가). 복사한 뒤 `module.files`에 파일별 sha256과 `source registry cooldown 0.1.0 <커밋> <저장소> <태그>`를 쓰고(`update`는 이 줄로 레지스트리에서 다시 찾고 `-To <버전>`으로 버전을 고른다), 모듈 문서의 "추가 방법"을 연다 |
 | add (git 주소·폴더) | 레지스트리에 없는 모듈(만드는 중인 것, 사내 모듈)이다. 같은 방식이고 `source git …`·`source folder …`로 적는다 |
 | update | 업그레이드 도구 규칙 그대로다. 고치지 않은 파일(해시가 기록과 같음)은 새것으로 바꾸고, 고친 파일은 남기고 `<파일>.new`를 쓴다. 새 버전에서 없어진 파일은 안 고쳤으면 지우고, 고쳤으면 남기고 알린다 |
 | remove | 다른 모듈이 `requires`하면 거절한다. 게임 `source/`에 `"<이름>/`를 include하는 줄이 있으면 그 줄을 보여 주고 거절한다(`-Force`로 강행). 폴더를 지운다(되돌리기는 git이 맡는다) |
@@ -204,17 +204,17 @@ tools\module.ps1 remove  -Project <폴더> <이름>
 
 템플릿에 워크플로 한 줄이 들어 있다. 레지스트리의 공용 워크플로(`uses: MealKit-Engine/MealKit-Modules/.github/workflows/module.yml@v1`)를 부른다.
 공용 워크플로는 `module.txt`의 엔진 버전에 맞는 가장 새 엔진 태그 `v<MAJOR.MINOR>.*`(없으면 `main`)를 받아, Windows·Linux에서 레지스트리 `tools/check_module.ps1`을 돌린다: `module.txt`·`LICENSE`·`docs/index.md` 확인, `tests/` 빌드·실행, `modules/<이름>/`에 놓고 SimCheck. 로컬에서도 같은 스크립트로 검사한다. 빈 프로젝트에 넣어 게임째 빌드하는 것과 플랫폼 간 해시 비교는 아직 없다(⑥ 뒤에 더한다).
-공식 모듈과 다른 사람 모듈이 같은 검사를 쓰므로, 저장소가 여러 개여도 CI는 한 곳에서 고친다.
+모든 모듈이 같은 검사를 쓰므로, 저장소가 여러 개여도 CI는 한 곳에서 고친다.
 
 ## 문서
 
 모듈 문서는 모듈 저장소의 `docs/index.md` 한 페이지다. 틀은 그대로다: 개요 / 추가 방법(붙이는 코드) / 사용법 / 동작 원리 / 버전 기록. 프로젝트에 같이 복사되므로 쓰는 버전의 문서가 옆에 남는다.
 
-- **어디서 보나**: 레지스트리 사이트가 모든 모듈 문서를 같은 모양으로 그린다. 공식이든 아니든 같다.
+- **어디서 보나**: 레지스트리 사이트가 모든 모듈 문서를 같은 모양으로 그린다. 작성자와 무관하게 같다.
 - 문서 저장소(MealKit-docs)의 "게임 개발자 안내 > Modules"는 쓰는 법 한 페이지와 레지스트리 사이트 링크만 둔다. "엔진 개발자 안내 > Writing modules"에는 이 문서의 규칙(폴더, `module.txt`, include 규칙, namespace, 등록 방법)을 옮긴다.
 - 이렇게 하면 DECISIONS 2026-10-21의 "문서 빌드가 엔진 `modules/*/docs`를 모은다"를 바꾸게 된다. 한국어는 모듈 저장소의 `docs/index.ko.md`(선택)로 두고, 사이트에서 언어를 고른다.
 
-## 공식 모듈 첫 목록과 순서
+## 첫 모듈 목록과 순서 (KingProtea99 저장소)
 
 | 순서 | 모듈 | 의존 | 비고 |
 |---|---|---|---|
@@ -235,7 +235,7 @@ tools\module.ps1 remove  -Project <폴더> <이름>
 6. `module.ps1 search`와 이름으로 add, Manager [모듈] 탭, 에디터 [모듈] 창
 7. 레지스트리 사이트(정적 페이지: 검색, 필터, 문서 그리기)
 8. 문서 저장소: Modules 안내 페이지, Writing modules(영어·한국어)
-9. 나머지 공식 모듈은 위 표 순서로, 각각 자기 저장소에서
+9. 나머지 첫 모듈은 위 표 순서로, 각각 자기 저장소에서
 
 1~4는 GitHub 없이 로컬에서 끝난다. 5부터는 GitHub 저장소(`MealKit-Modules`, `module-cooldown`)가 필요하다. 저장소 만들기와 push는 사용자가 한다(오디오 2와 같음).
 

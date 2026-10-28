@@ -591,6 +591,19 @@ if (-not $Quick) {
         Pop-Location
         $ok = $ok -and (Mod add "file:///$($src.Replace('\', '/'))#v0.2.0") -eq 0 -and
             ((Get-Content "$proj\modules\cool\module.files") -match "^source git .* v0\.2\.0 [0-9a-f]{40}$").Count -eq 1
+        # 레지스트리 이름: 로컬 index.json(MealKit-Modules tools/build_index.py 모양)으로 찾기·추가, 커밋이 다르면 거절
+        $commit = (git -C $src rev-parse HEAD).Trim()
+        $repo = "file:///$($src.Replace('\', '/'))"
+        $index = "$t\index.json"
+        $writeIndex = { param($c) [IO.File]::WriteAllText($index, (@{ format = 1; modules = @(@{ name = "cool"; repo = $repo; author = "check"; title = "Cool";
+            summary = "check module"; tags = @("timer"); latest = "0.2.0"; versions = @(@{ version = "0.2.0"; tag = "v0.2.0"; commit = $c;
+            engine = ((Get-Content "$root\VERSION") -replace '^(\d+\.\d+).*$', '$1'); requires = @() }) }) } | ConvertTo-Json -Depth 6)) }
+        & $writeIndex $commit
+        $ok = $ok -and (Mod remove cool -Force) -eq 0 -and (Mod search timer -Index $index) -eq 0 -and ($modOut -match "^cool 0\.2\.0").Count -ge 1
+        $ok = $ok -and (Mod add cool -Index $index) -eq 0 -and
+            ((Get-Content "$proj\modules\cool\module.files") -match "^source registry cool 0\.2\.0 $commit ").Count -eq 1
+        & $writeIndex ("0" * 40)
+        $ok = $ok -and (Mod remove cool -Force) -eq 0 -and (Mod add cool -Index $index) -ne 0 -and -not (Test-Path "$proj\modules\cool")
         $modOut | Out-File -Encoding utf8 $log
         Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue
         return $ok

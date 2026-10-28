@@ -1,37 +1,48 @@
 ﻿# 소스 모듈을 프로젝트 modules/<이름>/에 넣고, 갱신하고, 뺀다 (docs/MODULES.md). 에디터·MealKit Manager도 이것을 부른다.
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 search [<검색어>] [-Tag <태그>]
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 list   -Project <폴더>
-#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 add    -Project <폴더> <폴더 | git주소[#태그]> [-Name <모듈>]
-#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 update -Project <폴더> <모듈> [-From <폴더 | git주소[#태그]>] [-DryRun] [-Force]
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 add    -Project <폴더> <이름[@버전] | 폴더 | git주소[#태그]> [-Name <모듈>] [-WithRequires]
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 update -Project <폴더> <모듈> [-To <버전>] [-From <폴더 | git주소[#태그]>] [-DryRun] [-Force]
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 remove -Project <폴더> <모듈> [-Force]
 #
 # - 원본은 모듈 폴더(루트에 module.txt) 또는 그런 폴더를 가진 git 저장소. 저장소에 modules/<이름>/module.txt가 여럿이면 -Name으로 고른다.
-#   레지스트리 이름으로 찾기(MealKit-Modules)는 아직 없다.
+#   이름은 레지스트리(MealKit-Modules) index.json에서 찾는다: 이 엔진 MINOR용 가장 새 버전을 태그로 받고, 커밋이 목록과 같은지 본다.
+#   목록은 -Index 또는 환경 변수 MEALKIT_MODULE_INDEX(주소 또는 파일)로 바꾼다. 받은 목록은 %LOCALAPPDATA%\MealKit\module-index.json에 두고 오프라인이면 그것을 쓴다.
 # - 복사하는 것: module.txt, sim/, view/, assets/, art/, docs/, 루트의 LICENSE*·README* (*.new 제외). 복사한 파일의 해시와 가져온 곳은 modules/<이름>/module.files에 남는다.
 # - update는 upgrade_project.ps1과 같은 규칙: 고치지 않은 파일(해시가 기록과 같음)만 새것으로 바꾸고, 고친 파일은 남기고 <파일>.new를 쓴다.
 #   새 버전에서 없어진 파일은 고치지 않았으면 지우고, 고쳤으면 남기고 알린다. -Force면 고친 파일도 바꾼다.
 # - remove는 다른 모듈의 requires에 있거나 게임 source/가 include하면 거절한다(-Force로 강행). 되돌리기는 git이 맡는다.
 param(
-    [Parameter(Mandatory = $true, Position = 0)][ValidateSet("list", "add", "update", "remove")][string]$Command,
+    [Parameter(Mandatory = $true, Position = 0)][ValidateSet("search", "list", "add", "update", "remove")][string]$Command,
     [Parameter(Position = 1)][string]$Target = "",
     [string]$Project = "",
     [string]$Name = "",
     [string]$From = "",
+    [string]$To = "",
+    [string]$Tag = "",
+    [string]$Index = "",
+    [switch]$WithRequires,
     [switch]$DryRun,
     [switch]$Force
 )
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\project_common.ps1"
 
-if ($Project -eq "") { $Project = (Get-Location).Path }
-$Project = (Get-Item -LiteralPath (Resolve-Path $Project).Path -Force).FullName.TrimEnd("\") # 긴 경로 (8.3 짧은 이름 아님)
-if (-not (Test-Path (Join-Path $Project "mealkit.project"))) { Write-Error "$Project has no mealkit.project"; exit 1 }
-$modulesDir = Join-Path $Project "modules"
+$modulesDir = ""
+if ($Command -ne "search" -or $Project) { # search는 프로젝트 없이도 된다 (있으면 설치 표시)
+    if ($Project -eq "") { $Project = (Get-Location).Path }
+    $Project = (Get-Item -LiteralPath (Resolve-Path $Project).Path -Force).FullName.TrimEnd("\") # 긴 경로 (8.3 짧은 이름 아님)
+    if (-not (Test-Path (Join-Path $Project "mealkit.project"))) { Write-Error "$Project has no mealkit.project"; exit 1 }
+    $modulesDir = Join-Path $Project "modules"
+}
 $filesName = "module.files"
 # 복사하는 것은 모듈 구조뿐이다 (docs/MODULES.md): .git, .github, tests/, 빌드 폴더 등은 프로젝트에 가지 않는다
 $copyTop = @("module.txt", "sim", "view", "assets", "art", "docs")
 $textExtensions = @(".h", ".hpp", ".cpp", ".c", ".inl", ".txt", ".md", ".ui", ".table", ".tuning", ".scene", ".events", ".bindings",
     ".json", ".yml", ".yaml", ".gltf", ".cube", ".fx", ".gitignore", ".gitattributes")
 $engineMinor = ((Get-MealKitVersion) -replace '^(\d+\.\d+).*$', '$1')
+$defaultIndex = "https://raw.githubusercontent.com/MealKit-Engine/MealKit-Modules/main/index.json"
+$registryNamePattern = '^[a-z][a-z0-9_]*(@\d+\.\d+\.\d+)?$'
 
 # ---------------------------------------------------------------- 공통
 
@@ -90,10 +101,69 @@ function Write-FilesRecord([string]$dir, [string]$source, [hashtable]$hashes) {
     Write-TextFile (Join-Path $dir $filesName) (($lines -join "`r`n") + "`r`n")
 }
 
-# 원본(폴더 또는 git 주소#태그) → @{ dir; source } . git은 캐시 폴더에 새로 받는다
+# 레지스트리 목록 (MealKit-Modules index.json). 받지 못하면 지난번 받은 캐시
+$script:registry = $null
+function Get-Registry {
+    if ($script:registry) { return $script:registry }
+    $spec = if ($Index) { $Index } elseif ($env:MEALKIT_MODULE_INDEX) { $env:MEALKIT_MODULE_INDEX } else { $defaultIndex }
+    $cache = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "MealKit\module-index.json"
+    if (Test-Path -LiteralPath $spec) {
+        $text = [IO.File]::ReadAllText((Resolve-Path -LiteralPath $spec).Path, $MealKitUtf8)
+    } else {
+        try {
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            $client = New-Object Net.WebClient
+            $client.Encoding = [Text.Encoding]::UTF8
+            $text = $client.DownloadString($spec)
+            New-Item -ItemType Directory -Force (Split-Path -Parent $cache) | Out-Null
+            [IO.File]::WriteAllText($cache, $text, $MealKitUtf8)
+        } catch {
+            if (-not (Test-Path $cache)) { throw "cannot read the module list $spec ($($_.Exception.Message)) and there is no cached copy" }
+            Write-Host "warning: cannot read $spec - using the list cached $((Get-Item $cache).LastWriteTime)" -ForegroundColor Yellow
+            $text = [IO.File]::ReadAllText($cache, $MealKitUtf8)
+        }
+    }
+    $script:registry = $text | ConvertFrom-Json
+    return $script:registry
+}
+
+function Find-RegistryModule([string]$name) {
+    $m = @((Get-Registry).modules | Where-Object { $_.name -eq $name })
+    if ($m.Count -eq 0) { throw "no module '$name' in the registry (tools\module.ps1 search)" }
+    return $m[0]
+}
+
+# 고를 버전: 정한 버전, 아니면 이 엔진 MINOR용 가장 새 버전, 그것도 없으면 가장 새 버전(경고)
+function Select-RegistryVersion($module, [string]$version) {
+    $versions = @($module.versions) # build_index.py가 새 버전부터 적는다
+    if ($version) {
+        $v = @($versions | Where-Object { $_.version -eq $version })
+        if ($v.Count -eq 0) { throw "$($module.name) has no version $version (has $(($versions | ForEach-Object version) -join ', '))" }
+        return $v[0]
+    }
+    $fit = @($versions | Where-Object { $_.engine -eq $engineMinor })
+    if ($fit.Count -gt 0) { return $fit[0] }
+    Write-Host "warning: no $($module.name) version is made for engine $engineMinor - taking $($versions[0].version) (engine $($versions[0].engine))" -ForegroundColor Yellow
+    return $versions[0]
+}
+
+# 원본(레지스트리 이름[@버전], 폴더, git 주소#태그) → @{ dir; source } . git은 캐시 폴더에 새로 받는다
 function Get-ModuleSource([string]$spec, [string]$want) {
     $root = ""
     $source = ""
+    if (-not (Test-Path $spec) -and $spec -match $registryNamePattern) {
+        $rname, $rver = $spec.Split("@", 2)
+        $module = Find-RegistryModule $rname
+        $v = Select-RegistryVersion $module $rver
+        $src = Get-ModuleSource "$($module.repo)#$($v.tag)" ""
+        $commit = ($src.source -split '\s+')[3]
+        if ($commit -ne $v.commit) {
+            Remove-Cache $src
+            throw "$($module.repo) tag $($v.tag) is now $commit, but the registry lists $($v.commit) - the tag was moved, not adding it"
+        }
+        $src.source = "registry $rname $($v.version) $commit $($module.repo) $($v.tag)"
+        return $src
+    }
     if (Test-Path $spec) {
         $root = (Resolve-Path $spec).Path.TrimEnd("\")
         $source = "folder $root"
@@ -116,7 +186,7 @@ function Get-ModuleSource([string]$spec, [string]$want) {
         $commit = (& git -C $root rev-parse HEAD).Trim()
         $source = "git $url $(if ($ref) { $ref } else { '-' }) $commit"
     } else {
-        throw "'$spec' is not a folder or a git address. (Adding by registry name comes with MealKit-Modules.)"
+        throw "'$spec' is not a registry module name, a folder or a git address"
     }
     if (Test-Path (Join-Path $root "module.txt")) { return @{ dir = $root; source = $source } }
     $found = @(Get-ChildItem (Join-Path $root "modules") -Directory -ErrorAction SilentlyContinue |
@@ -154,6 +224,26 @@ function Get-Installed {
 # ---------------------------------------------------------------- 명령
 
 switch ($Command) {
+    "search" {
+        $words = @("$Target".ToLowerInvariant() -split '\s+' | Where-Object { $_ })
+        $hits = @((Get-Registry).modules | Where-Object {
+            $m = $_
+            $text = "$($m.name) $($m.title) $($m.summary) $($m.tags -join ' ') $($m.author)".ToLowerInvariant()
+            (-not $Tag -or $m.tags -contains $Tag) -and -not ($words | Where-Object { -not $text.Contains($_) })
+        })
+        if ($hits.Count -eq 0) { Write-Host "No modules found"; break }
+        # 이 엔진 MINOR용 버전이 있는 것 먼저
+        $hits = $hits | Sort-Object @{ Expression = { @($_.versions | Where-Object { $_.engine -eq $engineMinor }).Count -eq 0 } }, name
+        foreach ($m in $hits) {
+            $fit = @($m.versions | Where-Object { $_.engine -eq $engineMinor })
+            $ver = if ($fit.Count) { $fit[0].version } else { "$($m.latest) (engine $(@($m.versions)[0].engine), not $engineMinor)" }
+            $mark = if ($modulesDir -and (Test-Path (Join-Path $modulesDir "$($m.name)\module.txt"))) { "  [installed]" } else { "" }
+            Write-Host ("{0} {1}  {2}{3}" -f $m.name, $ver, $m.title, $mark) -ForegroundColor $(if ($fit.Count) { "White" } else { "DarkGray" })
+            Write-Host "    $($m.summary)"
+            Write-Host "    by $($m.author)  tags: $($m.tags -join ', ')  $($m.repo)" -ForegroundColor DarkGray
+        }
+    }
+
     "list" {
         $installed = Get-Installed
         if ($installed.Count -eq 0) { Write-Host "No modules in $modulesDir"; break }
@@ -172,7 +262,7 @@ switch ($Command) {
     }
 
     "add" {
-        if (-not $Target) { Write-Error "add needs a folder or git address"; exit 1 }
+        if (-not $Target) { Write-Error "add needs a module name, a folder or a git address"; exit 1 }
         $src = Get-ModuleSource $Target $Name
         try {
             $info = Read-ModuleInfo $src.dir
@@ -188,6 +278,19 @@ switch ($Command) {
             }
             Write-FilesRecord $dest $src.source $hashes
             Write-Host "Added $($info.name) $($info.version) ($($hashes.Count) files) to modules/$($info.name)" -ForegroundColor Green
+            if ($src.source.StartsWith("registry ")) {
+                Write-Host "Note: module code runs inside the editor and the game. The registry checks that it builds, not what it does - read what you add." -ForegroundColor Yellow
+            }
+            $missing = @($info.requires | Where-Object { -not (Test-Path (Join-Path $modulesDir "$_\module.txt")) })
+            if ($WithRequires) {
+                foreach ($req in $missing) {
+                    Write-Host "Adding required module $req"
+                    & $PSCommandPath add $req -Project $Project -Index $Index -WithRequires
+                    if ($LASTEXITCODE -ne 0) { throw "could not add the required module $req" }
+                }
+            } elseif ($missing.Count) {
+                Write-Host "Also add: $($missing -join ', ') (or add again with -WithRequires)" -ForegroundColor Yellow
+            }
             Test-ModuleWarnings $info
             $docs = Join-Path $dest "docs\index.md"
             if (Test-Path $docs) { Write-Host "Next: connect it to the game as its docs say ('Adding' section): $docs" }
@@ -202,6 +305,7 @@ switch ($Command) {
         $spec = $From
         if (-not $spec) {
             if ($record.source -match '^folder\s+(.+)$') { $spec = $Matches[1] }
+            elseif ($record.source -match '^registry\s+(\S+)') { $spec = if ($To) { "$($Matches[1])@$To" } else { $Matches[1] } }
             elseif ($record.source -match '^git\s+(\S+)\s+(\S+)') { $spec = if ($Matches[2] -eq "-") { $Matches[1] } else { "$($Matches[1])#$($Matches[2])" } }
             else { Write-Error "modules/$Target has no recorded source - give one with -From"; exit 1 }
         }
