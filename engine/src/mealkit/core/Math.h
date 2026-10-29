@@ -4,9 +4,9 @@
 
 #include <cmath>
 
-// 행 벡터 규약(v * M), 왼손 좌표계(x 오른쪽, y 위, z 앞).
-// 시뮬레이션 코드에서는 사칙연산과 sqrt만 쓴다. sin/cos 등 CRT 함수는 CPU마다
-// 다른 코드 경로(FMA 등)를 탈 수 있어 결정론을 깨므로 렌더링/입력 쪽에서만 쓴다.
+// Row vector convention (v * M), left-handed coordinates (x right, y up, z forward).
+// Simulation code uses only arithmetic and sqrt. CRT functions like sin/cos may take
+// different code paths per CPU (FMA etc.) and break determinism, so they're used only for rendering/input.
 namespace mealkit {
 
 struct Vec3 {
@@ -52,7 +52,7 @@ inline Vec3 normalize(Vec3 v) {
 constexpr Vec3 lerp(Vec3 a, Vec3 b, f32 t) { return a + (b - a) * t; }
 constexpr f32 lerp(f32 a, f32 b, f32 t) { return a + (b - a) * t; }
 
-// 2D 값 (입력 축, 화면 좌표)
+// 2D value (input axes, screen coordinates)
 struct Vec2 {
     f32 x = 0.0f, y = 0.0f;
 
@@ -75,7 +75,7 @@ struct Quat {
     f32 x = 0.0f, y = 0.0f, z = 0.0f, w = 1.0f;
 };
 
-// 해밀턴 곱: (a * b)로 회전하면 b를 먼저, a를 나중에 적용한다.
+// Hamilton product: rotating by (a * b) applies b first, then a.
 constexpr Quat operator*(Quat a, Quat b) {
     // clang-format off
     return {a.w * b.x + a.x * b.w + a.y * b.z - a.z * b.y,
@@ -98,7 +98,7 @@ constexpr Vec3 rotate(Quat q, Vec3 v) {
     return v + q.w * t + cross(u, t);
 }
 
-// 시뮬레이션 금지: sin/cos 사용
+// Not for simulation: uses sin/cos
 inline Quat quatFromAxisAngle(Vec3 axis, f32 angle) {
     const Vec3 a = normalize(axis);
     const f32 s = std::sin(angle * 0.5f);
@@ -110,7 +110,7 @@ inline Quat nlerp(Quat a, Quat b, f32 t) {
     return normalize({lerp(a.x, b.x, t), lerp(a.y, b.y, t), lerp(a.z, b.z, t), lerp(a.w, b.w, t)});
 }
 
-// 결정론적: 월드 공간 각속도로 회전을 적분한다 (q' = q + 0.5 * (w,0) * q * dt). 삼각함수 없음.
+// Deterministic: integrates rotation by world-space angular velocity (q' = q + 0.5 * (w,0) * q * dt). No trig.
 inline Quat integrate(Quat q, Vec3 angularVelocity, f32 dt) {
     const Quat dq = Quat{angularVelocity.x, angularVelocity.y, angularVelocity.z, 0.0f} * q;
     const f32 h = 0.5f * dt;
@@ -127,7 +127,7 @@ struct Mat4 {
     }
 };
 
-// 행 벡터 규약: v * (a * b) == (v * a) * b
+// Row vector convention: v * (a * b) == (v * a) * b
 constexpr Mat4 operator*(const Mat4& a, const Mat4& b) {
     Mat4 r;
     for (int i = 0; i < 4; ++i)
@@ -153,7 +153,7 @@ inline Mat4 lookAtLH(Vec3 eye, Vec3 target, Vec3 up) {
     return r;
 }
 
-// Reversed-Z 원근 투영: 가까운 면 = 1, 먼 면 = 0. float 깊이 버퍼의 정밀도를 거리 전체에 고르게 쓴다.
+// Reversed-Z perspective projection: near plane = 1, far plane = 0. Spreads float depth buffer precision evenly over distance.
 inline Mat4 perspectiveReversedZ(f32 fovY, f32 aspect, f32 zNear, f32 zFar) {
     const f32 yScale = 1.0f / std::tan(fovY * 0.5f);
     const f32 xScale = yScale / aspect;

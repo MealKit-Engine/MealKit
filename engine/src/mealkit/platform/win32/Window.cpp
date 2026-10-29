@@ -50,7 +50,7 @@ bool Window::create(const WindowDesc& desc) {
     wc.lpfnWndProc = windowProc;
     wc.hInstance = instance;
     wc.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-    // exe의 아이콘 리소스 1번 (없으면 Windows 기본 아이콘)
+    // Icon resource 1 of the exe (Windows default icon if none)
     wc.hIcon = static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(1), IMAGE_ICON, GetSystemMetrics(SM_CXICON),
                                              GetSystemMetrics(SM_CYICON), 0));
     wc.hIconSm = static_cast<HICON>(LoadImageW(instance, MAKEINTRESOURCEW(1), IMAGE_ICON,
@@ -75,7 +75,7 @@ bool Window::create(const WindowDesc& desc) {
     m_hwnd = hwnd;
 
     if (desc.captionColor != kDefaultCaptionColor) {
-        // 어두운 제목 표시줄(Windows 10 20H1+) + 제목 표시줄 색(Windows 11). 지원하지 않는 Windows에서는 조용히 무시된다
+        // Dark title bar (Windows 10 20H1+) + title bar color (Windows 11). Silently ignored on Windows versions that don't support it
         const BOOL dark = TRUE;
         DwmSetWindowAttribute(hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE, &dark, sizeof(dark));
         const u32 rgb = desc.captionColor;
@@ -88,7 +88,7 @@ bool Window::create(const WindowDesc& desc) {
     m_width = static_cast<u32>(client.right - client.left);
     m_height = static_cast<u32>(client.bottom - client.top);
 
-    // Raw Input 마우스: 커서 가속과 화면 경계의 영향을 받지 않는 이동량
+    // Raw Input mouse: movement unaffected by cursor acceleration and screen edges
     RAWINPUTDEVICE rid{};
     rid.usUsagePage = 0x01;
     rid.usUsage = 0x02;
@@ -112,7 +112,7 @@ void Window::setMode(WindowMode mode, u32 width, u32 height) {
         RECT rect{0, 0, static_cast<LONG>(width), static_cast<LONG>(height)};
         AdjustWindowRectEx(&rect, style, FALSE, 0);
         const LONG w = rect.right - rect.left, h = rect.bottom - rect.top;
-        const RECT& work = mi.rcWork; // 작업 영역 가운데
+        const RECT& work = mi.rcWork; // center of the work area
         SetWindowPos(hwnd, HWND_NOTOPMOST, work.left + std::max(0L, (work.right - work.left - w) / 2),
                      work.top + std::max(0L, (work.bottom - work.top - h) / 2), w, h, SWP_FRAMECHANGED | SWP_SHOWWINDOW);
     } else {
@@ -211,7 +211,7 @@ std::intptr_t Window::handleMessage(void* hwndPtr, u32 msg, std::uintptr_t wpara
             setCursorCaptured(false);
         }
         return 0;
-    case WM_CHAR: { // 글자 입력 위젯 (UTF-16, 두 개로 오는 글자는 합친다)
+    case WM_CHAR: { // text input widgets (UTF-16, characters arriving in two parts are combined)
         const u32 unit = static_cast<u32>(wparam);
         if (unit >= 0xD800 && unit < 0xDC00) {
             m_highSurrogate = unit;
@@ -225,7 +225,7 @@ std::intptr_t Window::handleMessage(void* hwndPtr, u32 msg, std::uintptr_t wpara
     }
     case WM_KEYDOWN: m_input.setKey(static_cast<u8>(wparam), true); return 0;
     case WM_KEYUP: m_input.setKey(static_cast<u8>(wparam), false); return 0;
-    case WM_SYSKEYDOWN: m_input.setKey(static_cast<u8>(wparam), true); break; // Alt+F4 등은 기본 처리
+    case WM_SYSKEYDOWN: m_input.setKey(static_cast<u8>(wparam), true); break; // Alt+F4 etc. get default handling
     case WM_SYSKEYUP: m_input.setKey(static_cast<u8>(wparam), false); break;
     case WM_LBUTTONDOWN:
     case WM_RBUTTONDOWN:
@@ -264,7 +264,7 @@ std::intptr_t Window::handleMessage(void* hwndPtr, u32 msg, std::uintptr_t wpara
             raw.header.dwType == RIM_TYPEMOUSE && !(raw.data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE)) {
             m_input.addMouseDelta(static_cast<f32>(raw.data.mouse.lLastX), static_cast<f32>(raw.data.mouse.lLastY));
         }
-        break; // WM_INPUT은 DefWindowProc이 정리해야 한다
+        break; // WM_INPUT must be cleaned up by DefWindowProc
     }
     case WM_DPICHANGED: {
         const RECT* r = reinterpret_cast<const RECT*>(lparam);

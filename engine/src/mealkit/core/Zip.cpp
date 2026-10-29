@@ -10,7 +10,7 @@ namespace {
 
 constexpr u32 kLocalSig = 0x04034b50, kCentralSig = 0x02014b50, kEndSig = 0x06054b50;
 constexpr u16 kUtf8Names = 0x0800;
-constexpr u16 kDosDate = (46u << 9) | (1u << 5) | 1u; // 2026-01-01 고정 (같은 내용이면 같은 바이트)
+constexpr u16 kDosDate = (46u << 9) | (1u << 5) | 1u; // fixed at 2026-01-01 (same content gives the same bytes)
 
 void put(std::vector<u8>& out, u32 v, int bytes) {
     for (int i = 0; i < bytes; ++i) out.push_back(static_cast<u8>(v >> (8 * i)));
@@ -79,7 +79,7 @@ bool writeZip(const std::string& path, const std::vector<ZipEntry>& entries) {
     const u32 centralOffset = static_cast<u32>(out.size());
     out.insert(out.end(), central.begin(), central.end());
     put(out, kEndSig, 4);
-    put(out, 0, 4); // disk 번호
+    put(out, 0, 4); // disk number
     put(out, static_cast<u32>(entries.size()), 2);
     put(out, static_cast<u32>(entries.size()), 2);
     put(out, static_cast<u32>(central.size()), 4);
@@ -104,7 +104,7 @@ bool readZip(const std::string& path, std::vector<ZipEntry>& out, std::string& e
     for (size_t n; (n = std::fread(buffer, 1, sizeof(buffer), f)) > 0;) bytes.insert(bytes.end(), buffer, buffer + n);
     std::fclose(f);
 
-    // 끝 레코드는 뒤에서 찾는다 (뒤에 주석이 붙을 수 있다)
+    // The end record is searched from the back (a comment may follow it)
     size_t end = bytes.size() >= 22 ? bytes.size() - 22 : SIZE_MAX;
     for (; end != SIZE_MAX; --end)
         if (get(&bytes[end], 4) == kEndSig) break;

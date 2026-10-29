@@ -8,18 +8,18 @@
 #include <string>
 #include <vector>
 
-// 정의 데이터 표 파일 (assets/tables/*.table, mealkit/sim/Table.h). 게임 app/·에디터·콘텐츠 해시와 엔진 표(입력·소리·연출)가 같은 함수로 읽는다.
-// data/는 게임 경계(game/)보다 아래 계층이다 (docs/CODING_MODEL.md "엔진 폴더 사이 의존").
+// Definition data table files (assets/tables/*.table, mealkit/sim/Table.h). Game app/, the editor, the content hash, and engine tables (input/sound/feedback) read them with the same functions.
+// data/ is a lower layer than the game boundary (game/) (docs/CODING_MODEL.md "Dependencies between engine folders").
 //   # MealKit table (PropKind) ...
 //   row crate
 //   density 200
 //   size 0.28 0.64
 //   row barrel
 //   ...
-// 행 순서 = 파일 순서 = 행 번호. 행 id는 영문자·숫자·_·-·. 이고 표 안에서 겹치지 않는다(겹치면 뒤의 행을 버린다).
+// Row order = file order = row index. Row ids are letters/digits/_/-/. and unique within a table (on duplicates the later row is dropped).
 namespace mealkit::data {
 
-// 표 파일 내용: 형식을 몰라도 다룬다 (행 id + 그 행의 "경로 값" 줄)
+// Table file contents: handled without knowing the format (row id + that row's "path value" lines)
 struct TableText {
     std::vector<std::string> ids;
     std::vector<reflect::TextFields> rows;
@@ -27,29 +27,29 @@ struct TableText {
 bool readTableText(const std::string& path, TableText& out, std::string* warnings = nullptr);
 bool writeTableText(const std::string& path, const TableText& table, const char* rowTypeName);
 bool validRowId(const std::string& id);
-// assets 기준 경로 → 파일 (findAssetFile, 모듈 에셋 경로 포함). 없으면 빈 문자열.
+// Path relative to assets → file (findAssetFile, including module asset paths). Empty string if missing.
 std::string findTableFile(const char* assetPath);
 
-// 형식 없이 다루는 표 (에디터, 콘텐츠 해시): 행마다 행 타입 인스턴스
+// Table handled without a format (editor, content hash): a row type instance per row
 struct TableData {
     const reflect::TypeInfo* rowType = nullptr;
     std::vector<std::string> ids;
     std::vector<reflect::Instance> rows;
 };
 void tableToText(const TableData& table, TableText& out);
-// 줄마다 행 타입으로 읽는다. 모르는 필드는 warnings에.
+// Reads each line with the row type. Unknown fields go to warnings.
 void tableFromText(const reflect::TypeInfo& rowType, const TableText& text, TableData& out,
                    std::string* warnings = nullptr);
 bool loadTableData(const reflect::TypeInfo& rowType, const std::string& path, TableData& out,
                    std::string* warnings = nullptr);
 bool saveTableData(const TableData& table, const std::string& path);
 
-// CSV (Google Sheets·Excel): 첫 줄은 "id"와 필드 경로(table 파일과 같은 이름), 한 줄이 한 행. 가져오기는 표를 CSV 내용으로 바꾼다(한쪽 방향).
+// CSV (Google Sheets/Excel): first line is "id" and field paths (same names as the table file), one line per row. Import replaces the table with the CSV contents (one-way).
 bool exportTableCsv(const TableData& table, const std::string& path);
 bool importTableCsv(TableData& table, const std::string& path, std::string* error);
 
-// 행 참조(RowRef) 풀기: data 안의 RowRef마다 가리키는 표(행 타입이 같은 표)에서 id를 찾아 행 번호를 넣는다.
-// 없는 id는 missing에 "<where><경로> -> <id> (표 이름)" 한 줄. 빈 id는 참조 없음.
+// Resolve row references (RowRef): for each RowRef in data, find the id in the referenced table (table with the same row type) and set the row index.
+// Missing ids add a line "<where><path> -> <id> (table name)" to missing. Empty id means no reference.
 struct TableIndex {
     const reflect::TypeInfo* rowType;
     const std::vector<std::string>* ids;
@@ -69,12 +69,12 @@ TableIndex tableIndex(const sim::Table<Row>& table) {
     return {&reflect::typeOf<Row>(), &table.ids};
 }
 
-// 시뮬레이션 표(kTableView가 아닌 것)를 읽어 id와 행 값(MEALKIT_VIEW_FIELD 제외)을 해시에 넣는다 (콘텐츠 해시).
+// Reads simulation tables (not kTableView) and hashes ids and row values (excluding MEALKIT_VIEW_FIELD) (content hash).
 void hashTables(const reflect::TableList& tables, Hasher& h);
 
-// ---------------------------------------------------------------- 형식을 아는 쪽 (게임 app/)
+// ---------------------------------------------------------------- Format-aware side (game app/)
 
-// MEALKIT_TABLE로 등록한 경로 (이 모듈의 등록 목록에서 행 타입으로 찾는다). 없으면 nullptr.
+// Path registered with MEALKIT_TABLE (found by row type in this module's registration list). nullptr if missing.
 template <class Row>
 const char* tablePath(const reflect::TableList& list = reflect::moduleTables()) {
     for (const reflect::TableInfo& t : list)
@@ -82,7 +82,7 @@ const char* tablePath(const reflect::TableList& list = reflect::moduleTables()) 
     return nullptr;
 }
 
-// 표를 읽는다 (등록한 경로, assetPath를 주면 그것). 파일이 없으면 빈 표와 경고.
+// Reads the table (registered path, or assetPath if given). If the file is missing, an empty table and a warning.
 template <class Row>
 bool loadTable(sim::Table<Row>& out, const char* assetPath = nullptr) {
     out.ids.clear();

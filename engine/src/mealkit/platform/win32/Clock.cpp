@@ -1,4 +1,4 @@
-// 시간의 Windows 구현: QueryPerformanceCounter, 고해상도 대기 타이머.
+// Windows implementation of time: QueryPerformanceCounter, high-resolution waitable timers.
 #include "mealkit/core/Clock.h"
 
 #include <windows.h>
@@ -23,7 +23,7 @@ f64 nowSeconds() {
 
 void sleepSeconds(f64 seconds) {
     if (seconds <= 0.0) return;
-    // 스레드마다 타이머 하나 (만들기 실패하면 Sleep, 해상도 약 15ms)
+    // One timer per thread (if creation fails, Sleep with about 15ms resolution)
     struct Timer {
         HANDLE handle = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
         ~Timer() {
@@ -36,7 +36,7 @@ void sleepSeconds(f64 seconds) {
         return;
     }
     LARGE_INTEGER due;
-    due.QuadPart = -static_cast<LONGLONG>(seconds * 1e7); // 100ns 단위, 음수 = 상대 시간
+    due.QuadPart = -static_cast<LONGLONG>(seconds * 1e7); // 100ns units, negative = relative time
     SetWaitableTimerEx(timer.handle, &due, 0, nullptr, nullptr, nullptr, 0);
     WaitForSingleObject(timer.handle, INFINITE);
 }
@@ -44,7 +44,7 @@ void sleepSeconds(f64 seconds) {
 FrameLimiter::FrameLimiter() {
     m_timer = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION, TIMER_ALL_ACCESS);
     if (!m_timer) {
-        // Windows 10 1803 이전: 일반 타이머로 대체
+        // Before Windows 10 1803: fall back to a normal timer
         m_timer = CreateWaitableTimerExW(nullptr, nullptr, 0, TIMER_ALL_ACCESS);
     }
 }
@@ -63,12 +63,12 @@ void FrameLimiter::wait() {
 
     m_next += m_interval;
     f64 now = nowSeconds();
-    if (m_next < now - m_interval) m_next = now; // 크게 밀렸으면 따라잡지 말고 재동기화
+    if (m_next < now - m_interval) m_next = now; // if far behind, resync instead of catching up
 
     const f64 remaining = m_next - now;
     if (remaining > 0.002 && m_timer) {
         LARGE_INTEGER due;
-        due.QuadPart = -static_cast<LONGLONG>((remaining - 0.001) * 1e7); // 100ns 단위, 음수 = 상대 시간
+        due.QuadPart = -static_cast<LONGLONG>((remaining - 0.001) * 1e7); // 100ns units, negative = relative time
         SetWaitableTimerEx(m_timer, &due, 0, nullptr, nullptr, nullptr, 0);
         WaitForSingleObject(m_timer, INFINITE);
     }

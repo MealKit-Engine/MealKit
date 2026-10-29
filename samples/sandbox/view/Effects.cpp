@@ -15,7 +15,7 @@ constexpr f32 kTwoPi = 6.28318531f;
 void Effects::onEvent(const GameEvent& event, f64 now, const ShockwaveLook& look, f32 pawnHalfHeight) {
     const Vec3 feet = event.position - Vec3{0.0f, pawnHalfHeight - look.groundOffset, 0.0f};
     switch (event.kind) {
-    case EventKind::Push: shockwaves.push_back({feet, now, event.value}); break; // 밀치기 범위
+    case EventKind::Push: shockwaves.push_back({feet, now, event.value}); break; // push range
     case EventKind::Bounce:
         shockwaves.push_back({event.position + Vec3{0.0f, look.groundOffset, 0.0f}, now, look.bounceRadius});
         break;
@@ -34,7 +34,7 @@ void Effects::prune(f64 now, const ShockwaveLook& look) {
     std::erase_if(shockwaves, [&](const Shockwave& w) { return now - w.start >= seconds; });
 }
 
-// 발밑에서 밀치기 범위까지 퍼지는 고리 (얇은 상자 조각으로 그린다)
+// A ring spreading from underfoot to the push range (drawn with thin box segments)
 void Effects::draw(f64 now, const ShockwaveLook& look, render::MeshId box, render::DrawList& out) const {
     const u32 segments = std::max(look.segments, 3u);
     const f64 seconds = std::max(look.seconds, 0.01f);

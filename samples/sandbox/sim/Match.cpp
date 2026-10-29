@@ -1,5 +1,5 @@
-// 매치 단계: 카운트다운 → 경기 → 끝 (결과). 모든 피어가 같은 틱에 같은 단계가 된다 (상태 필드).
-// 화면 흐름(app/)은 단계를 읽기만 한다: 카운트다운 숫자, 남은 시간, 끝나면 결과 화면.
+// Match phases: countdown → playing → finished (results). All peers reach the same phase on the same tick (state field).
+// The screen flow (app/) only reads the phase: countdown number, remaining time, results screen when finished.
 #include "sim/Systems.h"
 
 namespace sandbox {
@@ -8,7 +8,7 @@ void startMatch(World& world) {
     WorldState& s = world.state;
     s.phase = MatchPhase::Countdown;
     s.phaseEnd.start(s.tick, world.tuning.countdown);
-    if (world.tuning.countdown.value == 0) s.phase = MatchPhase::Playing; // 카운트다운 없음
+    if (world.tuning.countdown.value == 0) s.phase = MatchPhase::Playing; // no countdown
     if (s.phase == MatchPhase::Playing && world.tuning.matchLength.value > 0) s.phaseEnd.start(s.tick, world.tuning.matchLength);
 }
 

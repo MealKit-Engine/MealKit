@@ -1,4 +1,4 @@
-// 파일·폴더 중 std::filesystem으로 되는 부분 (모든 플랫폼 공통). OS 호출은 win32/Paths.cpp, posix/Paths.cpp.
+// Parts of files/folders that std::filesystem can do (common to all platforms). OS calls are in win32/Paths.cpp and posix/Paths.cpp.
 #include "mealkit/platform/Paths.h"
 
 #include <algorithm>

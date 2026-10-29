@@ -7,8 +7,8 @@
 
 #include <string>
 
-// 화면 흐름의 뷰 모델 (타이틀 → 메뉴 → 참가 → 로비 → 로딩 → 매치(일시정지, 결과) → 로비). assets/ui/*.ui가 필드 이름으로 바인딩한다.
-// 어느 화면을 열지와 버튼 처리는 app/Flow.cpp. 화면은 이 값을 읽기만 하고, 입력 위젯(이름, 주소, 채팅, 준비, 몸)만 자기 필드에 쓴다.
+// View models of the screen flow (title → menu → join → lobby → loading → match (pause, results) → lobby). assets/ui/*.ui binds by field name.
+// Which screen to open and button handling are in app/Flow.cpp. Screens only read these values; only input widgets (name, address, chat, ready, body) write their own fields.
 namespace sandbox {
 
 MEALKIT_VIEWMODEL(TitleVm) {

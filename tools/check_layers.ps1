@@ -1,20 +1,20 @@
-﻿# 엔진 폴더 계층 검사 (docs/CODING_MODEL.md "엔진 폴더 사이 의존"). check.ps1이 부른다.
-#   powershell -ExecutionPolicy Bypass -File tools\check_layers.ps1     문제가 있으면 종료 코드 1
-# engine/src/mealkit/<폴더>의 파일은 아래 순서에서 자기보다 앞의(또는 같은 칸의) 폴더만 #include "mealkit/<폴더>/..."로 쓴다.
-# 순서에 없는 폴더가 생기면 실패한다: 새 폴더는 여기와 CODING_MODEL.md에 자리를 정하고 넣는다.
-# platform/<os>/ 구현 파일은 여러 폴더의 헤더(net/Socket.h, core/Clock.h 등)를 구현하므로 빼고, check_platform.ps1이 본다.
+﻿# Engine folder layer check (docs/CODING_MODEL.md "Dependencies between engine folders"). Called by check.ps1.
+#   powershell -ExecutionPolicy Bypass -File tools\check_layers.ps1     exit code 1 on problems
+# Files in engine/src/mealkit/<folder> may only #include "mealkit/<folder>/..." from folders earlier in (or in the same slot of) the order below.
+# Fails if a folder not in the order appears: give new folders a place here and in CODING_MODEL.md.
+# platform/<os>/ implementation files implement headers from several folders (net/Socket.h, core/Clock.h etc.), so they're excluded and check_platform.ps1 covers them.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $engineSrc = Join-Path $root "engine\src\mealkit"
 
-# 앞에서 뒤로. 한 칸에 여러 폴더면 서로 include할 수 있다(기반 core·platform만)
+# Front to back. Multiple folders in one slot may include each other (only the base core/platform)
 $layers = @(
-    @("core", "platform"), # 기반
-    @("net"), @("physics"), @("sim"), @("data"), # 시뮬레이션 쪽 (헤드리스가 쓰는 것)
-    @("live"), # 개발 도구 연결 (라이브 연결 서버, 도구 약속)
-    @("loc"), @("scene"), @("rhi"), @("render"), @("asset"), @("online"), @("debug"), # 화면 쪽
+    @("core", "platform"), # base
+    @("net"), @("physics"), @("sim"), @("data"), # simulation side (used by headless)
+    @("live"), # dev tool connection (live connection server, tool contract)
+    @("loc"), @("scene"), @("rhi"), @("render"), @("asset"), @("online"), @("debug"), # view side
     @("input"), @("audio"), @("ui"), @("feedback"), @("settings"),
-    @("game"), # 게임 경계 (GameInstance, GameContext)
+    @("game"), # game boundary (GameInstance, GameContext)
     @("editor")
 )
 $rank = @{}
@@ -31,7 +31,7 @@ $edges = 0
 foreach ($f in $files) {
     $rel = $f.FullName.Substring($root.Length + 1)
     $from = $f.FullName.Substring($engineSrc.Length + 1).Split('\')[0]
-    if (-not $rank.ContainsKey($from)) { continue } # 위에서 이미 알렸다
+    if (-not $rank.ContainsKey($from)) { continue } # already reported above
     $n = 0
     foreach ($line in [IO.File]::ReadAllLines($f.FullName)) {
         $n++
@@ -45,9 +45,9 @@ foreach ($f in $files) {
     }
 }
 
-# 코어 파일(engine/CMakeLists.txt의 MEALKIT_CORE_SOURCES, 헤드리스·Linux·macOS가 링크하는 것)은 코어 헤더만 include한다.
-# 폴더 순서만으로는 같은 폴더 안의 코어 → 화면 쪽 include(game/Headless.cpp → game/Frontend.h 등)를 못 잡는다.
-$cmake = [IO.File]::ReadAllText((Join-Path $root "engine\CMakeLists.txt")) -replace '#[^\r\n]*', '' # 주석의 괄호가 목록을 끊지 않게
+# Core files (MEALKIT_CORE_SOURCES in engine/CMakeLists.txt, linked by headless/Linux/macOS) include only core headers.
+# Folder order alone can't catch core → view-side includes within the same folder (game/Headless.cpp → game/Frontend.h etc.).
+$cmake = [IO.File]::ReadAllText((Join-Path $root "engine\CMakeLists.txt")) -replace '#[^\r\n]*', '' # so parentheses in comments don't break the list
 $core = @{}
 foreach ($block in [regex]::Matches($cmake, '(?s)(?:set|list\(APPEND)\s*\(?\s*MEALKIT_CORE_SOURCES\b(.*?)\)')) {
     foreach ($m in [regex]::Matches($block.Groups[1].Value, 'src/(mealkit/[\w/]+\.(?:h|cpp))')) { $core[$m.Groups[1].Value] = $true }

@@ -1,6 +1,6 @@
-// 플러그인 패널 (iframe, 에디터 가져오기 서버가 준다): 고른 레이어의 엔진 값(바인딩·위젯)을 고치고, 화면 보드를 내보낸다.
-// 에디터가 켜져 있으면 /api/project로 글꼴·뷰 모델 필드·액션을 받아 드롭다운에 쓰고, 내보낸 파일을 /api/export로 보낸다.
-// 에디터가 없으면 zip으로 내려받는다 (프로젝트 폴더에 풀면 된다).
+// Plugin panel (iframe, served by the editor import server): edits engine values (bindings/widgets) of the selected layer and exports screen boards.
+// If the editor is running, gets fonts/view model fields/actions from /api/project for the dropdowns, and sends exported files to /api/export.
+// Without the editor, downloads a zip (just extract it into the project folder).
 
 import { buildImport, buildZip, text, type ImportEntry } from './encode.ts';
 import type { BoardInfo, ExportedScreen, LayerInfo, ToPlugin, ToUi } from './messages.ts';
@@ -32,7 +32,7 @@ function el<K extends keyof HTMLElementTagNameMap>(tag: K, attrs: Record<string,
   return e;
 }
 
-// ---------------------------------------------------------------- 연결
+// ---------------------------------------------------------------- Connection
 
 async function connect() {
   const status = $('status');
@@ -60,7 +60,7 @@ function fillLists() {
   for (const a of project?.actions ?? []) actions.append(el('option', { value: a }));
 }
 
-// ---------------------------------------------------------------- 레이어 값
+// ---------------------------------------------------------------- Layer values
 
 type FieldKind = 'text' | 'number' | 'check' | 'select';
 interface FieldDef {
@@ -169,7 +169,7 @@ function renderLayer() {
   }
 }
 
-// ---------------------------------------------------------------- 내보내기
+// ---------------------------------------------------------------- Export
 
 function renderBoards() {
   const list = $('boards');
@@ -239,7 +239,7 @@ async function finishExport(msg: Extract<ToUi, { type: 'exported' }>) {
     }
     return;
   }
-  // zip: 프로젝트 폴더 기준 경로. 문자열은 표에 직접 더하도록 따로
+  // zip: paths relative to the project folder. Strings separately, to be added to the table directly
   const files: { path: string; data: Uint8Array }[] = [];
   for (const e of entries) {
     if (e.kind === 'ui' || e.kind === 'png' || e.kind === 'theme') files.push({ path: 'assets/' + e.path, data: e.data });
@@ -256,7 +256,7 @@ async function finishExport(msg: Extract<ToUi, { type: 'exported' }>) {
   log('Downloaded the zip. Unpack it in the project folder; add the keys in penpot-strings.txt to assets/strings.', 'ok');
 }
 
-// ---------------------------------------------------------------- 시작
+// ---------------------------------------------------------------- Startup
 
 window.addEventListener('message', (ev: MessageEvent<ToUi>) => {
   const msg = ev.data;

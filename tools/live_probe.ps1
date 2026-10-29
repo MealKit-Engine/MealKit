@@ -1,8 +1,8 @@
-﻿# 라이브 연결 확인과 예시 클라이언트 (도구 사이 약속, docs/CODING_MODEL.md "도구가 실행 중인 에디터·게임과 이야기하기").
-#   powershell -ExecutionPolicy Bypass -File tools\live_probe.ps1 [-Project <폴더>] [-Kind game|editor] [-Wait <초>] [-Events <개수>] [-Topics stats]
-# 1) <프로젝트>\build\live\*.json (접속 정보)을 읽는다 → 2) GET <url>api/hello → 3) -Events N이면 GET <url>api/events?topics=...에서 N개를 받는다.
-# 출력: 실행 중인 것마다 "live: <종류> pid <pid> port <port> project <이름> engine <버전>", 이벤트는 "event <주제>: <JSON>".
-# 다른 언어의 MealKit 도구도 같은 순서로 붙는다. 하나도 없거나 hello가 실패하면 종료 코드 1.
+﻿# Live connection check and example client (contract between tools, docs/CODING_MODEL.md "Tools talking to a running editor/game").
+#   powershell -ExecutionPolicy Bypass -File tools\live_probe.ps1 [-Project <folder>] [-Kind game|editor] [-Wait <seconds>] [-Events <count>] [-Topics stats]
+# 1) reads <project>\build\live\*.json (connection info) → 2) GET <url>api/hello → 3) with -Events N, receives N from GET <url>api/events?topics=....
+# Output: per running instance "live: <kind> pid <pid> port <port> project <name> engine <version>", events as "event <topic>: <JSON>".
+# MealKit tools in other languages attach in the same order. Exit code 1 if there are none or hello fails.
 param(
     [string]$Project = "",
     [string]$Kind = "",
@@ -16,7 +16,7 @@ if ($Project -eq "") { $Project = $engine }
 $Project = (Resolve-Path $Project).Path.TrimEnd("\")
 $dir = Join-Path $Project "build\live"
 
-# 접속 정보 파일 (-Wait: 생길 때까지 기다린다. 게임·에디터를 막 띄웠을 때)
+# Connection info files (-Wait: waits until they appear. Right after launching a game/editor)
 $deadline = (Get-Date).AddSeconds($Wait)
 do {
     $infos = @()
@@ -39,7 +39,7 @@ foreach ($info in $infos) {
     try {
         $hello = Invoke-RestMethod -Uri ($info.url + "api/hello") -TimeoutSec 5
     } catch {
-        # 비정상 종료로 남은 파일일 수 있다 (다음에 서버가 열릴 때 지운다)
+        # May be a file left by an abnormal exit (deleted when a server next opens)
         Write-Output "warning: live: $($info.kind) pid $($info.pid) does not answer ($($_.Exception.Message))"
         $failed = $true
         continue
@@ -51,7 +51,7 @@ foreach ($info in $infos) {
     Write-Output "live: $($hello.kind) pid $($hello.pid) port $($info.port) project $($hello.project) engine $($hello.engine) services [$($hello.services -join ', ')] topics [$($hello.topics -join ', ')]"
 
     if ($Events -gt 0) {
-        # 상태 스트림 (Server-Sent Events): "event: <주제>" 줄 + "data: <JSON>" 줄 + 빈 줄
+        # Status stream (Server-Sent Events): an "event: <topic>" line + a "data: <JSON>" line + an empty line
         $request = [System.Net.HttpWebRequest]::Create($info.url + "api/events?topics=" + $Topics)
         $request.Timeout = 10000
         $request.ReadWriteTimeout = 10000
@@ -65,7 +65,7 @@ foreach ($info in $infos) {
                 if ($null -eq $line) { break }
                 if ($line.StartsWith("event: ")) { $topic = $line.Substring(7) }
                 elseif ($line.StartsWith("data: ")) {
-                    $null = $line.Substring(6) | ConvertFrom-Json # JSON인지 확인
+                    $null = $line.Substring(6) | ConvertFrom-Json # check that it's JSON
                     Write-Output "event ${topic}: $($line.Substring(6))"
                     $got++
                 }

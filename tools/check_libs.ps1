@@ -1,10 +1,10 @@
-﻿# 도구 제품군 런타임 경계 검사 (docs/DECISIONS.md 2026-10-26 오디오 런타임). check.ps1이 부른다.
-#   powershell -ExecutionPolicy Bypass -File tools\check_libs.ps1 [-Path <폴더>]     문제가 있으면 종료 코드 1
-# 대상: third_party/<lib>/ 중 mealkit.txt의 source가 MealKit-Engine 저장소인 것(우리가 만든 런타임 조각, 지금 mkaudio),
-# 그리고 -Path로 준 폴더(같이 고치는 중인 로컬 체크아웃, MEALKIT_MKAUDIO_DIR). 이 코드는 엔진 밖 저장소에 있으므로:
-# - MealKit 헤더(#include "mealkit/..." / <mealkit/...>)와 engine/src 경로를 include하지 않는다
-# - MEALKIT_ 매크로(로그·프로파일·단언)를 쓰지 않는다
-# - 자기 폴더 밖을 상대 경로("../")로 include하지 않는다
+﻿# Tool suite runtime boundary check (docs/DECISIONS.md 2026-10-26 audio runtime). Called by check.ps1.
+#   powershell -ExecutionPolicy Bypass -File tools\check_libs.ps1 [-Path <folder>]     exit code 1 on problems
+# Targets: third_party/<lib>/ whose mealkit.txt source is a MealKit-Engine repo (runtime pieces we made, currently mkaudio),
+# and the folder given with -Path (a local checkout being edited together, MEALKIT_MKAUDIO_DIR). This code lives in repos outside the engine, so:
+# - doesn't include MealKit headers (#include "mealkit/..." / <mealkit/...>) or engine/src paths
+# - doesn't use MEALKIT_ macros (logging/profiling/asserts)
+# - doesn't include outside its own folder via relative paths ("../")
 param([string[]]$Path = @())
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -25,7 +25,7 @@ foreach ($lib in $dirs) {
         $n = 0
         foreach ($line in [IO.File]::ReadAllLines($f.FullName)) {
             $n++
-            $code = ($line -replace '//.*$', '') -replace '#\s.*$', '' # 주석 (CMake 주석은 "# " 다음)
+            $code = ($line -replace '//.*$', '') -replace '#\s.*$', '' # comments (CMake comments are after "# ")
             if ($f.Name -eq "CMakeLists.txt") {
                 if ($code -match 'MEALKIT_|engine/src|mealkit_') { $problems += "${rel}:${n}: uses the engine build ($($Matches[0]))" }
                 continue

@@ -48,7 +48,7 @@ reflect::TypeInfo makeBuiltin(const char* name, const char* label, u32 flags) {
     return t;
 }
 
-// 종류 이름: 영문자로 시작하고 영문자·숫자·_ 만 (C++ 타입 이름과 같은 규칙)
+// Kind names: start with a letter and contain only letters/digits/_ (same rule as C++ type names)
 bool validTypeName(const char* text) {
     if (!std::isalpha(static_cast<unsigned char>(*text))) return false;
     for (const char* p = text; *p; ++p)
@@ -56,7 +56,7 @@ bool validTypeName(const char* text) {
     return true;
 }
 
-// "key a b c ..." 한 줄 (실수는 text::writeFloats의 가장 짧은 표현)
+// One "key a b c ..." line (floats in the shortest representation from text::writeFloats)
 void writeFloats(FILE* f, const char* key, std::initializer_list<f32> values) {
     char text[128];
     text::writeFloats(text, sizeof(text), values.begin(), static_cast<u32>(values.size()));
@@ -73,8 +73,8 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         makeBuiltin(kTypeDecoration, "Decoration (no collision)", reflect::kObjectCosmetic);
     static const reflect::TypeInfo spawn = makeBuiltin(kTypeSpawn, "Spawn point", reflect::kObjectMarker);
     static const reflect::TypeInfo probe =
-        makeBuiltin(kTypeProbe, "Reflection probe", reflect::kObjectArea | reflect::kObjectCosmetic); // 크기 = 영향 상자
-    static const reflect::TypeInfo pointLight = [] { // 필드가 있는 기본 종류: PointLightFields의 설명을 이름만 바꿔 쓴다
+        makeBuiltin(kTypeProbe, "Reflection probe", reflect::kObjectArea | reflect::kObjectCosmetic); // size = influence box
+    static const reflect::TypeInfo pointLight = [] { // a built-in kind with fields: reuses PointLightFields' description with only the name changed
         reflect::TypeInfo t = reflect::typeOf<PointLightFields>();
         const reflect::TypeInfo b = makeBuiltin(kTypePointLight, "Point light", reflect::kObjectMarker | reflect::kObjectCosmetic);
         t.name = b.name;
@@ -166,8 +166,8 @@ u64 Scene::contentHash(const TypeList* gameTypes) const {
         h.add(e.scale);
         h.bytes(e.model.data(), e.model.size() + 1);
         for (const auto& [path, value] : e.fields) {
-            if (path == kAnimField) continue; // 화면용 애니메이션
-            if (type) { // 보기 전용 필드는 뺀다 (경로의 첫 이름이 필드 이름)
+            if (path == kAnimField) continue; // view animation
+            if (type) { // view-only fields are excluded (the first name of the path is the field name)
                 const std::string top = path.substr(0, path.find_first_of(".["));
                 const reflect::FieldInfo* f = type->field(top.c_str());
                 if (f && (f->flags & reflect::kFieldView)) continue;
@@ -237,7 +237,7 @@ bool load(Scene& out, const std::string& path, std::string* error) {
         char* p = line;
         while (*p == ' ' || *p == '\t') ++p;
         if (*p == '\0' || *p == '#') continue;
-        u32 version = text::kScene.version; // 버전 1~4 모두 지금 모양 그대로 읽는다 (3은 hdri 줄, 4는 post 줄을 더했을 뿐, migrate 없음)
+        u32 version = text::kScene.version; // versions 1~4 are all read in the current shape (3 only added the hdri line, 4 the post line; no migrate)
         if (text::readFormatLine(p, text::kScene, path, version)) continue;
 
         char* rest = p;
@@ -246,7 +246,7 @@ bool load(Scene& out, const std::string& path, std::string* error) {
         const char* key = p;
 
         bool ok = true;
-        if (std::strcmp(key, "version") == 0) { // @format 전의 형식 줄
+        if (std::strcmp(key, "version") == 0) { // format line from before @format
             const int old = std::atoi(rest);
             ok = old >= 1 && old <= 2;
         } else if (std::strcmp(key, "entity") == 0) {
@@ -294,7 +294,7 @@ bool load(Scene& out, const std::string& path, std::string* error) {
             } else if (std::strcmp(key, "hdri") == 0) env.hdri = rest;
             else if (std::strcmp(key, "hdriIntensity") == 0) ok = readFloats(rest, &env.hdriIntensity, 1);
             else if (std::strcmp(key, "hdriRotation") == 0) ok = readFloats(rest, &env.hdriRotation, 1);
-            else if (std::strcmp(key, "post") == 0) { // 필드 이름 + 값 텍스트 (모르는 필드는 경고하고 건너뛴다)
+            else if (std::strcmp(key, "post") == 0) { // field name + value text (unknown fields warn and are skipped)
                 char* value = rest;
                 while (*value && *value != ' ') ++value;
                 if (*value) *value++ = '\0';
@@ -319,7 +319,7 @@ bool load(Scene& out, const std::string& path, std::string* error) {
     for (Entity& ent : scene.entities)
         if (ent.id == 0) ent.id = ++maxId;
     scene.nextId = maxId + 1;
-    // 없는 부모나 순환은 최상위로 (손으로 고친 파일 대비)
+    // Missing parents or cycles go to the top level (in case of hand-edited files)
     for (Entity& ent : scene.entities) {
         if (!ent.parent) continue;
         bool bad = !scene.find(ent.parent);

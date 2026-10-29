@@ -1,11 +1,11 @@
-﻿# CI 비교: 모든 빌드의 tools/ci_test.ps1 결과를 모아 detmath-bits와 틱별 해시 로그가 같은지 본다.
+﻿# CI comparison: collects tools/ci_test.ps1 results of all builds and checks that detmath-bits and per-tick hash logs match.
 #   pwsh tools/ci_compare.ps1 -Dir ci-results [-Reference windows-msvc]
-# -Dir 아래 빌드마다 폴더 하나(ci_test.ps1의 -Out). 기준 빌드와 다르면 처음 갈라진 틱을 보여 주고 종료 코드 1.
-# GitHub Actions에서는 결과 표를 작업 요약($GITHUB_STEP_SUMMARY)에도 쓴다.
+# One folder per build under -Dir (ci_test.ps1's -Out). If one differs from the reference build, shows the first diverged tick and exits with code 1.
+# On GitHub Actions the result table is also written to the job summary ($GITHUB_STEP_SUMMARY).
 param(
     [Parameter(Mandatory = $true)][string]$Dir,
     [string]$Reference = "windows-msvc",
-    [string[]]$Expect = @() # 있어야 하는 빌드 이름 (빌드가 실패해 결과가 없으면 비교도 실패)
+    [string[]]$Expect = @() # build names that must be present (if a build failed and has no results, the comparison fails too)
 )
 $ErrorActionPreference = "Stop"
 $builds = @(Get-ChildItem -Path $Dir -Directory | Sort-Object Name)
@@ -18,7 +18,7 @@ function Read-Bits($build) {
     if (Test-Path $f) { return (Get-Content $f -Raw).Trim() }
     return $null
 }
-# "<tick> <hash>" 줄 목록. 처음 다른 줄의 틱을 돌려준다 (같으면 $null)
+# List of "<tick> <hash>" lines. Returns the tick of the first differing line ($null if identical)
 function First-Difference([string]$a, [string]$b) {
     $la = @(Get-Content $a)
     $lb = @(Get-Content $b)
@@ -51,7 +51,7 @@ foreach ($b in $builds) {
     $logs = @(Get-ChildItem -Path $b.FullName -Filter *.hashes.txt)
     $replayText = @()
     if ($logs.Count -eq 0) {
-        $replayText += "-" # Editor 빌드 등 헤드리스 타깃이 없는 빌드
+        $replayText += "-" # builds without a headless target, like the Editor build
     } else {
         foreach ($r in $refLogs) {
             $mine = Join-Path $b.FullName $r.Name

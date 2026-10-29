@@ -1,14 +1,14 @@
-# 내보내기 전 검사: 엔진이 읽지 않는 것을 알려 준다 (schema.json의 model). 결과는 (수준, 글자) 목록.
-#   ERROR   내보내지 않는다
-#   WARNING 내보내지만 엔진에서 다르게 보인다
-#   INFO    참고 (삼각형 수 등)
+# Pre-export checks: reports what the engine doesn't read (model in schema.json). Results are a list of (level, text).
+#   ERROR   not exported
+#   WARNING exported but looks different in the engine
+#   INFO    for reference (triangle count etc.)
 
-# 기본 색이 이 노드에서 오면 엔진이 정점 색(COLOR_0)으로 읽는다
+# If the base color comes from this node, the engine reads it as vertex color (COLOR_0)
 VERTEX_COLOR_NODES = {"VERTEX_COLOR", "ATTRIBUTE"}
 
 
 def _principled(material):
-    if not material.node_tree:  # Blender 5.x: 재질은 항상 노드 (use_nodes는 6.0에서 없어진다)
+    if not material.node_tree:  # Blender 5.x: materials always have nodes (use_nodes goes away in 6.0)
         return None
     for node in material.node_tree.nodes:
         if node.type == "BSDF_PRINCIPLED":
@@ -24,7 +24,7 @@ def check_material(material, model):
         if any(n.type == "TEX_IMAGE" for n in tree.nodes):
             out.append(("WARNING", f"Material '{name}': image textures are not supported yet (only the base color value)"))
     if tree and model["material"]["textures"]:
-        # 엔진이 읽는 텍스처 입력 (glTF로 나가는 Principled BSDF 입력) 밖에 연결된 이미지는 쓰이지 않는다
+        # Images connected outside the texture inputs the engine reads (Principled BSDF inputs exported to glTF) aren't used
         bsdf_inputs = set(model["material"].get("textureInputs", []))
         bsdf = _principled(material)
         for inp in (bsdf.inputs if bsdf is not None else []):
@@ -37,7 +37,7 @@ def check_material(material, model):
         base = bsdf.inputs.get("Base Color")
         if base is not None and base.is_linked:
             source = base.links[0].from_node
-            if source.type not in VERTEX_COLOR_NODES and source.type != "TEX_IMAGE":  # 이미지·정점 색은 엔진이 읽는다
+            if source.type not in VERTEX_COLOR_NODES and source.type != "TEX_IMAGE":  # images/vertex colors are read by the engine
                 out.append(("WARNING", f"Material '{name}': base color comes from a '{source.bl_label}' node; "
                                        "the engine uses a color value, an image texture or the vertex color"))
     return out
@@ -66,7 +66,7 @@ def check_objects(objects, schema, depsgraph, kind="props", budget=None):
                 materials[slot.material.name] = slot.material
         armature = obj.find_armature()
         if model["skinning"] and armature is not None:
-            # 엔진은 스킨 하나, 관절 maxJoints개까지 (넘으면 바인드 자세로 그린다). 예산의 bones도 여기서 센다
+            # The engine supports one skin with up to maxJoints joints (beyond that it draws the bind pose). The budget's bones are counted here too
             joints = len(armature.data.bones)
             bones = max(bones, joints)
             if joints > model.get("maxJoints", 64):
@@ -81,11 +81,11 @@ def check_objects(objects, schema, depsgraph, kind="props", budget=None):
         out += check_material(material, model)
     if model.get("mergesMeshes"):
         out.append(("INFO", f"{len(objects)} object(s) become one model, {triangles} triangles"))
-    # 에셋 예산 (mealkit.project budget*, 종류는 폴더). 엔진도 불러올 때 같은 값으로 경고한다
+    # Asset budget (mealkit.project budget*, kind by folder). The engine also warns on load with the same values
     if budget:
         if triangles > budget["triangles"]:
             out.append(("WARNING", f"{triangles} triangles is over the {kind} budget ({budget['triangles']})"))
-        used = len(materials) or 1  # 재질 없는 메시는 기본 재질 하나
+        used = len(materials) or 1  # meshes without materials use one default material
         if used > budget["materials"]:
             out.append(("WARNING", f"{used} materials is over the {kind} budget ({budget['materials']})"))
         if bones > budget["bones"]:

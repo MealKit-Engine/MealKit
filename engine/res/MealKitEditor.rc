@@ -1,5 +1,5 @@
 #pragma code_page(65001)
-// MealKitEditor.exe 리소스 (tools/make_editor_icon.py로 만든다)
-// 아이콘 1번: Window가 창 아이콘으로 쓴다. RCDATA 2번: 아이콘이 없는 프로젝트의 기본 아이콘 (프로젝트 관리자)
+// MealKitEditor.exe resources (made with tools/make_editor_icon.py)
+// Icon 1: Window uses it as the window icon. RCDATA 2: default icon for projects without one (project manager)
 1 ICON "MealKitEditor.ico"
 2 RCDATA "MealKitEditor.png"

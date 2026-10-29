@@ -1,8 +1,8 @@
-// 문자열 표의 글자가 모두 글꼴에 있는지 검사한다 (ROADMAP 1단계 "로컬라이제이션 문자열 테이블": 글자는 실행 중에 굽는다).
+// Checks that all characters in the string tables exist in the fonts (ROADMAP stage 1 "Localization string tables": glyphs are baked at runtime).
 //   mealkit_stringcheck <stamp> --fonts <assets/fonts> <assets/strings/*.txt ...>
-// mealkit_add_game이 게임을 빌드하기 전에 부른다. 글꼴(.ttf, .otf, .ttc 첫 글꼴, 하위 폴더 포함) 중 하나에라도 있으면 된다.
-// 글꼴이 하나도 없으면 검사하지 않는다(아직 게임 UI가 없는 프로젝트). 없는 글자는 MSVC 형식으로 알리고 실패한다.
-// 파일 형식은 mealkit/loc/Strings.cpp와 같다("키 = 문자열", # 주석). 엔진 라이브러리 없이 빌드되도록 읽기만 여기에 다시 둔다.
+// mealkit_add_game calls this before building the game. It's enough if a character is in any one of the fonts (.ttf, .otf, first font of .ttc, including subfolders).
+// If there are no fonts at all, nothing is checked (projects without game UI yet). Missing characters are reported in MSVC format and fail.
+// The file format is the same as mealkit/loc/Strings.cpp ("key = string", # comments). Only the reading is duplicated here so it builds without the engine library.
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "stb_truetype.h"
 
@@ -33,7 +33,7 @@ bool readFile(const fs::path& path, std::vector<unsigned char>& out) {
     return true;
 }
 
-// UTF-8 → 코드 포인트 (틀린 바이트는 U+FFFD)
+// UTF-8 → code points (bad bytes become U+FFFD)
 std::vector<unsigned> decode(const std::string& s) {
     std::vector<unsigned> out;
     for (size_t i = 0; i < s.size();) {
@@ -84,7 +84,7 @@ int main(int argc, char** argv) {
                 std::fprintf(stderr, "%s: warning STR002: cannot read this font\n", f.path.c_str());
                 continue;
             }
-            fonts.push_back(std::move(f)); // vector를 옮겨도 바이트 버퍼는 그대로라 info의 포인터가 유효하다
+            fonts.push_back(std::move(f)); // the byte buffer stays put even when the vector moves, so info's pointers stay valid
         }
     }
 
@@ -93,7 +93,7 @@ int main(int argc, char** argv) {
         for (const std::string& file : files) {
             std::ifstream in{fs::path(file)};
             if (!in) continue;
-            std::map<unsigned, unsigned> missing; // 코드 포인트 → 처음 나온 줄
+            std::map<unsigned, unsigned> missing; // code point → first line it appeared on
             std::string line;
             unsigned lineNo = 0;
             while (std::getline(in, line)) {
@@ -101,7 +101,7 @@ int main(int argc, char** argv) {
                 size_t start = 0;
                 if (lineNo == 1 && line.size() >= 3 && static_cast<unsigned char>(line[0]) == 0xEF) start = 3; // BOM
                 const size_t first = line.find_first_not_of(" \t\r", start);
-                if (first == std::string::npos || line[first] == '#' || line[first] == '@') continue; // 주석, 형식 줄 "@format strings 1"
+                if (first == std::string::npos || line[first] == '#' || line[first] == '@') continue; // comments, format line "@format strings 1"
                 const size_t eq = line.find('=', first);
                 if (eq == std::string::npos) continue;
                 for (unsigned cp : decode(line.substr(eq + 1))) {

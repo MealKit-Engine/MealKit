@@ -1,8 +1,8 @@
-﻿# 두 PNG를 픽셀마다 비교한다 (백엔드 사이 그림 비교, check.ps1 "Vulkan = DX12"). 같은 크기여야 한다.
+﻿# Compares two PNGs pixel by pixel (image comparison between backends, check.ps1 "Vulkan = DX12"). They must be the same size.
 #   powershell -ExecutionPolicy Bypass -File tools\compare_images.ps1 -A a.png -B b.png [-Threshold 2] [-MaxBadPercent 0.1] [-MaxDiff 16] [-IgnoreBottom 0] [-DiffOut d.png]
-# 채널 차이가 Threshold보다 큰 픽셀이 MaxBadPercent(%)를 넘거나, 가장 큰 차이가 MaxDiff를 넘으면 종료 코드 1.
-# IgnoreBottom: 아래쪽 줄 수를 뺀다 (에디터 상태 표시줄의 fps 글자 등 실행마다 다른 곳).
-# DiffOut: 다르면 차이 그림을 쓴다 (A를 어둡게, 문턱을 넘은 픽셀은 빨강. 그래픽 회귀 테스트).
+# Exit code 1 if pixels with channel difference over Threshold exceed MaxBadPercent (%), or the largest difference exceeds MaxDiff.
+# IgnoreBottom: excludes that many bottom rows (places that differ per run, like the fps text in the editor status bar).
+# DiffOut: writes a difference image if they differ (A darkened, pixels over the threshold in red. Graphics regression tests).
 param(
     [Parameter(Mandatory)] [string]$A,
     [Parameter(Mandatory)] [string]$B,

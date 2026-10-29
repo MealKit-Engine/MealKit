@@ -1,7 +1,7 @@
-// 엔진 단위 테스트 (mealkit_tests.exe). 엔진 저장소 빌드에만 있다. tools\check.ps1이 Release와 Editor 빌드에서 돌린다.
-//   mealkit_tests.exe          모든 테스트, 끝에 PASS 또는 FAILED
-//   mealkit_tests.exe --only net,physics   그 영역(엔진 폴더 이름)의 테스트만
-//   출력의 "detmath-bits <hash>" 줄은 결정론 수학 결과 비트의 해시다. 빌드 구성이 달라도 같아야 한다.
+// Engine unit tests (mealkit_tests.exe). Only in engine repo builds. tools\check.ps1 runs them in Release and Editor builds.
+//   mealkit_tests.exe          all tests, PASS or FAILED at the end
+//   mealkit_tests.exe --only net,physics   only tests of those areas (engine folder names)
+//   The "detmath-bits <hash>" line in the output is a hash of deterministic math result bits. It must match across build configurations.
 #include "mealkit/core/DetMath.h"
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
@@ -75,13 +75,13 @@ TEST_CASE(sim, pool) {
     const Id<Item> a = p.create({1});
     const Id<Item> b = p.create({2});
     TEST_CHECK(a.slot == 0 && b.slot == 1);
-    TEST_CHECK(p.get(a) && p.get(a)->value == 1); // 만든 틱에도 get은 된다
-    TEST_CHECK(countIter(p) == 0);                // 만든 틱에는 순회에 안 나온다
+    TEST_CHECK(p.get(a) && p.get(a)->value == 1); // get works even on the creation tick
+    TEST_CHECK(countIter(p) == 0);                // not in iteration on the creation tick
     p.endTick();
     TEST_CHECK(countIter(p) == 2);
 
     u32 seen = 0;
-    for (auto [id, it] : p) { // 순회 중 생성: 이번 틱 순회에 안 나온다
+    for (auto [id, it] : p) { // created during iteration: not in this tick's iteration
         ++seen;
         if (it.value == 1) p.create({3});
     }
@@ -89,7 +89,7 @@ TEST_CASE(sim, pool) {
     TEST_CHECK(p.count() == 3);
 
     p.destroy(a);
-    p.destroy(a); // 두 번 지워도 무시
+    p.destroy(a); // deleting twice is ignored
     TEST_CHECK(p.get(a) == nullptr);
     TEST_CHECK(countIter(p) == 1);
     u32 destroyed = 0;
@@ -99,14 +99,14 @@ TEST_CASE(sim, pool) {
     });
     TEST_CHECK(destroyed == 1 && p.count() == 2 && countIter(p) == 2);
 
-    const Id<Item> c = p.create({5}); // 슬롯 재사용: 옛 id는 세대가 달라 무효
+    const Id<Item> c = p.create({5}); // slot reuse: the old id has a different generation, so it's invalid
     TEST_CHECK(c.slot == 0 && c.generation == 2);
     TEST_CHECK(p.get(a) == nullptr && p.get(c)->value == 5);
-    p.destroy(c); // 만든 틱에 지우기
+    p.destroy(c); // delete on the creation tick
     p.endTick();
     TEST_CHECK(p.count() == 2 && p.get(c) == nullptr);
 
-    Pool<Item> x, y; // 지운 순서와 관계없이 같은 결과
+    Pool<Item> x, y; // same result regardless of deletion order
     x.init(4);
     y.init(4);
     Id<Item> xi[4], yi[4];
@@ -147,7 +147,7 @@ TEST_CASE(core, det_math) {
     f32 worstSin = 0.0f, worstCos = 0.0f, worstAtan = 0.0f;
     Hasher bits;
     for (i32 i = -200000; i <= 200000; ++i) {
-        const f32 x = static_cast<f32>(i) * 0.0005f; // -100..100 라디안
+        const f32 x = static_cast<f32>(i) * 0.0005f; // -100..100 radians
         const f32 s = detSin(x), c = detCos(x);
         worstSin = std::max(worstSin, std::fabs(s - std::sin(x)));
         worstCos = std::max(worstCos, std::fabs(c - std::cos(x)));
@@ -164,7 +164,7 @@ TEST_CASE(core, det_math) {
     }
     const Quat q = detQuatFromAxisAngle({0, 1, 0}, 1.0f);
     bits.add(q);
-    // 시뮬레이션용 포즈 샘플링 (asset::samplePoseTick): 틱 → 프레임 보간이 모든 빌드·플랫폼에서 같은 비트
+    // Simulation pose sampling (asset::samplePoseTick): tick → frame interpolation gives the same bits on all builds/platforms
     asset::Skeleton skeleton;
     skeleton.joints.resize(3);
     skeleton.joints[1].parent = 0;
@@ -212,7 +212,7 @@ MEALKIT_STRUCT(Outer) {
     MEALKIT_FIELD(sim::Id<Inner>, ref, {}, "참조");
     MEALKIT_FIELD(Color8, color, Color8::Green, "색");
     MEALKIT_FIELD(sim::TickTimer, timer, {}, "타이머");
-    u32 notReflected = 99; // 선언하지 않은 필드는 해시·저장에서 빠진다
+    u32 notReflected = 99; // undeclared fields are excluded from hashing/saving
 };
 
 MEALKIT_OBJECT(TestPad) {
@@ -234,7 +234,7 @@ TEST_CASE(core, reflect) {
     TEST_CHECK(t.fields[5].value->kind == Kind::Container && t.fields[6].value->kind == Kind::Id);
     TEST_CHECK(t.fields[7].value->kind == Kind::UInt && t.fields[8].value->kind == Kind::Struct);
     TEST_CHECK(t.fields[1].offset == offsetof(Outer, flag) && t.fields[4].offset == offsetof(Outer, list));
-    TEST_CHECK(std::string(reflect::typeOf<Inner>().fields[1].label) == "v"); // 빈 라벨은 이름
+    TEST_CHECK(std::string(reflect::typeOf<Inner>().fields[1].label) == "v"); // an empty label becomes the name
 
     Outer a;
     a.pool.init(4);
@@ -268,7 +268,7 @@ TEST_CASE(core, reflect) {
     reflect::diffStruct(t, &a, &b, diff);
     TEST_CHECK(diff.size() == 2); // look, inner.v
 
-    // 스냅샷: 저장 → 바꾸기 → 되돌리기
+    // Snapshots: save → change → restore
     const u64 saved = reflect::hashOf(a);
     reflect::ByteWriter w;
     reflect::saveStruct(t, &a, w);
@@ -315,7 +315,7 @@ TEST_CASE(core, reflect_string) {
     TEST_CHECK(reflect::hashOf(a) != reflect::hashOf(b));
     reflect::fromText(t, &b, text);
     TEST_CHECK(b.title == a.title && reflect::hashOf(a) == reflect::hashOf(b));
-    // 길이도 해시에 들어간다 ("ab"+"c" 와 "a"+"bc"가 같지 않게)
+    // Length goes into the hash too (so "ab"+"c" and "a"+"bc" differ)
     HoldsNamed x, y;
     x.items[0].title = "ab";
     x.items[1].title = "c";
@@ -340,7 +340,7 @@ TEST_CASE(core, text_floats) {
     const f32 v[4] = {0.28f, -20.0f, -0.0f, 1e-5f};
     text::writeFloats(text, sizeof(text), v, 4);
     TEST_CHECK(std::strcmp(text, "0.28 -20 0 1e-05") == 0);
-    // 다시 읽으면 비트까지 같다
+    // Rereading gives identical bits
     Pcg32 rng(7);
     for (int i = 0; i < 2000; ++i) {
         const u32 bits = rng.next();
@@ -364,7 +364,7 @@ TEST_CASE(core, reflect_ticks_and_color) {
     TEST_CHECK(reflect::tickRate() == 30);
     Timed a;
     TEST_CHECK(a.cooldown.value == 15 && a.tint.value == Color::rgb(255, 128, 0).value);
-    // 초 → 틱 반올림, 틱 → 초 → 틱이 같은 값
+    // Seconds → ticks rounding, ticks → seconds → ticks gives the same value
     for (const char* text : {"1.33333", "1.3333", "0.666667", "0.0166", "2", "-1", "0"}) {
         Timed b;
         TEST_CHECK(reflect::setFromText(t, &b, "cooldown", text));
@@ -378,7 +378,7 @@ TEST_CASE(core, reflect_ticks_and_color) {
     TEST_CHECK(reflect::setFromText(t, &a, "cooldown", "0.0166") && a.cooldown.value == 0);
     TEST_CHECK(reflect::setFromText(t, &a, "cooldown", "-3") && a.cooldown.value == 0);
     TEST_CHECK(!reflect::setFromText(t, &a, "cooldown", "abc"));
-    // 색: #RRGGBB, #RRGGBBAA
+    // Colors: #RRGGBB, #RRGGBBAA
     TEST_CHECK(reflect::setFromText(t, &a, "tint", "#102030") && a.tint.value == Color::rgb(0x10, 0x20, 0x30).value);
     TEST_CHECK(reflect::formatScalar(*t.fields[1].value, &a.tint) == "#102030");
     TEST_CHECK(reflect::setFromText(t, &a, "tint", "#10203040") && a.tint.value == Color::rgb(0x10, 0x20, 0x30, 0x40).value);
@@ -402,17 +402,17 @@ TEST_CASE(core, reflect_enum) {
     WithEnum a;
     reflect::TextFields text;
     reflect::toText(t, &a, text);
-    TEST_CHECK(text[0].second == "Ball" && text[1].second == "3"); // 파일에는 이름
+    TEST_CHECK(text[0].second == "Ball" && text[1].second == "3"); // names in files
     TEST_CHECK(reflect::setFromText(t, &a, "shape", "Capsule") && a.shape == TestShape::Capsule);
-    TEST_CHECK(reflect::setFromText(t, &a, "shape", "0") && a.shape == TestShape::Box); // 예전 숫자도 읽는다
+    TEST_CHECK(reflect::setFromText(t, &a, "shape", "0") && a.shape == TestShape::Box); // old numbers are read too
     TEST_CHECK(!reflect::setFromText(t, &a, "shape", "Cone"));
     WithEnum b;
     b.shape = TestShape::Box;
-    TEST_CHECK(reflect::hashOf(a) == reflect::hashOf(b)); // 해시는 정수 그대로
+    TEST_CHECK(reflect::hashOf(a) == reflect::hashOf(b)); // the hash uses the integer as is
 }
 
 TEST_CASE(input, input_actions) {
-    // 임시 프로젝트 폴더의 assets/input.bindings
+    // assets/input.bindings in a temp project folder
     const std::string oldRoot = projectRoot();
     const std::string dir = executableDirectory() + "/test_input_actions";
     createDirectories(dir + "/assets");
@@ -433,8 +433,8 @@ TEST_CASE(input, input_actions) {
     in.setKey('D', true);
     actions.update(in, pad, true, true, 0.1);
     const Vec2 m = actions.axis2("move");
-    TEST_CHECK(std::fabs(length(m) - 1.0f) < 1e-5f && m.x > 0.7f && m.y > 0.7f); // 대각선도 길이 1
-    actions.update(in, pad, false, true, 0.1); // 키보드를 받지 않는 동안은 놓은 상태
+    TEST_CHECK(std::fabs(length(m) - 1.0f) < 1e-5f && m.x > 0.7f && m.y > 0.7f); // diagonals have length 1 too
+    actions.update(in, pad, false, true, 0.1); // released while not receiving the keyboard
     TEST_CHECK(length(actions.axis2("move")) == 0.0f);
 
     in.beginFrame();
@@ -453,9 +453,9 @@ TEST_CASE(input, input_actions) {
     in.setKey('E', true);
     in.addWheel(1.0f);
     actions.update(in, pad, true, true, 0.5);
-    TEST_CHECK(std::fabs(actions.axis("zoom") - 6.0f) < 1e-5f); // 키는 rate × 초, 휠은 칸 그대로
+    TEST_CHECK(std::fabs(actions.axis("zoom") - 6.0f) < 1e-5f); // keys are rate × seconds, the wheel notches as is
 
-    // 게임패드: 데드존 안은 0, 밖은 0..1로 다시 편다
+    // Gamepad: 0 inside the deadzone, rescaled to 0..1 outside
     in.beginFrame();
     in.clear();
     pad.connected = true;
@@ -467,12 +467,12 @@ TEST_CASE(input, input_actions) {
     actions.update(in, pad, true, true, 0.1);
     TEST_CHECK(std::fabs(actions.axis2("move").x - 0.5f) < 1e-5f && actions.pressed("jump"));
     TEST_CHECK(actions.lastDevice() == input::Device::Gamepad);
-    pad.buttons = pad::DPadDown; // "-이름"은 음수 쪽
+    pad.buttons = pad::DPadDown; // "-name" is the negative side
     actions.update(in, pad, true, true, 0.5);
     TEST_CHECK(std::fabs(actions.axis("zoom") + 5.0f) < 1e-5f);
     pad = {};
 
-    // 플레이어가 바꾼 키: 사용자 파일에 바뀐 행만 저장하고, 다시 읽으면 프로젝트 값 위에 덮는다
+    // Keys rebound by the player: only changed rows are saved to the user file, and rereading overlays them on the project values
     input::Action jump = actions.binding(1);
     jump.keys = "J";
     TEST_CHECK(actions.setBinding("jump", jump) && actions.saveUser());
@@ -485,7 +485,7 @@ TEST_CASE(input, input_actions) {
     again.update(in, pad, true, true, 0.1);
     TEST_CHECK(again.down("jump"));
     again.resetBinding("jump");
-    TEST_CHECK(again.saveUser() && !fileExists(dir + "/user.bindings")); // 모두 기본값이면 파일을 지운다
+    TEST_CHECK(again.saveUser() && !fileExists(dir + "/user.bindings")); // all defaults deletes the file
 
     TEST_CHECK(input::keyFromName("Space") == key::Space && input::keyFromName("q") == 'Q' && input::keyFromName("Nope") == 0);
     TEST_CHECK(std::string(input::keyName('Q')) == "Q" && std::string(input::keyName(key::Enter)) == "Enter");
@@ -503,9 +503,9 @@ MEALKIT_STRUCT(TestItem) {
     MEALKIT_FIELD(Ticks, delay, Ticks::seconds(0.2f), "대기");
 };
 
-static_assert(reflect::hasStringField<TestItem>()); // RowRef에는 id 문자열이 있어 시뮬레이션 상태에 넣지 않는다
+static_assert(reflect::hasStringField<TestItem>()); // RowRef contains an id string, so it isn't put in simulation state
 
-// 에셋 경로 → 프로젝트 기준 파일 경로. 소스 모듈 에셋은 그 모듈의 assets/ 아래 (docs/MODULES.md)
+// Asset path → project-relative file path. Source module assets are under that module's assets/ (docs/MODULES.md)
 TEST_CASE(data, asset_file_path) {
     TEST_CHECK(assetFilePath("ui/hud.ui") == "assets/ui/hud.ui");
     TEST_CHECK(assetFilePath("modules/health/ui/bar.ui") == "modules/health/assets/ui/bar.ui");
@@ -516,7 +516,7 @@ TEST_CASE(data, asset_file_path) {
 
 TEST_CASE(data, tables) {
     const std::string dir = executableDirectory();
-    // 파일: 쓰고 읽으면 같다. 겹친 id·잘못된 id는 버린다
+    // Files: writing and reading gives the same. Duplicate/invalid ids are dropped
     data::TableText text;
     text.ids = {"plain", "heavy"};
     text.rows = {{{"weight", "1"}, {"title", "Plain, \"basic\""}}, {{"weight", "4.5"}, {"title", "Heavy"}}};
@@ -533,7 +533,7 @@ TEST_CASE(data, tables) {
     TEST_CHECK(static_cast<const TestKind*>(data.rows[1].data())->weight == 4.5f);
     TEST_CHECK(static_cast<const TestKind*>(data.rows[0].data())->title == "Plain, \"basic\"");
 
-    // CSV: 내보내고 가져오면 같다 (쉼표·따옴표가 든 칸)
+    // CSV: exporting and importing gives the same (cells with commas/quotes)
     TEST_CHECK(data::exportTableCsv(data, dir + "/test_kinds.csv"));
     data::TableData back;
     back.rowType = &reflect::typeOf<TestKind>();
@@ -543,14 +543,14 @@ TEST_CASE(data, tables) {
     for (size_t i = 0; i < back.rows.size(); ++i)
         TEST_CHECK(reflect::hashOf(*static_cast<const TestKind*>(back.rows[i].data())) ==
                    reflect::hashOf(*static_cast<const TestKind*>(data.rows[i].data())));
-    // 열 순서가 달라도, 모르는 열이 있어도 이름으로 맞춘다
+    // Matches by name even with different column order or unknown columns
     TEST_CHECK(writeTextFile(dir + "/test_kinds2.csv", "\xEF\xBB\xBFid,title,extra,weight\r\nx,\"multi\nline\",1,7\r\n"));
     TEST_CHECK(data::importTableCsv(back, dir + "/test_kinds2.csv", &error) && back.ids.size() == 1);
     TEST_CHECK(static_cast<const TestKind*>(back.rows[0].data())->weight == 7.0f);
     TEST_CHECK(static_cast<const TestKind*>(back.rows[0].data())->title == "multi\nline");
-    TEST_CHECK(!data::importTableCsv(back, dir + "/test_kinds.table", &error)); // 첫 칸이 id가 아니다
+    TEST_CHECK(!data::importTableCsv(back, dir + "/test_kinds.table", &error)); // the first cell isn't id
 
-    // 행 참조: id → 번호, 없는 id는 목록에
+    // Row references: id → index, missing ids into the list
     sim::Table<TestKind> table;
     table.ids = {"plain", "heavy"};
     table.rows.resize(2);
@@ -564,7 +564,7 @@ TEST_CASE(data, tables) {
     item.kind.id = "nope";
     data::resolveRows(item, {data::tableIndex(table)}, &missing, "test: ");
     TEST_CHECK(!item.kind.valid() && missing.size() == 1 && missing[0].rfind("test: kind -> nope", 0) == 0);
-    // 해시는 id로 (행 번호가 아니라)
+    // Hashing by id (not by row index)
     TestItem a, b;
     b.kind.index = 5;
     TEST_CHECK(reflect::hashOf(a) == reflect::hashOf(b));
@@ -597,7 +597,7 @@ TEST_CASE(game, input_record) {
     bool same = true;
     for (u32 t = 0; t < inputs.size(); ++t) {
         same = same && rec.hashes[t] == 1000ull + t;
-        for (u32 p = 0; p < net::kMaxPlayers; ++p) // 인원 밖의 플레이어는 기록하지 않는다 (0으로 읽힌다)
+        for (u32 p = 0; p < net::kMaxPlayers; ++p) // players beyond the count aren't recorded (read as 0)
             for (u32 b = 0; b < net::kInputBytes; ++b)
                 same = same && rec.inputs[t].players[p].bytes[b] == (p < 3 ? inputs[t].players[p].bytes[b] : 0);
     }
@@ -606,7 +606,7 @@ TEST_CASE(game, input_record) {
 }
 
 TEST_CASE(game, replay_files) {
-    // 매치마다 current.rec → keepReplay가 날짜 이름으로 남기고 keep개만 둔다. 틱이 없는 기록은 지운다
+    // Per match current.rec → keepReplay keeps it under a date name and keeps only keep of them. Recordings without ticks are deleted
     const std::string user = executableDirectory() + "/test_replays";
     for (const std::string& path : game::listReplays(user)) removeFile(path);
     const game::MatchInfo match{7, 1, 0, {{}}};
@@ -624,7 +624,7 @@ TEST_CASE(game, replay_files) {
     game::InputRecording rec;
     std::string error;
     TEST_CHECK(!kept.empty() && game::loadInputRecording(kept[0], rec, error) && rec.hashes.size() == 1 &&
-               rec.hashes[0] == 2); // 새 것부터
+               rec.hashes[0] == 2); // newest first
     {
         game::InputRecordWriter w;
         TEST_CHECK(w.open(current, match, 1));
@@ -648,7 +648,7 @@ TEST_CASE(core, zip_files) {
 }
 
 TEST_CASE(game, bug_report) {
-    // 묶음 = 입력 기록 + info + 로그 (스크린샷은 없으면 뺀다). 에디터는 replay.rec를 꺼내 재생한다
+    // Bundle = input recording + info + log (screenshot omitted if absent). The editor extracts replay.rec and plays it
     const std::string user = executableDirectory() + "/test_bugreports";
     const std::string rec = user + "/current.rec";
     createDirectories(user);
@@ -680,8 +680,8 @@ MEALKIT_STRUCT(TestSaveV1) {
 
 MEALKIT_STRUCT(TestSaveV2) {
     MEALKIT_FIELD(u32, coins, 0, "코인");
-    MEALKIT_FIELD(u32, gems, 0, "보석");      // 예전 oldName
-    MEALKIT_FIELD(f32, extra, 2.5f, "새 필드"); // 예전 파일에는 없다 → 기본값
+    MEALKIT_FIELD(u32, gems, 0, "보석");      // formerly oldName
+    MEALKIT_FIELD(f32, extra, 2.5f, "새 필드"); // not in old files → default
 };
 
 TEST_CASE(game, save_files) {
@@ -696,12 +696,12 @@ TEST_CASE(game, save_files) {
     const game::SaveInfo info = game::readSave(v2, folder, "progress", 2, [](u32 version, reflect::TextFields& fields) {
         if (version < 2)
             for (auto& f : fields)
-                if (f.first == "oldName") f.first = "gems"; // 이름이 바뀐 필드 옮기기
+                if (f.first == "oldName") f.first = "gems"; // moving a renamed field
     });
     TEST_CHECK(info.found && info.version == 1 && v2.coins == 12 && v2.gems == 7 && v2.extra == 2.5f);
     TestSaveV2 none;
     TEST_CHECK(!game::readSave(none, folder, "missing", 2).found && none.coins == 0);
-    TEST_CHECK(!game::writeSave(v1, "", "progress", 1)); // 사용자 폴더가 없으면(자동 실행) 저장하지 않는다
+    TEST_CHECK(!game::writeSave(v1, "", "progress", 1)); // no saving without a user folder (automated runs)
 }
 
 TEST_CASE(loc, strings_table) {
@@ -722,8 +722,8 @@ TEST_CASE(loc, strings_table) {
     s.load("en", "ko");
     TEST_CHECK(s.language() == "en" && s.get("menu.start") == "Start");
     TEST_CHECK(s.format("hud.score", {{"score", "12"}}) == "Score <1>12</1>");
-    TEST_CHECK(s.get("multi") == "한 줄\n두 줄"); // en에 없으면 기본 언어(ko)
-    TEST_CHECK(s.get("no.such") == "no.such" && !s.has("no.such") && s.has("multi")); // 없으면 키 이름
+    TEST_CHECK(s.get("multi") == "한 줄\n두 줄"); // if missing in en, the default language (ko)
+    TEST_CHECK(s.get("no.such") == "no.such" && !s.has("no.such") && s.has("multi")); // the key name if missing
     const std::vector<std::string> langs = s.languages();
     TEST_CHECK(langs.size() == 2 && langs[0] == "en" && langs[1] == "ko");
     TEST_CHECK(loc::validStringKey("menu.start") && loc::validStringKey("Layer_1-b") && !loc::validStringKey("1abc") &&
@@ -782,33 +782,33 @@ TEST_CASE(ui, ui_layout) {
     vm.rowsCount = 3;
     const ui::ScreenId menu = sys.open("ui/menu.ui");
     sys.bind(menu, vm);
-    sys.layout({0, 0, 2000, 500}); // 보드 1000×500의 두 배 너비 → 배율 1, 보드가 가로로 늘어난다
+    sys.layout({0, 0, 2000, 500}); // twice the width of the 1000×500 board → scale 1, the board stretches horizontally
     auto box = [&](const char* name) {
         for (const ui::NodeBox& b : sys.boxes(menu))
             if (b.name == name) return b;
         return ui::NodeBox{};
     };
     const ui::NodeBox bar = box("bar"), a = box("a"), grow = box("grow"), b = box("b");
-    TEST_CHECK(bar.w == 2000 && bar.h == 100);                  // leftright: 양쪽에 붙어 늘어난다
-    TEST_CHECK(a.x == 20 && a.y == 30 && a.w == 100);             // 여백 20, 가운데 정렬 (100 - 40) / 2
-    TEST_CHECK(grow.x == 130 && grow.w == 2000 - 40 - 100 - 50 - 20 && grow.y == 40); // 채우기 = 남는 자리
+    TEST_CHECK(bar.w == 2000 && bar.h == 100);                  // leftright: attached to both sides and stretched
+    TEST_CHECK(a.x == 20 && a.y == 30 && a.w == 100);             // margin 20, centered (100 - 40) / 2
+    TEST_CHECK(grow.x == 130 && grow.w == 2000 - 40 - 100 - 50 - 20 && grow.y == 40); // fill = remaining space
     TEST_CHECK(b.x == 2000 - 20 - 50 && b.y == 20);
-    TEST_CHECK(box("corner").x == 1900 && box("corner").y == 450); // 오른쪽 아래에 붙는다
-    TEST_CHECK(box("middle").x == 950 && box("middle").y == 225);  // 가운데 기준
+    TEST_CHECK(box("corner").x == 1900 && box("corner").y == 450); // attached to the bottom right
+    TEST_CHECK(box("middle").x == 950 && box("middle").y == 225);  // relative to the center
     u32 items = 0;
     for (const ui::NodeBox& n : sys.boxes(menu)) items += n.name == "item" ? 1u : 0u;
-    TEST_CHECK(items == 3 && box("list").h == 3 * 30 + 2 * 5 && box("previewOnly").name.empty()); // 목록은 개수만큼, 예시 자식은 빠진다
+    TEST_CHECK(items == 3 && box("list").h == 3 * 30 + 2 * 5 && box("previewOnly").name.empty()); // the list has as many as the count, the example child is dropped
     TEST_CHECK(!box("extra").visible);
     vm.showExtra = true;
     vm.rowsCount = 4;
     sys.layout({0, 0, 2000, 500});
     TEST_CHECK(box("extra").visible && box("list").h == 4 * 30 + 3 * 5);
 
-    TEST_CHECK(sys.press(menu, "b") && vm.sound); // 토글은 자기 필드에 쓰고 액션을 낸다
+    TEST_CHECK(sys.press(menu, "b") && vm.sound); // toggles write their own field and fire an action
     TEST_CHECK(sys.actions().size() == 1 && sys.actions()[0].name == "changed" && sys.actions()[0].field == "sound");
     TEST_CHECK(sys.info(menu).errors.empty() && sys.info(menu).nodes == 1 + 4 + 2 + 1 + 4 + 1);
 
-    // Grid: 고정·fr·auto·% 트랙, 칸 합치기, 자동 배치, 칸 안 정렬, 내용에 맞춘 크기
+    // Grid: fixed/fr/auto/% tracks, cell spans, auto placement, in-cell alignment, content-fitted size
     TEST_CHECK(writeTextFile(dir + "/assets/ui/grid.ui",
                              "board grid 1000 500\n"
                              "  frame g\n    pos 0 0\n    size 1000 400\n    layout grid\n"
@@ -829,13 +829,13 @@ TEST_CASE(ui, ui_layout) {
             if (b.name == name) return b;
         return ui::NodeBox{};
     };
-    // 안쪽 980×380, 열: 100, 10% = 98, 남는 980 - 100 - 98 - 60 = 722 → 1fr 240.67, 2fr 481.33. 행: auto = 60 (tall), 1fr = 380 - 60 - 10 = 310
+    // Inner 980×380, columns: 100, 10% = 98, remaining 980 - 100 - 98 - 60 = 722 → 1fr 240.67, 2fr 481.33. Rows: auto = 60 (tall), 1fr = 380 - 60 - 10 = 310
     const ui::NodeBox ga = gbox("a"), tall = gbox("tall"), wide = gbox("wide"), autoPlaced = gbox("autoPlaced");
     TEST_CHECK(sys.info(gridScreen).errors.empty());
     TEST_CHECK(ga.id == "p-a" && ga.x == 10 && ga.y == 10 && ga.w == 100 && ga.h == 60);
     TEST_CHECK(std::fabs(tall.x - (10 + 100 + 20 + (722.0f / 3.0f - 30) * 0.5f)) < 0.01f && tall.y == 10);
-    TEST_CHECK(std::fabs(wide.w - (722.0f + 20)) < 0.01f && wide.y == 10 + 60 + 10 + 310 - 20); // 두 열 + 사이 간격, 아래 정렬
-    TEST_CHECK(std::fabs(autoPlaced.x - (10 + 100 + 20 + 722.0f / 3.0f + 20)) < 0.01f && autoPlaced.y == 10); // 첫 빈 칸 (1행 3열)
+    TEST_CHECK(std::fabs(wide.w - (722.0f + 20)) < 0.01f && wide.y == 10 + 60 + 10 + 310 - 20); // two columns + gap between, bottom aligned
+    TEST_CHECK(std::fabs(autoPlaced.x - (10 + 100 + 20 + 722.0f / 3.0f + 20)) < 0.01f && autoPlaced.y == 10); // first empty cell (row 1 column 3)
     TEST_CHECK(gbox("hug").w == 40 + 4 + 60 && gbox("hug").h == 30 && gbox("y").x == 44);
 
     const ui::ScreenId bad = sys.open("ui/bad.ui");
@@ -843,13 +843,13 @@ TEST_CASE(ui, ui_layout) {
     TEST_CHECK(info.errors.size() == 2 && info.errors[0].find("(3)") != std::string::npos && info.errors[1].find("(4)") != std::string::npos);
     setProjectRoot(oldRoot);
 }
-// Penpot 플러그인 변환기의 기대 파일(tools/penpot-plugin/test/expected, node --test가 만든다)을 엔진 파서가 오류 없이 읽는다
+// The engine parser reads the Penpot plugin converter's expected files (tools/penpot-plugin/test/expected, made by node --test) without errors
 TEST_CASE(ui, penpot_expected) {
     const std::string dir = std::string(MEALKIT_ENGINE_DIR) + "/tools/penpot-plugin/test/expected/";
     ui::Theme theme;
     std::string themeText;
     TEST_CHECK(readTextFile(dir + "theme.ui", themeText));
-    // theme.ui는 테마 형식이다: 줄마다 color·number
+    // theme.ui is in theme format: color/number per line
     TEST_CHECK(themeText.rfind("# MealKit UI exported from Penpot", 0) == 0 && themeText.find("color accent #FFC83D") != std::string::npos);
     theme.colors.emplace_back("accent", 0xFF3DC8FFu);
     std::string text;
@@ -886,7 +886,7 @@ TEST_CASE(settings, settings_service) {
         s.open();
         TEST_CHECK(s.isOpen());
         sys.layout({0, 0, 1000, 1000});
-        // 화면 탭: 창 모드, 해상도, 수직 동기(첫 토글) ... → 토글을 누르면 설정이 바뀌고 저장된다
+        // Display tab: window mode, resolution, vsync (first toggle) ... → pressing the toggle changes and saves the setting
         TEST_CHECK(sys.press(1, "toggle"));
         s.update(nullptr, 0.0);
         TEST_CHECK(!s.values().display.vsync && fileExists(file));
@@ -895,14 +895,14 @@ TEST_CASE(settings, settings_service) {
         TEST_CHECK(!s.isOpen());
     }
     {
-        settings::Service again; // 다시 읽으면 바꾼 값
+        settings::Service again; // rereading gives the changed value
         again.init({}, file);
         TEST_CHECK(!again.values().display.vsync && again.values().audio.master == 1.0f);
     }
     setProjectRoot(oldRoot);
 }
 
-// Blender 애드온의 지원 범위 스키마가 엔진 불러오기와 같다. 다르면 mealkit_tests --write-asset-schema로 파일을 다시 쓴다
+// The Blender add-on's supported range schema matches engine loading. If different, rewrite the file with mealkit_tests --write-asset-schema
 TEST_CASE(asset, asset_schema) {
     const std::string path = std::string(MEALKIT_ENGINE_DIR) + "/tools/blender-addon/mealkit/schema.json";
     const std::string expected = asset::modelSchemaJson();
@@ -912,7 +912,7 @@ TEST_CASE(asset, asset_schema) {
     TEST_CHECK(text == expected);
 }
 
-// 스타일 프리셋 머티리얼 기능: glTF extras(Blender 커스텀 속성)의 mealkit_ 키 → 머티리얼 비트와 값, 틀린 키·값은 문제로
+// Style preset material features: mealkit_ keys in glTF extras (Blender custom properties) → material bits and values, bad keys/values become problems
 TEST_CASE(asset, material_extras) {
     render::MaterialData m;
     std::vector<std::string> problems;
@@ -920,28 +920,28 @@ TEST_CASE(asset, material_extras) {
                                    "mealkit_rimColor": [1, 0, 0], "mealkit_wind": 1e-1})",
                                m, problems);
     TEST_CHECK(problems.empty());
-    TEST_CHECK(m.features == (render::kMaterialOutline | render::kMaterialWind)); // 색만 있는 림은 켜지지 않는다
+    TEST_CHECK(m.features == (render::kMaterialOutline | render::kMaterialWind)); // a rim with only color isn't turned on
     TEST_CHECK(m.outlineWidth == 0.05f && m.outlineColor[2] == 0.3f && m.rimColor[1] == 0.0f && m.windStrength == 0.1f);
 
     render::MaterialData d;
     asset::applyMaterialExtras(R"({"mealkit_dissolve": [1, 2], "mealkit_rim": "big", "mealkit_glow": 1, "mealkit_rimColor": 2})", d,
                                problems);
     TEST_CHECK(problems.size() == 4 && d.features == 0);
-    asset::applyMaterialExtras(nullptr, d, problems); // extras 없음
+    asset::applyMaterialExtras(nullptr, d, problems); // no extras
     asset::applyMaterialExtras("not json", d, problems);
     TEST_CHECK(problems.size() == 4 && d.features == 0);
 
-    // 인스턴스 값은 flags 위 16비트에 (48바이트 그대로)
+    // Instance values in the upper 16 bits of flags (still 48 bytes)
     const u32 flags = render::instanceDissolve(render::instanceFlash(render::kInstanceHighlight, 1.0f), 0.5f);
     TEST_CHECK((flags & 0xFFFFu) == render::kInstanceHighlight && ((flags >> render::kInstanceFlashShift) & 0xFFu) == 255 &&
                (flags >> render::kInstanceDissolveShift) == 128);
     TEST_CHECK(render::instanceFlash(flags, 0.0f) >> render::kInstanceFlashShift == 128u << 8);
 }
 
-// 하늘 HDRI 굽기: RGB9E5 왕복, 큐브 면 방향, 고른 밝기 1의 하늘은 환경광·반사·하늘이 모두 1
-// 색 보정 LUT (.cube): 크기가 다른 표는 32칸으로 세 선형 보간, DOMAIN을 따르고, 1D·모자란 표는 거절
+// Sky HDRI baking: RGB9E5 round trip, cube face directions, a uniform sky of brightness 1 gives 1 for ambient/reflection/sky
+// Color grading LUT (.cube): tables of other sizes are trilinearly resampled to 32 cells, DOMAIN is honored, 1D/short tables are rejected
 TEST_CASE(asset, cube_lut) {
-    // 2칸 표: 빨강과 파랑을 바꾼다 (보간해도 선형이라 32칸 어디서나 정확히 바뀐다)
+    // 2-cell table: swaps red and blue (interpolation is linear, so it swaps exactly anywhere in the 32 cells)
     const std::string swap = "TITLE \"swap\"\n# comment\nLUT_3D_SIZE 2\n"
                              "0 0 0\n0 0 1\n0 1 0\n0 1 1\n1 0 0\n1 0 1\n1 1 0\n1 1 1\n";
     std::vector<f32> lut;
@@ -950,10 +950,10 @@ TEST_CASE(asset, cube_lut) {
     constexpr u32 n = render::kLutSize;
     TEST_CHECK(lut.size() == static_cast<size_t>(n) * n * n * 3);
     const auto at = [&](u32 r, u32 g, u32 b, u32 c) { return lut[((static_cast<size_t>(b) * n + g) * n + r) * 3 + c]; };
-    TEST_CHECK(std::abs(at(31, 0, 0, 2) - 1.0f) < 1e-5f && at(31, 0, 0, 0) < 1e-5f); // 빨강 → 파랑
+    TEST_CHECK(std::abs(at(31, 0, 0, 2) - 1.0f) < 1e-5f && at(31, 0, 0, 0) < 1e-5f); // red → blue
     TEST_CHECK(std::abs(at(10, 20, 5, 0) - 5.0f / 31.0f) < 1e-5f && std::abs(at(10, 20, 5, 1) - 20.0f / 31.0f) < 1e-5f);
 
-    // 중립 LUT 파일은 항등으로 다시 읽힌다
+    // The neutral LUT file reads back as identity
     const std::string path = std::string(MEALKIT_ENGINE_DIR) + "/build/check/neutral_test.cube";
     createDirectories(parentDirectory(path));
     TEST_CHECK(asset::saveNeutralCubeLut(path));
@@ -972,11 +972,11 @@ TEST_CASE(asset, environment_bake) {
         TEST_CHECK(std::abs(back[0] - v) <= v * 0.01f + 1e-6f && std::abs(back[1] - v * 0.5f) <= v * 0.01f + 1e-6f && back[2] == 0.0f);
     }
     f32 neg[3];
-    asset::unpackRgb9e5(asset::packRgb9e5(-1.0f, 1e9f, 0.25f), neg); // 음수는 0, 너무 크면 최대 (지수를 같이 써서 작은 채널은 0이 된다)
+    asset::unpackRgb9e5(asset::packRgb9e5(-1.0f, 1e9f, 0.25f), neg); // negatives become 0, too large becomes max (the shared exponent makes small channels 0)
     TEST_CHECK(neg[0] == 0.0f && neg[1] > 60000.0f && neg[2] < 1.0f);
     const Vec3 px = asset::cubeDirection(0, 0, 0), py = asset::cubeDirection(2, 0, 0), nz = asset::cubeDirection(5, 0, 0);
     TEST_CHECK(px.x > 0.99f && py.y > 0.99f && nz.z < -0.99f);
-    const Vec3 corner = asset::cubeDirection(4, 1, -1); // +Z 면 오른쪽 위 = +x, +y
+    const Vec3 corner = asset::cubeDirection(4, 1, -1); // top right of the +Z face = +x, +y
     TEST_CHECK(corner.x > 0.5f && corner.y > 0.5f && corner.z > 0.5f);
 
     std::vector<f32> flat(64 * 32 * 3, 1.0f);
@@ -990,13 +990,13 @@ TEST_CASE(asset, environment_bake) {
     f32 texel[3];
     asset::unpackRgb9e5(env.sky[123], texel);
     TEST_CHECK(std::abs(texel[0] - 1.0f) < 0.02f);
-    asset::unpackRgb9e5(env.reflect.back(), texel); // 가장 거친 밉
+    asset::unpackRgb9e5(env.reflect.back(), texel); // roughest mip
     TEST_CHECK(std::abs(texel[1] - 1.0f) < 0.02f);
 }
 
-// 반사 프로브: 에디터가 그리는 큐브 면 카메라가 cubeDirection과 같은 배치이고, 굽기·파일 왕복이 값을 지킨다
+// Reflection probes: the cube face cameras the editor draws have the same layout as cubeDirection, and baking/file round trips preserve values
 TEST_CASE(asset, reflection_probe) {
-    static const Vec3 kForward[6] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}; // editor/Editor.cpp와 같다
+    static const Vec3 kForward[6] = {{1, 0, 0}, {-1, 0, 0}, {0, 1, 0}, {0, -1, 0}, {0, 0, 1}, {0, 0, -1}}; // same as editor/Editor.cpp
     static const Vec3 kUp[6] = {{0, 1, 0}, {0, 1, 0}, {0, 0, -1}, {0, 0, 1}, {0, 1, 0}, {0, 1, 0}};
     const Mat4 proj = perspectiveReversedZ(3.14159265f * 0.5f, 1.0f, 0.05f, 100.0f);
     for (u32 face = 0; face < 6; ++face) {
@@ -1007,10 +1007,10 @@ TEST_CASE(asset, reflection_probe) {
                 const f32 x = d.x * viewProj.m[0][0] + d.y * viewProj.m[1][0] + d.z * viewProj.m[2][0] + viewProj.m[3][0];
                 const f32 y = d.x * viewProj.m[0][1] + d.y * viewProj.m[1][1] + d.z * viewProj.m[2][1] + viewProj.m[3][1];
                 const f32 w = d.x * viewProj.m[0][3] + d.y * viewProj.m[1][3] + d.z * viewProj.m[2][3] + viewProj.m[3][3];
-                TEST_CHECK(std::abs(x / w - s) < 1e-4f && std::abs(y / w + t) < 1e-4f); // 그림 줄은 위에서 아래 (t = -NDC y)
+                TEST_CHECK(std::abs(x / w - s) < 1e-4f && std::abs(y / w + t) < 1e-4f); // image rows go top to bottom (t = -NDC y)
             }
     }
-    // 면마다 다른 색: 거울 밉은 그 면 색, 가장 거친 밉은 섞인 색
+    // A different color per face: the mirror mip is that face's color, the roughest mip the blended color
     const u32 size = 32;
     std::vector<f32> faces(size * size * 18);
     for (u32 face = 0; face < 6; ++face)
@@ -1019,7 +1019,7 @@ TEST_CASE(asset, reflection_probe) {
     asset::bakeProbe(faces.data(), size, probe);
     TEST_CHECK(probe.size == 32 && probe.mips == 4); // 32 → 4
     f32 texel[3];
-    asset::unpackRgb9e5(probe.reflect[size * size / 2 + size / 2], texel); // +X 면 가운데 = 빨강
+    asset::unpackRgb9e5(probe.reflect[size * size / 2 + size / 2], texel); // center of the +X face = red
     TEST_CHECK(texel[0] > 0.95f && texel[1] < 0.05f && texel[2] < 0.05f);
     const std::string path = executableDirectory() + "/test_probe.mkprobe";
     TEST_CHECK(asset::saveProbe(path, probe));
@@ -1030,14 +1030,14 @@ TEST_CASE(asset, reflection_probe) {
     TEST_CHECK(!asset::loadProbe(path, back, error) && !error.empty());
 }
 
-// 점광원: 엔진 기본 종류지만 필드가 있고, 씬 물체 → render::PointLight (월드 위치, 선형 색 × 세기, 꺼진 빛은 뺀다)
+// Point lights: a built-in kind but with fields; scene object → render::PointLight (world position, linear color × intensity, disabled lights excluded)
 TEST_CASE(render, scene_point_lights) {
     const reflect::TypeInfo* type = scene::findType(scene::kTypePointLight, nullptr);
     TEST_CHECK(type && type->field("range") && (type->flags & reflect::kObjectCosmetic));
     scene::Scene s;
     scene::Entity& parent = s.add(scene::kTypeSolid, "Parent");
     parent.position = {10, 0, 0};
-    const u32 parentId = parent.id; // add가 벡터를 늘리면 앞의 참조는 무효
+    const u32 parentId = parent.id; // if add grows the vector, earlier references become invalid
     scene::Entity& lamp = s.add(scene::kTypePointLight, "Lamp");
     lamp.parent = parentId;
     lamp.position = {0, 2, 0};
@@ -1052,13 +1052,13 @@ TEST_CASE(render, scene_point_lights) {
     TEST_CHECK(std::abs(render::srgbToLinear(Color::rgb(188, 188, 188)).x - 0.5f) < 0.01f);
 }
 
-// 스켈레탈 애니메이션: 예제 인형(rig_figure.glb)의 스킨·클립, 쉬는 자세 팔레트 = 단위, 틱 샘플링 = 같은 프레임의 초 샘플링
+// Skeletal animation: skin/clips of the sample figure (rig_figure.glb), rest pose palette = identity, tick sampling = seconds sampling of the same frame
 TEST_CASE(asset, skeletal_animation) {
-    asset::ModelCache models; // 렌더러 없이 (CPU 데이터만)
+    asset::ModelCache models; // without a renderer (CPU data only)
     const asset::Model* rig = models.get("models/characters/rig_figure.glb");
     TEST_CHECK(rig && rig->skinned() && rig->bones == 8 && rig->clips.size() == 3);
     if (!rig || !rig->skinned()) return;
-    for (size_t j = 0; j < rig->skeleton.joints.size(); ++j) // 부모가 앞에
+    for (size_t j = 0; j < rig->skeleton.joints.size(); ++j) // parents first
         TEST_CHECK(rig->skeleton.joints[j].parent < static_cast<i32>(j));
     TEST_CHECK(rig->skeleton.joints[0].name == "root" && asset::findClip(rig->clips, "run") && !asset::findClip(rig->clips, "fly"));
     std::vector<asset::JointPose> pose;
@@ -1069,53 +1069,53 @@ TEST_CASE(asset, skeletal_animation) {
         for (int r = 0; r < 3; ++r)
             for (int c = 0; c < 4; ++c) TEST_CHECK(std::abs(b.rows[r][c] - (r == c ? 1.0f : 0.0f)) < 1e-5f);
     const asset::AnimationClip& run = *asset::findClip(rig->clips, "run");
-    TEST_CHECK(run.frames == 19 && std::abs(run.duration - 0.6f) < 1e-5f); // 0.6초 × 30 Hz + 1
+    TEST_CHECK(run.frames == 19 && std::abs(run.duration - 0.6f) < 1e-5f); // 0.6 s × 30 Hz + 1
     std::vector<asset::JointPose> byTick, bySeconds;
-    asset::samplePoseTick(rig->skeleton, run, 9, 30, true, byTick); // 틱 9 @30 Hz = 프레임 9
+    asset::samplePoseTick(rig->skeleton, run, 9, 30, true, byTick); // tick 9 @30 Hz = frame 9
     asset::samplePose(rig->skeleton, run, 9.0f / 30.0f, true, bySeconds);
     for (size_t j = 0; j < byTick.size(); ++j)
         TEST_CHECK(std::abs(byTick[j].rotation.x - bySeconds[j].rotation.x) < 1e-5f && std::abs(byTick[j].translation.y - bySeconds[j].translation.y) < 1e-5f);
-    // 다리를 흔드는 프레임: 왼다리 관절이 움직였고, 팔레트로 옮긴 발끝이 쉬는 자세와 다르다 (z 반전 포함)
+    // Leg-swinging frame: the left leg joint moved, and the toe transformed by the palette differs from the rest pose (including z flip)
     asset::samplePose(rig->skeleton, run, 0.15f, true, pose);
     asset::skinPalette(rig->skeleton, pose, palette);
     const i32 leg = [&] { for (size_t j = 0; j < rig->skeleton.joints.size(); ++j) if (rig->skeleton.joints[j].name == "leg.L") return static_cast<i32>(j); return -1; }();
     TEST_CHECK(leg > 0);
     const asset::BoneMatrix& m = palette[static_cast<size_t>(leg)];
-    const Vec3 foot{0.15f, 0.0f, 0.0f}; // MealKit 좌표 (z 반전된 정점)
+    const Vec3 foot{0.15f, 0.0f, 0.0f}; // MealKit coordinates (z-flipped vertex)
     const Vec3 moved{m.rows[0][0] * foot.x + m.rows[0][1] * foot.y + m.rows[0][2] * foot.z + m.rows[0][3],
                      m.rows[1][0] * foot.x + m.rows[1][1] * foot.y + m.rows[1][2] * foot.z + m.rows[1][3],
                      m.rows[2][0] * foot.x + m.rows[2][1] * foot.y + m.rows[2][2] * foot.z + m.rows[2][3]};
-    TEST_CHECK(std::abs(moved.z) > 0.2f && moved.y > 0.0f); // 35도 흔들림: 발이 앞이나 뒤로, 위로
+    TEST_CHECK(std::abs(moved.z) > 0.2f && moved.y > 0.0f); // 35 degree swing: the foot moves forward or back, and up
     std::vector<Mat4> world;
     asset::jointMatrices(rig->skeleton, pose, world);
-    const Mat4& hip = world[static_cast<size_t>(leg)]; // 다리 관절 = 엉덩이 옆 (z 반전은 0이라 같다)
-    TEST_CHECK(std::abs(length(moved - Vec3{hip.m[3][0], hip.m[3][1], -hip.m[3][2]}) - 0.7f) < 1e-3f); // 다리 길이 그대로
+    const Mat4& hip = world[static_cast<size_t>(leg)]; // leg joint = beside the hip (z flip of 0 is the same)
+    TEST_CHECK(std::abs(length(moved - Vec3{hip.m[3][0], hip.m[3][1], -hip.m[3][2]}) - 0.7f) < 1e-3f); // leg length unchanged
 }
 
-// 텍스처 캐시의 밉맵: 크기가 반씩 줄고, sRGB는 선형으로 평균하고, 법선은 다시 길이 1. half 변환
+// Texture cache mipmaps: size halves, sRGB averages in linear, normals renormalize to length 1. half conversion
 TEST_CASE(asset, texture_mips) {
-    std::vector<u8> rgba(4 * 2 * 4); // 4x2: 왼쪽 반 흰색, 오른쪽 반 검정
+    std::vector<u8> rgba(4 * 2 * 4); // 4x2: left half white, right half black
     for (u32 y = 0; y < 2; ++y)
         for (u32 x = 0; x < 4; ++x)
             for (u32 c = 0; c < 4; ++c) rgba[(y * 4 + x) * 4 + c] = (x < 2 || c == 3) ? 255 : 0;
     std::vector<std::vector<u8>> mips;
     asset::buildMips(rgba.data(), 4, 2, true, false, mips);
     TEST_CHECK(mips.size() == 3 && mips[1].size() == 2 * 1 * 4 && mips[2].size() == 4);
-    TEST_CHECK(mips[2][0] == 188 && mips[2][3] == 255); // 흰색·검정의 선형 평균 0.5 = sRGB 188
+    TEST_CHECK(mips[2][0] == 188 && mips[2][3] == 255); // linear average of white/black 0.5 = sRGB 188
     asset::buildMips(rgba.data(), 4, 2, false, false, mips);
     TEST_CHECK(mips[2][0] == 128);
-    std::vector<u8> normals = {255, 128, 128, 255, 0, 128, 128, 255}; // +x, -x → 평균은 z 쪽
+    std::vector<u8> normals = {255, 128, 128, 255, 0, 128, 128, 255}; // +x, -x → average points toward z
     asset::buildMips(normals.data(), 2, 1, false, true, mips);
     TEST_CHECK(mips.size() == 2 && mips[1][0] == 128);
     TEST_CHECK(render::packHalf2(1.0f, 0.5f) == (0x3C00u | (0x3800u << 16)) && render::packHalf2(0.0f, -2.0f) == (0xC000u << 16));
 }
 
-// 에셋 예산: 종류는 models/ 아래 첫 폴더, 넘은 항목만 문장으로
+// Asset budgets: kind is the first folder under models/, only exceeded items as sentences
 TEST_CASE(asset, asset_budget) {
     TEST_CHECK(asset::modelKind("models/characters/hero.glb") == asset::ModelKind::Character);
     TEST_CHECK(asset::modelKind("models/environment/cliff.glb") == asset::ModelKind::Environment);
     TEST_CHECK(asset::modelKind("models/tree.glb") == asset::ModelKind::Prop);
-    TEST_CHECK(asset::modelKind("models\\environment\\rock.glb") == asset::ModelKind::Environment); // 역슬래시
+    TEST_CHECK(asset::modelKind("models\\environment\\rock.glb") == asset::ModelKind::Environment); // backslashes
     TEST_CHECK(asset::modelKind("models/other/x.glb") == asset::ModelKind::Prop);
     asset::Model m;
     m.triangles[0] = 3200;
@@ -1125,34 +1125,34 @@ TEST_CASE(asset, asset_budget) {
     TEST_CHECK(asset::budgetProblems(m, asset::kDefaultBudgets[0]).empty());
 }
 
-// 프러스텀 컬링: 카메라 (0,0,-10)이 원점을 본다 (reversed-Z, 가까운 면 0.1, 먼 면 100)
+// Frustum culling: camera (0,0,-10) looking at the origin (reversed-Z, near plane 0.1, far plane 100)
 TEST_CASE(render, frustum_culling) {
     const Mat4 vp = lookAtLH({0, 0, -10}, {0, 0, 0}, {0, 1, 0}) * perspectiveReversedZ(1.0f, 1.0f, 0.1f, 100.0f);
     const render::Frustum f = render::Frustum::fromViewProj(vp);
     TEST_CHECK(f.count == 6);
     TEST_CHECK(f.sphereVisible({0, 0, 0}, 1.0f));
-    TEST_CHECK(!f.sphereVisible({100, 0, 0}, 1.0f));  // 옆
-    TEST_CHECK(!f.sphereVisible({0, 0, -20}, 1.0f));  // 뒤
-    TEST_CHECK(!f.sphereVisible({0, 0, 200}, 1.0f));  // 먼 면 너머
-    TEST_CHECK(f.sphereVisible({0, 0, 200}, 120.0f)); // 먼 면에 걸친다
-    TEST_CHECK(f.sphereVisible({8, 0, 0}, 3.0f));     // 옆 면에 걸친다 (화면 가장자리 약 5.5)
+    TEST_CHECK(!f.sphereVisible({100, 0, 0}, 1.0f));  // to the side
+    TEST_CHECK(!f.sphereVisible({0, 0, -20}, 1.0f));  // behind
+    TEST_CHECK(!f.sphereVisible({0, 0, 200}, 1.0f));  // beyond the far plane
+    TEST_CHECK(f.sphereVisible({0, 0, 200}, 120.0f)); // straddles the far plane
+    TEST_CHECK(f.sphereVisible({8, 0, 0}, 3.0f));     // straddles a side plane (screen edge about 5.5)
     const Vec3 pts[] = {{-1, 0, 0}, {3, 0, 0}, {1, 2, 0}};
     const render::BoundingSphere b = render::boundingSphere(pts, 3);
     TEST_CHECK(std::abs(b.center.x - 1.0f) < 1e-6f && std::abs(b.center.y - 1.0f) < 1e-6f && std::abs(b.radius - std::sqrt(5.0f)) < 1e-5f);
 }
 
-// 성능 숫자: 보고 주기마다 평균·최악 프레임, 없는 출처는 글자에서 빠진다
+// Performance numbers: average/worst frame per report period, missing sources drop out of the text
 TEST_CASE(game, frame_stats) {
     game::FrameStats perf(0.25);
     TEST_CHECK(!perf.update(0.1, {}) && !perf.update(0.1, {}));
-    TEST_CHECK(perf.update(0.1, {})); // 0.3초: 주기 끝
+    TEST_CHECK(perf.update(0.1, {})); // 0.3 s: end of period
     const game::FrameSample& s = perf.sample();
     TEST_CHECK(s.frames == 3 && std::abs(s.frameMs - 100.0) < 1e-6 && std::abs(s.worstFrameMs - 100.0) < 1e-6);
     TEST_CHECK(std::abs(s.fps - 10.0) < 1e-6 && !s.hasGame && !s.hasSession && !s.hasRenderer && !s.hasAudio);
     TEST_CHECK(perf.line() == "10 fps 100.00 ms (worst 100.0)" && perf.lines() == perf.line());
-    TEST_CHECK(!perf.update(0.05, {}) && perf.update(0.4, {})); // 새 주기: 앞 주기 값은 남지 않는다
+    TEST_CHECK(!perf.update(0.05, {}) && perf.update(0.4, {})); // new period: the previous period's values don't remain
     TEST_CHECK(perf.sample().frames == 2 && std::abs(perf.sample().worstFrameMs - 400.0) < 1e-6);
-    // 1% 최악 프레임: 가장 가까운 순위 (200프레임 중 긴 2개가 1%)
+    // 1% worst frames: nearest rank (the 2 longest of 200 frames are 1%)
     std::vector<f64> times(200, 0.010);
     times[7] = 0.050;
     times[90] = 0.040;
@@ -1161,13 +1161,13 @@ TEST_CASE(game, frame_stats) {
     TEST_CHECK(std::abs(game::frameMsPercentile(times, 99.0) - 30.0) < 1e-6);
     std::vector<f64> none;
     TEST_CHECK(game::frameMsPercentile(none, 99.0) == 0.0);
-    // 라이브 연결 "stats" 주제: 없는 출처의 묶음은 빠진다
+    // Live connection "stats" topic: batches from missing sources are omitted
     const std::string json = perf.json();
     TEST_CHECK(json.rfind("{\"seconds\":", 0) == 0 && json.find("\"frames\":2") != std::string::npos && json.back() == '}');
     TEST_CHECK(json.find("\"game\"") == std::string::npos && json.find("\"render\"") == std::string::npos);
 }
 
-// 라이브 연결 (mealkit/live/Server.h): 접속 정보 파일, 토큰 경로, Origin, 서비스 경로 (소켓 왕복은 check.ps1의 live_probe)
+// Live connection (mealkit/live/Server.h): connection info file, token paths, Origin, service paths (socket round trips are live_probe in check.ps1)
 TEST_CASE(live, live_server) {
     const std::string project = executableDirectory() + "/live_test";
     live::Server server;
@@ -1184,7 +1184,7 @@ TEST_CASE(live, live_server) {
     live::Response r = server.handle("GET", "/tok/api/hello", "", "");
     TEST_CHECK(r.status == 200 && r.body.find("\"kind\":\"game\"") != std::string::npos && r.body.find("\"project\":\"Test\"") != std::string::npos);
     TEST_CHECK(server.handle("GET", "/other/api/hello", "", "").status == 404);
-    TEST_CHECK(server.handle("GET", "/tok/api/hello", "https://example.com", "").status == 403); // 웹 페이지는 못 부른다
+    TEST_CHECK(server.handle("GET", "/tok/api/hello", "https://example.com", "").status == 403); // web pages can't call it
     TEST_CHECK(server.handle("GET", "/tok/api/hello", server.origin(), "").status == 200);
 
     live::Service echo;
@@ -1202,13 +1202,13 @@ TEST_CASE(live, live_server) {
     TEST_CHECK(server.handle("GET", "/tok/echo/a", "https://example.com", "").status == 403);
     TEST_CHECK(server.handle("GET", "/tok/api/hello", "", "").body.find("\"services\":[\"echo\"]") != std::string::npos);
     TEST_CHECK(!server.listening("stats"));
-    server.publish("stats", "{}"); // 듣는 연결이 없어도 된다. hello의 주제 목록에 들어간다
+    server.publish("stats", "{}"); // fine without listeners. Goes into hello's topic list
     TEST_CHECK(server.handle("GET", "/tok/api/hello", "", "").body.find("\"topics\":[\"stats\"]") != std::string::npos);
 
     const std::string path = server.infoPath();
     server.stop();
     TEST_CHECK(!fileExists(path));
-    // 비정상 종료로 남은 파일(없는 pid)은 다음 서버가 지운다
+    // Files left by abnormal exits (missing pid) are deleted by the next server
     TEST_CHECK(writeTextFile(project + "/build/live/game-4000000000.json", "{}"));
     TEST_CHECK(server.start(c));
     TEST_CHECK(!fileExists(project + "/build/live/game-4000000000.json"));
@@ -1225,7 +1225,7 @@ MEALKIT_STRUCT(OtherCommand) {
     MEALKIT_FIELD(u8, flag, 0, "표시");
 };
 
-// 한 세션의 확정된 틱마다 명령을 모은다: "틱 플레이어 값" 줄들
+// Collects commands per confirmed tick of a session: "tick player value" lines
 struct CommandLog {
     std::vector<std::string> lines;
     void collect(u32 tick, const net::TickInputs& in) {
@@ -1237,7 +1237,7 @@ struct CommandLog {
 };
 
 TEST_CASE(net, command_channel) {
-    { // 혼자: 보낸 명령은 다음에 확정되는 틱에, 보낸 순서로 들어간다
+    { // solo: sent commands go into the next confirmed tick, in send order
         net::LockstepSession s;
         TEST_CHECK(s.startOffline(1, 0));
         TestCommand a;
@@ -1250,13 +1250,13 @@ TEST_CASE(net, command_channel) {
         log.collect(1, s.inputs(1));
         TEST_CHECK(log.lines.size() == 2 && log.lines[0] == "1 0 7" && log.lines[1] == "1 0 other");
 
-        // 틱당 크기를 넘으면 나머지는 다음 틱
+        // Beyond the per-tick size, the rest go to the next tick
         for (u32 i = 0; i < 40; ++i) {
             TestCommand c;
             c.value = 100 + i;
             sim::sendCommand(s, c);
         }
-        CommandLog more; // 명령 하나 22바이트(머리 2 + 타입 4 + 16) → 틱당 11개
+        CommandLog more; // one command is 22 bytes (header 2 + type 4 + 16) → 11 per tick
         for (u32 t = 2; t < 6; ++t) {
             s.submitLocalInput(t, {});
             more.collect(t, s.inputs(t));
@@ -1265,7 +1265,7 @@ TEST_CASE(net, command_channel) {
         TEST_CHECK(more.lines.size() == 40 && more.lines.front() == "2 0 100" && more.lines.back() == "5 0 139");
         TEST_CHECK(more.lines[10] == "2 0 110" && more.lines[11] == "3 0 111");
 
-        // 입력 기록에 같이 들어간다
+        // Goes into the input recording too
         const std::string path = executableDirectory() + "/test_commands.rec";
         {
             game::InputRecordWriter w;
@@ -1280,11 +1280,11 @@ TEST_CASE(net, command_channel) {
         TEST_CHECK(replayed.lines.size() == 42 && replayed.lines[0] == log.lines[0] && replayed.lines.back() == more.lines.back());
         removeFile(path);
     }
-    { // 호스트 + 클라이언트 (UDP 루프백): 양쪽이 같은 틱에 같은 명령을 본다
+    { // host + client (UDP loopback): both see the same commands on the same tick
         constexpr u16 kPort = 27931;
         net::LockstepSession host, client;
         TEST_CHECK(host.host(kPort, 2, 2, true));
-        TestCommand hostLoadout, clientLoadout; // 매치 시작 데이터: 로비에서 보내고 시작 패킷으로 확정
+        TestCommand hostLoadout, clientLoadout; // match start data: sent in the lobby and confirmed by the start packet
         hostLoadout.value = 11;
         clientLoadout.value = 22;
         TEST_CHECK(game::setLoadout(host, hostLoadout) && game::setLoadout(client, clientLoadout));
@@ -1311,7 +1311,7 @@ TEST_CASE(net, command_channel) {
                     const u32 t = next[i]++;
                     logs[i].collect(t, s.inputs(t));
                     s.tickExecuted(t, 0);
-                    if (t == 5 || t == 9) { // 클라이언트 2번, 호스트 1번
+                    if (t == 5 || t == 9) { // client twice, host once
                         TestCommand c;
                         c.value = t * 10 + i;
                         if (i == 1 || t == 5) sim::sendCommand(s, c);
@@ -1326,9 +1326,9 @@ TEST_CASE(net, command_channel) {
             TestCommand a, b;
             TEST_CHECK(game::readLoadout(match, 0, a) && a.value == 11 && game::readLoadout(match, 1, b) && b.value == 22);
             OtherCommand wrong;
-            TEST_CHECK(!game::readLoadout(match, 0, wrong)); // 타입이 다르면 읽지 않는다
+            TEST_CHECK(!game::readLoadout(match, 0, wrong)); // not read if the type differs
         }
-        { // 입력 기록 머리에 들어간다 (버전 3)
+        { // goes into the input recording header (version 3)
             const std::string path = executableDirectory() + "/test_loadouts.rec";
             {
                 game::InputRecordWriter w;
@@ -1348,10 +1348,10 @@ TEST_CASE(net, command_channel) {
     }
 }
 
-// 화면 흐름의 세션: 로비 이름·준비·로드아웃, 채팅 중계, 매치 → 로비 → 두 번째 매치, LAN 방 알림 (UDP 루프백)
+// Screen flow session: lobby names/ready/loadouts, chat relay, match → lobby → second match, LAN room announcements (UDP loopback)
 TEST_CASE(net, lobby_chat_rematch) {
     TEST_CHECK(net::clampUtf8("abc", 2) == "ab");
-    TEST_CHECK(net::clampUtf8("\xEA\xB0\x80\xEA\xB0\x80", 4) == "\xEA\xB0\x80"); // 한글 한 글자(3바이트) 중간에서 자르지 않는다
+    TEST_CHECK(net::clampUtf8("\xEA\xB0\x80\xEA\xB0\x80", 4) == "\xEA\xB0\x80"); // doesn't cut in the middle of a Korean character (3 bytes)
 
     constexpr u16 kPort = 27933;
     net::LockstepSession host, client;
@@ -1375,7 +1375,7 @@ TEST_CASE(net, lobby_chat_rematch) {
         }
         return done();
     };
-    // 로비: 클라이언트가 호스트의 목록에서 자기 이름·준비·로드아웃을 본다
+    // Lobby: the client sees its own name/ready/loadout in the host's list
     client.setLocalReady(true);
     TEST_CHECK(pump([&] {
         const auto& m = client.lobbyMembers();
@@ -1383,7 +1383,7 @@ TEST_CASE(net, lobby_chat_rematch) {
     }, 5.0));
     TestCommand seen;
     TEST_CHECK(game::readLobbyLoadout(client.lobbyMembers()[1], seen) && seen.value == 7);
-    // 채팅: 양쪽이 같은 순서로 받는다 (클라이언트 것도 호스트를 거쳐 돌아온다)
+    // Chat: both receive in the same order (the client's own comes back via the host)
     TEST_CHECK(client.sendChat("hi") && host.sendChat("hello"));
     TEST_CHECK(!host.sendChat("too fast")); // kChatInterval
     TEST_CHECK(pump([&] { return host.chatLog().size() == 2 && client.chatLog().size() == 2; }, 5.0));
@@ -1392,7 +1392,7 @@ TEST_CASE(net, lobby_chat_rematch) {
         TEST_CHECK(s->chatLog()[0].text == "hello" || s->chatLog()[1].text == "hello");
     }
     TEST_CHECK(host.chatLog()[0].name == (host.chatLog()[0].text == "hi" ? "Guest" : "Host"));
-    // 매치 두 번: 시작 → 몇 틱 → 로비로 (클라이언트도 돌아오고 준비가 풀린다) → 다시 시작
+    // Two matches: start → a few ticks → to the lobby (the client returns too and ready is cleared) → start again
     for (u32 match = 1; match <= 2; ++match) {
         host.startMatch(match, 0);
         TEST_CHECK(pump([&] { return client.state() == net::SessionState::Running; }, 5.0));
@@ -1416,10 +1416,10 @@ TEST_CASE(net, lobby_chat_rematch) {
     }
     client.reset();
     TEST_CHECK(client.state() == net::SessionState::Idle && client.localName() == "Guest");
-    TEST_CHECK(pump([&] { return host.lobbyPlayerCount() == 1; }, 5.0)); // 나간 사람은 로비에서 빠진다
+    TEST_CHECK(pump([&] { return host.lobbyPlayerCount() == 1; }, 5.0)); // people who left drop out of the lobby
     host.shutdown();
 
-    // LAN 방 알림: 127.0.0.1로만 보내도 찾는다, 다른 게임 이름은 무시한다
+    // LAN room announcements: found even when sent only to 127.0.0.1, other game names are ignored
     net::RoomFinder finder, other;
     TEST_CHECK(finder.open("TestGame") && other.open("OtherGame"));
     net::RoomAnnouncer announcer;
@@ -1441,7 +1441,7 @@ TEST_CASE(net, lobby_chat_rematch) {
                finder.rooms()[0].address.port == 12345 && other.rooms().empty());
 }
 
-// 네트워크 상태 흉내: 지연·흔들림·손실이 있어도 락스텝은 같은 입력으로 끝까지 간다 (재전송·중복 전송 길)
+// Network condition simulation: even with delay/jitter/loss, lockstep reaches the end with the same inputs (retransmit/redundant send paths)
 TEST_CASE(net, net_conditions) {
     constexpr u16 kPort = 27935;
     net::LockstepSession host, client;
@@ -1480,9 +1480,9 @@ TEST_CASE(net, net_conditions) {
         sleepSeconds(0.001);
     }
     TEST_CHECK(next[0] == kTicks && next[1] == kTicks && sum[0] == sum[1] && !host.desynced());
-    TEST_CHECK(host.stats().rttMs == 0.0f && client.stats().rttMs > 40.0f); // 클라이언트가 재는 왕복 시간에 지연이 보인다
-    TEST_CHECK(host.pingMs(1) > 40 && host.pingMs(0) == 0); // 호스트가 잰 플레이어별 왕복 시간
-    // 클라이언트가 입력을 멈추면 매치가 멈추고, 양쪽 모두 플레이어 1을 기다린다고 알린다
+    TEST_CHECK(host.stats().rttMs == 0.0f && client.stats().rttMs > 40.0f); // the delay shows in the round trip the client measures
+    TEST_CHECK(host.pingMs(1) > 40 && host.pingMs(0) == 0); // per-player round-trip time measured by the host
+    // When the client stops sending input the match stalls, and both sides report waiting for player 1
     const f64 stallUntil = nowSeconds() + 3.0;
     while (nowSeconds() < stallUntil && !((host.waitingFor() & 2u) && (client.waitingFor() & 2u))) {
         for (net::LockstepSession* s : sessions) s->update(nowSeconds());
@@ -1498,7 +1498,7 @@ TEST_CASE(net, net_conditions) {
     host.shutdown();
 }
 
-// 리플레이 세션: 기록된 입력만 내주고 기록 끝에서 멈춘다. 내 입력·명령은 버리고, 기록과 다른 해시는 디싱크로 알린다
+// Replay session: provides only recorded inputs and stops at the end of the recording. My inputs/commands are discarded, and hashes differing from the recording are reported as desyncs
 TEST_CASE(net, replay_session) {
     std::vector<net::TickInputs> inputs(4);
     for (u32 t = 0; t < inputs.size(); ++t) inputs[t].players[1].bytes[0] = static_cast<u8>(10 + t);
@@ -1515,10 +1515,10 @@ TEST_CASE(net, replay_session) {
         ++t;
     }
     TEST_CHECK(t == 4 && s.desynced() && s.desyncTick() == 2);
-    TEST_CHECK(!s.startReplay(1, 0, {{}}, {}, {})); // Running 중에는 못 연다
+    TEST_CHECK(!s.startReplay(1, 0, {{}}, {}, {})); // can't open while Running
 }
 
-// 입력 지연 바꾸기: 매치 중에 늘리고 줄여도 두 피어가 같은 틱부터 바꾸고 같은 입력으로 끝까지 간다 (빈 틱 채우기, 겹친 틱 건너뛰기)
+// Changing input delay: even when increased and decreased mid-match, both peers change from the same tick and reach the end with the same inputs (filling empty ticks, skipping overlapping ticks)
 TEST_CASE(net, input_delay_change) {
     net::AutoDelay a;
     a.tickMs = 1000.0f / 30.0f;
@@ -1571,12 +1571,12 @@ TEST_CASE(net, input_delay_change) {
         sameSwitch = sameSwitch && delayAt[0][t] == delayAt[1][t];
         sawSeven = sawSeven || delayAt[0][t] == 7;
     }
-    TEST_CHECK(sameSwitch && sawSeven); // 모두 같은 틱에 바꿨다
+    TEST_CHECK(sameSwitch && sawSeven); // everyone changed on the same tick
     client.shutdown();
     host.shutdown();
 }
 
-// 접속 거부 이유: 시뮬레이션 버전이 다르면 버전 (방장의 게임 버전과 함께), 게임 데이터가 다르면 다른 구성
+// Connection rejection reasons: version if the simulation version differs (with the host's game version), differing components if game data differs
 TEST_CASE(net, join_reject_reasons) {
     constexpr u16 kPort = 27939;
     net::Address address;
@@ -1612,12 +1612,12 @@ TEST_CASE(net, join_reject_reasons) {
     TEST_CHECK(r.reason == net::RejectReason::Content &&
                r.contentMask == ((1u << static_cast<u32>(net::ContentPart::Tuning)) | (1u << static_cast<u32>(net::ContentPart::Tables))));
     r = tryJoin(0xABCull, same, 100);
-    TEST_CHECK(r.reason == net::RejectReason::None); // 같으면 들어간다
+    TEST_CHECK(r.reason == net::RejectReason::None); // joins if identical
 }
 
 TEST_CASE(game, project_file) {
     const std::string path = executableDirectory() + "\\test.project";
-    // 예전 형식(키=값)과 새 형식(경로 값)이 섞여 있어도 읽는다
+    // Reads even with the old format (key=value) and new format (path value) mixed
     TEST_CHECK(writeTextFile(path, "# header line\r\nname=Old\r\nengine = D:\\My Engine\r\n"
                                    "scene scenes/b.scene\r\ngame.port 99\r\nfutureKey 1 2\r\n"));
     game::ProjectFile p;
@@ -1628,7 +1628,7 @@ TEST_CASE(game, project_file) {
     TEST_CHECK(p.header == "# header line\n");
     TEST_CHECK(game::startSceneAsset(p.settings) == "assets/scenes/b.scene");
 
-    // 저장하면 새 형식, 다시 읽으면 같은 값
+    // Saving writes the new format, rereading gives the same values
     TEST_CHECK(game::saveProjectFile(path, p));
     std::string saved;
     TEST_CHECK(readTextFile(path, saved) && saved.find("engine D:\\My Engine\n") != std::string::npos &&
@@ -1639,23 +1639,23 @@ TEST_CASE(game, project_file) {
                q.unknownFields == p.unknownFields && q.header == p.header);
     removeFile(path);
 
-    // 엔진 항목은 모두 해시 제외: 해시 대상만 콘텐츠 해시에 들어간다
+    // All engine items are hash-excluded: only hash targets go into the content hash
     game::ProjectSettings other = q.settings;
     other.engine = "E:\\elsewhere";
     TEST_CHECK(reflect::hashOf(q.settings, reflect::kFieldView) == reflect::hashOf(other, reflect::kFieldView));
 }
 
-// 형식 줄 "@format <종류> <N>" (mealkit/core/TextFormat.h, 도구 사이 약속)
+// Format line "@format <kind> <N>" (mealkit/core/TextFormat.h, contract between tools)
 TEST_CASE(core, text_format) {
     TEST_CHECK(text::formatLine(text::kTable) == "@format table 1");
     u32 version = 0;
     TEST_CHECK(!text::readFormatLine("row a", text::kTable, "t", version) && version == 0);
     TEST_CHECK(text::readFormatLine("@format table 1", text::kTable, "t", version) && version == 1);
-    TEST_CHECK(text::readFormatLine("@format table 7", text::kTable, "t", version) && version == 7); // 더 새 버전: 경고
+    TEST_CHECK(text::readFormatLine("@format table 7", text::kTable, "t", version) && version == 7); // newer version: warning
     version = 0;
-    TEST_CHECK(text::readFormatLine("@format", text::kTable, "t", version) && version == 0); // 모양이 틀린 줄: 경고하고 건너뛴다
+    TEST_CHECK(text::readFormatLine("@format", text::kTable, "t", version) && version == 0); // malformed line: warn and skip
 
-    // 쓰는 쪽은 머리 주석 다음 줄에 형식 줄을 쓰고, 읽는 쪽은 그 줄을 값으로 읽지 않는다
+    // Writers put the format line after the header comment, and readers don't read that line as a value
     const std::string dir = executableDirectory();
     data::TableText table;
     table.ids = {"a"};
@@ -1678,7 +1678,7 @@ TEST_CASE(core, text_format) {
     TEST_CHECK(reflect::loadTextFile(reflect::typeOf<TestKind>(), &back, dir + "/test_format.tuning", text::kTuning) && back.weight == 3.5f);
     removeFile(dir + "/test_format.tuning");
 
-    // 형식 줄이 없는 예전 파일은 버전 1로 읽는다, 프로젝트 파일의 머리말에는 형식 줄이 들어가지 않는다
+    // Old files without a format line read as version 1; the project file header gets no format line
     const std::string project = dir + "/test_format.project";
     TEST_CHECK(writeTextFile(project, "# head\nname Old\n"));
     game::ProjectFile p;
@@ -1689,7 +1689,7 @@ TEST_CASE(core, text_format) {
     removeFile(project);
 }
 
-// 같은 조작을 하면서 매 틱 해시를 남긴다. 30틱째에 바디 하나를 지우고 새 바디를 만든다 (복원이 바디 목록 변화도 되돌리는지)
+// Leaves a hash every tick doing the same operations. At tick 30, deletes one body and creates a new one (whether restore also reverts body list changes)
 std::vector<u64> runPhysics(physics::PhysicsWorld& w, std::vector<physics::BodyId>& bodies, u32 ticks, u32 startTick) {
     std::vector<u64> hashes;
     for (u32 t = 0; t < ticks; ++t) {
@@ -1730,19 +1730,19 @@ TEST_CASE(physics, physics_snapshot) {
     physics::PhysicsSnapshot snap;
     w.save(snap);
     const std::vector<physics::BodyId> savedBodies = bodies;
-    const std::vector<u64> first = runPhysics(w, bodies, 40, 20); // 30틱에 바디가 바뀐다
+    const std::vector<u64> first = runPhysics(w, bodies, 40, 20); // bodies change at tick 30
     const physics::BodyId newBody = bodies[3];
 
     TEST_CHECK(w.restore(snap));
     bodies = savedBodies;
     const std::vector<u64> second = runPhysics(w, bodies, 40, 20);
     TEST_CHECK(first == second);
-    TEST_CHECK(bodies[3] == newBody); // 다시 만든 바디의 id도 같다
+    TEST_CHECK(bodies[3] == newBody); // the recreated body's id is the same too
     TEST_CHECK(w.bodyCount() == 61);
     std::printf("  physics snapshot: %zu bytes for 61 bodies\n", snap.byteSize());
 }
 
-// 중간 참가: 바이트로 쓴 스냅샷을 다른 World(다른 바디가 있는)에 지우고 불러와도 같은 결과
+// Late join: a snapshot written as bytes gives the same result even when cleared into and loaded in another World (with other bodies)
 TEST_CASE(physics, physics_snapshot_bytes) {
     auto build = [](physics::PhysicsWorld& w, int count, std::vector<physics::BodyId>& bodies) {
         w.init(1024, 2);
@@ -1761,7 +1761,7 @@ TEST_CASE(physics, physics_snapshot_bytes) {
     physics::PhysicsWorld host, joiner;
     std::vector<physics::BodyId> hostBodies, joinerBodies;
     build(host, 40, hostBodies);
-    build(joiner, 7, joinerBodies); // 같은 id에 다른 모양
+    build(joiner, 7, joinerBodies); // different shapes for the same ids
     runPhysics(host, hostBodies, 20, 0);
 
     physics::PhysicsSnapshot snap, received;
@@ -1769,7 +1769,7 @@ TEST_CASE(physics, physics_snapshot_bytes) {
     std::vector<u8> bytes;
     snap.write(bytes);
     TEST_CHECK(received.read(bytes.data(), bytes.size()));
-    TEST_CHECK(!received.read(bytes.data(), bytes.size() / 2)); // 잘린 데이터
+    TEST_CHECK(!received.read(bytes.data(), bytes.size() / 2)); // truncated data
     joiner.clearBodies();
     TEST_CHECK(joiner.restore(received));
     joinerBodies = hostBodies;
@@ -1779,7 +1779,7 @@ TEST_CASE(physics, physics_snapshot_bytes) {
     std::printf("  physics snapshot bytes: %zu for 41 bodies\n", bytes.size());
 }
 
-// 접촉 이벤트: 물리 스레드 수가 달라도 같은 목록 (정렬 순서), 해시도 같다
+// Contact events: the same list (sort order) even with different physics thread counts, and the same hash
 std::vector<physics::ContactEvent> runContacts(u32 threads, u64& hash) {
     physics::PhysicsWorld w;
     w.init(1024, threads);
@@ -1825,10 +1825,10 @@ bool near(Vec3 a, Vec3 b) {
 
 TEST_CASE(scene, scene_hierarchy) {
     scene::Scene s;
-    s.entities.reserve(8); // add()가 돌려준 참조를 계속 쓴다
+    s.entities.reserve(8); // references returned by add() keep being used
     scene::Entity& parent = s.add(scene::kTypeSolid, "parent");
     parent.position = {10.0f, 0.0f, 0.0f};
-    parent.rotation = detYawQuat(kDetHalfPi); // +x → -z ... 아래에서 계산으로 확인
+    parent.rotation = detYawQuat(kDetHalfPi); // +x → -z ... verified by computation below
     parent.scale = {2.0f, 2.0f, 2.0f};
     scene::Entity& child = s.add(scene::kTypeSolid, "child");
     child.parent = parent.id;
@@ -1850,9 +1850,9 @@ TEST_CASE(scene, scene_hierarchy) {
     TEST_CHECK(flat.entities[2].parent == 0 &&
                near(flat.entities[2].position, scene::worldTransform(s, s.entities[2]).position));
 
-    // 저장 → 불러오기: 부모 유지, 잘못된 부모는 최상위로
+    // Save → load: parents kept, invalid parents become top level
     s.entities[0].parent = 99;
-    s.environment.post.exposure = -0.5f; // 포스트 값도 같이 (콘텐츠 해시와 무관)
+    s.environment.post.exposure = -0.5f; // post values too (unrelated to the content hash)
     s.environment.post.lut = "textures/grade warm.cube";
     s.environment.post.bloomTint = {1.0f, 0.5f, 0.25f};
     const std::string path = executableDirectory() + "\\test_hierarchy.scene";
@@ -1869,7 +1869,7 @@ TEST_CASE(scene, scene_hierarchy) {
     removeFile(path);
 }
 
-// ---------------------------------------------------------------- Simulation<World> (그림자 시뮬레이션, 되감기)
+// ---------------------------------------------------------------- Simulation<World> (shadow simulation, rewind)
 
 MEALKIT_STRUCT(FakeState) {
     MEALKIT_FIELD(u32, tick, 0, "틱");
@@ -1877,7 +1877,7 @@ MEALKIT_STRUCT(FakeState) {
     MEALKIT_FIELD(physics::BodyId, ball, physics::kInvalidBody, "공");
 };
 
-int g_globalCounter = 0; // 일부러 만든 전역 상태 (그림자 시뮬레이션이 잡아야 한다)
+int g_globalCounter = 0; // deliberately created global state (the shadow simulation must catch it)
 
 struct FakeEvent {
     u32 tick = 0;
@@ -1887,8 +1887,8 @@ struct FakeWorld {
     FakeState state;
     physics::PhysicsWorld physics;
     sim::TickEvents<FakeEvent, 4> events;
-    bool useGlobal = false; // 전역 상태를 섞는다 → 결정론 위반
-    u32 undeclared = 0;     // 선언하지 않은 상태 → 되감기 검증이 잡아야 한다
+    bool useGlobal = false; // mixes in global state → determinism violation
+    u32 undeclared = 0;     // undeclared state → rewind verification must catch it
     bool useUndeclared = false;
 
     void reset(u32 threads) {
@@ -1920,7 +1920,7 @@ struct FakeWorld {
     }
 };
 
-// 오프라인 세션으로 ticks틱을 돌린다
+// Runs ticks ticks with an offline session
 void runFake(game::Simulation<FakeWorld>& sim, net::LockstepSession& session, u32 ticks) {
     auto sample = [](u32 tick) {
         net::PlayerInput pi;
@@ -1931,11 +1931,11 @@ void runFake(game::Simulation<FakeWorld>& sim, net::LockstepSession& session, u3
     const u32 before = sim.nextTick();
     auto onTick = [&](const FakeWorld& w) { events += w.events.size(); };
     for (u32 i = 0; i < ticks * 4 && sim.nextTick() < ticks; ++i) sim.update(session, 1.0 / 30.0, sample, onTick);
-    TEST_CHECK(events == sim.nextTick() - before); // 틱마다 이벤트가 화면 쪽으로 넘어간다
+    TEST_CHECK(events == sim.nextTick() - before); // events go to the view side every tick
 }
 
 TEST_CASE(game, simulation_shadow_and_rewind) {
-    { // 정상: 그림자 시뮬레이션이 조용하고, 되감아 다시 돌린 결과가 기록과 같다
+    { // normal: the shadow simulation is quiet and rewinding and rerunning matches the recording
         net::LockstepSession session;
         session.startOffline(1, 0);
         game::PlayOptions options;
@@ -1950,16 +1950,16 @@ TEST_CASE(game, simulation_shadow_and_rewind) {
 
         sim.setPaused(true);
         const game::Timeline t = sim.timeline();
-        TEST_CHECK(t.recording && t.first == 300 - 2 * 150 && t.live == 400); // 0, 150, 300틱 스냅샷
+        TEST_CHECK(t.recording && t.first == 300 - 2 * 150 && t.live == 400); // snapshots at ticks 0, 150, 300
         TEST_CHECK(sim.seek(37) && sim.world().state.tick == 37 && sim.timeline().viewingPast);
         TEST_CHECK(sim.seek(333) && sim.world().state.tick == 333);
         sim.stepOnce();
         TEST_CHECK(sim.world().state.tick == 334);
         TEST_CHECK(sim.replayError().empty());
-        sim.setPaused(false); // 현재로 돌아온다
+        sim.setPaused(false); // back to the present
         TEST_CHECK(sim.world().hash() == liveHash && sim.world().state.sum == liveSum && !sim.timeline().viewingPast);
 
-        sim.setPaused(true); // 현재 틱에서 한 틱 진행
+        sim.setPaused(true); // one tick forward from the current tick
         sim.stepOnce();
         runFake(sim, session, 401);
         TEST_CHECK(sim.nextTick() == 401);
@@ -1967,7 +1967,7 @@ TEST_CASE(game, simulation_shadow_and_rewind) {
         runFake(sim, session, 420);
         TEST_CHECK(sim.nextTick() == 420 && !sim.shadow().desynced);
     }
-    { // 전역 상태 → 그림자 시뮬레이션이 첫 틱에 잡고 멈춘다
+    { // global state → the shadow simulation catches it on the first tick and pauses
         net::LockstepSession session;
         session.startOffline(1, 0);
         game::PlayOptions options;
@@ -1981,7 +1981,7 @@ TEST_CASE(game, simulation_shadow_and_rewind) {
         TEST_CHECK(sim.shadow().desynced && sim.shadow().tick == 0 && sim.timeline().paused);
         TEST_CHECK(!sim.shadow().diff.empty() && sim.shadow().diff[0].rfind("sum:", 0) == 0);
     }
-    { // 선언하지 않은 상태 → 되감기 검증이 잡는다
+    { // undeclared state → rewind verification catches it
         net::LockstepSession session;
         session.startOffline(1, 0);
         game::PlayOptions options;
@@ -2003,7 +2003,7 @@ TEST_CASE(game, simulation_shadow_and_rewind) {
 int main(int argc, char** argv) {
     log::setDialogs(false);
 #if MEALKIT_TEST_UI
-    if (argc > 1 && std::string(argv[1]) == "--write-asset-schema") // Blender 애드온의 schema.json (asset_schema 시험)
+    if (argc > 1 && std::string(argv[1]) == "--write-asset-schema") // the Blender add-on's schema.json (asset_schema test)
         return writeTextFile(std::string(MEALKIT_ENGINE_DIR) + "/tools/blender-addon/mealkit/schema.json", asset::modelSchemaJson()) ? 0 : 1;
 #endif
     std::string only;

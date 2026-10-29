@@ -1,4 +1,4 @@
-// 주소 표시 (모든 플랫폼 공통). 소켓은 platform/win32/Socket.cpp, platform/posix/Socket.cpp.
+// Address display (common to all platforms). Sockets are in platform/win32/Socket.cpp and platform/posix/Socket.cpp.
 #include "mealkit/net/Socket.h"
 
 #include <cstdio>

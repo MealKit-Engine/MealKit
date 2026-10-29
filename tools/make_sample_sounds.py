@@ -1,7 +1,7 @@
-# 예제(sandbox) 소리 만들기: 효과음·배경음을 코드로 합성해 assets/sounds/에 WAV로 쓴다 (CC0, 외부 파일 없음).
+# Makes the sample (sandbox) sounds: synthesizes sound effects/music in code and writes WAVs to assets/sounds/ (CC0, no external files).
 #   python tools/make_sample_sounds.py
-# 모노 16비트 22050 Hz. 효과음은 짧게(메모리에 풀어 둔다), 배경음은 16초 루프(스트리밍).
-# 같은 스크립트로 다시 만들면 같은 파일이 나온다 (난수 시드 고정).
+# Mono 16-bit 22050 Hz. Sound effects are short (decoded into memory), music is a 16-second loop (streamed).
+# Regenerating with the same script gives the same files (fixed random seed).
 import math
 import os
 import random
@@ -78,7 +78,7 @@ def noise(n):
     return [rng.uniform(-1, 1) for _ in range(n)]
 
 
-# ---- 충돌: 낮은 쿵 + 짧은 잡음 (세 가지 색)
+# ---- Impact: low thud + short noise (three colors)
 for k, (thump, color, length) in enumerate([(70, 1800, 0.18), (95, 2600, 0.15), (55, 1300, 0.22)], start=1):
     n = seconds(length)
     body = [math.sin(2 * math.pi * thump * (i / RATE) * (1.0 - 0.3 * i / n)) * env(i, n, 0.002, length * 0.25) for i in range(n)]
@@ -86,7 +86,7 @@ for k, (thump, color, length) in enumerate([(70, 1800, 0.18), (95, 2600, 0.15), 
     click = [c * env(i, n, 0.001, 0.02) for i, c in enumerate(click)]
     write(f"hit_{k}.wav", [b + 0.6 * c for b, c in zip(body, click)])
 
-# ---- 밀치기: 잡음 휙 (대역이 올라갔다 내려온다)
+# ---- Push: noise whoosh (band rises and falls)
 n = seconds(0.42)
 src = noise(n)
 out, y = [], 0.0
@@ -99,12 +99,12 @@ for i, s in enumerate(src):
     out.append(y * math.sin(math.pi * t) ** 1.5)
 write("push.wav", highpass(out, 150))
 
-# ---- 점프: 올라가는 사인
+# ---- Jump: rising sine
 n = seconds(0.2)
 s = sweep(260, 760, 0.2, curve=0.6)
 write("jump.wav", [v * env(i, n, 0.003, 0.09) for i, v in enumerate(s)])
 
-# ---- 점프대: 떨리는 스프링
+# ---- Jump pad: wobbling spring
 n = seconds(0.42)
 phase, out = 0.0, []
 for i in range(n):
@@ -114,7 +114,7 @@ for i in range(n):
     out.append(triangle(phase) * env(i, n, 0.004, 0.16))
 write("bounce.wav", out)
 
-# ---- 스폰: 퐁 + 종소리 두 음
+# ---- Spawn: pop + two bell notes
 n = seconds(0.45)
 out = []
 for i in range(n):
@@ -124,12 +124,12 @@ for i in range(n):
     out.append(pop + 0.5 * bell)
 write("spawn.wav", out)
 
-# ---- 낙사: 내려가는 휘파람
+# ---- Fall: descending whistle
 n = seconds(0.9)
 s = sweep(1300, 260, 0.9, curve=1.4)
 write("fall.wav", [v * env(i, n, 0.02) * (1 - i / n) ** 0.6 for i, v in enumerate(s)], peak=0.7)
 
-# ---- UI: 누름, 확인, 뒤로
+# ---- UI: press, confirm, back
 n = seconds(0.05)
 write("ui_click.wav", [math.sin(2 * math.pi * 1500 * i / RATE) * env(i, n, 0.001, 0.012) for i in range(n)], peak=0.6)
 n = seconds(0.22)
@@ -147,7 +147,7 @@ for i in range(n):
     out.append(square(2 * math.pi * f * t) * 0.5 * env(i, n, 0.002, 0.07))
 write("ui_back.wav", lowpass(out, 3500), peak=0.6)
 
-# ---- 배경음: 120 BPM, 8마디(16초) 루프. 베이스(삼각파) + 아르페지오(사각파) + 하이햇(잡음)
+# ---- Music: 120 BPM, 8 bar (16 second) loop. Bass (triangle) + arpeggio (square) + hi-hat (noise)
 bpm = 120
 beat = 60.0 / bpm
 bars = 8
@@ -173,20 +173,20 @@ def add_note(start, length, freq, shape, volume, decay):
 for bar in range(bars):
     chord = chords[bar % 4]
     t0 = bar * 4 * beat
-    for b in range(4):  # 베이스: 박마다 근음, 2·4박은 옥타브 위
+    for b in range(4):  # bass: root on every beat, an octave up on beats 2 and 4
         root = chord[0] - 24 + (12 if b % 2 else 0)
         add_note(t0 + b * beat, beat * 0.9, midi(root), triangle, 0.5, beat * 0.6)
-    for step in range(16):  # 아르페지오: 16분음표
+    for step in range(16):  # arpeggio: sixteenth notes
         note = chord[step % 3] + (12 if (step // 3) % 2 else 0)
         add_note(t0 + step * beat / 4, beat / 4 * 0.8, midi(note), square, 0.12, beat * 0.12)
-    for step in range(8):  # 하이햇: 8분음표
+    for step in range(8):  # hi-hat: eighth notes
         s0 = seconds(t0 + step * beat / 2)
         n = seconds(0.04)
         hat = highpass(noise(n), 6000)
         for i in range(n):
             if s0 + i < total:
                 music[s0 + i] += hat[i] * 0.15 * math.exp(-i / RATE / 0.012)
-# 루프 이음새: 끝 10 ms를 처음과 섞는다
+# Loop seam: blends the last 10 ms with the start
 fade = seconds(0.01)
 for i in range(fade):
     a = i / fade

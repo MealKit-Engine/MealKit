@@ -5,18 +5,18 @@
 #include <string>
 #include <vector>
 
-// 그림 파일 읽기·쓰기 (에디터의 프로젝트 아이콘). Windows 구현은 WIC(PNG, JPEG, BMP, ICO 등)이고 다른 OS는 5단계 에디터 이식 때.
+// Reading/writing image files (the editor's project icon). The Windows implementation is WIC (PNG, JPEG, BMP, ICO etc.); other OSes with the stage 5 editor port.
 namespace mealkit {
 
 struct Image {
     u32 width = 0;
     u32 height = 0;
-    std::vector<u8> rgba; // 줄 순서대로 RGBA8 (곱하지 않은 알파)
+    std::vector<u8> rgba; // RGBA8 in row order (non-premultiplied alpha)
 };
 
-// 긴 변이 maxSize보다 크면 비율을 지켜 줄인다. ICO는 가장 큰 그림을 쓴다.
+// If the long side is larger than maxSize, scaled down keeping the aspect ratio. For ICO, the largest image is used.
 bool loadImage(const std::string& path, u32 maxSize, Image& out);
-bool loadImageResource(int resourceId, u32 maxSize, Image& out); // 실행 파일의 RCDATA 리소스
+bool loadImageResource(int resourceId, u32 maxSize, Image& out); // RCDATA resource in the executable
 bool savePng(const std::string& path, const Image& image);
 
 } // namespace mealkit

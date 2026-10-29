@@ -64,8 +64,8 @@ bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::str
     const float scale = imguiDpiScale(window);
     applyStyle(scale);
 
-    // 영문은 Segoe UI, 한글은 맑은 고딕을 합친다 (맑은 고딕만 쓰면 역슬래시가 ₩로 보인다).
-    // 1.92부터 글리프는 필요할 때 만들어지므로 전체 한글 범위를 미리 굽지 않는다.
+    // Merges Segoe UI for Latin and Malgun Gothic for Korean (Malgun Gothic alone shows backslash as ₩).
+    // Since 1.92 glyphs are built on demand, so the full Hangul range isn't prebaked.
     bool haveFont = false;
     for (const char* fontPath : {"C:\\Windows\\Fonts\\segoeui.ttf", "C:\\Windows\\Fonts\\malgun.ttf"}) {
         if (!fileExists(fontPath)) continue;
@@ -75,12 +75,12 @@ bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::str
         haveFont = true;
     }
     if (!haveFont) io.Fonts->AddFontDefault();
-    // 아이콘 글자(icon::): Windows 11은 Segoe Fluent Icons, 10은 Segoe MDL2 Assets. 코드 포인트가 같다
+    // Icon glyphs (icon::): Segoe Fluent Icons on Windows 11, Segoe MDL2 Assets on 10. Same code points
     for (const char* iconPath : {"C:\\Windows\\Fonts\\SegoeIcons.ttf", "C:\\Windows\\Fonts\\segmdl2.ttf"}) {
         if (!fileExists(iconPath)) continue;
         ImFontConfig merge;
         merge.MergeMode = true;
-        merge.GlyphOffset = ImVec2(0.0f, 3.0f); // 아이콘 글꼴은 기준선이 높아 한글 줄 가운데로 내린다
+        merge.GlyphOffset = ImVec2(0.0f, 3.0f); // the icon font has a high baseline, so it's shifted down to the middle of Korean text lines
         io.Fonts->AddFontFromFileTTF(iconPath, 16.0f, &merge);
         break;
     }
@@ -94,7 +94,7 @@ bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::str
 
 void ImGuiLayer::shutdown() {
     if (!m_initialized) return;
-    rhi::imguiShutdown(m_renderer->device()); // 사용자 텍스처의 GPU 자원도 지운다
+    rhi::imguiShutdown(m_renderer->device()); // also frees GPU resources of user textures
     if (m_window) imguiPlatformShutdown(*m_window);
     for (ImTextureData* tex : m_textures) {
         ImGui::UnregisterUserTexture(tex);
@@ -115,14 +115,14 @@ ImTextureData* ImGuiLayer::createTexture(const u8* rgba, u32 width, u32 height) 
 }
 
 void ImGuiLayer::releaseTexture(ImTextureData* texture) {
-    if (texture) texture->WantDestroyNextFrame = true; // 백엔드가 GPU 사용이 끝난 뒤 Destroyed로 바꾼다 (newFrame에서 지움)
+    if (texture) texture->WantDestroyNextFrame = true; // the backend changes it to Destroyed after GPU use ends (deleted in newFrame)
 }
 
 bool ImGuiLayer::setIniPath(const std::string& iniPath) {
     const bool exists = fileExists(iniPath);
     if (!m_initialized || iniPath == m_iniPath) return exists;
     ImGuiIO& io = ImGui::GetIO();
-    if (ImGui::GetCurrentContext()->SettingsLoaded) { // 첫 프레임 전이면 NewFrame이 새 파일을 읽는다
+    if (ImGui::GetCurrentContext()->SettingsLoaded) { // before the first frame, NewFrame reads the new file
         if (!m_iniPath.empty()) ImGui::SaveIniSettingsToDisk(m_iniPath.c_str());
         ImGui::ClearIniSettings();
         if (exists) ImGui::LoadIniSettingsFromDisk(iniPath.c_str());

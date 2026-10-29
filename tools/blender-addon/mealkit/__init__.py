@@ -1,8 +1,8 @@
-# MealKit Blender 애드온 (docs/ROADMAP.md 2단계 "Blender 내보내기 애드온", Penpot 플러그인과 같은 역할).
-# - 엔진의 지원 범위 스키마(schema.json, 엔진 asset::modelSchemaJson과 같은지 단위 테스트가 본다)로 장면을 검사한다
-# - 버튼 하나로 프로젝트 assets/models/<이름>.glb에 정해진 설정으로 내보낸다 (에디터 에셋 핫 리로드가 받아 바로 보인다)
-# - 머티리얼 패널에 엔진 머티리얼 기능(스키마의 materialFeatures)을 보여 주고 커스텀 속성 = glTF extras로 쓴다
-# Blender 쪽 글자는 영어 (Blender UI 언어와 같이 두고, 한국어 설명은 문서 저장소)
+# MealKit Blender add-on (docs/ROADMAP.md stage 2 "Blender export add-on", same role as the Penpot plugin).
+# - Checks the scene against the engine's supported range schema (schema.json; a unit test checks it matches the engine's asset::modelSchemaJson)
+# - Exports to the project's assets/models/<name>.glb with fixed settings in one click (the editor's asset hot reload picks it up immediately)
+# - Shows engine material features (materialFeatures in the schema) in the material panel and writes them as custom properties = glTF extras
+# Blender-side text is English (kept the same as the Blender UI language; Korean explanations are in the docs repo)
 import json
 import os
 
@@ -22,7 +22,7 @@ def schema():
 
 
 def find_project(start):
-    """.blend 파일 폴더에서 위로 올라가며 mealkit.project가 있는 폴더 (원본은 보통 <프로젝트>/art/)."""
+    """The folder containing mealkit.project, walking up from the .blend file's folder (sources usually live in <project>/art/)."""
     folder = os.path.dirname(os.path.abspath(start)) if start else ""
     while folder:
         if os.path.isfile(os.path.join(folder, "mealkit.project")):
@@ -58,7 +58,7 @@ def target_path(context):
 
 
 def model_kind(name):
-    """예산 종류: assets/models/ 아래 첫 폴더 (엔진 asset::modelKind와 같다). 종류 폴더가 아니면 otherFolders."""
+    """Budget kind: the first folder under assets/models/ (same as the engine's asset::modelKind). otherFolders if not a kind folder."""
     budgets = schema()["budgets"]
     first = name.replace("\\", "/").split("/")[0] if "/" in name.replace("\\", "/") else ""
     for kind in budgets["kinds"]:
@@ -68,7 +68,7 @@ def model_kind(name):
 
 
 def project_budget(context, kind):
-    """mealkit.project의 budget<종류><항목> (없으면 엔진 기본값)."""
+    """budget<kind><item> from mealkit.project (engine default if absent)."""
     budget = {k: kind[k] for k in ("triangles", "textureSize", "bones", "materials")}
     project = project_folder(context)
     path = os.path.join(project, "mealkit.project") if project else ""
@@ -160,7 +160,7 @@ class MEALKIT_OT_export(bpy.types.Operator):
         path = target_path(context)
         os.makedirs(os.path.dirname(path), exist_ok=True)
         model = schema()["model"]
-        # 엔진이 읽는 것만: 위치·법선·정점 색(COLOR_0)·재질 기본 색. 텍스처·애니메이션·스킨은 엔진이 아직 읽지 않는다
+        # Only what the engine reads: position/normal/vertex color (COLOR_0)/material base color. The engine doesn't read textures/animation/skins yet
         bpy.ops.export_scene.gltf(
             filepath=path,
             export_format="GLB",
@@ -240,8 +240,8 @@ class MEALKIT_PT_material(bpy.types.Panel):
         if not features:
             layout.label(text="No engine material features yet: base color and vertex color are used")
             return
-        # 기능마다 커스텀 속성 "mealkit_<키>" (glTF extras로 나간다). 스키마가 종류·기본값을 준다.
-        # 큰 키(feature와 이름이 같은 것)가 기능을 켜고, 색 같은 딸린 키는 그 기능이 켜져 있을 때만 보인다
+        # A custom property "mealkit_<key>" per feature (exported as glTF extras). The schema provides kinds/defaults.
+        # The main key (same name as the feature) turns the feature on; dependent keys like colors show only when that feature is on
         for feature in features:
             key = "mealkit_" + feature["key"]
             owner = feature.get("feature", feature["key"])
@@ -271,13 +271,13 @@ class MEALKIT_OT_feature_add(bpy.types.Operator):
 
     def execute(self, context):
         value = json.loads(self.value)
-        # 엔진 값은 모두 실수: [0, 0, 0]이 정수 배열 속성이 되지 않게
+        # Engine values are all floats: so [0, 0, 0] doesn't become an integer array property
         if isinstance(value, list):
             value = [float(v) for v in value]
         elif isinstance(value, (int, float)) and not isinstance(value, bool):
             value = float(value)
         context.material[self.key] = value
-        if self.color:  # 색 고르기 상자 (선형 색, 1보다 큰 값은 더 밝은 발광)
+        if self.color:  # color picker (linear color, values above 1 are brighter emission)
             context.material.id_properties_ui(self.key).update(subtype="COLOR", min=0.0, soft_max=1.0)
         return {"FINISHED"}
 

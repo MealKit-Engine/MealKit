@@ -7,22 +7,22 @@
 #include "mealkit/platform/Window.h"
 #include "mealkit/render/Renderer.h"
 
-// 3인칭 궤도 카메라: 오른쪽 드래그로 회전, 휠로 줌. 시뮬레이션과 무관하므로 입력 지연 없이 바로 움직인다.
+// Third-person orbit camera: rotate with right drag, zoom with the wheel. Unrelated to the simulation, so it moves immediately without input delay.
 namespace sandbox {
 
-// 값(시야각, 감도, 거리·각도 범위)은 화면용 튜닝(view/ViewTuning.h)의 CameraTuning.
+// Values (field of view, sensitivity, distance/angle ranges) are CameraTuning in view tuning (view/ViewTuning.h).
 struct OrbitCamera {
     f32 yaw = 0.0f;
     f32 pitch = 0.0f;
     f32 distance = 0.0f;
     bool orbiting = false;
-    bool placed = false; // 처음 control()에서 튜닝의 시작 값으로 놓는다
+    bool placed = false; // placed at the tuning's start values on the first control()
 
-    // 매 프레임: 액션 orbit(누르는 동안 look으로 돌리기), turn(바로 돌리기, 패드), zoom(확대 양)
+    // Every frame: actions orbit (rotate with look while held), turn (rotate immediately, pad), zoom (zoom amount)
     void control(mealkit::Window& window, const mealkit::input::Actions& actions, const CameraTuning& tuning);
-    Vec3 forward() const; // 수평 앞 방향 (이동 입력을 월드 방향으로 바꿀 때)
+    Vec3 forward() const; // horizontal forward direction (for turning move input into a world direction)
     Vec3 eye(const Vec3& focus) const;
-    // 뷰포트, 뷰·투영 행렬, 카메라 위치를 채운다
+    // Fills the viewport, view/projection matrices, and camera position
     void apply(const Vec3& focus, mealkit::render::Viewport viewport, const CameraTuning& tuning,
                mealkit::render::FrameParams& frame) const;
 };

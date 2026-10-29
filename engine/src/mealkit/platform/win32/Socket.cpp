@@ -65,7 +65,7 @@ bool UdpSocket::open(u16 port, bool loopbackOnly) {
     u_long nonBlocking = 1;
     ioctlsocket(s, FIONBIO, &nonBlocking);
 
-    // 윈도우 UDP는 상대 포트가 닫혀 있으면 다음 recvfrom이 WSAECONNRESET으로 실패한다. 이 동작을 끈다.
+    // Windows UDP fails the next recvfrom with WSAECONNRESET when the peer's port is closed. Turn this behavior off.
     BOOL reportReset = FALSE;
     DWORD bytes = 0;
     WSAIoctl(s, SIO_UDP_CONNRESET, &reportReset, sizeof(reportReset), nullptr, 0, &bytes, nullptr, nullptr);
@@ -93,7 +93,7 @@ bool UdpSocket::openShared(u16 port) {
     if (s == INVALID_SOCKET) return false;
     u_long nonBlocking = 1;
     ioctlsocket(s, FIONBIO, &nonBlocking);
-    BOOL reuse = TRUE; // 브로드캐스트는 같은 포트에 묶인 모든 소켓이 받는다
+    BOOL reuse = TRUE; // broadcasts are received by all sockets bound to the same port
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&reuse), sizeof(reuse));
     BOOL reportReset = FALSE;
     DWORD bytes = 0;
@@ -144,7 +144,7 @@ i32 UdpSocket::receiveFrom(Address& from, void* buffer, u32 capacity) {
     int addrLen = sizeof(addr);
     const int received = recvfrom(static_cast<SOCKET>(m_socket), static_cast<char*>(buffer), static_cast<int>(capacity),
                                   0, reinterpret_cast<sockaddr*>(&addr), &addrLen);
-    if (received == SOCKET_ERROR) return -1; // WSAEWOULDBLOCK 포함: 받을 것 없음
+    if (received == SOCKET_ERROR) return -1; // including WSAEWOULDBLOCK: nothing to receive
     from.ip = ntohl(addr.sin_addr.s_addr);
     from.port = ntohs(addr.sin_port);
     return received;
@@ -185,7 +185,7 @@ i32 TcpStream::receive(void* buffer, u32 capacity) {
     const int got = recv(static_cast<SOCKET>(m_socket), static_cast<char*>(buffer), static_cast<int>(capacity), 0);
     if (got > 0) return got;
     if (got == SOCKET_ERROR && WSAGetLastError() == WSAEWOULDBLOCK) return 0;
-    return -1; // 0 = 상대가 닫았다
+    return -1; // 0 = the peer closed
 }
 
 i32 TcpStream::send(const void* data, u32 size) {
@@ -203,7 +203,7 @@ bool TcpListener::open(u16 port, bool loopbackOnly) {
     if (s == INVALID_SOCKET) return false;
     u_long nonBlocking = 1;
     ioctlsocket(s, FIONBIO, &nonBlocking);
-    BOOL exclusive = TRUE; // 다른 프로그램이 같은 포트를 가로채지 못하게
+    BOOL exclusive = TRUE; // so other programs can't hijack the same port
     setsockopt(s, SOL_SOCKET, SO_EXCLUSIVEADDRUSE, reinterpret_cast<const char*>(&exclusive), sizeof(exclusive));
     sockaddr_in addr{};
     addr.sin_family = AF_INET;

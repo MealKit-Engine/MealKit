@@ -14,7 +14,7 @@ void fillHud(const WorldState& state, const Tuning& tuning, u8 localPlayer, cons
     const u32 left = state.phaseEnd.remaining(state.tick);
     vm.countdown = state.phase == MatchPhase::Countdown ? (left + static_cast<u32>(rate) - 1) / static_cast<u32>(rate) : 0;
     if (tuning.matchLength.value == 0) {
-        vm.time = static_cast<f32>(state.tick) / rate; // 끝없는 경기: 지난 시간
+        vm.time = static_cast<f32>(state.tick) / rate; // endless match: elapsed time
         vm.go = false;
     } else {
         vm.time = state.phase == MatchPhase::Countdown ? static_cast<f32>(tuning.matchLength.value) / rate

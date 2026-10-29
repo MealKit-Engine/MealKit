@@ -8,18 +8,18 @@ enum class Level { Info, Warn, Error };
 
 void write(Level level, const char* fmt, ...);
 
-// 로그 한 줄마다 불린다 (에디터 [로그] 창). 아무 스레드에서나 불리므로 받는 쪽이 잠근다. nullptr = 끄기
+// Called for each log line (editor [Log] window). Can be called from any thread, so the receiver locks. nullptr = off
 using Sink = void (*)(Level level, double seconds, const char* message);
 void setSink(Sink sink);
 
-// 최근 로그 줄 (최대 kRecentLines줄, 줄마다 "[초][단계] 글"): 버그 리포트 묶음(game/BugReport.h)에 넣는다
+// Recent log lines (up to kRecentLines, each "[seconds][level] text"): put into bug report bundles (game/BugReport.h)
 inline constexpr unsigned kRecentLines = 2000;
 std::string recentLines();
 
-// 로그를 남기고 프로세스를 종료한다. 대화상자는 setDialogs(false)로 끌 수 있다(자동 테스트용).
+// Logs and terminates the process. Dialogs can be turned off with setDialogs(false) (for automated tests).
 [[noreturn]] void fatal(const char* fmt, ...);
 void setDialogs(bool enabled);
-// MEALKIT_ASSERT 실패: 로그를 남기고, 디버거가 붙어 있으면 그 자리에서 멈춘다.
+// MEALKIT_ASSERT failure: logs, and breaks right there if a debugger is attached.
 void assertFailed(const char* condition, const char* file, int line);
 
 } // namespace mealkit::log
@@ -29,7 +29,7 @@ void assertFailed(const char* condition, const char* file, int line);
 #define MEALKIT_ERROR(...) ::mealkit::log::write(::mealkit::log::Level::Error, __VA_ARGS__)
 #define MEALKIT_FATAL(...) ::mealkit::log::fatal(__VA_ARGS__)
 
-// 프로그래머 실수 검사. Debug와 Editor 빌드(MEALKIT_ASSERTS)에서 켜지고 출시 빌드에서는 빠진다.
+// Programmer error checks. On in Debug and Editor builds (MEALKIT_ASSERTS), removed from shipping builds.
 #if defined(MEALKIT_DEBUG) || defined(MEALKIT_ASSERTS)
 #define MEALKIT_ASSERT(cond)                                                                                           \
     do {                                                                                                               \

@@ -9,19 +9,19 @@
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
-#include "cooldown/sim/Cooldown.h" // 소스 모듈 modules/cooldown (docs/MODULES.md)
+#include "cooldown/sim/Cooldown.h" // source module modules/cooldown (docs/MODULES.md)
 #include "sim/Objects.h"
 #include "sim/Tables.h"
 #include "sim/Tuning.h"
 
 #include <vector>
 
-// 샌드박스 게임의 결정론적 시뮬레이션 (물리: Jolt).
-// sim/ 폴더 규칙 (빌드 때 SimCheck가 검사한다): CRT 삼각함수·실제 시간·rand·렌더러/플랫폼 헤더·전역 가변 상태 금지.
-// 물리 바디는 항상 같은 순서로 만들고, 힘도 같은 순서로 준다.
-// 상태는 MEALKIT_FIELD로 선언한다: 해시(디싱크 감지), 스냅샷(되감기·그림자 시뮬레이션), 에디터 [상태] 패널이 선언을 그대로 쓴다.
-// 선언하지 않은 멤버는 해시·스냅샷에서 빠지므로, 틱을 넘어 남는 값은 반드시 MEALKIT_FIELD로 둔다.
-// 매치 중에 생기고 사라지는 객체는 Pool<T>, "N틱 뒤"는 TickTimer, 화면에 알릴 일은 world.events (docs/CODING_MODEL.md).
+// Deterministic simulation of the sandbox game (physics: Jolt).
+// sim/ folder rules (checked by SimCheck at build time): no CRT trig, real time, rand, renderer/platform headers, or mutable global state.
+// Physics bodies are always created in the same order, and forces applied in the same order.
+// State is declared with MEALKIT_FIELD: the hash (desync detection), snapshots (rewind/shadow simulation), and the editor [State] panel use the declarations as is.
+// Undeclared members are excluded from the hash/snapshots, so values that persist across ticks must be MEALKIT_FIELDs.
+// Objects created and destroyed mid-match use Pool<T>, "after N ticks" uses TickTimer, and things to tell the view use world.events (docs/CODING_MODEL.md).
 namespace sandbox {
 
 using mealkit::f32;
@@ -32,13 +32,13 @@ using mealkit::u64;
 using mealkit::u8;
 using mealkit::Vec3;
 
-inline constexpr u32 kPropColorCount = 6; // 상자 색 종류 수 (색 자체는 화면용 튜닝 view/ViewTuning.h)
+inline constexpr u32 kPropColorCount = 6; // number of box colors (the colors themselves are in view tuning view/ViewTuning.h)
 
 inline constexpr u8 kButtonJump = 1;
 inline constexpr u8 kButtonPush = 2;
 
-// 네트워크로 전달되는 플레이어 입력 (8바이트).
-// 이동 방향은 클라이언트가 카메라 기준으로 계산해 월드 방향으로 양자화한다 → 시뮬레이션에 삼각함수가 필요 없다.
+// Player input sent over the network (8 bytes).
+// The client computes the move direction relative to the camera and quantizes it as a world direction → no trig needed in the simulation.
 struct GameInput {
     i8 moveX = 0; // -127..127
     i8 moveZ = 0;
@@ -47,16 +47,16 @@ struct GameInput {
 };
 static_assert(sizeof(GameInput) == mealkit::net::kInputBytes);
 
-// ---------------------------------------------------------------- 플레이어와 캐릭터 (docs/ROADMAP.md "플레이어와 캐릭터 분리")
-// PlayerSlot: 접속한 사람. 매치 동안 남는다 (점수 등).
-// Pawn: 월드 안의 몸. 떨어지면 사라지고, 리스폰하면 새로 생긴다.
-// Controller: 슬롯(사람) 또는 AI를 Pawn에 잇는다. possess/unpossess로만 바꾼다 (sim/Pawns.cpp).
+// ---------------------------------------------------------------- Players and characters (docs/ROADMAP.md "Separating players and characters")
+// PlayerSlot: a connected person. Persists through the match (score etc.).
+// Pawn: a body in the world. Disappears when it falls, and a new one appears on respawn.
+// Controller: connects a slot (person) or AI to a Pawn. Changed only via possess/unpossess (sim/Pawns.cpp).
 using mealkit::sim::Id;
 using mealkit::sim::TickTimer;
 struct Controller;
 struct Pawn;
 
-enum class PawnKind : u8 { Runner }; // 지금은 회전이 잠긴 물리 캡슐 하나
+enum class PawnKind : u8 { Runner }; // for now a single physics capsule with locked rotation
 enum class ControllerKind : u8 { None, Player, AI };
 
 MEALKIT_STRUCT(Pawn) {
@@ -64,7 +64,7 @@ MEALKIT_STRUCT(Pawn) {
     MEALKIT_FIELD(Id<Controller>, owner, {}, "조종하는 컨트롤러");
     MEALKIT_FIELD(Vec3, position, {}, "위치");
     MEALKIT_FIELD(Vec3, velocity, {}, "속도");
-    MEALKIT_FIELD(u32, grounded, 0, "땅에 닿음"); // 발밑에 무언가 있는가
+    MEALKIT_FIELD(u32, grounded, 0, "땅에 닿음"); // whether something is underfoot
     MEALKIT_FIELD(cooldown::Cooldown, push, {}, "밀치기 쿨타임");
     MEALKIT_FIELD(mealkit::physics::BodyId, body, mealkit::physics::kInvalidBody, "물리 바디");
 };
@@ -73,7 +73,7 @@ MEALKIT_STRUCT(Controller) {
     MEALKIT_FIELD(ControllerKind, kind, ControllerKind::None, "종류");
     MEALKIT_FIELD(u32, slot, 0, "플레이어 슬롯"); // kind == Player
     MEALKIT_FIELD(u32, spawnIndex, 0, "스폰 번호");
-    MEALKIT_FIELD(Id<Pawn>, pawn, {}, "빙의한 Pawn"); // 없으면 리스폰 대기(관전)
+    MEALKIT_FIELD(Id<Pawn>, pawn, {}, "빙의한 Pawn"); // if none, waiting to respawn (spectating)
     MEALKIT_FIELD(TickTimer, respawn, {}, "리스폰");
     MEALKIT_FIELD(Vec3, aiTarget, {}, "AI 목표 지점");
     MEALKIT_FIELD(TickTimer, aiThink, {}, "AI 다음 판단");
@@ -87,7 +87,7 @@ MEALKIT_STRUCT(PlayerSlot) {
     MEALKIT_FIELD(Id<Controller>, controller, {}, "컨트롤러");
 };
 
-// 흩어진 상자
+// Scattered boxes
 MEALKIT_STRUCT(Prop) {
     MEALKIT_FIELD(Vec3, position, {}, "위치");
     MEALKIT_FIELD(Quat, rotation, {}, "회전");
@@ -96,7 +96,7 @@ MEALKIT_STRUCT(Prop) {
     MEALKIT_FIELD(mealkit::physics::BodyId, body, mealkit::physics::kInvalidBody, "물리 바디");
 };
 
-// 씬의 점프대 (매치 시작 때 씬에서 만든다)
+// The scene's jump pads (created from the scene at match start)
 MEALKIT_STRUCT(Pad) {
     MEALKIT_FIELD(Vec3, center, {}, "중심");
     MEALKIT_FIELD(Vec3, halfExtents, {}, "반 크기");
@@ -105,8 +105,8 @@ MEALKIT_STRUCT(Pad) {
     MEALKIT_FIELD(mealkit::sim::TickTimer, ready, {}, "다음 사용");
 };
 
-// 시뮬레이션 → 화면 알림 (소리·효과·흔들림). sim/은 쓰기만 하고 읽지 않는다.
-// 필드 선언이라 에디터 [연출] 패널이 종류 이름과 필드를 보여 주고, 연출 표(assets/feedback.table)가 종류 이름으로 연출을 고른다.
+// Simulation → view notifications (sound/effects/shake). sim/ only writes them and never reads.
+// It's a field declaration, so the editor [Feedback] panel shows kind names and fields, and the feedback table (assets/feedback.table) chooses feedback by kind name.
 MEALKIT_ENUM(EventKind, u8, Push, Bounce, Spawn, Fall, Jump, Impact, Countdown, MatchStart, MatchEnd);
 inline constexpr u8 kNoPlayer = 0xFF;
 
@@ -127,11 +127,11 @@ inline GameEvent makeEvent(EventKind kind, u8 player, Vec3 position, f32 value) 
 }
 inline constexpr u32 kMaxEventsPerTick = 64;
 
-// 매치 단계 (sim/Match.cpp): 카운트다운 동안과 끝난 뒤에는 아무도 움직이지 않는다. 화면 흐름은 Finished면 결과 화면을 연다
+// Match phase (sim/Match.cpp): nobody moves during the countdown and after the end. The screen flow opens the results screen when Finished
 MEALKIT_ENUM(MatchPhase, u8, Countdown, Playing, Finished);
 
-// 시뮬레이션 상태 전체 (물리 바디의 실제 상태는 PhysicsWorld 안에 있고, 위치·회전은 매 틱 여기로 옮겨 담는다).
-// 화면은 직전 틱과 이번 틱의 WorldState를 보간해 그린다.
+// The whole simulation state (the real state of physics bodies is inside PhysicsWorld; positions/rotations are copied here every tick).
+// The view draws by interpolating the WorldState of the previous tick and this tick.
 MEALKIT_STRUCT(WorldState) {
     MEALKIT_FIELD(u32, tick, 0, "틱");
     MEALKIT_FIELD(MatchPhase, phase, MatchPhase::Countdown, "매치 단계");
@@ -145,56 +145,56 @@ MEALKIT_STRUCT(WorldState) {
     MEALKIT_FIELD(mealkit::sim::Pool<Pad>, pads, {}, "점프대");
 };
 
-// 시뮬레이션 전체. sim/ 시스템 함수(Systems.h)는 이것 하나(World&)만 받는다.
+// The whole simulation. sim/ system functions (Systems.h) take only this (World&).
 struct World {
     World() = default;
     World(const World&) = delete;
     World& operator=(const World&) = delete;
 
-    // physicsThreads = 0 이면 코어 수에 맞춘다 (결과는 스레드 수와 무관하다).
-    // 모델이 있는 충돌 물체는 모델 정점의 볼록 껍질로 충돌한다.
-    // 상자 수는 씬의 상자 생성 영역(PropSpawnArea.count)의 합. propOverride가 0이 아니면 그 수로 맞춘다(--bodies, 성능 측정).
-    // Pool 용량은 매치 시작 때 정한다: 상자 = 상자 수, 컨트롤러 = 플레이어 + AI, Pawn = 컨트롤러 × 2.
-    // propKinds: 상자 종류 표 (app/이 tables/props.table에서 읽어 넘긴다)
-    // playerBodies: 플레이어마다 bodies.table 행 번호 (로드아웃, 없으면 0)
+    // physicsThreads = 0 matches the core count (results are independent of thread count).
+    // Collision objects with models collide with the convex hull of the model's vertices.
+    // Box count is the sum of the scene's box spawn areas (PropSpawnArea.count). If propOverride isn't 0, set to that count (--bodies, performance measurement).
+    // Pool capacities are set at match start: boxes = box count, controllers = players + AI, Pawns = controllers × 2.
+    // propKinds: box kind table (app/ reads it from tables/props.table and passes it)
+    // playerBodies: bodies.table row index per player (loadout, 0 if none)
     void reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tuning,
                const mealkit::sim::Table<PropKind>& propKinds, const mealkit::sim::Table<BodyKind>& bodyKinds,
                const std::vector<u32>& playerBodies, const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models,
                u32 tickRate, u32 physicsThreads = 0);
-    // 매치 도중 튜닝을 바꾼다 (에디터 혼자 플레이 전용: 멀티플레이에서는 피어마다 달라지면 디싱크)
+    // Changes tuning mid-match (editor solo play only: in multiplayer, differing per peer would desync)
     void setTuning(const Tuning& value);
     void step(const mealkit::net::TickInputs& inputs);
     u64 hash() const;
     u32 activeBodies() const { return physics.activeBodyCount(); }
 
-    // 매치 시작 때 정해지는 데이터 (프로젝트 틱레이트, 씬과 튜닝에서)
+    // Data decided at match start (from the project tick rate, scene, and tuning)
     u32 tickRate = 30;
-    f32 tickDt = 1.0f / 30.0f; // const-ok: 기본값 (reset이 프로젝트 틱레이트로 정한다)
+    f32 tickDt = 1.0f / 30.0f; // const-ok: default (reset sets it from the project tick rate)
     struct PropSpawn {
-        Vec3 min, max; // 상자 생성 영역
+        Vec3 min, max; // box spawn area
         u32 count = 0;
-        u32 kind = 0; // propKinds의 행 번호
+        u32 kind = 0; // row index in propKinds
     };
     std::vector<Vec3> spawns;
     std::vector<PropSpawn> propSpawns;
-    Vec3 arenaMin, arenaMax; // 경기 영역 (MatchArea): 가로·세로 = AI·상자 범위, 바닥 = 낙사, 위 = 상자 다시 떨어뜨리기
+    Vec3 arenaMin, arenaMax; // match area (MatchArea): width/depth = AI/box range, bottom = death, top = dropping boxes again
     Tuning tuning;
-    mealkit::sim::Table<PropKind> propKinds; // 상자 종류 (콘텐츠 해시에 들어가는 표)
-    mealkit::sim::Table<BodyKind> bodyKinds; // 캐릭터 몸 종류 (플레이어 슬롯의 body가 행 번호)
+    mealkit::sim::Table<PropKind> propKinds; // box kinds (a table that goes into the content hash)
+    mealkit::sim::Table<BodyKind> bodyKinds; // character body kinds (a player slot's body is the row index)
 
-    // 상태
+    // State
     WorldState state;
-    GameInput inputs[mealkit::net::kMaxPlayers] = {}; // 이번 틱 입력 (step 시작 때 채운다)
+    GameInput inputs[mealkit::net::kMaxPlayers] = {}; // this tick's inputs (filled at the start of step)
     mealkit::physics::PhysicsWorld physics;
 
-    // 이번 틱의 화면 알림 (step 시작 때 비운다, 해시에 넣지 않는다)
+    // This tick's view notifications (cleared at the start of step, not hashed)
     mealkit::sim::TickEvents<GameEvent, kMaxEventsPerTick> events;
 };
 
-// 화면 쪽에서도 쓰는 조회 (읽기만 한다)
-// 플레이어 슬롯이 지금 조종하는 Pawn (리스폰 대기 중이면 nullptr)
+// Lookups also used by the view side (read only)
+// The Pawn a player slot currently controls (nullptr while waiting to respawn)
 const Pawn* playerPawn(const WorldState& state, u32 slot);
-// Pawn을 조종하는 플레이어 슬롯 (AI나 빈 컨트롤러면 kNoPlayer)
+// The player slot controlling a Pawn (kNoPlayer for AI or empty controllers)
 u8 pawnPlayer(const WorldState& state, const Pawn& pawn);
 
 } // namespace sandbox

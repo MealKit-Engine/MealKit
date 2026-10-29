@@ -1,7 +1,7 @@
-// 플러그인 빌드: src → dist (dist는 저장소에 올린다. 에디터가 Node.js 없이 그대로 준다).
-//   npm install   (처음 한 번, tools/penpot-plugin에서)
+// Plugin build: src → dist (dist is committed to the repo. The editor serves it as is without Node.js).
+//   npm install   (once at first, in tools/penpot-plugin)
 //   npm run build
-// dist/plugin.js의 __MEALKIT_BASE__는 에디터 가져오기 서버가 줄 때 자기 주소로 바꾼다.
+// __MEALKIT_BASE__ in dist/plugin.js is replaced with its own address when the editor import server serves it.
 
 import { build } from 'esbuild';
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';

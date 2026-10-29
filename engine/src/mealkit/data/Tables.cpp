@@ -38,7 +38,7 @@ void resolveValue(const reflect::ValueInfo& v, void* data, const TableIndexList&
         *ref.index = kNoRow;
         if (ref.id->empty()) break;
         const TableIndex* table = nullptr;
-        for (const TableIndex& t : tables) // 같은 행 타입 (DLL을 바꿔 끼운 뒤에도 맞게 이름으로도)
+        for (const TableIndex& t : tables) // same row type (also by name, so it still matches after swapping the DLL)
             if (t.rowType == v.type || std::strcmp(t.rowType->name, v.type->name) == 0) table = &t;
         if (table)
             for (u32 i = 0; i < table->ids->size(); ++i)
@@ -47,11 +47,11 @@ void resolveValue(const reflect::ValueInfo& v, void* data, const TableIndexList&
             missing->push_back(path + " -> " + *ref.id + " (" + v.type->name + (table ? ")" : ", no table)"));
         break;
     }
-    default: break; // Pool은 표·설정 데이터에 없다
+    default: break; // Pools don't appear in table/settings data
     }
 }
 
-// CSV 한 칸 (따옴표가 필요하면 감싼다)
+// One CSV cell (quoted if needed)
 std::string csvCell(const std::string& s) {
     if (s.find_first_of(",\"\r\n") == std::string::npos) return s;
     std::string out = "\"";
@@ -62,13 +62,13 @@ std::string csvCell(const std::string& s) {
     return out + "\"";
 }
 
-// CSV 전체 → 줄마다 칸 (RFC 4180: 따옴표 안의 쉼표·줄바꿈, "" = ")
+// Whole CSV → cells per line (RFC 4180: commas/newlines inside quotes, "" = ")
 std::vector<std::vector<std::string>> parseCsv(const std::string& text) {
     std::vector<std::vector<std::string>> lines;
     std::vector<std::string> cells;
     std::string cell;
     bool quoted = false, any = false;
-    size_t i = text.compare(0, 3, "\xEF\xBB\xBF") == 0 ? 3 : 0; // Excel이 붙이는 BOM
+    size_t i = text.compare(0, 3, "\xEF\xBB\xBF") == 0 ? 3 : 0; // BOM added by Excel
     for (; i < text.size(); ++i) {
         const char c = text[i];
         if (quoted) {
@@ -126,7 +126,7 @@ bool readTableText(const std::string& path, TableText& out, std::string* warning
     if (!readTextFile(path, text)) return false;
     size_t start = 0;
     int lineNo = 0;
-    bool skipping = false; // 겹친 id의 행
+    bool skipping = false; // rows with a duplicate id
     while (start < text.size()) {
         size_t end = text.find('\n', start);
         if (end == std::string::npos) end = text.size();
@@ -137,7 +137,7 @@ bool readTableText(const std::string& path, TableText& out, std::string* warning
         const size_t first = line.find_first_not_of(" \t");
         if (first == std::string::npos || line[first] == '#') continue;
         line = line.substr(first);
-        u32 version = 1; // 지금은 버전 1뿐이라 migrate가 없다
+        u32 version = 1; // only version 1 for now, so no migrate
         if (text::readFormatLine(line, text::kTable, path, version)) continue;
         const size_t space = line.find(' ');
         const std::string key = line.substr(0, space);
@@ -221,7 +221,7 @@ bool saveTableData(const TableData& table, const std::string& path) {
 }
 
 bool exportTableCsv(const TableData& table, const std::string& path) {
-    reflect::Instance defaults(*table.rowType); // 열 이름: 기본값 행의 경로 (모든 행이 같은 경로를 낸다)
+    reflect::Instance defaults(*table.rowType); // column names: paths of the default row (every row yields the same paths)
     reflect::TextFields columns;
     reflect::toText(*table.rowType, defaults.data(), columns);
     std::string text = "id";
@@ -256,14 +256,14 @@ bool importTableCsv(TableData& table, const std::string& path, std::string* erro
     TableText out;
     for (size_t l = 1; l < lines.size(); ++l) {
         const std::vector<std::string>& cells = lines[l];
-        if (cells.empty() || cells[0].empty()) continue; // 빈 줄
+        if (cells.empty() || cells[0].empty()) continue; // empty line
         out.ids.push_back(cells[0]);
         out.rows.emplace_back();
         for (size_t c = 1; c < header.size() && c < cells.size(); ++c)
             if (!header[c].empty()) out.rows.back().emplace_back(header[c], cells[c]);
     }
     std::string warnings;
-    TableText checked; // id 검사는 파일 읽기와 같은 규칙
+    TableText checked; // id checks use the same rules as file reading
     for (size_t i = 0; i < out.ids.size(); ++i) {
         bool duplicate = false;
         for (const std::string& id : checked.ids) duplicate = duplicate || id == out.ids[i];

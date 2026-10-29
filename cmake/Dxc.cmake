@@ -1,7 +1,7 @@
-# 셰이더 컴파일러: 버전을 고정한 DXC 공식 릴리스 (docs/DECISIONS.md 2026-10-19 "RHI 층의 Vulkan 도구").
-# Windows SDK의 dxc는 SPIR-V를 만들지 못하므로 쓰지 않는다. 처음 한 번 받아 해시를 확인하고 git 밖 캐시에 푼다:
-#   %LOCALAPPDATA%\MealKit\tools\dxc-<버전>\bin\x64\dxc.exe
-# 다른 dxc를 쓰려면 -DMEALKIT_SHADER_DXC=<경로> (SPIR-V 지원 빌드여야 한다).
+# Shader compiler: an official DXC release with a pinned version (docs/DECISIONS.md 2026-10-19 "Vulkan tooling for the RHI layer").
+# The Windows SDK dxc can't produce SPIR-V, so it isn't used. Downloaded once, hash-verified, and extracted to a cache outside git:
+#   %LOCALAPPDATA%\MealKit\tools\dxc-<version>\bin\x64\dxc.exe
+# To use a different dxc: -DMEALKIT_SHADER_DXC=<path> (must be a build with SPIR-V support).
 set(MEALKIT_DXC_VERSION v1.9.2609)
 set(MEALKIT_DXC_URL https://github.com/microsoft/DirectXShaderCompiler/releases/download/v1.9.2609/dxc_2026_09_29.zip)
 set(MEALKIT_DXC_SHA256 ad31b1fc8443175d204f77a611fdb3ef2ec42759bdc2f1167368de24a4a7e7f1)

@@ -18,7 +18,7 @@ constexpr u64 fnv1a(const char* text) {
     return h;
 }
 
-// 시뮬레이션 상태 해시(디싱크 감지용). 필드를 하나씩 넣어 구조체 패딩이 섞이지 않게 한다.
+// Simulation state hash (for desync detection). Fields are added one by one so struct padding doesn't get mixed in.
 struct Hasher {
     u64 value = kFnvOffset;
 

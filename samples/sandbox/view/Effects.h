@@ -7,8 +7,8 @@
 
 #include <vector>
 
-// 틱 이벤트(world.events)로 생기는 화면 효과. 지금은 밀치기·점프대 충격파 (소리·파티클이 생기면 같은 길로 받는다).
-// 시간은 화면 시계(GameSession이 프레임 dt로 센다)라 시뮬레이션과 무관하다.
+// View effects caused by tick events (world.events). For now push/jump pad shockwaves (sound/particles go the same route when added).
+// Time is the view clock (GameSession counts it with frame dt), unrelated to the simulation.
 namespace sandbox {
 
 struct Effects {
@@ -19,9 +19,9 @@ struct Effects {
     };
     std::vector<Shockwave> shockwaves;
 
-    // pawnHalfHeight: 캐릭터 이벤트 위치(몸 중심)에서 발밑까지 (world.tuning)
+    // pawnHalfHeight: from the character event position (body center) to underfoot (world.tuning)
     void onEvent(const GameEvent& event, mealkit::f64 now, const ShockwaveLook& look, f32 pawnHalfHeight);
-    // 끝난 효과를 지운다 (그리지 않는 프레임에도 쌓이지 않게 매 프레임)
+    // Removes finished effects (every frame, so they don't pile up even on frames that aren't drawn)
     void prune(mealkit::f64 now, const ShockwaveLook& look);
     void draw(mealkit::f64 now, const ShockwaveLook& look, mealkit::render::MeshId box,
               mealkit::render::DrawList& out) const;

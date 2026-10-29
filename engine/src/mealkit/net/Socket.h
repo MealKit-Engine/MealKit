@@ -6,25 +6,25 @@
 
 namespace mealkit::net {
 
-inline constexpr u32 kBroadcastIp = 0xFFFFFFFFu; // 255.255.255.255 (같은 네트워크 전체)
+inline constexpr u32 kBroadcastIp = 0xFFFFFFFFu; // 255.255.255.255 (the whole network)
 inline constexpr u32 kLoopbackIp = 0x7F000001u;  // 127.0.0.1
 
 struct Address {
-    u32 ip = 0; // 호스트 바이트 순서 IPv4
+    u32 ip = 0; // IPv4 in host byte order
     u16 port = 0;
-    u64 userId = 0; // 온라인 백엔드 전송일 때 상대 사용자 id (Steam ID, EOS는 Product User ID 해시). 그때 ip/port는 0
+    u64 userId = 0; // peer user id for online backend transports (Steam ID, a hash of the Product User ID for EOS). ip/port are 0 then
 
     bool operator==(const Address&) const = default;
     std::string toString() const;
 };
 
-// "host", "host:port", "1.2.3.4:27015" 형식. 포트가 없으면 defaultPort.
+// "host", "host:port", "1.2.3.4:27015" forms. defaultPort if there's no port.
 bool resolveAddress(const char* text, u16 defaultPort, Address& out);
 
-bool startup(); // WSAStartup (참조 카운트)
+bool startup(); // WSAStartup (reference counted)
 void cleanup();
 
-// 논블로킹 UDP 소켓.
+// Non-blocking UDP socket.
 class UdpSocket {
 public:
     UdpSocket() = default;
@@ -32,21 +32,21 @@ public:
     UdpSocket(const UdpSocket&) = delete;
     UdpSocket& operator=(const UdpSocket&) = delete;
 
-    bool open(u16 port, bool loopbackOnly = false); // port 0 = 임의 포트, loopbackOnly = 127.0.0.1에만 바인딩
-    // 같은 포트를 여러 소켓이 같이 듣고(같은 PC의 여러 게임), 브로드캐스트를 받는다 (LAN 방 찾기)
+    bool open(u16 port, bool loopbackOnly = false); // port 0 = any port, loopbackOnly = bind only to 127.0.0.1
+    // Multiple sockets listen on the same port (multiple games on the same PC) and receive broadcasts (LAN room search)
     bool openShared(u16 port);
-    bool enableBroadcast(); // kBroadcastIp로 보낼 수 있게
+    bool enableBroadcast(); // allows sending to kBroadcastIp
     void close();
     bool isOpen() const;
     bool sendTo(const Address& to, const void* data, u32 size);
-    i32 receiveFrom(Address& from, void* buffer, u32 capacity); // 받을 패킷이 없으면 -1
+    i32 receiveFrom(Address& from, void* buffer, u32 capacity); // -1 if there's no packet to receive
     u16 localPort() const;
 
 private:
     u64 m_socket = ~0ull;
 };
 
-// 논블로킹 TCP 연결 (에디터의 localhost 가져오기 서버, mealkit/editor/ImportServer.h). 받은 연결만 쓴다.
+// Non-blocking TCP connection (the editor's localhost import server, mealkit/editor/ImportServer.h). Only accepted connections are used.
 class TcpStream {
 public:
     TcpStream() = default;
@@ -58,8 +58,8 @@ public:
 
     bool isOpen() const;
     void close();
-    i32 receive(void* buffer, u32 capacity); // 받은 바이트, 아직 없으면 0, 끊겼거나 오류면 -1
-    i32 send(const void* data, u32 size);    // 보낸 바이트 (일부일 수 있다), 지금 못 보내면 0, 오류면 -1
+    i32 receive(void* buffer, u32 capacity); // bytes received, 0 if none yet, -1 if disconnected or error
+    i32 send(const void* data, u32 size);    // bytes sent (may be partial), 0 if it can't send now, -1 on error
 
 private:
     friend class TcpListener;
@@ -73,10 +73,10 @@ public:
     TcpListener(const TcpListener&) = delete;
     TcpListener& operator=(const TcpListener&) = delete;
 
-    bool open(u16 port, bool loopbackOnly); // port 0 = 임의 포트
+    bool open(u16 port, bool loopbackOnly); // port 0 = any port
     void close();
     bool isOpen() const;
-    bool accept(TcpStream& out); // 기다리는 연결이 있으면 논블로킹 연결로
+    bool accept(TcpStream& out); // if a connection is waiting, as a non-blocking connection
     u16 localPort() const;
 
 private:

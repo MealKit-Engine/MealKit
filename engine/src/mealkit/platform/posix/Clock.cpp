@@ -1,4 +1,4 @@
-// 시간의 POSIX 구현 (Linux·macOS 헤드리스). clock_gettime(CLOCK_MONOTONIC) + nanosleep.
+// POSIX implementation of time (Linux/macOS headless). clock_gettime(CLOCK_MONOTONIC) + nanosleep.
 #include "mealkit/core/Clock.h"
 
 #include <ctime>
@@ -40,7 +40,7 @@ void FrameLimiter::wait() {
 
     m_next += m_interval;
     const f64 now = nowSeconds();
-    if (m_next < now - m_interval) m_next = now; // 크게 밀렸으면 따라잡지 말고 재동기화
+    if (m_next < now - m_interval) m_next = now; // if far behind, resync instead of catching up
 
     const f64 remaining = m_next - now;
     if (remaining > 0.002) {

@@ -1,4 +1,4 @@
-// 파일·폴더의 Windows 부분: 실행 파일 위치, UTF-8 경로 열기, 원자적 바꿔 쓰기, 파일 시각, 사용자 폴더.
+// Windows part of files/folders: executable location, opening UTF-8 paths, atomic replace-writes, file times, user folder.
 #include "mealkit/platform/Paths.h"
 
 #include <filesystem>
@@ -48,7 +48,7 @@ std::string executableDirectory() {
 }
 
 FILE* openFile(const std::string& path, const char* mode) {
-    // 다른 곳이 열고 있어도 읽고 쓸 수 있게 (POSIX와 같이): 버그 리포트가 쓰는 중인 입력 기록을 읽는다
+    // Readable/writable even when opened elsewhere (like POSIX): bug reports read the input recording being written
     return _wfsopen(fromUtf8(path).c_str(), widen(mode).c_str(), _SH_DENYNO);
 }
 
@@ -78,7 +78,7 @@ unsigned long long fileCreationTime(const std::string& path) {
     return fileTimes(path, &t, nullptr) ? t : 0;
 }
 
-// FILETIME(100ns, 1601년부터) → 지역 시각 문자열
+// FILETIME (100ns, since 1601) → local time string
 std::string formatFileTime(unsigned long long time, bool withTime) {
     if (time == 0) return "-";
     FILETIME utc{static_cast<DWORD>(time), static_cast<DWORD>(time >> 32)}, local;

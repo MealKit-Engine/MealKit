@@ -38,7 +38,7 @@ IWICImagingFactory* factory() {
 }
 
 bool decode(IWICBitmapDecoder* decoder, u32 maxSize, Image& out) {
-    // 여러 장(ICO)이면 가장 큰 것
+    // For multiple images (ICO), the largest
     UINT frames = 0;
     decoder->GetFrameCount(&frames);
     ComPtr<IWICBitmapFrameDecode> best;
@@ -123,7 +123,7 @@ bool savePng(const std::string& path, const Image& image) {
         FAILED(encoder->CreateNewFrame(&frame, nullptr)) || FAILED(frame->Initialize(nullptr)) ||
         FAILED(frame->SetSize(image.width, image.height)))
         return false;
-    // PNG 인코더가 RGBA를 받지 않으면 BGRA로 바꿔 쓴다
+    // If the PNG encoder doesn't accept RGBA, convert to BGRA
     WICPixelFormatGUID format = GUID_WICPixelFormat32bppRGBA;
     if (FAILED(frame->SetPixelFormat(&format))) return false;
     std::vector<u8> pixels = image.rgba;

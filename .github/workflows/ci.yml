@@ -1,8 +1,8 @@
-# MealKit CI 빌드 매트릭스 (docs/ROADMAP.md 1단계 "CI 빌드 매트릭스", 문서 저장소 "엔진 개발 > 테스트").
-# 커밋마다 Windows MSVC(Release, Editor)·clang-cl과 Linux x64·macOS ARM64 Clang 헤드리스를 빌드하고,
-# 각 빌드에서 tools/ci_test.ps1(단위 테스트, 고정 입력 기록 재생, 헤드리스 mp_test)을 돌린 뒤
-# tools/ci_compare.ps1이 detmath-bits와 틱별 해시가 모든 빌드에서 같은지 본다. 하나라도 다르면 실패한다.
-# GPU가 없는 러너라 화면 캡처·그림자/되감기 검사는 로컬 tools/check.ps1에 남는다. Steam·EOS SDK가 없어 "없음" 백엔드로 빌드된다.
+# MealKit CI build matrix (docs/ROADMAP.md stage 1 "CI build matrix", docs repo "Engine development > Testing").
+# On every commit, builds Windows MSVC (Release, Editor) and clang-cl plus Linux x64 and macOS ARM64 Clang headless,
+# runs tools/ci_test.ps1 (unit tests, fixed input recording replay, headless mp_test) in each build, then
+# tools/ci_compare.ps1 checks that detmath-bits and per-tick hashes match across all builds. Any difference fails.
+# The runners have no GPU, so screen capture and shadow/rewind checks stay in local tools/check.ps1. No Steam/EOS SDK, so the "none" backend is built.
 name: CI
 
 on:
@@ -96,7 +96,7 @@ jobs:
           cmake -S . -B build/Headless -G Ninja -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
       - name: Build (sandbox_headless, mealkit_tests)
-        run: cmake --build build/Headless --target sandbox_headless mealkit_tests -- -k 0 # 오류를 한 번에 모두 본다
+        run: cmake --build build/Headless --target sandbox_headless mealkit_tests -- -k 0 # see all errors at once
       - name: Test
         shell: pwsh
         run: tools/ci_test.ps1 -Bin build/Headless/bin -Name ${{ matrix.name }} -Out ci-out/${{ matrix.name }}

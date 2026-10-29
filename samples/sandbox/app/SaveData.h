@@ -5,8 +5,8 @@
 
 #include <string>
 
-// 진행 데이터 (mealkit/game/Save.h): 사용자 폴더의 saves/progress.save. 매치 밖에 남는 기록만, 시뮬레이션은 읽지 않는다.
-// 필드를 더하거나 지워도 예전 파일을 읽는다(없는 필드는 기본값). 뜻이 바뀌면 kSaveVersion을 올리고 migrate에서 옮긴다.
+// Progress data (mealkit/game/Save.h): saves/progress.save in the user folder. Only records that persist outside matches; the simulation doesn't read it.
+// Adding or removing fields still reads old files (missing fields get defaults). When a meaning changes, bump kSaveVersion and move it in migrate.
 namespace sandbox {
 
 inline constexpr mealkit::u32 kSaveVersion = 1;

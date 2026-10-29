@@ -1,6 +1,6 @@
-# 애드온 자동 시험 (check.ps1 "Blender add-on export"): Blender를 창 없이 돌려
-#   blender -b --factory-startup --python tools/blender-addon/test/test_export.py -- <임시 폴더>
-# 임시 프로젝트(mealkit.project + art/test.blend)에 텍스처 재질 상자와 정점 색 구를 만들고, 검사 경고와 내보낸 .glb를 확인한다.
+# Automated add-on test (check.ps1 "Blender add-on export"): runs Blender without a window
+#   blender -b --factory-startup --python tools/blender-addon/test/test_export.py -- <temp folder>
+# Creates a box with a textured material and a vertex-colored sphere in a temp project (mealkit.project + art/test.blend), and checks the check warnings and the exported .glb.
 import json
 import os
 import struct
@@ -28,10 +28,10 @@ def main():
         f.write("name addontest\n")
 
     mealkit.register()
-    bpy.ops.object.select_all(action="SELECT")  # 기본 장면(상자·카메라·빛)을 비운다
+    bpy.ops.object.select_all(action="SELECT")  # clears the default scene (box/camera/light)
     bpy.ops.object.delete()
 
-    # 텍스처를 쓰는 재질의 상자 (경고), 정점 색을 기본 색으로 쓰는 구 (지원)
+    # A box with a textured material (warning), a sphere using vertex color as base color (supported)
     bpy.ops.mesh.primitive_cube_add(size=2)
     cube = bpy.context.active_object
     textured = bpy.data.materials.new("Textured")
@@ -54,7 +54,7 @@ def main():
     painted.node_tree.links.new(attr.outputs["Color"], painted.node_tree.nodes["Principled BSDF"].inputs["Base Color"])
     sphere.data.materials.append(painted)
 
-    # 스타일 프리셋 머티리얼 기능: 패널의 Add 단추(연산자)가 커스텀 속성 = glTF extras를 만든다. 바람 세기는 정점 알파
+    # Style preset material features: the panel's Add button (operator) creates custom properties = glTF extras. Wind strength is vertex alpha
     for c in colors.data:
         c.color = (1.0, 0.2, 0.1, 0.5)
     features = {f["key"]: f for f in mealkit.schema()["materialFeatures"]}
@@ -106,7 +106,7 @@ def main():
         expect(bool(colored) and accessors[colored[0]["attributes"]["COLOR_0"]]["type"] == "VEC4",
                "vertex color alpha (wind amount) exported")
 
-    # 에셋 예산: 이름의 첫 폴더가 종류, 한도는 mealkit.project (소품 삼각형 500으로 낮춘다)
+    # Asset budget: the first folder of the name is the kind, limits from mealkit.project (props lowered to 500 triangles)
     with open(os.path.join(root, "mealkit.project"), "a", encoding="utf-8") as f:
         f.write("budgetPropsTriangles 500\n")
     bpy.context.scene.mealkit.model_name = "props/heavy"
@@ -118,10 +118,10 @@ def main():
     bpy.ops.mealkit.export()
     expect(os.path.isfile(os.path.join(root, "assets", "models", "props", "heavy.glb")), "exported into models/props/")
 
-    # 아무것도 없으면 내보내지 않는다
+    # Nothing is exported if there's nothing
     bpy.ops.object.select_all(action="SELECT")
     bpy.ops.object.delete()
-    try:  # 오류 보고가 있는 연산자는 파이썬 호출에서 예외가 된다
+    try:  # operators that report errors raise exceptions when called from Python
         refused = bpy.ops.mealkit.export() == {"CANCELLED"}
     except RuntimeError as e:
         refused = "Nothing to export" in str(e)
@@ -132,7 +132,7 @@ def main():
 
 try:
     main()
-except Exception as e:  # 시험 스크립트 오류도 실패로
+except Exception as e:  # test script errors count as failures too
     import traceback
     traceback.print_exc()
     failures.append(str(e))

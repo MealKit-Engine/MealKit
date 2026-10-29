@@ -3,27 +3,27 @@
 #include "mealkit/core/Reflect.h"
 #include "sim/Tables.h"
 
-// 게임이 선언한 씬 오브젝트 종류. 에디터 [추가] 메뉴와 인스펙터에 나오고, 필드 값은 씬 파일에 저장된다.
-// World는 매치를 시작할 때 scene::readObject<T>(entity)로 읽는다 (sim/World.cpp loadScene).
-// 맵마다 다른 값(범위, 개수, 높이)은 코드 상수 대신 여기 물체의 위치·크기·필드로 둔다 (docs/CODING_MODEL.md "숫자는 어디에 두나").
+// Scene object kinds declared by the game. Shown in the editor [Add] menu and inspector, and field values are saved in the scene file.
+// The World reads them with scene::readObject<T>(entity) when a match starts (sim/World.cpp loadScene).
+// Values that differ per map (ranges, counts, heights) go into the position/size/fields of these objects instead of code constants (docs/CODING_MODEL.md "Where to put numbers").
 namespace sandbox {
 
-// 밟으면 위로 튕겨 올리는 발판. 씬에서 놓은 상자의 윗면이 밟는 곳이다 (회전은 무시).
+// A pad that launches you upward when stepped on. The top face of the box placed in the scene is where you step (rotation ignored).
 MEALKIT_OBJECT(JumpPad) {
     static constexpr const char* kObjectLabel = "점프대";
     MEALKIT_FIELD(mealkit::f32, power, 14.0f, "점프 힘 (m/s)");
     MEALKIT_FIELD(mealkit::Ticks, cooldown, mealkit::Ticks::seconds(0.6667f), "재사용 대기 (초)");
 };
 
-// 경기 영역 (씬에 하나). 상자의 크기가 곧 규칙이다 (회전은 무시):
-//   가로·세로 = AI가 돌아다니는 범위, 떨어진 상자를 다시 떨어뜨리는 범위
-//   바닥 = 이보다 아래로 떨어지면 낙사 / 위 = 떨어진 상자를 다시 떨어뜨리는 높이
+// Match area (one per scene). The box's size is the rule itself (rotation ignored):
+//   width/depth = range the AI roams, range where fallen boxes are dropped again
+//   bottom = falling below this is death / top = height from which fallen boxes are dropped again
 MEALKIT_OBJECT(MatchArea) {
     static constexpr const char* kObjectLabel = "경기 영역";
     static constexpr mealkit::u32 kObjectFlags = mealkit::reflect::kObjectArea;
 };
 
-// 매치를 시작할 때 이 영역 안에 상자를 흩어 놓는다 (여러 개면 씬 순서대로). 종류는 상자 종류 표(tables/props.table)의 행
+// When a match starts, boxes are scattered inside this area (in scene order if there are several). The kind is a row of the box kind table (tables/props.table)
 MEALKIT_OBJECT(PropSpawnArea) {
     static constexpr const char* kObjectLabel = "상자 생성 영역";
     static constexpr mealkit::u32 kObjectFlags = mealkit::reflect::kObjectArea;

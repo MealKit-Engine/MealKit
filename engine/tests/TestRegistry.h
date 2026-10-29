@@ -5,8 +5,8 @@
 
 #include <string>
 
-// 아주 작은 테스트 등록기. 테스트 파일마다 TEST_CASE(area, name) { ... TEST_CHECK(cond); }
-// area는 엔진 폴더 이름(core, net, render ...)이다. --only area,area로 그 영역만 돌린다 (tools\check.ps1 -Changed).
+// A tiny test registry. Per test file: TEST_CASE(area, name) { ... TEST_CHECK(cond); }
+// area is an engine folder name (core, net, render ...). --only area,area runs only those areas (tools\check.ps1 -Changed).
 namespace mealkit::test {
 
 struct Case {
@@ -34,7 +34,7 @@ inline void fail(const char* cond, const char* file, int line) {
     ++failures();
 }
 
-// only: 쉼표로 나눈 영역 목록, 비어 있으면 전부
+// only: comma-separated list of areas, all if empty
 inline bool selected(const char* area, const std::string& only) {
     if (only.empty()) return true;
     const std::string list = "," + only + ",";

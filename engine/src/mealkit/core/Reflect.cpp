@@ -13,7 +13,7 @@
 namespace mealkit {
 namespace {
 
-u32 g_tickRate = 30; // reflect::setTickRate (프로세스 설정, 매치 중에는 바뀌지 않는다)
+u32 g_tickRate = 30; // reflect::setTickRate (process setting, doesn't change during a match)
 
 } // namespace
 
@@ -83,7 +83,7 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
     case Kind::Int: {
         long long x = std::strtoll(s, &end, 10);
         if (end == s || *end) {
-            const auto it = std::find(v.enumNames.begin(), v.enumNames.end(), text); // MEALKIT_ENUM 이름
+            const auto it = std::find(v.enumNames.begin(), v.enumNames.end(), text); // MEALKIT_ENUM name
             if (it == v.enumNames.end()) return false;
             x = it - v.enumNames.begin();
         }
@@ -98,7 +98,7 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
     case Kind::UInt: {
         unsigned long long x = std::strtoull(s, &end, 10);
         if (end == s || *end) {
-            const auto it = std::find(v.enumNames.begin(), v.enumNames.end(), text); // MEALKIT_ENUM 이름
+            const auto it = std::find(v.enumNames.begin(), v.enumNames.end(), text); // MEALKIT_ENUM name
             if (it == v.enumNames.end()) return false;
             x = static_cast<unsigned long long>(it - v.enumNames.begin());
         }
@@ -129,19 +129,19 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
         return true;
     }
     case Kind::String: *static_cast<std::string*>(data) = text; return true;
-    case Kind::RowRef: { // 행 id (번호는 data::resolveRows가 채운다)
+    case Kind::RowRef: { // row id (the index is filled in by data::resolveRows)
         const RowRefView r = rowRefOf(data);
         *r.id = text;
         *r.index = kNoRow;
         return true;
     }
-    case Kind::Ticks: { // 초
+    case Kind::Ticks: { // seconds
         f32 seconds = 0.0f;
         if (!parseFloats(s, &seconds, 1)) return false;
         store(data, Ticks::seconds(seconds));
         return true;
     }
-    case Kind::Color: { // #RRGGBB 또는 #RRGGBBAA
+    case Kind::Color: { // #RRGGBB or #RRGGBBAA
         if (text.size() != 7 && text.size() != 9) return false;
         if (text[0] != '#') return false;
         const unsigned long hex = std::strtoul(s + 1, &end, 16);
@@ -154,7 +154,7 @@ bool parseScalar(const ValueInfo& v, void* data, const std::string& text) {
         return true;
     }
     case Kind::Id: {
-        // "<slot> <generation>" (sscanf_s는 MSVC 전용, sscanf는 MSVC가 C4996 경고)
+        // "<slot> <generation>" (sscanf_s is MSVC-only, and MSVC warns C4996 on sscanf)
         const unsigned long slot = std::strtoul(s, &end, 10);
         if (end == s) return false;
         const char* rest = end;
@@ -181,12 +181,12 @@ void toTextValue(const ValueInfo& v, const void* data, const std::string& path, 
         for (u32 i = 0; i < v.count; ++i)
             toTextValue(*v.element, at(data, i * v.element->size), path + "[" + std::to_string(i) + "]", out);
         break;
-    case Kind::Container: break; // 매치 중에 생기는 객체: 텍스트로 쓰지 않는다
+    case Kind::Container: break; // objects created during a match: not written as text
     default: out.emplace_back(path, formatScalar(v, data)); break;
     }
 }
 
-// "a.b[2].c" 를 따라가 값 하나를 찾는다
+// Follows "a.b[2].c" to find one value
 bool resolve(const TypeInfo& type, void* data, const char* path, const ValueInfo*& outValue, void*& outData) {
     const char* end = path;
     while (*end && *end != '.' && *end != '[') ++end;
@@ -349,13 +349,13 @@ void hashValue(const ValueInfo& v, const void* data, Hasher& h, u32 skipFlags) {
         h.bytes(text.data(), text.size());
         break;
     }
-    case Kind::RowRef: { // id가 정체성이다 (행 번호는 같은 표에서 저절로 같다)
+    case Kind::RowRef: { // the id is the identity (row index is automatically the same in the same table)
         const std::string& id = *rowRefOf(const_cast<void*>(data)).id;
         h.add(static_cast<u64>(id.size()));
         h.bytes(id.data(), id.size());
         break;
     }
-    default: h.bytes(data, v.size); break; // 스칼라·Vec3·Quat·Id는 패딩이 없다
+    default: h.bytes(data, v.size); break; // scalars, Vec3, Quat, Id have no padding
     }
 }
 
@@ -405,7 +405,7 @@ std::string formatScalar(const ValueInfo& v, const void* data) {
     }
     case Kind::String: return *static_cast<const std::string*>(data);
     case Kind::RowRef: return *rowRefOf(const_cast<void*>(data)).id;
-    case Kind::Ticks: snprintf(text, sizeof(text), "%.6g", static_cast<const Ticks*>(data)->toSeconds()); break; // 다시 읽으면 같은 틱
+    case Kind::Ticks: snprintf(text, sizeof(text), "%.6g", static_cast<const Ticks*>(data)->toSeconds()); break; // rereading gives the same ticks
     case Kind::Color: {
         const u32 c = static_cast<const Color*>(data)->value;
         const u32 r = c & 0xFF, g = (c >> 8) & 0xFF, b = (c >> 16) & 0xFF, a = c >> 24;
@@ -444,7 +444,7 @@ std::vector<std::string> splitEnumNames(const char* text) {
 }
 
 RowRefView rowRefOf(void* data) {
-    auto* r = static_cast<RowRef<int>*>(data); // 행 타입과 무관하게 배치가 같다 (id, index)
+    auto* r = static_cast<RowRef<int>*>(data); // same layout regardless of row type (id, index)
     return {&r->id, &r->index};
 }
 
@@ -500,7 +500,7 @@ bool loadTextFile(const TypeInfo& type, void* data, const std::string& path, con
         size_t first = line.find_first_not_of(" \t");
         if (first == std::string::npos || line[first] == '#') continue;
         line = line.substr(first);
-        u32 version = 1; // 지금은 버전 1뿐이라 migrate가 없다
+        u32 version = 1; // only version 1 for now, so no migrate
         if (text::readFormatLine(line, format, path, version)) continue;
         const size_t space = line.find(' ');
         const std::string key = line.substr(0, space);

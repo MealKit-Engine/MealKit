@@ -1,4 +1,4 @@
-// UDP 소켓의 POSIX 구현 (Linux·macOS 헤드리스). 패킷 형식·동작은 win32/Socket.cpp와 같다.
+// POSIX implementation of UDP sockets (Linux/macOS headless). Packet format and behavior are the same as win32/Socket.cpp.
 #include "mealkit/net/Socket.h"
 
 #include "mealkit/core/Log.h"
@@ -14,9 +14,9 @@
 #include <unistd.h>
 
 #ifdef MSG_NOSIGNAL
-#define MSG_NOSIGNAL_FLAG MSG_NOSIGNAL // 끊긴 연결에 보내도 SIGPIPE로 죽지 않게
+#define MSG_NOSIGNAL_FLAG MSG_NOSIGNAL // so sending on a closed connection doesn't kill us with SIGPIPE
 #else
-#define MSG_NOSIGNAL_FLAG 0 // macOS: 소켓 옵션 SO_NOSIGPIPE
+#define MSG_NOSIGNAL_FLAG 0 // macOS: socket option SO_NOSIGPIPE
 #endif
 
 namespace mealkit::net {
@@ -41,7 +41,7 @@ bool resolveAddress(const char* text, u16 defaultPort, Address& out) {
     return true;
 }
 
-bool startup() { return true; } // POSIX는 소켓 라이브러리 초기화가 없다
+bool startup() { return true; } // POSIX has no socket library initialization
 void cleanup() {}
 
 UdpSocket::~UdpSocket() { close(); }
@@ -77,7 +77,7 @@ bool UdpSocket::openShared(u16 port) {
     const int s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (s < 0) return false;
     fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK);
-    int reuse = 1; // 브로드캐스트는 같은 포트에 묶인 모든 소켓이 받는다
+    int reuse = 1; // broadcasts are received by all sockets bound to the same port
     setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &reuse, sizeof(reuse));
 #ifdef SO_REUSEPORT
     setsockopt(s, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse));
@@ -127,7 +127,7 @@ i32 UdpSocket::receiveFrom(Address& from, void* buffer, u32 capacity) {
     socklen_t addrLen = sizeof(addr);
     const ssize_t received =
         recvfrom(static_cast<int>(m_socket), buffer, capacity, 0, reinterpret_cast<sockaddr*>(&addr), &addrLen);
-    if (received < 0) return -1; // EAGAIN 포함: 받을 것 없음 (ICMP 거부도 무시한다, Windows와 같게)
+    if (received < 0) return -1; // including EAGAIN: nothing to receive (ICMP refusals are also ignored, same as Windows)
     from.ip = ntohl(addr.sin_addr.s_addr);
     from.port = ntohs(addr.sin_port);
     return static_cast<i32>(received);
@@ -168,7 +168,7 @@ i32 TcpStream::receive(void* buffer, u32 capacity) {
     const ssize_t got = recv(static_cast<int>(m_socket), static_cast<char*>(buffer), static_cast<int>(capacity), 0);
     if (got > 0) return static_cast<i32>(got);
     if (got < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) return 0;
-    return -1; // 0 = 상대가 닫았다
+    return -1; // 0 = the peer closed
 }
 
 i32 TcpStream::send(const void* data, u32 size) {

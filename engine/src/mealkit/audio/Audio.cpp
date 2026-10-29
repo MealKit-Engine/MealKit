@@ -11,7 +11,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-// 접착층: 섞기·목소리 관리·이벤트 파일 형식은 런타임 mkaudio (third_party/mkaudio). 여기서는 파일을 찾아 넘기고, 에셋 경로·로그·프로파일·라이브 연결을 잇는다.
+// Glue layer: mixing, voice management, and the event file format are the mkaudio runtime (third_party/mkaudio). Here we find and pass files, and wire up asset paths, logging, profiling, and the live connection.
 namespace mealkit::audio {
 namespace {
 
@@ -19,7 +19,7 @@ constexpr f64 kFileCheckSeconds = 0.25;
 
 mkaudio::Vec3 toMk(Vec3 v) { return {v.x, v.y, v.z}; }
 
-// 0.5.1까지의 assets/sounds.table: 키 이름이 같아 "row <이름>"만 "event <이름>"으로 바꾸면 이벤트 형식이다
+// assets/sounds.table up to 0.5.1: key names are the same, so changing only "row <name>" to "event <name>" gives the event format
 std::string tableToEvents(const std::string& table) {
     std::string out = std::string("@format ") + mkaudio::kEventsFormatKind + " 1\n";
     size_t pos = 0;
@@ -39,11 +39,11 @@ std::string tableToEvents(const std::string& table) {
 
 struct Engine::Impl {
     mkaudio::Mixer mixer;
-    mkaudio::EventFile file; // event()가 돌려주는 정의 (클립 파일은 찾은 경로)
-    std::vector<std::string> missingClips; // 이미 경고한 클립 (다시 읽을 때 또 쓰지 않는다)
+    mkaudio::EventFile file; // definitions returned by event() (clip files are resolved paths)
+    std::vector<std::string> missingClips; // clips already warned about (not repeated on reload)
     f64 time = 0.0;
     f64 fileCheck = 0.0;
-    std::string path; // 읽은 파일
+    std::string path; // file that was read
     unsigned long long fileTime = 0;
     bool oldTable = false;
     Vec3 listener;
@@ -186,11 +186,11 @@ void Engine::buses(std::vector<BusInfo>& out) const { m->mixer.buses(out); }
 
 const Stats& Engine::stats() const { return m->mixer.stats(); }
 
-// ---------------------------------------------------------------- 라이브 연결 audio/
+// ---------------------------------------------------------------- Live connection audio/
 
 namespace {
 
-// "a=b&c=d" (값은 %XX와 + 풀기)
+// "a=b&c=d" (values decode %XX and +)
 std::vector<std::pair<std::string, std::string>> formFields(const std::string& body) {
     auto decode = [](const std::string& s) {
         std::string out;
@@ -248,7 +248,7 @@ void addLiveService(live::Server& server, std::function<Engine*()> engineOf) {
                 r.body = "{\"ok\":false,\"error\":" + live::jsonString("no event '" + event + "' (saved?)") + "}";
                 return r;
             }
-            const Handle h = engine.play(event, engine.listener()); // 리스너 자리: 3D 이벤트도 가까이에서 들린다
+            const Handle h = engine.play(event, engine.listener()); // at the listener: 3D events are heard up close too
             for (const auto& [name, value] : params) engine.setParam(h, name, value);
             MEALKIT_INFO("Audio: live play %s", event.c_str());
             r.body = "{\"ok\":true}";

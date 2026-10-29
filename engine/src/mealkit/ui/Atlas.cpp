@@ -17,9 +17,9 @@ namespace {
 
 constexpr u32 kSize = render::kUiAtlasSize;
 constexpr f32 kOnEdge = 128.0f;
-constexpr f32 kDistScale = kOnEdge / static_cast<f32>(kSdfPadding); // 구운 픽셀 1당 SDF 값
+constexpr f32 kDistScale = kOnEdge / static_cast<f32>(kSdfPadding); // SDF value per baked pixel
 
-// 줄 단위로 채우는 간단한 사각형 배치 (UI 글자·이미지는 크기가 비슷하다)
+// Simple row-based rectangle packing (UI glyphs/images are similar in size)
 struct Shelves {
     struct Shelf {
         u32 y, height, x;
@@ -32,7 +32,7 @@ struct Shelves {
         top = 0;
     }
     bool place(u32 w, u32 h, u32& outX, u32& outY) {
-        w += 1; // 이웃과 1픽셀 띄운다 (선형 필터)
+        w += 1; // 1 pixel gap from neighbors (linear filtering)
         h += 1;
         for (Shelf& s : shelves)
             if (h <= s.height && h * 4 >= s.height * 3 && s.x + w <= kSize) {
@@ -55,7 +55,7 @@ struct FontFile {
     unsigned long long time = 0;
     std::vector<u8> data;
     stbtt_fontinfo info{};
-    f32 scale = 0.0f; // 글꼴 단위 → 구운 픽셀
+    f32 scale = 0.0f; // font units → baked pixels
     FontMetrics metrics;
 };
 
@@ -117,7 +117,7 @@ struct Atlas::Impl {
         glyphShelves.clear();
     }
 
-    // 윤곽선을 선분으로 펴서 SDF를 직접 계산한다. stbtt_GetGlyphSDF는 3차 곡선(CFF·.otf 글꼴)을 빼먹어 둥근 획이 사라진다.
+    // Flattens outlines into line segments and computes the SDF directly. stbtt_GetGlyphSDF misses cubic curves (CFF/.otf fonts), so round strokes vanish.
     static void flatten(const stbtt_vertex* v, int count, f32 scale, std::vector<f32>& seg) {
         seg.clear();
         f32 px = 0, py = 0;
@@ -127,7 +127,7 @@ struct Atlas::Impl {
             py = y;
         };
         for (int i = 0; i < count; ++i) {
-            const f32 x = static_cast<f32>(v[i].x) * scale, y = -static_cast<f32>(v[i].y) * scale; // y는 아래가 +
+            const f32 x = static_cast<f32>(v[i].x) * scale, y = -static_cast<f32>(v[i].y) * scale; // y is + downward
             if (v[i].type == STBTT_vmove) {
                 px = x;
                 py = y;
@@ -164,7 +164,7 @@ struct Atlas::Impl {
         g.advance = static_cast<f32>(advance) * f.scale * em;
         stbtt_vertex* verts = nullptr;
         const int count = stbtt_GetGlyphShape(&f.info, glyphIndex, &verts);
-        if (count <= 0) return g; // 빈 글자 (공백)
+        if (count <= 0) return g; // empty glyph (space)
         std::vector<f32> seg;
         flatten(verts, count, f.scale, seg);
         stbtt_FreeShape(&f.info, verts);
@@ -182,14 +182,14 @@ struct Atlas::Impl {
                 int winding = 0;
                 for (size_t i = 0; i + 3 < seg.size(); i += 4) {
                     const f32 ax = seg[i], ay = seg[i + 1], bx = seg[i + 2], by = seg[i + 3];
-                    // 가까운 거리
+                    // Nearest distance
                     const f32 dx = bx - ax, dy = by - ay;
                     const f32 len2 = dx * dx + dy * dy;
                     f32 t = len2 > 0 ? ((px - ax) * dx + (py - ay) * dy) / len2 : 0.0f;
                     t = std::clamp(t, 0.0f, 1.0f);
                     const f32 qx = ax + dx * t - px, qy = ay + dy * t - py;
                     best = std::min(best, qx * qx + qy * qy);
-                    // 감김 수 (안이면 0이 아님)
+                    // Winding number (nonzero inside)
                     if (ay <= py) {
                         if (by > py && (dx * (py - ay) - (px - ax) * dy) > 0) ++winding;
                     } else if (by <= py && (dx * (py - ay) - (px - ax) * dy) < 0) {
@@ -223,7 +223,7 @@ Atlas::~Atlas() { delete m; }
 
 void Atlas::setRenderer(render::Renderer* renderer) {
     m->renderer = renderer;
-    m->resetGlyphs(); // 새 렌더러의 아틀라스는 비어 있다
+    m->resetGlyphs(); // a new renderer's atlas is empty
     m->imageShelves.clear();
     m->images.clear();
 }
@@ -245,7 +245,7 @@ Glyph Atlas::glyph(i32& font, u32 codepoint) {
     if (font < 0 || font >= static_cast<i32>(m->fonts.size())) return m->none;
     i32 use = font;
     int index = stbtt_FindGlyphIndex(&m->fonts[static_cast<size_t>(use)].info, static_cast<int>(codepoint));
-    for (size_t i = 0; index == 0 && i < m->fonts.size(); ++i) { // 다른 글꼴에서
+    for (size_t i = 0; index == 0 && i < m->fonts.size(); ++i) { // in other fonts
         const int other = stbtt_FindGlyphIndex(&m->fonts[i].info, static_cast<int>(codepoint));
         if (other) {
             use = static_cast<i32>(i);
@@ -256,7 +256,7 @@ Glyph Atlas::glyph(i32& font, u32 codepoint) {
     const u64 key = (static_cast<u64>(use) << 32) | codepoint;
     auto it = m->glyphs.find(key);
     if (it != m->glyphs.end()) return it->second;
-    return m->glyphs.emplace(key, m->bake(m->fonts[static_cast<size_t>(use)], index)).first->second; // 없으면 .notdef
+    return m->glyphs.emplace(key, m->bake(m->fonts[static_cast<size_t>(use)], index)).first->second; // .notdef if missing
 }
 
 f32 Atlas::kerning(i32 font, u32 a, u32 b) {
@@ -311,7 +311,7 @@ void Atlas::reloadChanged() {
     for (size_t i = 0; i < m->images.size(); ++i) {
         const std::string file = findAssetFile(m->images[i].path);
         if ((file.empty() ? 0 : fileWriteTime(file)) != m->images[i].time) {
-            m->images.erase(m->images.begin() + static_cast<std::ptrdiff_t>(i)); // 다음에 쓸 때 다시 읽는다 (아틀라스 자리는 버린다)
+            m->images.erase(m->images.begin() + static_cast<std::ptrdiff_t>(i)); // reread on next use (the atlas space is abandoned)
             --i;
         }
     }

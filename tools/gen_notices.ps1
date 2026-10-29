@@ -1,8 +1,8 @@
-﻿# 외부 라이브러리 표와 고지문 만들기 (docs/CODING_MODEL.md "외부 라이브러리 두기"). 손으로 쓰지 않고 third_party/<lib>/mealkit.txt + LICENSE에서 만든다.
-#   powershell -ExecutionPolicy Bypass -File tools\gen_notices.ps1              엔진 third_party/VERSIONS.txt, THIRD_PARTY_NOTICES.txt 다시 쓰기
-#   powershell -ExecutionPolicy Bypass -File tools\gen_notices.ps1 -Check       두 파일이 mealkit.txt·LICENSE와 맞는지만 (check.ps1, 다르면 종료 코드 1)
-#   powershell -ExecutionPolicy Bypass -File tools\gen_notices.ps1 -Project <폴더> -Out <파일>
-#       출시 폴더용 고지문: MealKit 자신(MIT) + 게임 exe에 들어가는 엔진 라이브러리(inGame yes) + 프로젝트 third_party/ + assets/fonts의 글꼴 라이선스
+﻿# Generates the external library table and notices (docs/CODING_MODEL.md "Placing external libraries"). Not written by hand; made from third_party/<lib>/mealkit.txt + LICENSE.
+#   powershell -ExecutionPolicy Bypass -File tools\gen_notices.ps1              rewrites the engine's third_party/VERSIONS.txt, THIRD_PARTY_NOTICES.txt
+#   powershell -ExecutionPolicy Bypass -File tools\gen_notices.ps1 -Check       only checks that both files match mealkit.txt/LICENSE (check.ps1, exit code 1 if different)
+#   powershell -ExecutionPolicy Bypass -File tools\gen_notices.ps1 -Project <folder> -Out <file>
+#       notices for the shipping folder: MealKit itself (MIT) + engine libraries in the game exe (inGame yes) + project third_party/ + font licenses in assets/fonts
 param(
     [switch]$Check,
     [string]$Project = "",
@@ -12,7 +12,7 @@ $ErrorActionPreference = "Stop"
 $engine = Split-Path -Parent $PSScriptRoot
 $utf8 = New-Object System.Text.UTF8Encoding $false
 
-# 저장소에 넣지 않는 SDK (Valve·Epic·콘솔 약관): 표에만 적고 고지문은 그 약관을 따른다
+# SDKs not put in the repo (Valve/Epic/console terms): only listed in the table, notices follow those terms
 $sdks = @(
     [ordered]@{ name = "Steamworks SDK"; version = "(not included, see the docs)"; license = "Valve"; usedIn = "engine when present"
         source = "https://partner.steamgames.com/"
@@ -23,7 +23,7 @@ $sdks = @(
 )
 $sdkFolders = @("steamworks", "eos")
 
-# mealkit.txt: "키 값" 줄 (# 주석)
+# mealkit.txt: "key value" lines (# comments)
 function Read-Meta([string]$dir) {
     $meta = [ordered]@{ folder = (Split-Path -Leaf $dir); dir = $dir }
     $file = Join-Path $dir "mealkit.txt"
@@ -65,7 +65,7 @@ function Title-Of($meta) {
     return $t
 }
 
-# ---------------------------------------------------------------- 엔진 VERSIONS.txt
+# ---------------------------------------------------------------- Engine VERSIONS.txt
 function Build-Versions($libs) {
     $rows = @()
     foreach ($m in $libs) { $rows += , @($m["name"], $m["version"], $m["license"], $m["usedIn"], $m["source"]) }
@@ -112,7 +112,7 @@ function Same-Text([string]$path, [string]$text) {
 $engineLibs = Read-Libraries (Join-Path $engine "third_party")
 
 if ($Project -ne "") {
-    # ---------------------------------------------------------------- 출시 폴더 고지문
+    # ---------------------------------------------------------------- Shipping folder notices
     if ($Out -eq "") { Write-Error "-Out is required with -Project"; exit 1 }
     $Project = (Resolve-Path $Project).Path.TrimEnd("\")
     $text = "This game is made with MealKit and uses the following software. Their licenses require these notices to be distributed with the game.`n"

@@ -1,11 +1,11 @@
-// Penpot 스냅샷(model.ts) → MealKit .ui (engine/src/mealkit/ui/Document.h 형식).
-// 엔진이 그대로 그릴 수 있는 것은 속성 줄로, 못 그리는 것(패스, 불리언, 이미지 채우기, 안쪽 그림자, 블렌드 ...)은 PNG로 굽고,
-// 지원하지 않는 것(블러)은 경고한다. 지원 범위: ROADMAP "게임 화면 UI 2부", 사용 설명서 manual/ui.md "Penpot".
+// Penpot snapshot (model.ts) → MealKit .ui (engine/src/mealkit/ui/Document.h format).
+// What the engine can draw as is becomes property lines, what it can't (paths, booleans, image fills, inner shadows, blends ...) is baked to PNG,
+// and unsupported things (blur) warn. Supported range: ROADMAP "Game screen UI part 2", user manual manual/ui.md "Penpot".
 
 import type { Bake, Box, MealkitData, Options, Result, SColor, SFill, SNode, STextRun, SShadow } from './model.ts';
 
 export const kHeader = '# MealKit UI exported from Penpot';
-// 형식 줄 (엔진 mealkit/core/TextFormat.h kUi, 도구 사이 약속): 머리 주석 다음 첫 줄
+// Format line (engine mealkit/core/TextFormat.h kUi, contract between tools): first line after the header comment
 export const kFormatLine = '@format ui 1';
 
 const weightNames: Record<string, string> = {
@@ -20,7 +20,7 @@ const weightNames: Record<string, string> = {
   '900': 'Black',
 };
 
-// 숫자: 소수 둘째 자리까지, 뒤 0 없이
+// Numbers: up to two decimal places, without trailing zeros
 export function num(v: number): string {
   const r = Math.round(v * 100) / 100;
   return Object.is(r, -0) ? '0' : String(r);
@@ -30,7 +30,7 @@ function hex2(v: number): string {
   return Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0').toUpperCase();
 }
 
-// #RRGGBB[AA] 또는 $토큰
+// #RRGGBB[AA] or $token
 export function color(c: SColor | undefined, opacity = 1): string {
   if (!c) return 'none';
   if (c.token) return '$' + c.token;
@@ -39,13 +39,13 @@ export function color(c: SColor | undefined, opacity = 1): string {
   return '#' + base + (a >= 0.999 ? '' : hex2(a * 255));
 }
 
-// 노드 이름: 공백 없는 글자 (위젯 찾기·포커스·set이 이름을 쓴다)
+// Node names: text without spaces (widget lookup/focus/set use names)
 export function nodeName(name: string, fallback: string): string {
   const s = name.trim().replace(/\s+/g, '_').replace(/[^A-Za-z0-9_.\-]/g, '');
   return s.length > 0 ? s : fallback;
 }
 
-// 문자열 표 키 모양 (loc::validStringKey + 점 하나 이상: "pause.title")
+// String table key shape (loc::validStringKey + at least one dot: "pause.title")
 export function looksLikeKey(name: string): boolean {
   return /^[A-Za-z][A-Za-z0-9_.\-]*$/.test(name) && name.includes('.');
 }
@@ -59,7 +59,7 @@ export function fontFile(run: STextRun): string {
 
 const visibleFills = (n: SNode): SFill[] => n.fills;
 
-// 엔진이 그릴 수 없어 PNG로 굽는 이유 (빈 문자열이면 그대로 그린다). 자기 모양만 본다 (자식은 따로)
+// Why it's baked to PNG because the engine can't draw it (empty string means drawn as is). Only looks at its own shape (children separately)
 function bakeReason(n: SNode): string {
   if (n.data?.bake) return 'marked to bake';
   if (n.type === 'path' || n.type === 'boolean' || n.type === 'svg-raw' || n.type === 'image') return n.type;
@@ -76,7 +76,7 @@ function bakeReason(n: SNode): string {
   return '';
 }
 
-// 상태로 바뀔 수 있는 그리기 줄 (속성 이름 → 줄들). 상태 variants는 이것의 차이를 on <상태> 줄로 쓴다
+// Drawing lines that can change by state (property name → lines). State variants write the differences as on <state> lines
 function visualLines(n: SNode, warn: (msg: string) => void): Map<string, string[]> {
   const out = new Map<string, string[]>();
   const fill = visibleFills(n)[0];
@@ -88,7 +88,7 @@ function visualLines(n: SNode, warn: (msg: string) => void): Map<string, string[
       const c0 = color({ hex: a.hex, opacity: a.opacity }), c1 = color({ hex: b.hex, opacity: b.opacity });
       if (g.type === 'linear') out.set('fill', [`fill linear ${num(g.startX)} ${num(g.startY)} ${num(g.endX)} ${num(g.endY)} ${c0} ${c1}`]);
       else {
-        // 원형: 중심 = 시작점, 가로 반지름 = 시작 → 끝 거리 (상자 0..1), 세로 = 가로 × width
+        // Radial: center = start point, horizontal radius = start → end distance (box 0..1), vertical = horizontal × width
         const rx = Math.hypot(g.endX - g.startX, g.endY - g.startY);
         out.set('fill', [`fill radial ${num(g.startX)} ${num(g.startY)} ${num(rx)} ${num(rx * (g.width || 1))} ${c0} ${c1}`]);
       }
@@ -113,7 +113,7 @@ function visualLines(n: SNode, warn: (msg: string) => void): Map<string, string[
   return out;
 }
 
-// 기본 스타일: 가장 많은 글자에 쓰인 구간
+// Default style: the span used by the most characters
 function baseRun(runs: STextRun[]): STextRun | undefined {
   let best: STextRun | undefined;
   for (const r of runs) if (!best || r.end - r.start > best.end - best.start) best = r;
@@ -124,7 +124,7 @@ function runStyleKey(r: STextRun): string {
   return JSON.stringify([fontFile(r), r.fontSize, r.letterSpacing, r.textDecoration, r.fill ? color(r.fill) : '']);
 }
 
-// 글자 + 스타일 구간 → 번호 태그(<1>…</1>)와 span 줄
+// Text + style spans → numbered tags (<1>…</1>) and span lines
 function textContent(runs: STextRun[], base: STextRun, fonts: Set<string>, errors: string[], nodeLabel: string): { text: string; spans: string[] } {
   const tags = new Map<string, number>();
   const spans: string[] = [];
@@ -157,8 +157,8 @@ function textContent(runs: STextRun[], base: STextRun, fonts: Set<string>, error
   return { text, spans };
 }
 
-// .ui의 자식 순서는 배치 순서이자 그리는 순서(먼저 쓴 것이 아래)다. 스냅샷 자식은 Penpot의 아래 레이어부터인데,
-// Penpot의 Flex·Grid는 위 레이어(레이어 목록의 위)부터 배치한다: 레이아웃이 있으면 거꾸로 쓴다 (겹치는 자식의 앞뒤만 바뀐다)
+// Child order in .ui is both layout order and draw order (written first is below). Snapshot children are from Penpot's bottom layer up,
+// but Penpot's Flex/Grid lay out from the top layer (top of the layer list): with a layout they're written reversed (only the front/back of overlapping children changes)
 function flowOrder(n: SNode): SNode[] {
   return n.layout ? [...n.children].reverse() : n.children;
 }
@@ -173,7 +173,7 @@ interface Ctx {
   warnings: string[];
   errors: string[];
   count: number;
-  screen: string; // 굽는 PNG 폴더 이름
+  screen: string; // PNG folder name for baking
   usedImages: Set<string>;
 }
 
@@ -192,7 +192,7 @@ function imagePath(ctx: Ctx, name: string): string {
 function sizeWord(n: SNode, horizontal: boolean, parentLayout: boolean): string {
   const v = horizontal ? n.width : n.height;
   if (n.type === 'text' && n.text) {
-    // 글자는 Penpot의 grow type이 크기를 정한다 (레이아웃 안에서도 layoutChild는 fix로 온다). 채우기만 부모 기준
+    // Text size is decided by Penpot's grow type (layoutChild comes as fix even inside layouts). Only fill is relative to the parent
     const s = parentLayout && n.child && !n.child.absolute ? (horizontal ? n.child.horizontalSizing : n.child.verticalSizing) : 'fix';
     if (s === 'fill') return 'fill';
     if (n.text.growType === 'auto-width') return 'hug';
@@ -327,7 +327,7 @@ function convertNode(ctx: Ctx, n: SNode, depth: number, parentLayout: 'none' | '
   if (!isRotated) ctx.boxes.push({ id: n.id, name, x: n.absX, y: n.absY, w: n.width, h: n.height });
   ctx.count++;
 
-  // 효과 없는 그룹은 납작하게: 자식을 그룹 부모에 바로 둔다 (그룹 위치만큼 옮겨서)
+  // Groups without effects are flattened: children go directly into the group's parent (moved by the group's position)
   if (n.type === 'group' && !n.mask && parentLayout === 'none' && !n.data && n.opacity === 1 && n.rotation === 0 && !n.hidden && n.shadows.length === 0 && !bakeReason(n)) {
     ctx.count--;
     ctx.boxes.pop();
@@ -400,7 +400,7 @@ function convertNode(ctx: Ctx, n: SNode, depth: number, parentLayout: 'none' | '
     return;
   }
 
-  // frame (보드, 사각형, 원, 그룹)
+  // frame (board, rectangle, ellipse, group)
   ctx.lines.push(`${ind}frame ${name}`);
   ctx.lines.push(`${ind}  id ${n.id}`);
   emitPlacement(ctx, n, props, parentLayout, rotated);
@@ -408,7 +408,7 @@ function convertNode(ctx: Ctx, n: SNode, depth: number, parentLayout: 'none' | '
   emitLayout(n, props);
   const visuals = visualLines(n, warn);
   if (reason) {
-    // 배경만 굽는다 (자식은 따로 변환): 맨 앞 자식 이미지
+    // Bake only the background (children converted separately): image of the frontmost child
     const path = imagePath(ctx, name + '_bg');
     ctx.bakes.push({ id: n.id, path, scale: 2, skipChildren: true });
     for (const [prop, v] of visuals) if (prop === 'opacity' && n.opacity !== 1) props.push(...v);
@@ -444,7 +444,7 @@ function convertNode(ctx: Ctx, n: SNode, depth: number, parentLayout: 'none' | '
   ctx.lines.push(`${ind}end`);
 }
 
-// 보드 하나 → .ui
+// One board → .ui
 export function convertBoard(board: SNode, opt: Options): Result {
   const screen = opt.file.replace(/^ui\//, '').replace(/\.ui$/, '');
   const ctx: Ctx = {
@@ -503,11 +503,11 @@ export function convertBoard(board: SNode, opt: Options): Result {
   };
 }
 
-// 디자인 토큰 → assets/ui/theme.ui (색과 숫자)
+// Design tokens → assets/ui/theme.ui (colors and numbers)
 export interface TokenEntry {
   name: string;
   type: string; // color, dimension, spacing, borderRadius, sizing, number, opacity ...
-  value: string; // 풀린 값
+  value: string; // resolved value
 }
 
 export function convertTheme(tokens: TokenEntry[], fileName: string): { ui: string; warnings: string[] } {

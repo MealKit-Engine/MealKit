@@ -2,9 +2,9 @@
 
 #include "mealkit/core/Reflect.h"
 
-// 게임이 더하는 프로젝트 설정: mealkit.project의 game.* 줄 (에디터 [파일] > [프로젝트 설정]에서 고친다).
-// 게임 실행 파일이 시작할 때 한 번 읽는다. 게임 규칙 값은 여기가 아니라 Tuning(game.tuning)에 둔다.
-// 콘텐츠 해시에서 뺄 항목(시뮬레이션에 닿지 않는 값)은 MEALKIT_VIEW_FIELD로 선언한다.
+// Project settings the game adds: game.* lines in mealkit.project (edited in the editor's [File] > [Project Settings]).
+// Read once when the game executable starts. Game rule values go in Tuning (game.tuning), not here.
+// Items to exclude from the content hash (values that don't touch the simulation) are declared with MEALKIT_VIEW_FIELD.
 namespace sandbox {
 
 MEALKIT_STRUCT(ProjectSettings) {

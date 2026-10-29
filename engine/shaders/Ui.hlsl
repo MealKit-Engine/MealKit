@@ -1,34 +1,34 @@
-// MealKit 2D UI (mealkit/ui/). 3D 장면 다음, 백버퍼 원래 해상도, 깊이 없음.
-// 인스턴스 하나 = 화면의 사각형 하나 (정점 버퍼 없이 SV_VertexID로 6정점). 모양은 픽셀 셰이더의 SDF로 그린다:
-// 모서리별 둥근 사각형, 단색·선형·원형 그라디언트, 안쪽 테두리, 흐린 그림자, 회전, 이미지(RGBA 아틀라스), 글자(SDF 아틀라스).
-// 색은 sRGB 8비트 그대로(감마 변환 없는 오버레이 뷰), 출력은 미리 곱한 알파.
+// MealKit 2D UI (mealkit/ui/). After the 3D scene, at native back buffer resolution, no depth.
+// One instance = one rectangle on screen (6 vertices via SV_VertexID, no vertex buffer). Shapes are drawn with SDFs in the pixel shader:
+// per-corner rounded rectangles, solid/linear/radial gradients, inner borders, blurred shadows, rotation, images (RGBA atlas), text (SDF atlas).
+// Colors are sRGB 8-bit as is (overlay view without gamma conversion), output is premultiplied alpha.
 
 #include "Bindless.hlsli"
 
-struct UiQuad // 112바이트 (render::UiQuad)
+struct UiQuad // 112 bytes (render::UiQuad)
 {
-    float4 rect;     // x, y, w, h (픽셀, 회전 전 상자)
-    float4 clip;     // x0, y0, x1, y1 (픽셀, 이 밖은 그리지 않는다)
-    float4 radii;    // 왼쪽 위, 오른쪽 위, 오른쪽 아래, 왼쪽 아래 (픽셀)
-    float4 uv;       // 아틀라스 u0, v0, u1, v1
-    float4 gradient; // 선형: 시작 xy, 끝 xy / 원형: 중심 xy, 반지름 xy (상자 0..1 좌표)
-    uint color0;     // 채우기 (그라디언트 시작)
-    uint color1;     // 그라디언트 끝
+    float4 rect;     // x, y, w, h (pixels, box before rotation)
+    float4 clip;     // x0, y0, x1, y1 (pixels, nothing is drawn outside)
+    float4 radii;    // top left, top right, bottom right, bottom left (pixels)
+    float4 uv;       // atlas u0, v0, u1, v1
+    float4 gradient; // linear: start xy, end xy / radial: center xy, radius xy (box 0..1 coordinates)
+    uint color0;     // fill (gradient start)
+    uint color1;     // gradient end
     uint strokeColor;
-    uint flags;      // 0-3 종류(0 도형, 1 이미지, 2 글자, 3 그림자), 4-5 채우기(0 단색, 1 선형, 2 원형)
+    uint flags;      // 0-3 kind (0 shape, 1 image, 2 text, 3 shadow), 4-5 fill (0 solid, 1 linear, 2 radial)
     float strokeWidth;
-    float rotation;  // 라디안 (상자 가운데 기준)
-    float softness;  // 그림자 흐림 (픽셀)
-    float sdfScale;  // 글자: 아틀라스 값 1당 화면 픽셀
+    float rotation;  // radians (around the box center)
+    float softness;  // shadow blur (pixels)
+    float sdfScale;  // text: screen pixels per atlas value unit
 };
 
 struct PushConstants
 {
     float2 screenSize;
-    uint ring;       // 업로드 링의 g_buffers[] 번호
-    uint quadOffset; // UiQuad 배열 위치
-    uint glyphAtlas; // g_textures[] 번호: 글자 SDF (R8)
-    uint imageAtlas; // g_textures[] 번호: 이미지 (RGBA8)
+    uint ring;       // g_buffers[] index of the upload ring
+    uint quadOffset; // UiQuad array offset
+    uint glyphAtlas; // g_textures[] index: glyph SDF (R8)
+    uint imageAtlas; // g_textures[] index: images (RGBA8)
     uint2 pad;
 };
 [[vk::push_constant]] ConstantBuffer<PushConstants> pc : register(b0);
@@ -57,7 +57,7 @@ UiQuad loadQuad(uint index)
 struct VSOutput
 {
     float4 position : SV_Position;
-    float2 local : LOCAL; // 상자 가운데 기준 픽셀 (회전 전)
+    float2 local : LOCAL; // pixels relative to box center (before rotation)
     nointerpolation uint quad : QUAD;
 };
 
@@ -71,7 +71,7 @@ VSOutput VSMain(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID)
     UiQuad q = loadQuad(instanceId);
     const float2 corners[6] = { float2(0, 0), float2(1, 0), float2(0, 1), float2(1, 0), float2(1, 1), float2(0, 1) };
     float2 c = corners[vertexId];
-    float margin = q.softness * 2.0 + 1.0; // 테두리 바깥 반 픽셀 + 그림자 흐림
+    float margin = q.softness * 2.0 + 1.0; // half pixel outside the border + shadow blur
     float2 half = q.rect.zw * 0.5;
     float2 local = lerp(-half - margin, half + margin, c);
     float s = sin(q.rotation), co = cos(q.rotation);
@@ -84,7 +84,7 @@ VSOutput VSMain(uint vertexId : SV_VertexID, uint instanceId : SV_InstanceID)
     return o;
 }
 
-// 모서리별 반지름 둥근 사각형의 부호 거리 (안이 음수)
+// Signed distance of a rounded rectangle with per-corner radii (negative inside)
 float roundBox(float2 p, float2 half, float4 r)
 {
     float radius = p.x > 0.0 ? (p.y > 0.0 ? r.z : r.y) : (p.y > 0.0 ? r.w : r.x);
@@ -105,14 +105,14 @@ float4 PSMain(VSOutput input) : SV_Target
     float d = roundBox(input.local, half, q.radii);
     float coverage = saturate(0.5 - d);
 
-    if (kind == 3) // 그림자
+    if (kind == 3) // shadow
     {
         float blur = max(q.softness, 0.5);
         float a = 1.0 - smoothstep(-blur, blur, d);
         float4 c = unpack(q.color0);
         return float4(c.rgb, 1.0) * (c.a * a);
     }
-    if (kind == 2) // 글자 (SDF, 0.5 = 경계)
+    if (kind == 2) // text (SDF, 0.5 = edge)
     {
         float2 uv = lerp(q.uv.xy, q.uv.zw, box01);
         float s = g_textures[pc.glyphAtlas].SampleLevel(g_linearClamp, uv, 0).r;
@@ -122,7 +122,7 @@ float4 PSMain(VSOutput input) : SV_Target
     }
 
     float4 fill;
-    if (kind == 1) // 이미지 (색을 곱한다)
+    if (kind == 1) // image (multiplied by color)
     {
         float2 uv = lerp(q.uv.xy, q.uv.zw, box01);
         fill = g_textures[pc.imageAtlas].SampleLevel(g_linearClamp, uv, 0) * unpack(q.color0);
@@ -146,7 +146,7 @@ float4 PSMain(VSOutput input) : SV_Target
         }
     }
 
-    // 안쪽 테두리: 바깥 경계에서 strokeWidth 안까지
+    // Inner border: from the outer edge to strokeWidth inward
     float inner = q.strokeWidth > 0.0 ? saturate(0.5 - (d + q.strokeWidth)) : coverage;
     float strokeCoverage = coverage - inner;
     float4 stroke = unpack(q.strokeColor);

@@ -1,8 +1,8 @@
-"""MealKit 에디터 아이콘 생성기 (Pillow 필요: pip install pillow).
+"""MealKit editor icon generator (needs Pillow: pip install pillow).
 
-    python tools/make_editor_icon.py   -> engine/res/MealKitEditor.ico (창 아이콘), MealKitEditor.png (프로젝트 기본 아이콘)
+    python tools/make_editor_icon.py   -> engine/res/MealKitEditor.ico (window icon), MealKitEditor.png (default project icon)
 
-파란 둥근 사각형 위에 그릇과 그 안의 주황 정육면체(3D)를 그린다. 1024px로 그리고 각 크기로 줄인다.
+Draws a bowl and an orange cube (3D) inside it on a blue rounded square. Drawn at 1024px and scaled down to each size.
 """
 
 import os
@@ -23,7 +23,7 @@ def lerp(a, b, t):
 def draw():
     img = Image.new("RGBA", (N, N), (0, 0, 0, 0))
 
-    # 배경: 위에서 아래로 짙어지는 파란색 (에디터 강조색 계열)
+    # Background: blue darkening from top to bottom (editor accent color family)
     grad = Image.new("RGBA", (N, N))
     gd = ImageDraw.Draw(grad)
     top, bottom = (84, 124, 186), (36, 56, 92)
@@ -35,8 +35,8 @@ def draw():
 
     d = ImageDraw.Draw(img)
 
-    # 정육면체 (아이소메트릭): 중심 cx, 윗면 꼭짓점에서 아래로
-    cx, cy, s = N // 2, 250, 230  # cy = 윗면 위 꼭짓점, s = 모서리 길이 비슷한 값
+    # Cube (isometric): center cx, downward from the top face vertex
+    cx, cy, s = N // 2, 250, 230  # cy = top vertex of the top face, s = roughly the edge length
     h = s // 2
     top_face = [(cx, cy), (cx + s, cy + h), (cx, cy + 2 * h), (cx - s, cy + h)]
     left_face = [(cx - s, cy + h), (cx, cy + 2 * h), (cx, cy + 2 * h + s), (cx - s, cy + h + s)]
@@ -45,12 +45,12 @@ def draw():
     d.polygon(left_face, fill=(245, 145, 50, 255))
     d.polygon(right_face, fill=(205, 105, 30, 255))
 
-    # 그릇: 정육면체 아래쪽을 가리는 흰 반원 + 테두리
+    # Bowl: a white semicircle covering the lower part of the cube + outline
     bx0, bx1 = 170, N - 170
-    by = 600  # 그릇 윗선
+    by = 600  # top line of the bowl
     d.chord([bx0, by - (bx1 - bx0) // 2, bx1, by + (bx1 - bx0) // 2], 0, 180, fill=(245, 247, 250, 255))
     d.rounded_rectangle([bx0 - 30, by - 26, bx1 + 30, by + 26], radius=26, fill=(255, 255, 255, 255))
-    # 그릇 받침
+    # Bowl base
     d.rounded_rectangle([cx - 120, 900, cx + 120, 940], radius=20, fill=(245, 247, 250, 255))
     return img
 

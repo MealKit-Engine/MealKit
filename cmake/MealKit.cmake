@@ -1,19 +1,19 @@
-# MealKit 엔진을 CMake 프로젝트에 붙인다. 엔진 저장소(D:\MealKit)와 게임 프로젝트 폴더가 같이 쓴다.
+# Attaches the MealKit engine to a CMake project. Shared by the engine repo (D:\MealKit) and game project folders.
 #
 #   cmake_minimum_required(VERSION 3.25)
 #   project(MyGame LANGUAGES CXX)
 #   include(${MEALKIT_ROOT}/cmake/MealKit.cmake)
 #   mealkit_add_game(MyGame)   # source/sim, source/view, source/app
 #
-# 빌드 종류 (MEALKIT_BUILD_KIND, build_project.bat이 정한다):
-#   Game    출시용: 엔진을 정적 라이브러리로 넣은 <이름>.exe 하나 (정적 CRT). build\Release, build\Debug, build\Profile
-#   Editor  에디터용: 엔진은 mealkit.dll(동적 CRT), 게임 코드는 <이름>_game.dll. build\Editor
-#           엔진 저장소는 mealkit.dll과 MealKitEditor.exe를 만들고, 게임 프로젝트는 그것을 가져와(MealKitTargets.cmake) 게임 DLL만 만든다.
+# Build kind (MEALKIT_BUILD_KIND, set by build_project.bat):
+#   Game    shipping: a single <name>.exe with the engine as a static library (static CRT). build\Release, build\Debug, build\Profile
+#   Editor  for the editor: engine is mealkit.dll (dynamic CRT), game code is <name>_game.dll. build\Editor
+#           The engine repo builds mealkit.dll and MealKitEditor.exe; game projects import them (MealKitTargets.cmake) and build only the game DLL.
 #
-# 최상위 CMakeLists.txt에서 include해야 한다: 아래 전역 설정(C++20, CRT)이 게임 타깃에도 적용되어야 링크된다.
+# Must be included from the top-level CMakeLists.txt: the global settings below (C++20, CRT) must apply to game targets too for linking.
 include_guard(GLOBAL)
 
-# Windows는 MSVC(또는 clang-cl). Linux·macOS는 Clang·GCC로 헤드리스 타깃(<게임>_headless, 엔진 단위 테스트)만 빌드한다 (CI 결정론 비교, 전체 이식은 ROADMAP 5단계).
+# Windows uses MSVC (or clang-cl). Linux/macOS build only headless targets (<game>_headless, engine unit tests) with Clang/GCC (CI determinism comparison; full port is ROADMAP stage 5).
 if(WIN32)
     if(NOT MSVC)
         message(FATAL_ERROR "MealKit on Windows needs MSVC or clang-cl.")
@@ -27,11 +27,11 @@ else()
 endif()
 
 get_filename_component(MEALKIT_ENGINE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
-# 엔진 버전 (저장소 루트 VERSION). 프로젝트의 mealkit.project engineVersion과 비교한다.
+# Engine version (repo root VERSION). Compared with the project's mealkit.project engineVersion.
 file(STRINGS "${MEALKIT_ENGINE_DIR}/VERSION" MEALKIT_VERSION LIMIT_COUNT 1)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${MEALKIT_ENGINE_DIR}/VERSION")
-# 엔진 메시지가 가리키는 문서 주소 (문서 저장소 MealKit-docs, 공개 전에는 아직 열리지 않는다).
-# 1.0 전에는 문서 가지가 master 하나라 latest, 1.0부터 엔진 MINOR 버전의 문서 가지 (docs/DECISIONS.md 2026-10-21)
+# Docs address that engine messages point to (docs repo MealKit-docs, not yet open before release).
+# Before 1.0 the docs have one branch, master, so latest; from 1.0, the docs branch of the engine MINOR version (docs/DECISIONS.md 2026-10-21)
 string(REGEX MATCH "^[0-9]+\.[0-9]+" MEALKIT_VERSION_MINOR "${MEALKIT_VERSION}")
 if(MEALKIT_VERSION VERSION_LESS 1.0)
     set(MEALKIT_DOCS_URL "https://mealkit.readthedocs.io/en/latest/")
@@ -60,18 +60,18 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
-    # 에디터와 게임 DLL이 엔진(mealkit.dll)과 힙을 같이 쓰도록 동적 CRT. 링크 시간 최적화는 끈다 (게임 DLL 다시 빌드를 빠르게).
+    # Dynamic CRT so the editor and game DLL share a heap with the engine (mealkit.dll). Link-time optimization is off (faster game DLL rebuilds).
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 else()
-    # 정적 CRT: 재배포 패키지 없이 실행되고, 모든 PC가 같은 CRT 코드를 쓰므로 결정론에도 유리하다.
+    # Static CRT: runs without a redistributable, and every PC runs the same CRT code, which also helps determinism.
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
-    # clang-cl 빌드(build.bat ClangCL)는 결정론 비교용이라 링크 시간 최적화를 쓰지 않는다 (lld-link가 필요해진다).
+    # The clang-cl build (build.bat ClangCL) is for determinism comparison, so no link-time optimization (it would need lld-link).
     if(MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
 endif()
 
-# 그래픽 API 백엔드 (mealkit/rhi/<api>/, 빌드 때 하나). 출시 Windows 빌드는 DX12, Vulkan은 build.bat Vulkan·VulkanEditor.
+# Graphics API backend (mealkit/rhi/<api>/, one per build). Shipping Windows builds use DX12; Vulkan via build.bat Vulkan/VulkanEditor.
 set(MEALKIT_RHI "DX12" CACHE STRING "RHI 백엔드: DX12 / Vulkan")
 set_property(CACHE MEALKIT_RHI PROPERTY STRINGS DX12 Vulkan)
 if(NOT MEALKIT_RHI MATCHES "^(DX12|Vulkan)$")
@@ -79,24 +79,24 @@ if(NOT MEALKIT_RHI MATCHES "^(DX12|Vulkan)$")
 endif()
 
 option(MEALKIT_PROFILE "Tracy 프로파일링 마커 켜기 (build.bat Profile)" OFF)
-# 디버그 UI (Dear ImGui): 개발 빌드(build\Release·Debug·Profile)와 에디터에 넣고, 출시 빌드(build.bat Export → build\Export)는 뺀다.
-# 켜지면 엔진 타깃이 MEALKIT_DEBUG_UI=1과 imgui.h 경로를 게임에 넘긴다. 게임 코드는 #if MEALKIT_DEBUG_UI로 감싼다.
+# Debug UI (Dear ImGui): included in dev builds (build\Release/Debug/Profile) and the editor, excluded from shipping builds (build.bat Export → build\Export).
+# When on, the engine target passes MEALKIT_DEBUG_UI=1 and the imgui.h path to the game. Game code wraps it in #if MEALKIT_DEBUG_UI.
 option(MEALKIT_DEBUG_UI "디버그 UI(Dear ImGui) 넣기 (build.bat Export는 OFF)" ON)
 if(MEALKIT_HEADLESS_ONLY)
     set(MEALKIT_DEBUG_UI OFF)
 elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
-    set(MEALKIT_DEBUG_UI ON) # 에디터는 ImGui로 그린다
+    set(MEALKIT_DEBUG_UI ON) # the editor draws with ImGui
 endif()
-# 라이브 연결 (mealkit/live/Server.h, 도구 사이 약속): 개발 빌드 게임 exe가 127.0.0.1 서버를 연다. 출시 빌드(Export)는 뺀다.
-# 에디터는 이 값과 상관없이 연다. 켜지면 엔진 타깃이 MEALKIT_LIVE=1을 넘긴다
+# Live connection (mealkit/live/Server.h, the contract between tools): dev build game exes open a 127.0.0.1 server. Excluded from shipping builds (Export).
+# The editor opens it regardless of this value. When on, the engine target passes MEALKIT_LIVE=1
 option(MEALKIT_LIVE "라이브 연결 서버 넣기 (build.bat Export는 OFF)" ON)
 if(MEALKIT_HEADLESS_ONLY)
     set(MEALKIT_LIVE OFF)
 endif()
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT MEALKIT_IS_ENGINE)
-    # ---------------------------------------------------------------- 게임 프로젝트의 에디터 빌드: 엔진은 가져다 쓴다
-    # Vulkan 에디터(build.bat VulkanEditor)는 엔진의 build\VulkanEditor를 쓴다
+    # ---------------------------------------------------------------- Editor build of a game project: imports the engine
+    # The Vulkan editor (build.bat VulkanEditor) uses the engine's build\VulkanEditor
     if(MEALKIT_RHI STREQUAL "Vulkan")
         set(mealkit_editor_build VulkanEditor)
     else()
@@ -110,10 +110,10 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT MEALKIT_IS_ENGINE)
     set(MEALKIT_STEAM_DLL "")
     set(MEALKIT_EOS_DLL "")
 else()
-    # ---------------------------------------------------------------- 엔진을 소스에서 빌드
+    # ---------------------------------------------------------------- Build the engine from source
 
-    # Jolt Physics: 결정론 빌드. 사무용 CPU(펜티엄/셀러론 포함)에서도 돌도록 SSE4.2까지만 쓴다.
-    # 같은 실행 파일은 어느 CPU에서나 같은 명령어를 실행하므로 결정론도 유지된다.
+    # Jolt Physics: deterministic build. Uses up to SSE4.2 only so it runs on office CPUs too (including Pentium/Celeron).
+    # The same executable runs the same instructions on any CPU, so determinism holds.
     foreach(jolt_off
             TARGET_UNIT_TESTS TARGET_HELLO_WORLD TARGET_PERFORMANCE_TEST TARGET_SAMPLES TARGET_VIEWER
             ENABLE_INSTALL ENABLE_ALL_WARNINGS OVERRIDE_CXX_FLAGS GENERATE_DEBUG_SYMBOLS
@@ -123,28 +123,28 @@ else()
         set(${jolt_off} OFF CACHE BOOL "" FORCE)
     endforeach()
     set(CROSS_PLATFORM_DETERMINISTIC ON CACHE BOOL "" FORCE)
-    # LTO는 엔진처럼 MSVC만. Clang의 LTO 라이브러리는 LLVM 비트코드라 Linux의 GNU ld가 읽지 못한다.
+    # LTO only for MSVC, like the engine. Clang's LTO libraries are LLVM bitcode that Linux GNU ld can't read.
     if(NOT MSVC)
         set(INTERPROCEDURAL_OPTIMIZATION OFF CACHE BOOL "" FORCE)
     endif()
     set(USE_SSE4_1 ON CACHE BOOL "" FORCE)
     set(USE_SSE4_2 ON CACHE BOOL "" FORCE)
-    # Jolt는 기본으로 정적 CRT를 강제한다. 에디터 빌드에서는 mealkit.dll과 같은 동적 CRT로 맞춘다.
+    # Jolt forces a static CRT by default. In the editor build, match mealkit.dll's dynamic CRT.
     if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         set(USE_STATIC_MSVC_RUNTIME_LIBRARY OFF CACHE BOOL "" FORCE)
     else()
         set(USE_STATIC_MSVC_RUNTIME_LIBRARY ON CACHE BOOL "" FORCE)
     endif()
     add_subdirectory(${MEALKIT_ENGINE_DIR}/third_party/JoltPhysics/Build ${CMAKE_BINARY_DIR}/third_party/jolt EXCLUDE_FROM_ALL)
-    # Jolt의 Windows 분기는 clang-cl에 -ffp-contract=off를 주지 않는다 (MSVC는 /fp:precise로 받는다).
+    # Jolt's Windows branch doesn't pass -ffp-contract=off to clang-cl (MSVC gets it via /fp:precise).
     if(MSVC AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         target_compile_options(Jolt PRIVATE /clang:-ffp-contract=off)
     endif()
 
-    # Tracy: 마커 헤더는 항상 쓰고, 클라이언트는 프로파일 빌드에서만 링크한다.
+    # Tracy: marker headers are always used; the client is linked only in profile builds.
     if(MEALKIT_PROFILE)
         add_library(mealkit_tracy STATIC ${MEALKIT_ENGINE_DIR}/third_party/tracy/public/TracyClient.cpp)
-        # 프로파일러가 붙었을 때만 수집하고, 127.0.0.1에서만 접속을 받는다 (방화벽 창 방지)
+        # Collect only when a profiler is attached, and accept connections only on 127.0.0.1 (avoids the firewall prompt)
         target_compile_definitions(mealkit_tracy PUBLIC TRACY_ENABLE TRACY_ON_DEMAND TRACY_ONLY_LOCALHOST)
         if(WIN32)
             target_compile_options(mealkit_tracy PRIVATE /W0)
@@ -158,23 +158,23 @@ else()
     add_subdirectory(${MEALKIT_ENGINE_DIR}/engine ${CMAKE_BINARY_DIR}/engine)
 endif()
 
-# ---------------------------------------------------------------- 게임
+# ---------------------------------------------------------------- Game
 
-# mealkit_add_game(<이름>
-#     [SOURCE_DIR <폴더>]             게임 코드 폴더 (기본 source). 그 아래 sim/ view/ app/ 의 .h/.cpp를 모두 쓴다.
-#                                     파일을 추가해도 CMakeLists.txt를 고치지 않는다 (CONFIGURE_DEPENDS GLOB). include 기준 폴더도 이것이다.
-#     [GAME_MAIN <main.cpp>]          출시용 게임 실행 파일 <이름>.exe (Game 빌드). 기본 <SOURCE_DIR>/app/main.cpp
-#     [MODULE <GameModule.cpp>]       MEALKIT_GAME_MODULE이 있는 파일 → <이름>_game.dll (Editor 빌드). 기본 <SOURCE_DIR>/app/GameModule.cpp
-#     [HEADLESS <Headless.cpp>]       MEALKIT_HEADLESS_GAME이 있는 파일 → <이름>_headless 실행 파일 (Game 빌드, sim/ + 이 파일만, 창·렌더러 없음).
-#                                     기본 <SOURCE_DIR>/app/Headless.cpp. 없으면 헤드리스 타깃을 만들지 않는다 (Linux·macOS에서는 필수)
-#     [SOURCES <게임 코드...>]         예전 방식: 파일을 직접 나열한다 (주면 GLOB 대신 이것을 쓴다)
-#     [STEAM_APP_ID <id>])            기본 480 (Valve 테스트 앱 Spacewar)
+# mealkit_add_game(<name>
+#     [SOURCE_DIR <folder>]           game code folder (default source). Uses all .h/.cpp under its sim/ view/ app/.
+#                                     Adding files needs no CMakeLists.txt edits (CONFIGURE_DEPENDS GLOB). This is also the include base folder.
+#     [GAME_MAIN <main.cpp>]          shipping game executable <name>.exe (Game build). Default <SOURCE_DIR>/app/main.cpp
+#     [MODULE <GameModule.cpp>]       file with MEALKIT_GAME_MODULE → <name>_game.dll (Editor build). Default <SOURCE_DIR>/app/GameModule.cpp
+#     [HEADLESS <Headless.cpp>]       file with MEALKIT_HEADLESS_GAME → <name>_headless executable (Game build, sim/ + this file only, no window/renderer).
+#                                     Default <SOURCE_DIR>/app/Headless.cpp. If missing, no headless target is made (required on Linux/macOS)
+#     [SOURCES <game code...>]        old style: list files directly (if given, used instead of GLOB)
+#     [STEAM_APP_ID <id>])            default 480 (Valve test app Spacewar)
 #
-# 경로 안에 sim/ 폴더가 있는 파일은 빌드 전에 SimCheck(engine/tools/SimCheck.cpp)가 결정론 규칙을 검사하고, 어기면 빌드가 실패한다.
-# 프로젝트 third_party/<lib>/ (mealkit.txt가 있는 폴더): CMakeLists.txt가 있으면 add_subdirectory 후 mealkit.txt의 cmakeTarget을,
-# 없으면 헤더 전용으로 include 폴더(mealkit.txt의 include, 기본 그 폴더)를 게임 exe·DLL에만 붙인다. sim/에서는 쓸 수 없다(SimCheck SIM011).
-# 프로젝트 폴더는 최상위 CMakeLists.txt가 있는 곳이다. 그 아래 assets/를 쓰고, 출시 빌드는 export/<이름>/에 만든다.
-# game_export 타깃: 게임 실행 파일 + assets + Steam DLL + 라이선스 고지를 export/<이름>/에 모은다 (build.bat Export).
+# Files with a sim/ folder in their path are checked for determinism rules by SimCheck (engine/tools/SimCheck.cpp) before the build; violations fail the build.
+# Project third_party/<lib>/ (folders with mealkit.txt): if it has a CMakeLists.txt, add_subdirectory then link mealkit.txt's cmakeTarget;
+# otherwise header-only: the include folder (mealkit.txt's include, default that folder) is attached only to the game exe/DLL. Not usable in sim/ (SimCheck SIM011).
+# The project folder is where the top-level CMakeLists.txt is. assets/ under it is used, and shipping builds go to export/<name>/.
+# game_export target: gathers game executable + assets + Steam DLL + license notices into export/<name>/ (build.bat Export).
 function(mealkit_add_game name)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "" "SOURCE_DIR;GAME_MAIN;MODULE;HEADLESS;STEAM_APP_ID" "SOURCES")
     if(NOT ARG_SOURCE_DIR)
@@ -198,7 +198,7 @@ function(mealkit_add_game name)
     endif()
     set(project_dir ${CMAKE_SOURCE_DIR})
 
-    # 게임 라이브러리 (docs/CODING_MODEL.md "외부 라이브러리 두기"). 엔진 저장소의 third_party/는 엔진 라이브러리라 여기서 보지 않는다.
+    # Game libraries (docs/CODING_MODEL.md "Placing external libraries"). The engine repo's third_party/ holds engine libraries, so it isn't scanned here.
     set(game_libs "")
     set(game_lib_includes "")
     get_filename_component(project_dir_abs "${project_dir}" ABSOLUTE)
@@ -258,7 +258,7 @@ function(mealkit_add_game name)
         endif()
     endforeach()
 
-    # sim/ 결정론 검사: 통과하면 stamp를 남기고, sim/ 파일이 바뀔 때만 다시 돈다
+    # sim/ determinism check: leaves a stamp when it passes, reruns only when sim/ files change
     set(sim_sources "")
     foreach(f IN LISTS game_sources)
         file(RELATIVE_PATH rel "${source_dir}" "${f}")
@@ -267,9 +267,9 @@ function(mealkit_add_game name)
         endif()
     endforeach()
 
-    # 소스 모듈 (docs/MODULES.md): modules/<이름>/module.txt가 있는 폴더마다 sim/·view/를 게임 코드처럼 모은다.
-    # 설치 목록은 이 폴더 자체다. include 경로는 modules/ → #include "cooldown/sim/Cooldown.h".
-    # 모듈 sim/은 SimCheck(--modules: 게임 source/를 include하면 SIM013, requires에 없는 모듈이면 SIM014)와 시뮬레이션 버전에 들어간다.
+    # Source modules (docs/MODULES.md): for each folder with modules/<name>/module.txt, gather sim/ and view/ like game code.
+    # The installed list is the folder itself. Include path is modules/ → #include "cooldown/sim/Cooldown.h".
+    # Module sim/ goes through SimCheck (--modules: SIM013 if it includes game source/, SIM014 for modules not in requires) and into the simulation version.
     set(modules_dir "${project_dir}/modules")
     set(module_includes "")
     set(simcheck_modules "")
@@ -311,7 +311,7 @@ function(mealkit_add_game name)
         set(module_version_${m_name} "${m_version}")
         set(module_requires_${m_name} "${m_requires}")
     endforeach()
-    # requires: "이름 [최소버전] ..." — 숫자로 시작하는 낱말은 앞 모듈의 최소 버전
+    # requires: "name [minVersion] ..." — a word starting with a digit is the previous module's minimum version
     foreach(m IN LISTS module_names)
         set(req "")
         foreach(word IN LISTS module_requires_${m})
@@ -348,9 +348,9 @@ function(mealkit_add_game name)
         add_custom_target(${name}_simcheck DEPENDS "${sim_stamp}")
     endif()
 
-    # 빌드 정보 (cmake/BuildInfo.cmake, 빌드마다): 게임 버전(mealkit.project version), git 커밋, 시뮬레이션 버전 → mealkit_build_info.h.
-    # 시뮬레이션 버전은 시뮬레이션에 닿는 소스(게임 sim/ + 헤드리스 파일 + 엔진 코어 폴더 + Jolt 버전)의 해시다:
-    # 실행 파일이 달라도(다른 OS·컴파일러) 같은 소스면 같은 값이라, 접속할 때 실행 파일 대신 이것을 비교한다 (mealkit/game/BuildInfo.h)
+    # Build info (cmake/BuildInfo.cmake, every build): game version (mealkit.project version), git commit, simulation version → mealkit_build_info.h.
+    # The simulation version is a hash of sources that touch the simulation (game sim/ + headless file + engine core folders + Jolt version):
+    # same source gives the same value even across executables (other OS/compiler), so this is compared on connect instead of the executable (mealkit/game/BuildInfo.h)
     set(build_info_dir "${CMAKE_CURRENT_BINARY_DIR}/${name}_build_info")
     set(engine_src "${MEALKIT_ENGINE_DIR}/engine/src/mealkit")
     file(GLOB_RECURSE engine_sim_sources CONFIGURE_DEPENDS
@@ -375,7 +375,7 @@ function(mealkit_add_game name)
         COMMENT "Build info ${name}: version, commit, simulation version"
         VERBATIM)
 
-    # 문자열 표(assets/strings/*.txt)의 글자가 assets/fonts의 글꼴에 다 있는지 (창 있는 빌드, mealkit_stringcheck)
+    # Whether every character in the string tables (assets/strings/*.txt) exists in the fonts in assets/fonts (windowed builds, mealkit_stringcheck)
     set(string_check "")
     if(NOT MEALKIT_HEADLESS_ONLY)
         file(GLOB string_files CONFIGURE_DEPENDS "${project_dir}/assets/strings/*.txt")
@@ -393,8 +393,8 @@ function(mealkit_add_game name)
         endif()
     endif()
 
-    # 헤드리스 (docs/CODING_MODEL.md "창 없이(헤드리스·CI) 게임을 돌리는 방법"): sim/ + Headless.cpp만, 엔진은 코어(mealkit_core)만 링크한다. 창·렌더러·오디오 없음.
-    # CI가 Linux·macOS에서도 이것을 빌드해 틱별 해시를 비교한다. Headless.cpp는 출시 exe에도 들어간다(--headless, GameSession이 같은 함수를 쓴다).
+    # Headless (docs/CODING_MODEL.md "How to run the game without a window (headless/CI)"): sim/ + Headless.cpp only, links only the engine core (mealkit_core). No window/renderer/audio.
+    # CI also builds this on Linux/macOS to compare per-tick hashes. Headless.cpp also goes into the shipping exe (--headless, GameSession uses the same functions).
     if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
         if(EXISTS "${ARG_HEADLESS}")
             add_executable(${name}_headless "${ARG_HEADLESS}" ${sim_sources})
@@ -415,7 +415,7 @@ function(mealkit_add_game name)
     endif()
 
     if(MEALKIT_BUILD_KIND STREQUAL "Editor")
-        # 에디터가 불러오는 게임 코드. 엔진은 mealkit.dll에서 가져온다.
+        # Game code loaded by the editor. The engine comes from mealkit.dll.
         add_library(${name}_game SHARED ${ARG_MODULE} ${game_sources})
         target_link_libraries(${name}_game PRIVATE mealkit ${game_libs})
         target_include_directories(${name}_game PRIVATE ${source_dir} ${module_includes})
@@ -432,8 +432,8 @@ function(mealkit_add_game name)
         return()
     endif()
 
-    # 실행 파일 아이콘: mealkit.project의 icon(빈 값이면 icon.png, 프로젝트 폴더 기준) → 여러 크기 .ico → 아이콘 리소스 1번.
-    # Window가 그것을 창 아이콘으로 쓴다. 그림이 없으면 엔진 기본 아이콘(밀키트)을 넣는다.
+    # Executable icon: mealkit.project's icon (icon.png if empty, relative to project folder) → multi-size .ico → icon resource 1.
+    # Window uses it as the window icon. Without an image, the engine default icon (MealKit) is used.
     set(icon_image "icon.png")
     set(project_file "${project_dir}/mealkit.project")
     if(EXISTS "${project_file}")
@@ -449,7 +449,7 @@ function(mealkit_add_game name)
     endif()
     file(TO_CMAKE_PATH "${icon_image}" icon_image)
     get_filename_component(icon_image "${icon_image}" ABSOLUTE BASE_DIR "${project_dir}")
-    # 그림이 나중에 생기거나 지워져도 다시 구성되도록 GLOB으로 지켜본다
+    # Watched with GLOB so it reconfigures if the image is added or removed later
     file(GLOB icon_found CONFIGURE_DEPENDS "${icon_image}")
     set(icon_rc "${CMAKE_CURRENT_BINARY_DIR}/${name}_icon.rc")
     if(icon_found)
@@ -466,14 +466,14 @@ function(mealkit_add_game name)
     file(CONFIGURE OUTPUT "${icon_rc}" CONTENT "#pragma code_page(65001)\n1 ICON \"${icon_file}\"\n" @ONLY)
     set_source_files_properties("${icon_rc}" PROPERTIES OBJECT_DEPENDS "${icon_file}")
 
-    # 게임 exe: 에디터는 들어가지 않는다. ImGui(디버그 UI)는 MEALKIT_DEBUG_UI일 때만 (Export는 꺼서 뺀다).
+    # Game exe: no editor. ImGui (debug UI) only with MEALKIT_DEBUG_UI (off and excluded for Export).
     add_executable(${name} ${ARG_GAME_MAIN} ${game_sources} "${icon_rc}")
     if(icon_found)
         target_sources(${name} PRIVATE "${icon_file}")
     endif()
     target_link_libraries(${name} PRIVATE mealkit ${game_libs})
     if(WIN32 AND MSVC AND NOT MEALKIT_DEBUG_UI)
-        # 출시 exe(Export)는 창 프로그램: 뒤에 콘솔 창이 뜨지 않는다. main()은 그대로, 명령 창에서 실행하면 attachParentConsole이 붙인다
+        # Shipping exe (Export) is a GUI program: no console window behind it. main() stays the same; run from a command prompt, attachParentConsole attaches
         target_link_options(${name} PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
     endif()
     target_include_directories(${name} PRIVATE ${source_dir} ${module_includes})
@@ -490,7 +490,7 @@ function(mealkit_add_game name)
     if(MEALKIT_STEAM_DLL)
         add_custom_command(TARGET ${name} POST_BUILD
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${MEALKIT_STEAM_DLL} $<TARGET_FILE_DIR:${name}>)
-        # 개발 중 실행용. 출시할 때는 내 앱 ID로 바꾸고, 480이 아니면 출시 폴더에 넣지 않는다.
+        # For running during development. Change to your own app ID when shipping; if not 480 it isn't put in the shipping folder.
         file(WRITE ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/steam_appid.txt "${ARG_STEAM_APP_ID}")
     endif()
     if(MEALKIT_EOS_DLL)
@@ -498,10 +498,10 @@ function(mealkit_add_game name)
             COMMAND ${CMAKE_COMMAND} -E copy_if_different ${MEALKIT_EOS_DLL} $<TARGET_FILE_DIR:${name}>)
     endif()
 
-    # 출시 전 검사: 폴더 구조(tools/check_layout.ps1, 어기면 실패) → 고지문 합치기(MealKit + 게임 exe의 엔진 라이브러리 + 게임 라이브러리 + 글꼴)
-    # → 출시 폴더 (MealKitExport.cmake가 exe 크기 예산도 본다)
+    # Pre-ship checks: folder layout (tools/check_layout.ps1, fails on violation) → merge notices (MealKit + engine libraries in the game exe + game libraries + fonts)
+    # → shipping folder (MealKitExport.cmake also checks the exe size budget)
     set(export_notices "${CMAKE_BINARY_DIR}/export_notices/THIRD_PARTY_NOTICES.txt")
-    # 출시 폴더: export/<이름>, mealkit.project의 exportVersionFolder가 켜져 있으면 export/<이름>-<version>
+    # Shipping folder: export/<name>, or export/<name>-<version> if mealkit.project's exportVersionFolder is on
     set(export_dir "${project_dir}/export/${name}")
     if(EXISTS "${project_file}")
         file(STRINGS "${project_file}" export_lines REGEX "^[ \t]*(version|exportVersionFolder)([ \t=]|$)" ENCODING UTF-8)

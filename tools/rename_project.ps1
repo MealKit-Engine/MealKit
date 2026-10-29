@@ -1,10 +1,10 @@
-﻿# 게임 프로젝트 이름(= exe 이름, CMake 타깃 이름) 바꾸기. 에디터 프로젝트 관리자가 이름 칸을 고치면 실행한다.
-#   powershell -ExecutionPolicy Bypass -File tools\rename_project.ps1 -Project <폴더> -Name <새 이름>
-# - mealkit.project의 name 줄 (원래 형식 그대로)
-# - 템플릿 파일(CMakeLists.txt, build.bat, README.md, CLAUDE.md, .vscode): 고치지 않았으면 새 이름으로 다시 채우고,
-#   고쳤으면 옛 이름(앞뒤가 영문·숫자가 아닌 곳)만 바꾼다. 고치지 않은 파일은 .mealkit-template 해시도 새로 적는다.
-# - source\ 코드: 새 프로젝트를 만들 때 넣은 곳만 ("옛 이름" 문자열, 옛이름.exe)
-# - build\ 를 지운다 (CMake 캐시와 산출물에 옛 이름이 들어 있다). export\<옛 이름>은 그대로 둔다
+﻿# Renames a game project (= exe name, CMake target name). Run when the name field is edited in the editor project manager.
+#   powershell -ExecutionPolicy Bypass -File tools\rename_project.ps1 -Project <folder> -Name <new name>
+# - the name line in mealkit.project (keeping its original format)
+# - template files (CMakeLists.txt, build.bat, README.md, CLAUDE.md, .vscode): if unmodified, refilled with the new name;
+#   if modified, only the old name (where not surrounded by letters/digits) is replaced. Unmodified files also get new .mealkit-template hashes.
+# - source\ code: only where it was put when the project was created ("old name" strings, oldname.exe)
+# - deletes build\ (CMake cache and outputs contain the old name). export\<old name> is left as is
 param(
     [Parameter(Mandatory = $true)][string]$Project,
     [Parameter(Mandatory = $true)][string]$Name
@@ -37,7 +37,7 @@ if ($old -ceq $Name) {
 }
 $word = '(?<![A-Za-z0-9])' + [regex]::Escape($old) + '(?![A-Za-z0-9])'
 
-# 1) mealkit.project: name 줄만 (원래 형식 그대로)
+# 1) mealkit.project: only the name line (keeping its original format)
 $lines = [IO.File]::ReadAllLines($projectFile, $MealKitUtf8)
 for ($i = 0; $i -lt $lines.Length; $i++) {
     if ($lines[$i] -match '^(\s*name)(\s*=\s*|\s+)(.*?)\s*$') { $lines[$i] = $Matches[1] + $Matches[2] + $Name }
@@ -45,7 +45,7 @@ for ($i = 0; $i -lt $lines.Length; $i++) {
 Write-TextFile $projectFile (($lines -join "`r`n") + "`r`n")
 Write-Host "mealkit.project: name $old -> $Name"
 
-# 2) 템플릿 파일
+# 2) Template files
 $manifest = Read-TemplateManifest $Project
 $oldRender = Get-RenderedTemplate $old
 $newRender = Get-RenderedTemplate $Name
@@ -67,7 +67,7 @@ foreach ($key in $newRender.Keys) {
 }
 if ($manifest.Count -gt 0) { Write-TemplateManifest $Project $manifest }
 
-# 3) 게임 코드: new_project가 넣은 이름(창 제목, 도움말, 주석). 코드 식별자는 건드리지 않도록 문자열과 주석 안만 바꾼다
+# 3) Game code: names inserted by new_project (window title, help, comments). Only inside strings and comments so code identifiers aren't touched
 $source = Join-Path $Project "source"
 if (Test-Path $source) {
     $source = (Get-Item $source).FullName
@@ -83,7 +83,7 @@ if (Test-Path $source) {
     }
 }
 
-# 4) 빌드 폴더 (다음 빌드에서 새 이름으로 다시 만든다)
+# 4) Build folder (recreated with the new name on the next build)
 $build = Join-Path $Project "build"
 if (Test-Path $build) {
     Remove-Item -Recurse -Force $build

@@ -24,7 +24,7 @@ std::string backslashes(std::string path) {
 } // namespace
 
 void TablesPanel::setTables(const reflect::TableList* tables) {
-    if (!tables) { // DLL을 내린다: 게임 표 값은 텍스트로만 들고 있는다
+    if (!tables) { // unloading the DLL: game table values are held only as text
         for (Doc& doc : m_docs) {
             if (!doc.data.rowType) continue;
             bool engineTable = false;
@@ -44,7 +44,7 @@ void TablesPanel::setTables(const reflect::TableList* tables) {
 
 void TablesPanel::setEngineTables(const reflect::TableList& tables) {
     m_engineTables = tables;
-    if (m_docs.empty()) syncDocs(m_engineTables); // 게임 코드를 불러오기 전에도 엔진 표는 보인다
+    if (m_docs.empty()) syncDocs(m_engineTables); // engine tables are visible even before game code is loaded
 }
 
 void TablesPanel::syncDocs(const std::vector<reflect::TableInfo>& infos) {
@@ -56,7 +56,7 @@ void TablesPanel::syncDocs(const std::vector<reflect::TableInfo>& infos) {
             doc = std::move(*it);
             const bool reloadType = !doc.data.rowType;
             doc.info = info;
-            if (reloadType) { // 새 DLL의 타입으로 텍스트에서 다시 만든다
+            if (reloadType) { // rebuild from text with the new DLL's type
                 std::string warnings;
                 data::tableFromText(*info.rowType, doc.backup, doc.data, &warnings);
                 if (!warnings.empty()) MEALKIT_WARN("Table %s: %s", info.path, warnings.c_str());
@@ -152,7 +152,7 @@ void TablesPanel::draw(void* owner, bool editing, bool* open) {
         ImGui::End();
         return;
     }
-    // 없는 행 참조: 표끼리 + 패널 밖(튜닝, 씬 물체)
+    // Missing row references: between tables + outside the panel (tuning, scene objects)
     m_problems.clear();
     for (Doc& doc : m_docs) {
         if (!doc.data.rowType) continue;
@@ -195,7 +195,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         if (view) doc.viewChanged = true;
     };
 
-    // ---- 도구 막대
+    // ---- Toolbar
     ImGui::BeginDisabled(!doc.dirty);
     if (ImGui::Button(tr("Save"))) save(doc);
     ImGui::EndDisabled();
@@ -276,7 +276,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                                    : tr("Simulation table: used from the next play (content hash). Play saves it"));
     if (!doc.status.empty()) ImGui::TextDisabled("%s", doc.status.c_str());
 
-    // ---- 칸
+    // ---- Cells
     FieldContext context{&m_index};
     const f32 problemsHeight = m_problems.empty() ? 0.0f : ImGui::GetTextLineHeightWithSpacing() * std::min<f32>(6.0f, static_cast<f32>(m_problems.size()) + 1.0f);
     const int columns = 2 + static_cast<int>(doc.columns.size());
@@ -287,7 +287,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 28.0f);
         ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_WidthFixed, 110.0f);
         for (const std::string& c : doc.columns) {
-            // 열 이름: 맨 위 필드면 그 설명 (게임이 선언한 글자), 안쪽 경로(a.b, a[1])는 경로 그대로. CSV 열 이름은 경로다
+            // Column names: for top-level fields their description (text declared by the game), inner paths (a.b, a[1]) as is. CSV column names are paths
             const reflect::FieldInfo* field = t.rowType->field(c.c_str());
             ImGui::TableSetupColumn(field ? trData(field->label) : c.c_str(), ImGuiTableColumnFlags_WidthFixed, 110.0f);
         }
@@ -302,7 +302,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                 ImGui::TableNextColumn();
                 if (ImGui::Selectable(std::to_string(row).c_str(), doc.selected == row)) doc.selected = row;
                 ImGui::TableNextColumn();
-                // id: Enter나 다른 곳을 누르면 적용 (영문자·숫자·_·-·. , 표 안에서 겹치지 않게)
+                // id: applied on Enter or clicking elsewhere (letters/digits/_/-/. , unique within the table)
                 char temp[128];
                 char* buffer = m_idRow == row ? m_idBuffer : temp;
                 if (m_idRow != row) strncpy_s(temp, t.ids[r].c_str(), _TRUNCATE);

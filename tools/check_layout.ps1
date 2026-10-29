@@ -1,12 +1,12 @@
-﻿# 프로젝트 폴더 구조 검사 (docs/CODING_MODEL.md "프로젝트 폴더 구조", "외부 라이브러리 두기"). check.ps1·Export·에디터(프로젝트를 열 때)가 같이 쓴다.
-#   powershell -ExecutionPolicy Bypass -File tools\check_layout.ps1 [-Project <폴더>]    기본은 엔진 저장소(예제 프로젝트)
-# 출력: "error: <경로>: <내용>" / "warning: <경로>: <내용>" 줄, 마지막에 "OK layout ..." 또는 "FAIL layout ...". 오류가 있으면 종료 코드 1.
-# - assets/ 바로 밑: 종류 폴더와 정해진 단일 파일만
-# - 종류 폴더 안: 그 종류의 확장자만 (하위 폴더는 자유)
-# - 외부 도구 원본(.blend, .psd ...)은 assets/에 두지 않는다 → art/
-# - modules/<이름>/: module.txt(name = 폴더 이름), 모듈 에셋은 modules/<이름>/assets/<종류>/ (위와 같은 규칙, docs/MODULES.md)
-# - third_party/<lib>/: LICENSE와 mealkit.txt(name·version·license·source), 허용 라이선스, 엔진에 이미 있는 라이브러리 금지
-# - 정해진 폴더가 없으면 경고 (tools\upgrade_project.ps1이 만든다)
+﻿# Project folder layout check (docs/CODING_MODEL.md "Project folder layout", "Placing external libraries"). Shared by check.ps1, Export, and the editor (when opening a project).
+#   powershell -ExecutionPolicy Bypass -File tools\check_layout.ps1 [-Project <folder>]    default is the engine repo (sample project)
+# Output: "error: <path>: <message>" / "warning: <path>: <message>" lines, then "OK layout ..." or "FAIL layout ...". Exit code 1 on errors.
+# - Directly under assets/: only kind folders and designated single files
+# - Inside kind folders: only that kind's extensions (subfolders are free)
+# - External tool sources (.blend, .psd ...) don't go in assets/ → art/
+# - modules/<name>/: module.txt (name = folder name), module assets in modules/<name>/assets/<kind>/ (same rules as above, docs/MODULES.md)
+# - third_party/<lib>/: LICENSE and mealkit.txt (name/version/license/source), permissive licenses, no libraries the engine already has
+# - Warns if designated folders are missing (tools\upgrade_project.ps1 creates them)
 param(
     [string]$Project = ""
 )
@@ -17,7 +17,7 @@ $Project = (Resolve-Path $Project).Path.TrimEnd("\")
 $isEngine = $Project -ieq $engine
 $utf8 = New-Object System.Text.UTF8Encoding $false
 
-# 종류 폴더 → 확장자 (CODING_MODEL "프로젝트 폴더 구조")
+# Kind folder → extensions (CODING_MODEL "Project folder layout")
 $kinds = [ordered]@{
     "scenes"   = @(".scene")
     "models"   = @(".glb", ".gltf", ".bin")
@@ -45,17 +45,17 @@ function Rel([string]$path) { return $path.Substring($Project.Length + 1).Replac
 function Err([string]$path, [string]$msg) { $script:errors += "error: $(Rel $path): $msg" }
 function Warn([string]$path, [string]$msg) { $script:warnings += "warning: $(Rel $path): $msg" }
 
-# ---------------------------------------------------------------- 정해진 폴더
+# ---------------------------------------------------------------- Designated folders
 $wanted = if ($isEngine) { @("assets") } else { $topFolders }
 foreach ($f in $wanted) {
     if (-not (Test-Path (Join-Path $Project $f))) { $warnings += "warning: $($f)/: missing folder (tools\upgrade_project.ps1 creates it)" }
 }
 
-# ---------------------------------------------------------------- assets/ (프로젝트, 그리고 모듈마다 modules/<이름>/assets/)
+# ---------------------------------------------------------------- assets/ (project, and modules/<name>/assets/ per module)
 function Check-Assets([string]$assets, [bool]$wantKinds) {
     if (-not (Test-Path $assets)) { return }
     $label = (Rel $assets) + "/"
-    $depth = $label.Split("/").Count - 1 # 종류 폴더가 경로의 몇 번째 조각인가
+    $depth = $label.Split("/").Count - 1 # which path segment the kind folder is
     if ($wantKinds) {
         foreach ($k in $kinds.Keys) {
             if (-not (Test-Path (Join-Path $assets $k))) { $script:warnings += "warning: $label$($k)/: missing kind folder (tools\upgrade_project.ps1 creates it)" }
@@ -78,7 +78,7 @@ function Check-Assets([string]$assets, [bool]$wantKinds) {
             continue
         }
         $relParts = (Rel $file.FullName).Split("/")
-        if ($relParts.Count -lt $depth + 2) { continue } # assets 바로 밑 파일은 위에서 봤다
+        if ($relParts.Count -lt $depth + 2) { continue } # files directly under assets were checked above
         $kind = $relParts[$depth].ToLowerInvariant()
         if ($kinds.Contains($kind) -and $kinds[$kind] -notcontains $ext) {
             Err $file.FullName "'$ext' does not belong in $label$kind/ (expected $($kinds[$kind] -join ' '))"
@@ -88,7 +88,7 @@ function Check-Assets([string]$assets, [bool]$wantKinds) {
 Check-Assets (Join-Path $Project "assets") $true
 
 # ---------------------------------------------------------------- modules/ (docs/MODULES.md)
-# 폴더마다 module.txt(name = 폴더 이름), 모듈 최상위는 정해진 것만, 에셋은 모듈의 assets/<종류>/ (위와 같은 규칙)
+# Per folder: module.txt (name = folder name), only designated items at the module top level, assets in the module's assets/<kind>/ (same rules as above)
 $moduleTop = @("module.txt", "module.files", "sim", "view", "assets", "art", "docs", "tests", ".github", ".gitignore", ".gitattributes", "license", "license.md", "license.txt", "readme.md")
 $modulesDir = Join-Path $Project "modules"
 if (Test-Path $modulesDir) {

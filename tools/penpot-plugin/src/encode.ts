@@ -1,20 +1,20 @@
-// 내보낸 파일 묶기: 에디터 가져오기 서버에 보내는 요청 본문(editor/ImportServer.cpp)과, 에디터가 없을 때 내려받는 zip.
+// Bundling exported files: the request body sent to the editor import server (editor/ImportServer.cpp), and a zip downloaded when there's no editor.
 
 export interface ImportEntry {
   kind: 'ui' | 'png' | 'clean' | 'theme' | 'strings' | 'penpot' | 'boxes' | 'preview';
-  path: string; // ui·png·theme·clean: assets 기준, penpot·boxes·preview: art/ui 기준 파일 이름, strings: "-"
+  path: string; // ui/png/theme/clean: relative to assets, penpot/boxes/preview: file name relative to art/ui, strings: "-"
   data: Uint8Array;
-  force?: boolean; // ui: 손으로 쓴 파일도 바꾼다
+  force?: boolean; // ui: replaces hand-written files too
 }
 
-// 플러그인 샌드박스(SES)에는 TextEncoder가 없다: 패널(iframe)에서만 쓴다
+// The plugin sandbox (SES) has no TextEncoder: used only in the panel (iframe)
 let enc: TextEncoder | null = null;
 export function text(s: string): Uint8Array {
   enc ??= new TextEncoder();
   return enc.encode(s);
 }
 
-// "MEALKIT-IMPORT 1\n" + (<종류> <경로> <크기>[ force]\n<바이트>\n)*
+// "MEALKIT-IMPORT 1\n" + (<kind> <path> <size>[ force]\n<bytes>\n)*
 export function buildImport(entries: ImportEntry[]): Uint8Array {
   const parts: Uint8Array[] = [text('MEALKIT-IMPORT 1\n')];
   for (const e of entries) {
@@ -48,7 +48,7 @@ export function crc32(data: Uint8Array): number {
   return (c ^ 0xffffffff) >>> 0;
 }
 
-// 압축 없는 zip (파일 이름 UTF-8)
+// Uncompressed zip (UTF-8 file names)
 export function buildZip(files: { path: string; data: Uint8Array }[]): Uint8Array {
   const local: Uint8Array[] = [];
   const central: Uint8Array[] = [];
@@ -59,7 +59,7 @@ export function buildZip(files: { path: string; data: Uint8Array }[]): Uint8Arra
     const h = new DataView(new ArrayBuffer(30));
     h.setUint32(0, 0x04034b50, true);
     h.setUint16(4, 20, true);
-    h.setUint16(6, 0x0800, true); // UTF-8 이름
+    h.setUint16(6, 0x0800, true); // UTF-8 names
     h.setUint32(14, crc, true);
     h.setUint32(18, f.data.length, true);
     h.setUint32(22, f.data.length, true);
@@ -88,7 +88,7 @@ export function buildZip(files: { path: string; data: Uint8Array }[]): Uint8Arra
   return concat([...local, centralBytes, new Uint8Array(end.buffer)]);
 }
 
-// 구운 PNG의 크기 (IHDR)
+// Size of a baked PNG (IHDR)
 export function pngSize(data: Uint8Array): { w: number; h: number } | null {
   if (data.length < 24 || data[0] !== 0x89 || data[1] !== 0x50) return null;
   const v = new DataView(data.buffer, data.byteOffset, data.byteLength);

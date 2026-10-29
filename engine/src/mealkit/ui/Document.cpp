@@ -31,7 +31,7 @@ std::string trim(const std::string& s) {
     return s.substr(a, b - a);
 }
 
-// 첫 낱말 뒤의 나머지 (글자 그대로)
+// The rest after the first word (text as is)
 std::string rest(const std::string& line, size_t words) {
     size_t i = 0;
     for (size_t w = 0; w < words; ++w) {
@@ -77,7 +77,7 @@ bool parseColor(const std::string& s, ColorValue& out) {
     return true;
 }
 
-// 1, 2, 4개 값 (CSS 순서: 위 오른쪽 아래 왼쪽)
+// 1, 2, or 4 values (CSS order: top right bottom left)
 bool parseBox(const std::vector<std::string>& t, const Theme* theme, f32 out[4]) {
     f32 v[4] = {};
     const size_t n = t.size() - 1;
@@ -191,7 +191,7 @@ bool loadTheme(Theme& out, std::vector<std::string>* errors) {
         pos = end + 1;
         ++lineNo;
         if (line.empty() || line[0] == '#') continue;
-        u32 version = 1; // 지금은 버전 1뿐이라 migrate가 없다
+        u32 version = 1; // only version 1 for now, so no migrate
         if (text::readFormatLine(line, text::kUi, path, version)) continue;
         const std::vector<std::string> t = split(line);
         bool ok = t.size() == 3;
@@ -300,7 +300,7 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
         return args < 2 || num(2, n.columnGap) || fail("number");
     }
     if (k == "justify") {
-        n.justifyStretch = args == 1 && t[1] == "stretch"; // Grid: auto 트랙이 남는 자리를 나눠 갖는다
+        n.justifyStretch = args == 1 && t[1] == "stretch"; // Grid: auto tracks share the remaining space
         return n.justifyStretch || (args == 1 && parseJustify(t[1], n.justify)) ||
                fail("start|center|end|space-between|space-around|space-evenly (grid: also stretch)");
     }
@@ -334,7 +334,7 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
     if (k == "src") return args == 1 ? (n.image = t[1], true) : fail("src <assets path>");
     if (k == "slice") return (args == 4 && num(1, n.slice[0]) && num(2, n.slice[1]) && num(3, n.slice[2]) && num(4, n.slice[3])) || fail("slice <left> <top> <right> <bottom>");
     if (k == "tint") return (args == 1 && parseColor(t[1], v.tint) && (v.hasTint = true)) || fail("color");
-    // 글자
+    // Text
     if (k == "key") return args == 1 ? (n.textKey = t[1], true) : fail("key <strings key>");
     if (k == "content") return n.textContent = rest(line, 1), true;
     if (k == "font") return args == 1 ? (n.text.font = t[1], true) : fail("font <file name in assets/fonts>");
@@ -400,12 +400,12 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
         n.spans.push_back(s);
         return true;
     }
-    // 바인딩
+    // Bindings
     if (k == "visible") return args == 1 ? (n.visibleField = t[1], true) : fail("visible <field>");
     if (k == "disabled") return args == 1 ? (n.disabledField = t[1], true) : fail("disabled <field>");
     if (k == "widthRatio") return args == 1 ? (n.widthRatioField = t[1], true) : fail("widthRatio <field>");
     if (k == "colorField") return args == 1 ? (n.colorField = t[1], true) : fail("colorField <field>");
-    // 위젯
+    // Widgets
     if (k == "button") {
         if (args != 1) return fail("button <action>");
         n.widget = WidgetKind::Button;
@@ -442,7 +442,7 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
         if (args == 3) n.action = t[3];
         return true;
     }
-    if (k == "textInput") { // 글자 노드: 뷰 모델 문자열 필드를 고친다. Enter면 액션 (비면 "submit")
+    if (k == "textInput") { // text node: edits a view model string field. Action on Enter ("submit" if empty)
         if (args < 1 || args > 2) return fail("textInput <field> [action]");
         if (n.kind != NodeKind::Text) return fail("textInput is for text nodes");
         n.widget = WidgetKind::TextInput;
@@ -480,7 +480,7 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
         StateOverride o;
         if (args < 2 || !parseState(t[1], o.state)) return fail("on <hover|pressed|focus|disabled|checked> <property> ...");
         const std::string inner = rest(line, 2);
-        Node probe; // 이 줄이 맞는지 미리 본다
+        Node probe; // checks in advance whether this line is valid
         std::string innerError;
         if (!applyProperty(probe, inner, theme, &innerError)) return fail(innerError.c_str());
         for (StateOverride& existing : n.states)
@@ -536,7 +536,7 @@ struct Parser {
             ++lineNo;
             if (lineNo == 1 && line.rfind("# MealKit UI exported from Penpot", 0) == 0) doc.exported = true;
             if (line.empty() || line[0] == '#') continue;
-            u32 version = 1; // 지금은 버전 1뿐이라 migrate가 없다
+            u32 version = 1; // only version 1 for now, so no migrate
             if (text::readFormatLine(line, text::kUi, "assets/" + doc.path, version)) continue;
             const std::vector<std::string> t = split(line);
             const std::string& k = t[0];
@@ -574,7 +574,7 @@ struct Parser {
             } else if (k == "firstFocus" && stack.size() == 1) {
                 doc.firstFocus = t.size() > 1 ? t[1] : "";
             } else if (k == "set") {
-                // use 안의 자손 속성 덮어쓰기: set <자손 이름> <속성> <값...>
+                // Overriding descendant properties inside use: set <descendant name> <property> <value...>
                 if (stack.empty() || t.size() < 3) {
                     error(lineNo, "expected \"set <child name> <property> <value>\"");
                     continue;
@@ -602,12 +602,12 @@ struct Parser {
         return doc.errors.empty();
     }
 
-    // 컴포넌트: 그 파일의 보드를 이 자리의 frame으로 넣는다
+    // Component: puts that file's board here as a frame
     i32 include(const std::string& name, const std::string& path, u32 line) {
         Document sub;
-        if (includeDepth >= 8 || !loadNested(path, sub, theme, includeDepth + 1)) { // 서로 쓰는 컴포넌트에서 멈춘다
+        if (includeDepth >= 8 || !loadNested(path, sub, theme, includeDepth + 1)) { // stops at mutually referencing components
             error(line, "cannot use component " + path);
-            for (const std::string& e : sub.errors) doc.errors.push_back(e); // 왜 못 썼는지 (찾지 못함, 구문 오류)
+            for (const std::string& e : sub.errors) doc.errors.push_back(e); // why it couldn't be used (not found, syntax error)
             return open(NodeKind::Frame, name, line);
         }
         for (const std::string& e : sub.errors) doc.errors.push_back(e);

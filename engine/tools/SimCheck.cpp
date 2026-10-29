@@ -1,17 +1,17 @@
-// SimCheck: 게임 코드 sim/ 폴더의 결정론 규칙 검사 (빌드 도구, mealkit_add_game이 빌드 전에 실행한다).
+// SimCheck: determinism rule check for the game code's sim/ folder (build tool, run by mealkit_add_game before the build).
 //
-//   mealkit_simcheck <stamp 파일> [--third-party <폴더>]... [--modules <폴더>] <sim/ 소스...>
-//   --third-party: 프로젝트 third_party/<lib>/의 include 폴더. 이 안의 헤더를 sim/에서 include하면 SIM011
-//   --modules: 프로젝트 modules/ 폴더. 그 아래 모듈의 sim/ 파일은 게임 source/를 include하면 SIM013,
-//              module.txt의 requires에 없는 다른 모듈을 include하면 SIM014 (docs/MODULES.md)
+//   mealkit_simcheck <stamp file> [--third-party <folder>]... [--modules <folder>] <sim/ sources...>
+//   --third-party: include folder of the project's third_party/<lib>/. Including headers in it from sim/ is SIM011
+//   --modules: the project's modules/ folder. sim/ files of modules under it get SIM013 for including game source/,
+//              and SIM014 for including another module not in module.txt's requires (docs/MODULES.md)
 //
-// 실수 리터럴(0, 1, 2, 0.5 제외)은 경고 SIM012다(빌드는 계속): 게임 값은 튜닝·씬 데이터에 둔다. 알고리즘 상수면 줄 끝에 "// const-ok: 이유".
-// MEALKIT_FIELD 같은 필드 선언의 기본값은 데이터 자체라 보지 않는다.
-// 주석, 문자열, 전처리 줄(#include 제외)은 빼고 토큰 단위로 검사한다. 걸리면 MSVC 형식
-// "파일(줄,열): error SIMnnn: ..."으로 대신 쓸 것을 알려 주고 실패한다(VS Code $msCompile이 잡는다).
-// 문제가 없으면 stamp 파일을 써서 다음 빌드에서는 소스가 바뀔 때만 다시 검사한다.
-// 규칙의 근거: docs/CODING_MODEL.md "강제하는 방법", "결정론 규칙".
-// 출력은 로그와 같이 영어로 쓴다.
+// Float literals (except 0, 1, 2, 0.5) are warning SIM012 (the build continues): game values belong in tuning/scene data. For algorithm constants, "// const-ok: reason" at the end of the line.
+// Defaults of field declarations like MEALKIT_FIELD are data themselves, so they aren't checked.
+// Checks token by token excluding comments, strings, and preprocessor lines (except #include). On a hit, reports what to use instead in MSVC format
+// "file(line,col): error SIMnnn: ..." and fails (VS Code's $msCompile picks it up).
+// If there are no problems, writes the stamp file so the next build rechecks only when sources change.
+// Rationale for the rules: docs/CODING_MODEL.md "How it's enforced", "Determinism rules".
+// Output is written in English, like logs.
 
 #include <algorithm>
 #include <cstdio>
@@ -46,7 +46,7 @@ struct Include {
 struct Lexed {
     std::vector<Token> tokens;
     std::vector<Include> includes;
-    std::vector<int> constOkLines; // "// const-ok:" 주석이 있는 줄
+    std::vector<int> constOkLines; // lines with a "// const-ok:" comment
 };
 
 bool isIdentStart(unsigned char c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || c == '_' || c >= 0x80; }
@@ -73,7 +73,7 @@ public:
                 advance();
                 continue;
             }
-            if (c == '\\' && peek(1) == '\n') { // 줄 이어 쓰기
+            if (c == '\\' && peek(1) == '\n') { // line continuation
                 advance();
                 advance();
                 continue;
@@ -146,7 +146,7 @@ private:
 
     void skipLineComment() {
         while (m_pos < m_src.size() && m_src[m_pos] != '\n') {
-            if (m_src[m_pos] == '\\' && peek(1) == '\n') advance(); // 이어지는 주석
+            if (m_src[m_pos] == '\\' && peek(1) == '\n') advance(); // continued comment
             advance();
         }
     }
@@ -209,7 +209,7 @@ private:
         while (m_pos < stop) advance();
     }
 
-    // 전처리 줄: #include 경로만 기록하고 나머지는 건너뛴다
+    // Preprocessor lines: only #include paths are recorded, the rest skipped
     void directive(Lexed& out) {
         const int line = m_line, col = m_col;
         std::string text;
@@ -229,7 +229,7 @@ private:
                 text += ' ';
                 continue;
             }
-            if (m_src[m_pos] == '"' || m_src[m_pos] == '\'') { // "//" 나 "/*" 가 든 문자열
+            if (m_src[m_pos] == '"' || m_src[m_pos] == '\'') { // strings containing "//" or "/*"
                 const size_t start = m_pos;
                 quoted(m_src[m_pos]);
                 text += m_src.substr(start, m_pos - start);
@@ -256,7 +256,7 @@ private:
     int m_col = 1;
 };
 
-// ---------------------------------------------------------------- 규칙 메시지
+// ---------------------------------------------------------------- Rule messages
 
 constexpr const char* kMsgMath =
     "CRT math is not bit-identical across CPUs and compilers. Use mealkit::detSin/detCos/detAtan2/detQuatFromAxisAngle "
@@ -290,21 +290,21 @@ constexpr const char* kMsgModuleGame =
 constexpr const char* kMsgModuleRequires = "add the module to 'requires' in this module's module.txt";
 
 enum class Qual {
-    Any,       // 어디서든 (멤버 접근 .x / ->x 은 제외)
-    StdOrNone, // 한정 없음 또는 std:: / ::
-    StdOnly,   // std:: 만
+    Any,       // anywhere (except member access .x / ->x)
+    StdOrNone, // unqualified or std:: / ::
+    StdOnly,   // std:: only
 };
 
 struct IdentRule {
     const char* name;
     Qual qual;
-    bool needsCall; // 바로 뒤에 ( 가 와야 걸린다
+    bool needsCall; // matches only when followed directly by (
     const char* code;
     const char* message;
 };
 
 constexpr IdentRule kIdentRules[] = {
-    // CRT 수학 (sqrt는 IEEE 754가 정확한 결과를 보장하므로 허용)
+    // CRT math (sqrt is allowed since IEEE 754 guarantees an exact result)
     {"sin", Qual::StdOrNone, true, "SIM001", kMsgMath},
     {"cos", Qual::StdOrNone, true, "SIM001", kMsgMath},
     {"tan", Qual::StdOrNone, true, "SIM001", kMsgMath},
@@ -335,7 +335,7 @@ constexpr IdentRule kIdentRules[] = {
     {"expf", Qual::StdOrNone, true, "SIM001", kMsgMath},
     {"logf", Qual::StdOrNone, true, "SIM001", kMsgMath},
     {"powf", Qual::StdOrNone, true, "SIM001", kMsgMath},
-    // 엔진 수학 중 CRT 삼각함수를 쓰는 것 (core/Math.h)
+    // Engine math functions that use CRT trig (core/Math.h)
     {"quatFromAxisAngle", Qual::Any, false, "SIM001", kMsgMath},
     {"perspectiveReversedZ", Qual::Any, false, "SIM001", kMsgMath},
 
@@ -398,9 +398,9 @@ constexpr IdentRule kIdentRules[] = {
 };
 
 enum class Match {
-    Exact,   // 경로 전체가 같다 (대소문자 무시)
-    Prefix,  // 경로가 이것으로 시작한다
-    Segment, // 경로 어딘가에 이 폴더가 있다 ("view/", "../view/", "game/view/")
+    Exact,   // the whole path matches (case-insensitive)
+    Prefix,  // the path starts with this
+    Segment, // this folder appears somewhere in the path ("view/", "../view/", "game/view/")
 };
 
 struct HeaderRule {
@@ -452,7 +452,7 @@ bool startsWithNoCase(std::string_view s, std::string_view prefix) {
     return true;
 }
 
-// "../view/Camera.h", "./sim/../app/x.h" 같은 상대 경로도 폴더 이름으로 잡는다
+// Relative paths like "../view/Camera.h", "./sim/../app/x.h" are caught by folder name too
 std::string normalizeInclude(const std::string& path) {
     std::string p = path;
     for (char& c : p)
@@ -465,13 +465,13 @@ std::string normalizeInclude(const std::string& path) {
     return p;
 }
 
-// ---------------------------------------------------------------- 검사
+// ---------------------------------------------------------------- Checks
 
-// 소스 모듈 (프로젝트 modules/<이름>/, docs/MODULES.md): 파일이 어느 모듈에 있고 무엇을 include해도 되는지
+// Source modules (project modules/<name>/, docs/MODULES.md): which module a file is in and what it may include
 struct ModuleInfo {
     std::filesystem::path modulesDir;
     std::string name;
-    std::vector<std::string> requires_; // module.txt "requires 이름 [최소버전] ..."
+    std::vector<std::string> requires_; // module.txt "requires name [minVersion] ..."
 
     bool allows(const std::string& other) const {
         return other == name || std::find(requires_.begin(), requires_.end(), other) != requires_.end();
@@ -508,10 +508,10 @@ private:
         m_warnings.push_back({line, col, buf});
     }
 
-    // 0·1·2·0.5 같은 자명한 값이 아닌 실수 리터럴 (필드 선언 매크로 안, "// const-ok:" 줄은 뺀다)
+    // Float literals that aren't trivial values like 0/1/2/0.5 (excluding those inside field declaration macros and "// const-ok:" lines)
     void checkFloatLiterals(const std::vector<int>& constOkLines) {
         const std::vector<Token>& t = *m_t;
-        int skipDepth = 0; // MEALKIT_* ( ... ) 안
+        int skipDepth = 0; // inside MEALKIT_* ( ... )
         for (size_t i = 0; i < t.size(); ++i) {
             if (skipDepth == 0 && t[i].kind == Tok::Ident && t[i].text.rfind("MEALKIT_", 0) == 0 && i + 1 < t.size() &&
                 t[i + 1].text == "(") {
@@ -569,7 +569,7 @@ private:
                 return;
             }
         }
-        // 게임 라이브러리 (프로젝트 third_party/<lib>/): 그 폴더에서 찾아지는 헤더, 또는 경로에 third_party/가 있으면
+        // Game libraries (project third_party/<lib>/): headers found in those folders, or paths containing third_party/
         std::error_code ec;
         bool thirdParty = startsWithNoCase(p, "third_party/") || p.find("/third_party/") != std::string::npos;
         for (const std::string& dir : m_thirdParty)
@@ -582,7 +582,7 @@ private:
         if (m_module) checkModuleInclude(inc, p);
     }
 
-    // 모듈 sim/ 파일: 엔진 헤더, 표준 헤더, 자기 모듈, requires의 모듈만 include한다
+    // Module sim/ files: include only engine headers, standard headers, their own module, and modules in requires
     void checkModuleInclude(const Include& inc, const std::string& p) {
         namespace fs = std::filesystem;
         const std::string what = inc.angle ? "#include <" + inc.path + ">" : "#include \"" + inc.path + "\"";
@@ -604,11 +604,11 @@ private:
             return;
         }
         if (startsWithNoCase(p, "mealkit/")) return;
-        // 따옴표 include가 모듈 안에서 찾아지지 않으면 게임 source/의 헤더다("sim/World.h"). <sim/...>도 같다
+        // A quoted include not found within the module is a header in game source/ ("sim/World.h"). Same for <sim/...>
         if (!inc.angle || startsWithNoCase(p, "sim/")) report(inc.line, inc.col, "SIM013", what, kMsgModuleGame);
     }
 
-    // 한정자: 바로 앞이 . / -> 이면 멤버 접근, :: 이면 그 앞 이름이 한정자
+    // Qualifier: if directly preceded by . / -> it's member access; if ::, the name before it is the qualifier
     enum class Prefix { None, Member, Std, Global, Other };
     Prefix prefixOf(size_t i) const {
         if (i == 0) return Prefix::None;
@@ -658,7 +658,7 @@ private:
         }
     }
 
-    // static 변수는 const/constexpr만 허용. ( 가 먼저 나오면 함수 선언이다.
+    // static variables are allowed only if const/constexpr. If ( comes first, it's a function declaration.
     void checkStatic(size_t i) {
         const std::vector<Token>& t = *m_t;
         for (size_t j = i + 1; j < t.size(); ++j) {
@@ -673,7 +673,7 @@ private:
         }
     }
 
-    // 네임스페이스 범위의 가변 전역 변수 (static 없이 선언한 것)
+    // Mutable global variables at namespace scope (declared without static)
     enum class Scope { Namespace, Class, FunctionBody, Initializer };
 
     void checkScopes() {
@@ -699,15 +699,15 @@ private:
                         stmtChecked = false;
                     }
                 } else if (scopes.back() == Scope::Class) {
-                    kind = Scope::FunctionBody; // 멤버 함수 본문, 중첩 타입, 멤버 초기화 모두 검사 대상이 아니다
+                    kind = Scope::FunctionBody; // member function bodies, nested types, and member initializers are all out of scope
                 }
                 scopes.push_back(kind);
             } else if (s == "}") {
                 const Scope closed = scopes.back();
                 if (scopes.size() > 1) scopes.pop_back();
                 if (scopes.back() == Scope::Namespace) {
-                    // T g = { ... }; 와 struct X { ... }; 는 ; 까지 한 문장이다 (이미 판정했다).
-                    // 그 밖(생성자의 m_x{1} 초기화 뒤 본문 등)은 문장이 끝난 것으로 본다.
+                    // T g = { ... }; and struct X { ... }; are one statement up to ; (already judged).
+                    // Anything else (the body after a constructor's m_x{1} initializer etc.) counts as the statement ending.
                     const bool continues = (closed == Scope::Initializer || closed == Scope::Class) &&
                                            (is(i + 1, ";") || is(i + 1, ",") || closed == Scope::Class);
                     if (continues) {
@@ -747,7 +747,7 @@ private:
         const std::vector<Token>& t = *m_t;
         if (begin >= end) return;
         const std::string& first = t[begin].text;
-        if (t[begin].kind != Tok::Ident) return; // [[attr]] 등은 무시
+        if (t[begin].kind != Tok::Ident) return; // [[attr]] etc. are ignored
         if (first == "using" || first == "namespace" || first == "template" || first == "typedef" ||
             first == "static_assert" || first == "class" || first == "struct" || first == "union" || first == "enum" ||
             first == "friend" || first == "concept")
@@ -755,13 +755,13 @@ private:
         size_t limit = end;
         for (size_t j = begin; j < end; ++j) {
             if (t[j].kind == Tok::Punct && t[j].text == "=") {
-                limit = j; // 초기화 식 안의 ( 는 함수 선언이 아니다
+                limit = j; // ( inside an initializer expression isn't a function declaration
                 break;
             }
         }
         for (size_t j = begin; j < limit; ++j) {
             const std::string& s = t[j].text;
-            if (t[j].kind == Tok::Punct && s == "(") return; // 함수 선언
+            if (t[j].kind == Tok::Punct && s == "(") return; // function declaration
             if (t[j].kind == Tok::Ident && (s == "const" || s == "constexpr" || s == "static" || s == "operator"))
                 return;
         }
@@ -777,10 +777,10 @@ private:
 
     std::string m_path;
     const std::vector<std::string>& m_thirdParty;
-    const ModuleInfo* m_module = nullptr; // 모듈 파일이 아니면 nullptr
+    const ModuleInfo* m_module = nullptr; // nullptr if not a module file
     const std::vector<Token>* m_t = nullptr;
     std::vector<Report> m_reports;
-    std::vector<Report> m_warnings; // 빌드를 멈추지 않는다
+    std::vector<Report> m_warnings; // don't stop the build
 };
 
 bool readFile(const char* path, std::string& out) {
@@ -792,7 +792,7 @@ bool readFile(const char* path, std::string& out) {
     return true;
 }
 
-// 파일이 modulesDir/<이름>/ 아래면 그 모듈의 module.txt에서 requires를 읽는다
+// If the file is under modulesDir/<name>/, reads requires from that module's module.txt
 bool findModule(const std::filesystem::path& modulesDir, const char* file, ModuleInfo& out) {
     namespace fs = std::filesystem;
     if (modulesDir.empty()) return false;
@@ -810,7 +810,7 @@ bool findModule(const std::filesystem::path& modulesDir, const char* file, Modul
         std::string key;
         if (!(words >> key) || key != "requires") continue;
         for (std::string w; words >> w;)
-            if (!(w[0] >= '0' && w[0] <= '9')) out.requires_.push_back(w); // 숫자로 시작하면 앞 모듈의 최소 버전
+            if (!(w[0] >= '0' && w[0] <= '9')) out.requires_.push_back(w); // starting with a digit means the previous module's minimum version
     }
     return true;
 }
@@ -822,7 +822,7 @@ int main(int argc, char** argv) {
         std::printf("usage: mealkit_simcheck <stamp-file> [--third-party <dir>]... <sim sources...>\n");
         return 2;
     }
-    std::remove(argv[1]); // 실패하면 stamp가 없어야 다음 빌드에서 다시 검사한다
+    std::remove(argv[1]); // on failure the stamp must not exist so the next build rechecks
     std::vector<std::string> thirdParty;
     int first = 2;
     while (first + 1 < argc && std::string(argv[first]) == "--third-party") {

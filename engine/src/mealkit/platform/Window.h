@@ -12,20 +12,20 @@ constexpr u32 kDefaultCaptionColor = 0xFFFFFFFFu;
 
 struct WindowDesc {
     const char* title = "MealKit";
-    u32 width = 1280; // 클라이언트 영역 크기(물리 픽셀)
+    u32 width = 1280; // client area size (physical pixels)
     u32 height = 720;
-    // 제목 표시줄 색(0xRRGGBB). 지정하면 어두운 제목 표시줄(흰 글자·버튼)을 켜고, Windows 11에서는 이 색으로 칠한다
+    // Title bar color (0xRRGGBB). If set, turns on the dark title bar (white text/buttons), and on Windows 11 paints it in this color
     u32 captionColor = kDefaultCaptionColor;
 };
 
-// 창 모드 (설정 화면). 전체화면은 모니터 크기의 테두리 없는 창이다 (플립 모델 스왑 체인은 독점 전체화면 없이도 지연이 같다)
+// Window mode (settings screen). Fullscreen is a borderless window the size of the monitor (flip model swap chains have the same latency without exclusive fullscreen)
 enum class WindowMode : u8 { Windowed, Borderless, Fullscreen };
 
 struct DisplaySize {
     u32 width = 0, height = 0;
 };
 
-// 다른 모듈(에디터 UI 등)이 창 메시지를 먼저 받아 보는 훅. 0이 아닌 값을 반환하면 그 메시지는 처리 완료로 본다.
+// Hook letting other modules (editor UI etc.) see window messages first. Returning nonzero treats the message as handled.
 using MessageHook = std::intptr_t (*)(void* user, void* hwnd, u32 msg, std::uintptr_t wparam, std::intptr_t lparam);
 
 class Window {
@@ -37,7 +37,7 @@ public:
 
     bool create(const WindowDesc& desc);
 
-    // 메시지를 처리하고 입력 상태를 갱신한다. 창을 닫으면 false.
+    // Processes messages and updates input state. false when the window is closed.
     bool pumpMessages();
 
     void* nativeHandle() const { return m_hwnd; } // HWND
@@ -45,21 +45,21 @@ public:
     u32 height() const { return m_height; }
     bool minimized() const { return m_minimized; }
     bool focused() const { return m_focused; }
-    bool consumeResize(); // 크기가 바뀐 뒤 한 번만 true
-    void close();         // 다음 pumpMessages가 false (게임 메뉴의 [끝내기])
+    bool consumeResize(); // true only once after the size changes
+    void close();         // the next pumpMessages returns false (the game menu's [Quit])
 
     void setTitle(const char* utf8);
-    void setCursorCaptured(bool captured); // 커서 숨김 + 창 안에 가둠 (카메라 회전용)
-    // 창 모드·크기 바꾸기. 창 모드에서만 width×height(클라이언트 영역)를 쓰고, 나머지는 창이 있는 모니터 전체
+    void setCursorCaptured(bool captured); // hide cursor + confine to the window (for camera rotation)
+    // Change window mode/size. Only windowed mode uses width×height (client area); others use the whole monitor the window is on
     void setMode(WindowMode mode, u32 width, u32 height);
     WindowMode mode() const { return m_mode; }
-    // 창이 있는 모니터가 지원하는 해상도 (큰 것부터, 중복 없음)
+    // Resolutions supported by the monitor the window is on (largest first, no duplicates)
     std::vector<DisplaySize> displaySizes() const;
 
     Input& input() { return m_input; }
     void setMessageHook(MessageHook hook, void* user);
 
-    // WndProc에서 호출한다.
+    // Called from WndProc.
     std::intptr_t handleMessage(void* hwnd, u32 msg, std::uintptr_t wparam, std::intptr_t lparam);
 
 private:
@@ -71,7 +71,7 @@ private:
     bool m_resized = false;
     bool m_quit = false;
     bool m_captured = false;
-    u32 m_highSurrogate = 0; // WM_CHAR: 두 개로 오는 UTF-16 글자의 앞쪽
+    u32 m_highSurrogate = 0; // WM_CHAR: the first half of a UTF-16 character arriving in two parts
     WindowMode m_mode = WindowMode::Windowed;
     Input m_input;
     MessageHook m_hook = nullptr;

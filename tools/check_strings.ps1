@@ -1,10 +1,10 @@
-﻿# 에디터 UI 글자 검사 (docs/CODING_MODEL.md "에디터 UI 문자열과 언어"). check.ps1이 부른다.
-#   powershell -ExecutionPolicy Bypass -File tools\check_strings.ps1          문제가 있으면 종료 코드 1
-#   powershell -ExecutionPolicy Bypass -File tools\check_strings.ps1 -List    빠진 번역을 "원문 = " 줄로 출력 (ko.txt에 붙여 채운다)
-# - 에디터 코드의 tr()/trl()/trf() 원문, "###" 이름, 엔진이 선언한 필드 설명·씬 종류 이름(trData)이 engine/res/strings/<언어>.txt에 모두 있는가
-# - 표에 있지만 어디서도 쓰지 않는 줄
-# - 번역의 printf 형식(%s, %u ...)이 원문과 같은가
-# - 에디터 코드에 한글 문자열이 남았는가 (그 줄에 "i18n-ignore"를 쓰면 뺀다)
+﻿# Editor UI text check (docs/CODING_MODEL.md "Editor UI strings and languages"). Called by check.ps1.
+#   powershell -ExecutionPolicy Bypass -File tools\check_strings.ps1          exit code 1 on problems
+#   powershell -ExecutionPolicy Bypass -File tools\check_strings.ps1 -List    prints missing translations as "source = " lines (paste into ko.txt and fill in)
+# - Whether all tr()/trl()/trf() sources in editor code, "###" names, and field descriptions/scene kind names declared by the engine (trData) are in engine/res/strings/<language>.txt
+# - Lines in the table that aren't used anywhere
+# - Whether translations' printf formats (%s, %u ...) match the source
+# - Whether Korean strings remain in editor code (writing "i18n-ignore" on that line excludes it)
 param(
     [switch]$List
 )
@@ -19,45 +19,45 @@ $literal = '"((?:[^"\\]|\\.)*)"'
 function Unescape-C([string]$s) {
     return [regex]::Replace($s, '\\(.)', { param($m) switch ($m.Groups[1].Value) { 'n' { "`n" } 't' { "`t" } default { $m.Groups[1].Value } } })
 }
-# "##" 앞부분이 번역 키다 (Strings.cpp translate와 같다)
+# The part before "##" is the translation key (same as translate in Strings.cpp)
 function Key-Of([string]$s) {
     $i = $s.IndexOf("##")
     if ($i -ge 0) { return $s.Substring(0, $i) }
     return $s
 }
 
-$keys = [ordered]@{}   # 키 → 처음 나온 곳
+$keys = [ordered]@{}   # key → first place it appeared
 $problems = @()
 function Add-Key([string]$key, [string]$where) {
     if ($key -ne "" -and -not $keys.Contains($key)) { $keys[$key] = $where }
 }
 
-# 1) 에디터 코드
+# 1) Editor code
 foreach ($file in Get-ChildItem $editorDir -File -Include *.cpp, *.h -Recurse) {
     $raw = [IO.File]::ReadAllText($file.FullName, $utf8)
     $name = $file.Name
-    # 주석은 보지 않는다 (줄 주석과 " // " 뒤)
+    # Comments are ignored (line comments and after " // ")
     $text = [regex]::Replace($raw, '(?m)(^\s*//.*$| // .*$)', '')
-    # tr("a" "b") 처럼 이어 쓴 문자열도 하나로
+    # Concatenated strings like tr("a" "b") count as one
     foreach ($m in [regex]::Matches($text, '\b(?:tr|trl|trf)\(\s*((?:' + $literal + '\s*)+)')) {
         $joined = ([regex]::Matches($m.Groups[1].Value, $literal) | ForEach-Object { $_.Groups[1].Value }) -join ""
         Add-Key (Key-Of (Unescape-C $joined)) $name
     }
-    # 창·팝업 이름 상수 ("Scene Tree###Hierarchy"). 앞부분이 printf 형식뿐이면("%s (%u)###level") 번역할 글자가 없다
+    # Window/popup name constants ("Scene Tree###Hierarchy"). If the front part is only a printf format ("%s (%u)###level"), there's nothing to translate
     foreach ($m in [regex]::Matches($text, $literal)) {
         if ($m.Groups[1].Value.Contains("###") -and -not $m.Groups[1].Value.StartsWith("#")) {
             $k = Key-Of (Unescape-C $m.Groups[1].Value)
             if (($k -replace '%[-+ #0]*\d*(?:\.\d+)?[hlzjt]*[diuxXfFeEgGcsp%]', '') -match '[A-Za-z]') { Add-Key $k $name }
         }
     }
-    # 명령 표 (EditorCommands.cpp): {"이름", 단축키, ...} 줄의 이름과 단축키 도움말 고정 줄 {"할 일", "키"}는 tr(c.name)·tr(row[n])로 번역한다
+    # Command table (EditorCommands.cpp): names in {"name", shortcut, ...} lines and fixed shortcut help lines {"what it does", "key"} are translated with tr(c.name)/tr(row[n])
     if ($name -eq "EditorCommands.cpp") {
         foreach ($m in [regex]::Matches($text, '\{\s*' + $literal + '(?:\s*,\s*' + $literal + '\s*\})?')) {
             Add-Key (Key-Of (Unescape-C $m.Groups[1].Value)) $name
             if ($m.Groups[2].Success) { Add-Key (Key-Of (Unescape-C $m.Groups[2].Value)) $name }
         }
     }
-    # 한글 문자열
+    # Korean strings
     $lineNo = 0
     foreach ($line in $raw -split "`n") {
         $lineNo++
@@ -71,7 +71,7 @@ foreach ($file in Get-ChildItem $editorDir -File -Include *.cpp, *.h -Recurse) {
     }
 }
 
-# 2) 엔진이 선언한 데이터 글자 (에디터가 trData로 번역): 필드 설명(마지막 문자열), 기본 씬 종류 이름
+# 2) Data text declared by the engine (translated by the editor with trData): field descriptions (last string), built-in scene kind names
 foreach ($file in Get-ChildItem $engineDir -File -Include *.cpp, *.h -Recurse) {
     if ($file.FullName.StartsWith($editorDir)) { continue }
     $text = [IO.File]::ReadAllText($file.FullName, $utf8)
@@ -82,7 +82,7 @@ foreach ($file in Get-ChildItem $engineDir -File -Include *.cpp, *.h -Recurse) {
     foreach ($m in [regex]::Matches($text, 'makeBuiltin\(\w+,\s*' + $literal)) { Add-Key (Unescape-C $m.Groups[1].Value) $file.Name }
 }
 
-# 3) 언어 표
+# 3) Language tables
 function Format-Specs([string]$s) { return ([regex]::Matches($s, '%[-+ #0]*\d*(?:\.\d+)?[hlzjt]*[diuxXfFeEgGcsp%]') | ForEach-Object { $_.Value }) -join " " }
 foreach ($table in Get-ChildItem $stringsDir -Filter *.txt) {
     $entries = @{}

@@ -11,7 +11,7 @@ std::string formatLine(const Format& format) { return std::string("@format ") + 
 
 bool readFormatLine(std::string_view line, const Format& expected, const std::string& path, u32& version) {
     if (line.empty() || line[0] != '@') return false;
-    // "@format <종류> <N>"
+    // "@format <kind> <N>"
     std::string words[3];
     u32 count = 0;
     for (size_t a = 0; a < line.size() && count < 4;) {
@@ -40,10 +40,10 @@ bool readFormatLine(std::string_view line, const Format& expected, const std::st
 
 char* writeFloats(char* out, size_t capacity, const f32* values, u32 count) {
     char* p = out;
-    char* const end = out + capacity - 1; // 널 문자 자리
+    char* const end = out + capacity - 1; // room for the null terminator
     for (u32 i = 0; i < count && p < end; ++i) {
         if (i > 0) *p++ = ' ';
-        const f32 v = values[i] == 0.0f ? 0.0f : values[i]; // -0은 0으로
+        const f32 v = values[i] == 0.0f ? 0.0f : values[i]; // -0 becomes 0
         const std::to_chars_result r = std::to_chars(p, end, v);
         if (r.ec != std::errc{}) break;
         p = r.ptr;

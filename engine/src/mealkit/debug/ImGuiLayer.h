@@ -16,8 +16,8 @@ class Renderer;
 
 namespace mealkit::debug {
 
-// Dear ImGui를 MealKit 창/렌더러에 연결한다 (창 쪽은 platform/ImGuiPlatform.h, 그리기는 RHI). 에디터와 개발용 게임 빌드의 디버그 UI(MEALKIT_DEBUG_UI)가 쓴다.
-// 출시 빌드(Export)에는 들어가지 않는다.
+// Connects Dear ImGui to the MealKit window/renderer (window side is platform/ImGuiPlatform.h, drawing via RHI). Used by the debug UI (MEALKIT_DEBUG_UI) of the editor and dev game builds.
+// Not included in shipping builds (Export).
 class ImGuiLayer {
 public:
     ImGuiLayer() = default;
@@ -25,26 +25,26 @@ public:
     ImGuiLayer(const ImGuiLayer&) = delete;
     ImGuiLayer& operator=(const ImGuiLayer&) = delete;
 
-    // iniPath가 비어 있으면 창 위치를 저장하지 않는다
+    // If iniPath is empty, window positions aren't saved
     bool init(Window& window, render::Renderer& renderer, const std::string& iniPath);
     void shutdown();
-    // 창 배치 파일을 바꾼다 (프로젝트별 레이아웃). 이미 읽은 배치는 예전 파일에 쓰고 새 파일을 읽는다. 새 파일이 있으면 true
+    // Switches the window layout file (per-project layouts). The already loaded layout is written to the old file and the new file is read. true if the new file exists
     bool setIniPath(const std::string& iniPath);
 
     void newFrame();
-    // 렌더러 프레임이 열려 있으면 UI를 그려 넣는다. 열려 있지 않아도 ImGui 프레임은 반드시 닫는다.
+    // Draws the UI in if a renderer frame is open. Even if not, the ImGui frame is always closed.
     void render(render::Renderer& renderer, bool frameActive);
 
-    // ImGui::Image로 그릴 RGBA8 텍스처. ImGui 백엔드가 다음 프레임에 GPU에 올린다. 다 쓰면 releaseTexture
+    // RGBA8 texture to draw with ImGui::Image. The ImGui backend uploads it to the GPU next frame. Call releaseTexture when done
     ImTextureData* createTexture(const u8* rgba, u32 width, u32 height);
-    void releaseTexture(ImTextureData* texture); // GPU가 다 쓴 뒤(몇 프레임 뒤) 지운다
+    void releaseTexture(ImTextureData* texture); // deleted after the GPU is done with it (a few frames later)
 
 private:
     bool m_initialized = false;
     Window* m_window = nullptr;
     render::Renderer* m_renderer = nullptr;
     std::string m_iniPath;
-    std::vector<ImTextureData*> m_textures; // createTexture로 만든 것 (지워질 때까지)
+    std::vector<ImTextureData*> m_textures; // made with createTexture (until deleted)
 };
 
 } // namespace mealkit::debug

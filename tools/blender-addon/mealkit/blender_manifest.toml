@@ -8,7 +8,7 @@ maintainer = "MealKit"
 type = "add-on"
 website = "https://github.com/KingProtea99/MealKit"
 
-# 엔진이 맞추는 Blender LTS (docs/DECISIONS.md 2026-10-21). 다음 LTS로 옮길 때 같이 올린다
+# The Blender LTS the engine targets (docs/DECISIONS.md 2026-10-21). Bump together when moving to the next LTS
 blender_version_min = "5.2.0"
 
 license = ["SPDX:MIT"]

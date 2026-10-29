@@ -1,4 +1,4 @@
-// 확정 명령 처리: World::step() 맨 앞에서 이번 틱의 명령을 플레이어 번호 → 보낸 순서로.
+// Confirmed command processing: at the very start of World::step(), this tick's commands in player index → send order.
 #include "sim/Commands.h"
 #include "sim/Systems.h"
 

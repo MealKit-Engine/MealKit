@@ -19,12 +19,12 @@ using namespace mealkit;
 namespace sandbox {
 namespace {
 
-// 화면 층 (위가 먼저 입력을 받는다). 설정 화면은 엔진이 더 위에 연다
+// Screen layers (higher ones receive input first). The engine opens the settings screen above these
 constexpr i32 kMenuLayer = 10;
 constexpr i32 kResultsLayer = 15;
 constexpr i32 kPauseLayer = 20;
 
-// 몸 종류 이름 (tables/bodies.table 행 순서, 로비의 선택 상자와 같은 키)
+// Body kind names (row order of tables/bodies.table, same keys as the lobby's select box)
 const char* bodyKey(u32 body) {
     static const char* keys[] = {"body.normal", "body.light", "body.heavy"};
     return body < 3 ? keys[body] : keys[0];
@@ -59,7 +59,7 @@ void Flow::closeAll(game::GameContext& ctx) {
 void Flow::show(game::GameContext& ctx, Screen screen) {
     closeAll(ctx);
     m_screen = screen;
-    ctx.match.setBrowsing(screen == Screen::Join); // LAN 방 찾기는 참가 화면 동안만
+    ctx.match.setBrowsing(screen == Screen::Join); // LAN room search only while on the join screen
     switch (screen) {
     case Screen::Title:
         m_ids.title = ctx.ui.open("ui/title.ui", kMenuLayer);
@@ -86,7 +86,7 @@ void Flow::show(game::GameContext& ctx, Screen screen) {
         ctx.ui.bind(m_ids.message, m_message);
         break;
     case Screen::Match:
-    case Screen::None: break; // HUD는 GameSession이 매치를 시작할 때 연다
+    case Screen::None: break; // the HUD is opened by GameSession when the match starts
     }
 }
 
@@ -101,7 +101,7 @@ void Flow::stop(game::GameContext& ctx) {
 void Flow::update(game::GameContext& ctx, const World* world, SaveData& save, HudVm& hud, ui::ScreenId hudScreen, f64 dt) {
     m_time += dt;
     net::LockstepSession& session = ctx.session;
-    if (!m_nameLoaded) { // 처음: 세이브의 이름 (없으면 엔진이 정한 기본 이름: 계정·사용자 이름)
+    if (!m_nameLoaded) { // first time: the name from the save (or the engine's default name: account/user name)
         m_nameLoaded = true;
         if (!save.playerName.empty()) session.setLocalName(save.playerName);
         m_menu.playerName = session.localName();
@@ -110,7 +110,7 @@ void Flow::update(game::GameContext& ctx, const World* world, SaveData& save, Hu
         m_title.version = (m_version.empty() ? std::string() : m_version + "  ·  ") + "MealKit " + MEALKIT_VERSION;
     }
 
-    // 지금 보일 화면: 세션 단계가 정한다 (세션이 없으면 메뉴 쪽에서 고른 화면)
+    // Screen to show now: decided by the session phase (if there's no session, the screen chosen on the menu side)
     Screen target = m_menuScreen;
     switch (ctx.match.phase()) {
     case game::MatchPhase::Menu: target = m_menuScreen; break;
@@ -152,7 +152,7 @@ void Flow::update(game::GameContext& ctx, const World* world, SaveData& save, Hu
     }
 }
 
-// 끊긴 이유: 접속 거부면 무엇이 다른지 (버전, 플랫폼, 게임 데이터), 아니면 세션의 이유
+// Disconnect reason: for connection rejections, what differs (version, platform, game data), otherwise the session's reason
 std::string Flow::endText(game::GameContext& ctx) const {
     const net::RejectInfo& r = ctx.session.rejectInfo();
     switch (r.reason) {
@@ -175,10 +175,10 @@ std::string Flow::endText(game::GameContext& ctx) const {
 
 void Flow::updateMenu(game::GameContext& ctx, SaveData& save) {
     m_menu.onlineAvailable = ctx.match.onlineAvailable();
-    // 이름: 다 친 뒤(글자 입력이 끝나면) 세션과 세이브에
+    // Name: after typing finishes (when text input ends), into the session and the save
     if (!ctx.ui.editingText() && m_menu.playerName != ctx.session.localName()) {
         ctx.session.setLocalName(m_menu.playerName);
-        m_menu.playerName = ctx.session.localName(); // 길이 제한으로 잘린 것
+        m_menu.playerName = ctx.session.localName(); // cut by the length limit
         save.playerName = m_menu.playerName;
         m_saveChanged = true;
     }
@@ -244,7 +244,7 @@ void Flow::updateLobby(game::GameContext& ctx, SaveData& save) {
                                                      : "lobby.joined");
     if (m_lobby.connecting) m_lobby.title = ctx.strings.get("lobby.connecting");
 
-    // 내 준비·몸 (몸은 세이브에 남아 다음 매치의 로드아웃이 된다: GameSession::lobby)
+    // My ready/body (the body stays in the save and becomes the next match's loadout: GameSession::lobby)
     session.setLocalReady(m_lobby.ready);
     if (m_lobby.body != save.body) {
         save.body = std::min<u32>(m_lobby.body, 2);
@@ -276,7 +276,7 @@ void Flow::updateLobby(game::GameContext& ctx, SaveData& save) {
     m_lobby.needReady = m_lobby.isHost && !m_lobby.offline && !allReady;
     m_lobby.version = m_version;
     m_lobby.slowWarning.clear();
-    if (const u32 slow = ctx.match.slowPlayers()) { // 입력 지연 상한(mealkit.project)보다 먼 사람
+    if (const u32 slow = ctx.match.slowPlayers()) { // people farther than the input delay cap (mealkit.project)
         std::string names;
         for (const net::LobbyMember& m : members)
             if (m.player < 32 && (slow & (1u << m.player))) names += (names.empty() ? "" : ", ") + m.name;
@@ -313,7 +313,7 @@ void Flow::fillResults(game::GameContext& ctx, const World& world) {
     std::array<u32, net::kMaxPlayers> order{};
     const u32 count = std::min<u32>(s.playerCount, net::kMaxPlayers);
     for (u32 i = 0; i < count; ++i) order[i] = i;
-    // 적게 떨어진 순서 (같으면 플레이어 번호 순)
+    // In order of fewest falls (player index order on ties)
     std::stable_sort(order.begin(), order.begin() + count, [&](u32 a, u32 b) { return s.slots[a].falls < s.slots[b].falls; });
     m_results.rowsCount = count;
     for (u32 i = 0; i < count; ++i) {
@@ -329,7 +329,7 @@ void Flow::fillResults(game::GameContext& ctx, const World& world) {
     m_results.isHost = ctx.session.isHost();
     const f64 left = std::max(0.0, static_cast<f64>(look.resultsSeconds) - (m_time - m_resultsTime));
     m_results.secondsLeft = static_cast<u32>(left + 0.999);
-    if (m_results.isHost && left <= 0.0) ctx.match.returnToLobby(); // 방장: 잠시 뒤 모두 로비로
+    if (m_results.isHost && left <= 0.0) ctx.match.returnToLobby(); // host: everyone back to the lobby shortly
 }
 
 void Flow::updateMatch(game::GameContext& ctx, const World& world, HudVm& hud, ui::ScreenId hudScreen, f64 dt) {
@@ -337,7 +337,7 @@ void Flow::updateMatch(game::GameContext& ctx, const World& world, HudVm& hud, u
     net::LockstepSession& session = ctx.session;
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
 
-    // 결과: 시뮬레이션이 끝났다고 하면 (모두 같은 틱에)
+    // Results: when the simulation says it's over (on the same tick for everyone)
     if (world.state.phase == MatchPhase::Finished && !m_ids.results) {
         if (m_ids.pause) ctx.ui.close(m_ids.pause);
         m_ids.pause = 0;
@@ -348,7 +348,7 @@ void Flow::updateMatch(game::GameContext& ctx, const World& world, HudVm& hud, u
     }
     if (m_ids.results) fillResults(ctx, world);
 
-    // 일시정지: Esc(menu.pause). 열려 있으면 화면의 뒤로(ui.back)가 닫는다
+    // Pause: Esc (menu.pause). When open, the screen's back (ui.back) closes it
     const bool pauseWasOpen = m_paused;
     if (!pauseWasOpen && !m_ids.results && !m_chatOpen && !ctx.settings.isOpen() && ctx.actions.pressed("menu.pause")) {
         m_paused = true;
@@ -358,9 +358,9 @@ void Flow::updateMatch(game::GameContext& ctx, const World& world, HudVm& hud, u
         ctx.ui.bind(m_ids.pause, m_pause);
     }
 
-    // 채팅 (여러 명): Enter로 HUD의 입력 칸을 열고, Enter로 보낸다. Esc면 그냥 닫힌다
+    // Chat (multiplayer): Enter opens the HUD input field, Enter sends. Esc just closes it
     if (!session.isOffline() && !m_chatOpen && !m_paused && !m_ids.results && ctx.actions.pressed("chat.open")) {
-        m_chatOpen = m_chatFocusPending = true; // 입력 칸이 보인 다음 프레임에 글자 치기를 시작한다
+        m_chatOpen = m_chatFocusPending = true; // starts typing on the frame after the input field appears
         hud.chatDraft.clear();
     } else if (m_chatOpen && m_chatFocusPending) {
         if (ctx.ui.focusText(hudScreen, "chatInput")) m_chatFocusPending = false;

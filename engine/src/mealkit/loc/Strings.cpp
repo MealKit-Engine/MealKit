@@ -19,7 +19,7 @@ std::string trim(std::string_view s) {
     return std::string(s.substr(a, b - a));
 }
 
-// \n → 줄바꿈, \\ → 역슬래시 (다른 \는 그대로)
+// \n → newline, \\ → backslash (other \ left as is)
 std::string unescape(const std::string& s) {
     std::string out;
     out.reserve(s.size());
@@ -38,7 +38,7 @@ struct Table {
     std::string language;
     std::string path;
     unsigned long long time = 0;
-    std::vector<StringEntry> entries; // 키 순으로 정렬
+    std::vector<StringEntry> entries; // sorted by key
 
     const std::string* find(std::string_view key) const {
         auto it = std::lower_bound(entries.begin(), entries.end(), key,
@@ -62,7 +62,7 @@ void loadTable(Table& t, const std::string& language) {
     if (!errors.empty()) MEALKIT_WARN("Strings %s:\n%s", t.path.c_str(), errors.c_str());
     std::stable_sort(t.entries.begin(), t.entries.end(),
                      [](const StringEntry& a, const StringEntry& b) { return a.key < b.key; });
-    // 같은 키가 두 번이면 앞의 줄을 쓴다
+    // If the same key appears twice, the earlier line is used
     t.entries.erase(std::unique(t.entries.begin(), t.entries.end(),
                                 [](const StringEntry& a, const StringEntry& b) { return a.key == b.key; }),
                     t.entries.end());
@@ -95,7 +95,7 @@ bool readStringsFile(const std::string& path, std::vector<StringEntry>& out, std
         const std::string line = trim(std::string_view(text).substr(pos, end - pos));
         ++lineNo;
         pos = end + 1;
-        u32 version = 1; // 지금은 버전 1뿐이라 migrate가 없다
+        u32 version = 1; // only version 1 for now, so no migrate
         if (line.empty() || line[0] == '#' || text::readFormatLine(line, text::kStrings, path, version)) {
             if (end == text.size()) break;
             continue;
@@ -115,7 +115,7 @@ bool readStringsFile(const std::string& path, std::vector<StringEntry>& out, std
 struct Strings::Impl {
     Table current, fallback;
     f64 time = 0.0, nextCheck = 0.0;
-    mutable std::deque<std::string> missing; // 경고한 키 (그 키 이름을 돌려준다, deque라 참조가 유지된다)
+    mutable std::deque<std::string> missing; // keys already warned about (returns the key name; a deque keeps references valid)
 
     void poll() {
         if (time < nextCheck) return;

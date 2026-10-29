@@ -1,9 +1,9 @@
-﻿# 플랫폼 계층 검사 (docs/CODING_MODEL.md "그래픽 API와 OS 기능"). check.ps1이 부른다.
-#   powershell -ExecutionPolicy Bypass -File tools\check_platform.ps1     문제가 있으면 종료 코드 1
-# OS API(헤더 include, 대표 Win32·POSIX 함수)는 engine/src/mealkit/platform/<os>/ 안에서만 쓴다.
-# 그래픽 API(d3d12·dxgi·vulkan 헤더)는 RHI 백엔드(engine/src/mealkit/rhi/<api>/) 안에서만 쓴다. 백엔드는 창 핸들·이벤트를
-# 다루므로 OS 헤더도 include할 수 있지만, 아래 OS 함수(문자열 변환·파일·DLL 등)는 플랫폼 계층 것을 쓴다.
-# 게임 코드(samples/*)는 OS API를 쓰지 않는다 (GameContext로 받는다).
+﻿# Platform layer check (docs/CODING_MODEL.md "Graphics APIs and OS features"). Called by check.ps1.
+#   powershell -ExecutionPolicy Bypass -File tools\check_platform.ps1     exit code 1 on problems
+# OS APIs (header includes, representative Win32/POSIX functions) are used only inside engine/src/mealkit/platform/<os>/.
+# Graphics APIs (d3d12/dxgi/vulkan headers) are used only inside RHI backends (engine/src/mealkit/rhi/<api>/). Backends handle window handles/events,
+# so they may include OS headers too, but for the OS functions below (string conversion, files, DLLs etc.) they use the platform layer's.
+# Game code (samples/*) doesn't use OS APIs (it receives them via GameContext).
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $engineSrc = Join-Path $root "engine\src\mealkit"

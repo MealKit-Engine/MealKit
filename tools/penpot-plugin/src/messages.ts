@@ -1,4 +1,4 @@
-// 플러그인 코드(plugin.ts, Penpot 안) ↔ 패널(ui.ts, iframe) 메시지
+// Messages between the plugin code (plugin.ts, inside Penpot) ↔ the panel (ui.ts, iframe)
 
 import type { Box, MealkitData, StringEntry } from './model.ts';
 
@@ -6,9 +6,9 @@ export interface LayerInfo {
   id: string;
   name: string;
   type: string;
-  topBoard: boolean; // 페이지 바로 밑 보드 (화면 하나)
+  topBoard: boolean; // a board directly under the page (one screen)
   data: MealkitData;
-  file: string; // 화면 보드: 내보낼 .ui 경로 (assets 기준)
+  file: string; // screen board: .ui path to export (relative to assets)
 }
 
 export interface BoardInfo {
@@ -24,7 +24,7 @@ export interface ExportedScreen {
   images: { path: string; data: Uint8Array; logicalW: number; logicalH: number }[];
   strings: StringEntry[];
   boxes: Box[];
-  preview?: Uint8Array; // 보드 전체 PNG (배율 kPreviewScale, 픽셀 비교 art/ui/preview)
+  preview?: Uint8Array; // PNG of the whole board (scale kPreviewScale, pixel comparison art/ui/preview)
   warnings: string[];
   errors: string[];
   nodeCount: number;

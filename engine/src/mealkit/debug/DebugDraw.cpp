@@ -16,20 +16,20 @@ struct Item {
     Vec3 a, b;
     u32 color;
     f32 seconds;
-    f64 expires = -1.0; // 처음 그릴 때 정한다
+    f64 expires = -1.0; // set on first draw
     std::string text;
 };
 
-std::mutex g_lock; // 시뮬레이션 일꾼 스레드에서 부를 수 있다
+std::mutex g_lock; // can be called from the simulation worker thread
 std::vector<Item> g_items;
-constexpr size_t kMaxItems = 20000; // 지우지 않고 계속 쌓는 실수에 대비
+constexpr size_t kMaxItems = 20000; // guards against the mistake of piling up without clearing
 
 void push(Item item) {
     std::lock_guard<std::mutex> guard(g_lock);
     if (g_items.size() < kMaxItems) g_items.push_back(std::move(item));
 }
 
-// z축을 dir로 돌리는 회전
+// Rotation that turns the z axis to dir
 Quat lookRotation(Vec3 dir) {
     const Vec3 z{0.0f, 0.0f, 1.0f};
     const f32 d = dot(z, dir);
@@ -82,7 +82,7 @@ void flushDebugDraw(render::DrawList& out, render::MeshId boxMesh, const render:
             draw->AddText(at, it.color, it.text.c_str());
         }
     }
-    // 한 번 그린 것 중 시간이 다 된 것을 지운다 (seconds = 0은 이번 한 번)
+    // Removes expired items among those already drawn once (seconds = 0 means this one time)
     std::erase_if(g_items, [&](const Item& it) { return it.expires <= now; });
 }
 

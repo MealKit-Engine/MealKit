@@ -1,28 +1,28 @@
-﻿# 멀티플레이 결정론 테스트: 같은 PC에서 호스트 1 + 클라이언트 N 을 봇 입력으로 돌리고
-# 모두 같은 틱에서 같은 상태 해시를 내는지 확인한다.
-# 클라이언트 i는 물리 스레드 i개를 쓴다 (호스트는 자동) → 스레드 수가 달라도 결과가 같은지도 확인된다.
+﻿# Multiplayer determinism test: runs host 1 + N clients with bot input on the same PC
+# and checks they all produce the same state hash at the same ticks.
+# Client i uses i physics threads (the host is automatic) → also checks results match across thread counts.
 #   powershell -ExecutionPolicy Bypass -File tools\mp_test.ps1 [-Clients 1] [-Ticks 900] [-Config Release] [-Scene <file>] [-Tuning <file>]
-# 게임 프로젝트의 실행 파일을 시험하려면 -Exe <프로젝트>\build\Release\bin\<이름>.exe
-# 다른 컴파일러 빌드와 맞붙이려면 -ClientExe build\ClangCL\bin\sandbox.exe (호스트는 -Exe, 클라이언트는 이것)
-# 먼 상대·손실을 흉내 내려면 -Lag <ms> -Jitter <ms> -Loss <%> (모든 프로세스에 --net-lag 등)
-# 창 없이(헤드리스) 돌리려면 -Headless (각 실행 파일에 --headless를 붙인다. 입력이 허락하는 만큼 빨리 돈다)
-# 디싱크 진단 시험은 -DesyncTest <틱>: 클라이언트 1이 그 틱에 물리를 조금 바꾼다(--desync-test). 모두 디싱크를 알고, 피어마다
-#   build\desync에 덤프를 쓰고, tools\desync_diff.ps1이 처음 갈라진 틱으로 그 틱을 짚으면 PASS
-# 중간 참가·재접속 시험은 -LateJoin: 클라이언트 1(--name c1)이 -Ticks의 1/4에서 나갔다가 같은 이름으로 다시 들어오고,
-#   매치가 시작된 뒤 새 클라이언트(late) 하나가 빈 슬롯으로 들어온다. 끝까지 간 피어가 모두 같은 해시면 PASS
-# 호스트 이전 시험은 -HostLeave (클라이언트 2명 이상): 호스트가 -Ticks의 1/4에서 정상으로 나가고(Handoff), 이어받은
-#   클라이언트가 1/2에서 튕긴다(--abort-host-at, 그때 호스트인 쪽만). 남은 클라이언트가 모두 끝까지 같은 해시이고 두 번 넘어갔으면 PASS
+# To test a game project's executable: -Exe <project>\build\Release\bin\<name>.exe
+# To pit against a build from another compiler: -ClientExe build\ClangCL\bin\sandbox.exe (host is -Exe, clients use this)
+# To simulate distant peers/loss: -Lag <ms> -Jitter <ms> -Loss <%> (--net-lag etc. on all processes)
+# To run without windows (headless): -Headless (adds --headless to each executable. Runs as fast as input allows)
+# Desync diagnostics test with -DesyncTest <tick>: client 1 perturbs physics slightly at that tick (--desync-test). PASS if everyone detects the desync, each peer
+#   writes a dump to build\desync, and tools\desync_diff.ps1 pinpoints that tick as the first diverged tick
+# Late join/reconnect test with -LateJoin: client 1 (--name c1) leaves at 1/4 of -Ticks and rejoins with the same name,
+#   and after the match starts a new client (late) joins an empty slot. PASS if all peers that reached the end have the same hash
+# Host migration test with -HostLeave (2+ clients): the host leaves normally at 1/4 of -Ticks (Handoff), and the successor
+#   client crashes at 1/2 (--abort-host-at, only whoever is host then). PASS if all remaining clients have the same hash to the end and it migrated twice
 param(
     [int]$Clients = 1,
     [int]$Ticks = 900,
-    [int]$Bodies = 0, # 0 = 씬이 정한 상자 수
+    [int]$Bodies = 0, # 0 = box count decided by the scene
     [int]$Port = 27115,
     [string]$Config = "Release",
     [string]$Exe = "",
     [string]$ClientExe = "",
     [string]$Scene = "",
     [string]$Tuning = "",
-    [int]$Lag = 0,      # 네트워크 상태 흉내 (ms, 모든 프로세스: --net-lag)
+    [int]$Lag = 0,      # network condition simulation (ms, all processes: --net-lag)
     [int]$Jitter = 0,   # --net-jitter (ms)
     [double]$Loss = 0,  # --net-loss (%)
     [switch]$Headless,
@@ -44,7 +44,7 @@ if ($ClientExe -ne "") {
     Write-Host "host:    $exe"
     Write-Host "clients: $clientPath"
 }
-# 로그: <build 폴더>\mp_test (실행 파일은 <build>\<Config>\bin 에 있다)
+# Logs: <build folder>\mp_test (executables are in <build>\<Config>\bin)
 $logDir = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe))) "mp_test"
 New-Item -ItemType Directory -Force $logDir | Out-Null
 
@@ -76,17 +76,17 @@ for ($i = 1; $i -le $Clients; $i++) {
     if ($LateJoin -and $i -eq 1) { $leaver = $p } else { $procs += $p }
 }
 if ($LateJoin) {
-    # 새 사람: 매치가 시작되고 조금 뒤. 다시 들어오는 사람: 클라이언트 1이 나간 뒤 같은 이름으로
+    # Newcomer: shortly after the match starts. Rejoiner: with the same name after client 1 leaves
     Start-Sleep -Milliseconds 1500
     $procs += Start-Process -FilePath $clientPath -PassThru -NoNewWindow -ArgumentList "--join 127.0.0.1:$Port --threads 2 $common" `
         -RedirectStandardOutput "$logDir\late.txt" -RedirectStandardError "$logDir\late_err.txt"
     if (-not $leaver.WaitForExit(60000)) { $leaver.Kill() }
-    Start-Sleep -Milliseconds 1500 # 다시 켜는 시간: 끊김 알림이 사라져도(-Loss, -Lag) 예전 연결이 조용해져 같은 이름이 슬롯을 받는다
+    Start-Sleep -Milliseconds 1500 # restart time: even if the disconnect notice is lost (-Loss, -Lag), the old connection goes quiet so the same name gets the slot
     $procs += Start-Process -FilePath $clientPath -PassThru -NoNewWindow -ArgumentList "--join 127.0.0.1:$Port --threads 1 --name c1 $common" `
         -RedirectStandardOutput "$logDir\rejoin.txt" -RedirectStandardError "$logDir\rejoin_err.txt"
 }
 
-$timeoutMs = [int](($Ticks / 30.0 + 30) * 1000 * (1 + ($Lag + $Jitter) / 100.0)) # 지연이 입력 지연보다 크면 매치가 느려진다
+$timeoutMs = [int](($Ticks / 30.0 + 30) * 1000 * (1 + ($Lag + $Jitter) / 100.0)) # if the lag exceeds the input delay, the match slows down
 foreach ($p in $procs) {
     if (-not $p.WaitForExit($timeoutMs)) { $p.Kill(); Write-Warning "Process $($p.Id) timed out" }
 }
@@ -97,7 +97,7 @@ if ($LateJoin) {
     $names = @($names | Where-Object { $_ -ne "client1" }) + @("late", "rejoin")
     $players = $names.Count
 }
-if ($HostLeave) { # 나간 호스트와 튕긴 승계자(누가 될지는 접속 순서)는 끝까지 가지 않는다
+if ($HostLeave) { # the host that left and the crashed successor (who it is depends on connection order) don't reach the end
     $names = @($names | Where-Object { $_ -ne "host" -and -not (Select-String -Path "$logDir\${_}_err.txt" -Pattern "--abort-host-at" -Quiet) })
     $players = $names.Count
     $took = @(Select-String -Path ($names | ForEach-Object { "$logDir\${_}_err.txt" }) -Pattern "takes over the session").Count
@@ -112,7 +112,7 @@ foreach ($n in $names) {
 }
 
 if ($DesyncTest -gt 0) {
-    # 덤프는 실행 파일의 프로젝트 폴더 build\desync (seed 12345 = 3039)
+    # Dumps go to build\desync in the executable's project folder (seed 12345 = 3039)
     $dumpDir = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe))) "desync"
     $dumps = @(Get-ChildItem $dumpDir -Filter "desync_0000000000003039_t*.txt" -ErrorAction SilentlyContinue |
         Where-Object { $_.LastWriteTime -ge $started })

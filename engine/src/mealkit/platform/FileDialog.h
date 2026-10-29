@@ -2,18 +2,18 @@
 
 #include <string>
 
-// 파일·폴더 고르기 대화상자 (에디터). 지금은 Windows 구현만 있다 (다른 OS 에디터는 5단계).
-// 경로는 UTF-8. 취소하면 빈 문자열. owner는 Window::nativeHandle().
+// File/folder picker dialogs (editor). Only a Windows implementation for now (editors on other OSes in stage 5).
+// Paths are UTF-8. Empty string on cancel. owner is Window::nativeHandle().
 namespace mealkit {
 
 struct FileFilter {
     const char* name;     // "MealKit scene (*.scene)"
-    const char* patterns; // "*.scene" (여러 개는 "*.glb;*.gltf")
+    const char* patterns; // "*.scene" (multiple as "*.glb;*.gltf")
 };
 
 std::string openFileDialog(void* owner, const std::string& initialPath, const std::string& initialFolder,
                            const FileFilter* filters, int filterCount);
-// defaultExtension: 확장자 없이 이름만 적으면 붙일 것 ("scene")
+// defaultExtension: appended when only a name without an extension is typed ("scene")
 std::string saveFileDialog(void* owner, const std::string& initialPath, const std::string& initialFolder,
                            const FileFilter* filters, int filterCount, const char* defaultExtension);
 std::string pickFolderDialog(void* owner, const std::string& initialFolder);

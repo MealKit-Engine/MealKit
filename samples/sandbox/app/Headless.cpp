@@ -16,30 +16,30 @@ using namespace mealkit;
 namespace sandbox {
 namespace {
 
-constexpr u32 kDefaultBoxes = 2000; // --match-data(창 있는 게임은 --bodies)가 없을 때 상자 수
+constexpr u32 kDefaultBoxes = 2000; // box count without --match-data (--bodies for windowed games)
 
 i8 quantize(f32 v) { return static_cast<i8>(std::lround(std::clamp(v, -1.0f, 1.0f) * 127.0f)); }
 
 } // namespace
 
-// 상자 수는 씬의 상자 생성 영역이 정한다. matchData(--match-data, 창 있는 게임은 --bodies)가 0이 아니면 그 수로 맞춘다 (성능 측정).
-// 표는 매치마다 파일에서 읽는다 (매치 단위 적재, docs/CODING_MODEL.md "에셋 참조와 적재").
+// Box count is decided by the scene's box spawn areas. If matchData (--match-data, --bodies for windowed games) isn't 0, it's set to that count (performance measurement).
+// Tables are read from files every match (per-match loading, docs/CODING_MODEL.md "Asset references and loading").
 void Headless::startWorld(World& world, const game::MatchInfo& match, const Tuning& tuning,
                           const scene::Scene& flatScene, asset::ModelCache& models, u32 physicsThreads) {
     sim::Table<PropKind> propKinds;
     data::loadTable(propKinds);
     sim::Table<BodyKind> bodyKinds;
     data::loadTable(bodyKinds);
-    std::vector<u32> bodies(match.playerCount, 0u); // 매치 시작 데이터 (보내지 않은 플레이어는 첫 몸)
+    std::vector<u32> bodies(match.playerCount, 0u); // match start data (players who didn't send one get the first body)
     for (u32 p = 0; p < match.playerCount; ++p) {
         Loadout l;
         if (game::readLoadout(match, p, l)) bodies[p] = l.body;
     }
     world.reset(match.seed, match.playerCount, match.matchData, tuning, propKinds, bodyKinds, bodies, flatScene, models,
-                reflect::tickRate(), physicsThreads); // 틱레이트: mealkit.project (콘텐츠 해시에 들어간다)
+                reflect::tickRate(), physicsThreads); // tick rate: mealkit.project (goes into the content hash)
 }
 
-// 시뮬레이션 밖이라 삼각함수를 써도 된다 (결과 바이트만 입력으로 들어간다)
+// Outside the simulation, so trig is fine (only the resulting bytes go in as input)
 net::PlayerInput Headless::botInput(u32 tick, u8 player) {
     GameInput g;
     const f32 a = static_cast<f32>(tick) * 0.05f + static_cast<f32>(player) * 1.7f;
@@ -58,7 +58,7 @@ void Headless::botCommands(u32 tick, u8 player, net::LockstepSession& session) {
 
 void Headless::botLoadout(u8 player, net::LockstepSession& session) {
     Loadout l;
-    l.body = player % 3u; // normal, light, heavy (bodies.table 순서)
+    l.body = player % 3u; // normal, light, heavy (bodies.table order)
     game::setLoadout(session, l);
 }
 

@@ -5,7 +5,7 @@
 
 namespace mealkit {
 
-// 창 없이 명령을 실행하고 stdout/stderr를 모은다 (에디터의 게임 빌드용). 블로킹하지 않는다.
+// Runs a command without a window and collects stdout/stderr (for the editor's game builds). Non-blocking.
 class ChildProcess {
 public:
     ChildProcess() = default;
@@ -13,9 +13,9 @@ public:
     ChildProcess(const ChildProcess&) = delete;
     ChildProcess& operator=(const ChildProcess&) = delete;
 
-    // commandLine은 cmd.exe /c 로 실행된다 (UTF-8). 이미 실행 중이면 false.
+    // commandLine runs via cmd.exe /c (UTF-8). false if already running.
     bool start(const std::string& commandLine, const std::string& workingDirectory);
-    // 새로 나온 출력을 out 끝에 붙인다 (줄 단위, UTF-8로 변환). 아직 실행 중이면 true.
+    // Appends newly produced output to the end of out (line based, converted to UTF-8). true if still running.
     bool poll(std::string& out);
     bool running() const { return m_process != nullptr; }
     int exitCode() const { return m_exitCode; }
@@ -25,13 +25,13 @@ private:
     void close();
 
     void* m_process = nullptr; // HANDLE
-    void* m_pipe = nullptr;    // HANDLE (읽기 쪽)
-    std::string m_partial;     // 아직 줄바꿈이 오지 않은 바이트
+    void* m_pipe = nullptr;    // HANDLE (read end)
+    std::string m_partial;     // bytes for which no newline has come yet
     int m_exitCode = 0;
 };
 
-// 프로그램 여러 개를 띄우고 한꺼번에 닫는다 (에디터 여러 명 플레이의 참가 창).
-// Job 개체에 넣으므로 에디터가 비정상 종료해도 같이 닫힌다. 각 프로세스의 stdout/stderr는 logPath 파일로 간다.
+// Launches several programs and closes them all at once (join windows of editor multiplayer play).
+// They're put in a Job object, so they close too if the editor exits abnormally. Each process's stdout/stderr goes to the logPath file.
 class ProcessGroup {
 public:
     ProcessGroup() = default;
@@ -41,7 +41,7 @@ public:
 
     bool launch(const std::string& exe, const std::string& arguments, const std::string& workingDirectory,
                 const std::string& logPath);
-    unsigned running() const; // 아직 살아 있는 프로세스 수
+    unsigned running() const; // number of processes still alive
     void terminateAll();
 
 private:
@@ -49,10 +49,10 @@ private:
     std::vector<void*> m_processes; // HANDLE
 };
 
-// 탐색기로 폴더를 연다.
+// Opens a folder in Explorer.
 void openInExplorer(const std::string& path);
 
-// 프로그램을 새 프로세스로 실행하고 기다리지 않는다. arguments는 그대로 명령줄에 붙는다 (따옴표는 호출하는 쪽에서).
+// Runs a program as a new process without waiting. arguments are appended to the command line as is (quoting is up to the caller).
 bool launchDetached(const std::string& exe, const std::string& arguments, const std::string& workingDirectory);
 
 } // namespace mealkit

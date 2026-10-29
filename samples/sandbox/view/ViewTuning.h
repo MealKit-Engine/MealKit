@@ -6,9 +6,9 @@
 
 #include <array>
 
-// 화면용 튜닝: assets/view.tuning (에디터 [튜닝] 패널의 "화면" 탭에서 고친다). 보이기만 하는 값(카메라, 색, 효과)을 둔다.
-// 콘텐츠 해시에 들어가지 않아 여러 명 플레이 중에도 바로 바뀐다. 화면 쪽(view/)이 ctx.viewTuning<ViewTuning>()으로 읽는다.
-// sim/에서는 읽을 수 없다 (SimCheck가 view/ 헤더를 막는다). 게임 규칙 값은 sim/Tuning.h.
+// View tuning: assets/view.tuning (edited in the "View" tab of the editor [Tuning] panel). Holds display-only values (camera, colors, effects).
+// Not in the content hash, so it changes immediately even during multiplayer play. The view side (view/) reads it with ctx.viewTuning<ViewTuning>().
+// Can't be read from sim/ (SimCheck blocks view/ headers). Game rule values are in sim/Tuning.h.
 namespace sandbox {
 
 using mealkit::Color;
@@ -29,7 +29,7 @@ MEALKIT_STRUCT(CameraTuning) {
     MEALKIT_FIELD(f32, farPlane, 1000.0f, "먼 자르기 면 (m)");
 };
 
-// 캐릭터 겉모습 (상자 조합. 모델 에셋이 생기면 모델로 바꾼다)
+// Character appearance (a combination of boxes. Switch to a model when model assets exist)
 MEALKIT_STRUCT(PawnLook) {
     MEALKIT_FIELD(Vec3, bodySize, (Vec3{0.8f, 1.8f, 0.8f}), "몸 크기 (m)");
     MEALKIT_FIELD(Vec3, visorOffset, (Vec3{0.0f, 0.45f, 0.4f}), "얼굴 위치 (몸 기준)");
@@ -43,7 +43,7 @@ MEALKIT_STRUCT(PawnLook) {
     MEALKIT_FIELD(Color, markerColor, (Color::rgb(255, 230, 80)), "내 캐릭터 표시 색");
     MEALKIT_FIELD(f32, hitFlash, 0.8f, "밀쳐졌을 때 번쩍임 세기 (0..1)");
     MEALKIT_FIELD(f32, hitFlashSeconds, 0.2f, "밀쳐졌을 때 번쩍임이 사라지는 시간 (초)");
-    // 스킨 모델 (비면 상자 몸 + 얼굴). 발이 원점이고 몸 중심에서 footOffset만큼 아래에 그린다
+    // Skinned model (if empty, box body + face). Feet are at the origin, drawn footOffset below the body center
     MEALKIT_FIELD(std::string, model, "models/characters/rig_figure.glb", "캐릭터 모델 (스킨, 비면 상자)");
     MEALKIT_FIELD(f32, footOffset, 0.9f, "몸 중심에서 발까지 (m)");
     MEALKIT_FIELD(std::string, idleClip, "idle", "서 있을 때 클립");
@@ -63,7 +63,7 @@ MEALKIT_STRUCT(ShockwaveLook) {
     MEALKIT_FIELD(Color, color, (Color::rgb(255, 240, 200)), "색");
 };
 
-// 내 캐릭터 겉모습만 미리 움직이기 (입력 지연을 가린다, 시뮬레이션은 그대로): 보냈지만 아직 실행되지 않은 내 입력만큼 앞서 그린다
+// Moves only my character's appearance ahead (hides input delay, the simulation is unchanged): drawn ahead by my inputs sent but not yet executed
 MEALKIT_STRUCT(PredictionLook) {
     MEALKIT_FIELD(bool, enabled, true, "켜기");
     MEALKIT_FIELD(f32, maxOffset, 1.5f, "확정 위치에서 가장 멀리 (m, 충돌로 어긋나도 크게 튀지 않게)");

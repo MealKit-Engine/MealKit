@@ -1,4 +1,4 @@
-// 플레이어 슬롯·컨트롤러·Pawn: 빙의, 이동, 점프, 밀치기, 점프대, 떨어지면 리스폰 대기, AI.
+// Player slots, controllers, Pawns: possession, movement, jumping, pushing, jump pads, respawn wait after falling, AI.
 #include "sim/Systems.h"
 
 #include "sim/Loadout.h"
@@ -17,23 +17,23 @@ const BodyKind* bodyOf(const World& world, u8 player) {
 
 namespace {
 
-// 이번 틱에 Pawn이 하려는 것 (사람은 입력에서, AI는 판단에서)
+// What a Pawn wants to do this tick (humans from input, AI from decisions)
 struct Intent {
-    Vec3 wish; // 수평 이동 방향, 길이 0..1
+    Vec3 wish; // horizontal move direction, length 0..1
     bool jump = false;
     bool push = false;
 };
 
 Intent intentFromInput(const GameInput& in) {
     Intent i;
-    constexpr f32 kAxis = 127.0f; // const-ok: 입력 양자화 (i8 -127..127 → -1..1)
+    constexpr f32 kAxis = 127.0f; // const-ok: input quantization (i8 -127..127 → -1..1)
     i.wish = {static_cast<f32>(in.moveX) / kAxis, 0.0f, static_cast<f32>(in.moveZ) / kAxis};
     i.jump = (in.buttons & kButtonJump) != 0;
     i.push = (in.buttons & kButtonPush) != 0;
     return i;
 }
 
-// AI: 가끔 근처의 새 목표 지점을 고르고 그쪽으로 걷는다. 목표를 바꿀 때 가끔 점프하거나 밀친다.
+// AI: occasionally picks a new nearby target point and walks toward it. Sometimes jumps or pushes when changing targets.
 Intent thinkAI(World& world, Controller& c, const Pawn& pawn) {
     const Tuning& t = world.tuning;
     const u32 tick = world.state.tick;
@@ -58,7 +58,7 @@ Intent thinkAI(World& world, Controller& c, const Pawn& pawn) {
 void movePawn(World& world, Pawn& p, const Intent& intent, u8 player) {
     const Tuning& t = world.tuning;
     const BodyKind* body = bodyOf(world, player);
-    const f32 speed = t.playerSpeed * (body ? body->speedScale : 1.0f); // 몸 종류 (로드아웃)
+    const f32 speed = t.playerSpeed * (body ? body->speedScale : 1.0f); // body kind (loadout)
     Vec3 wish = intent.wish;
     const f32 wishLen2 = mealkit::lengthSq(wish);
     if (wishLen2 > 1.0f) wish = wish / std::sqrt(wishLen2);
@@ -81,7 +81,7 @@ void movePawn(World& world, Pawn& p, const Intent& intent, u8 player) {
 
 } // namespace
 
-// 씬의 스폰 지점을 차례로 쓰고, 지점보다 많으면 옆으로 비켜 선다. 스폰 지점이 없는 씬은 원점에서 옆으로 줄 선다.
+// Uses the scene's spawn points in turn, stepping aside if there are more than points. Scenes without spawn points line up sideways from the origin.
 Vec3 spawnPosition(const World& world, u32 index) {
     const Tuning& t = world.tuning;
     if (world.spawns.empty()) return {static_cast<f32>(index) * t.spawnSpacing, t.pawnHalfHeight, 0.0f};
@@ -101,7 +101,7 @@ u8 pawnPlayer(const WorldState& state, const Pawn& pawn) {
     return c && c->kind == ControllerKind::Player ? static_cast<u8>(c->slot) : kNoPlayer;
 }
 
-// 플레이어 슬롯마다 컨트롤러 하나, 그다음 AI 컨트롤러 (만드는 순서 = 처리 순서)
+// One controller per player slot, then AI controllers (creation order = processing order)
 void createControllers(World& world) {
     WorldState& s = world.state;
     for (u32 slot = 0; slot < s.playerCount; ++slot) {
@@ -120,7 +120,7 @@ void createControllers(World& world) {
     }
 }
 
-// 회전이 잠긴 캡슐. 속도를 직접 정해 움직이고, 물리적으로 상자를 밀어낸다.
+// A capsule with locked rotation. Moved by setting velocity directly, and physically pushes boxes away.
 Id<Pawn> spawnPawn(World& world, const Vec3& position, f32 massScale) {
     mealkit::physics::BodyDesc d;
     d.position = position;
@@ -153,12 +153,12 @@ void unpossess(World& world, Id<Controller> controller) {
     c->pawn = {};
 }
 
-// 리스폰 대기가 끝난 컨트롤러에 새 Pawn을 만들어 빙의시킨다 (매치 시작 때도 이것으로 처음 Pawn을 만든다)
+// Creates a new Pawn and possesses it for controllers whose respawn wait has ended (the first Pawns at match start are made this way too)
 void respawnPawns(World& world) {
     WorldState& s = world.state;
     for (auto [id, c] : s.controllers) {
         if (s.pawns.alive(c.pawn) || !c.respawn.ready(s.tick)) continue;
-        if (c.kind == ControllerKind::Player && !s.slots[c.slot].connected) continue; // 끊긴 사람은 다시 들어올 때까지
+        if (c.kind == ControllerKind::Player && !s.slots[c.slot].connected) continue; // disconnected players wait until they rejoin
         const Vec3 at = spawnPosition(world, c.spawnIndex);
         const u8 player = c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer;
         const BodyKind* body = bodyOf(world, player);
@@ -170,8 +170,8 @@ void respawnPawns(World& world) {
 
 void controlPawns(World& world) {
     WorldState& s = world.state;
-    const bool playing = matchPlaying(world); // 카운트다운·끝난 뒤에는 서서 기다린다 (AI 판단도 멈춘다)
-    for (auto [id, c] : s.controllers) { // 컨트롤러 순서 = 플레이어 슬롯 순서, 그다음 AI
+    const bool playing = matchPlaying(world); // during countdown and after the end, stand and wait (AI decisions stop too)
+    for (auto [id, c] : s.controllers) { // controller order = player slot order, then AI
         Pawn* p = s.pawns.get(c.pawn);
         if (!p) continue;
         if (c.kind == ControllerKind::Player)
@@ -186,7 +186,7 @@ void usePads(World& world) {
     for (auto [padId, pad] : s.pads) {
         if (!pad.ready.ready(tick)) continue;
         const f32 top = pad.center.y + pad.halfExtents.y;
-        for (auto [pawnId, p] : s.pawns) { // Pawn 슬롯 순서
+        for (auto [pawnId, p] : s.pawns) { // Pawn slot order
             const f32 feet = p.position.y - world.tuning.pawnHalfHeight;
             const Vec3 d = p.position - pad.center;
             const bool over = d.x <= pad.halfExtents.x && -d.x <= pad.halfExtents.x && d.z <= pad.halfExtents.z &&
@@ -202,7 +202,7 @@ void usePads(World& world) {
     }
 }
 
-// 경기 영역 바닥 아래로 떨어진 Pawn은 없애고, 컨트롤러는 리스폰을 기다린다 (그동안 관전)
+// Pawns that fell below the match area floor are removed, and controllers wait to respawn (spectating meanwhile)
 void removeFallenPawns(World& world) {
     WorldState& s = world.state;
     for (auto [pawnId, p] : s.pawns) {
@@ -212,14 +212,14 @@ void removeFallenPawns(World& world) {
             c->respawn.start(s.tick, world.tuning.respawn);
             unpossess(world, p.owner);
         }
-        if (player != kNoPlayer && matchPlaying(world)) ++s.slots[player].falls; // 점수는 경기 중에만
+        if (player != kNoPlayer && matchPlaying(world)) ++s.slots[player].falls; // score only during play
         world.events.push(makeEvent(EventKind::Fall, player, p.position, 0.0f));
-        s.pawns.destroy(pawnId); // 바디는 틱 끝에 지운다 (World::step)
+        s.pawns.destroy(pawnId); // the body is deleted at the end of the tick (World::step)
     }
 }
 
-// 매치 중에 들어온 사람: 새 슬롯이면 컨트롤러를 만들고(다음 틱에 Pawn), 다시 들어온 사람은 그 슬롯을 다시 켠다.
-// 끊긴 사람의 Pawn은 지운다 (점수·슬롯은 남는다)
+// Someone joined mid-match: for a new slot, create a controller (Pawn on the next tick); for a rejoin, re-enable that slot.
+// A disconnected player's Pawn is deleted (score/slot remain)
 void setPresence(World& world, const mealkit::sim::Presence& presence) {
     WorldState& s = world.state;
     if (presence.player >= mealkit::net::kMaxPlayers) return;
@@ -237,16 +237,16 @@ void setPresence(World& world, const mealkit::sim::Presence& presence) {
         return;
     }
     slot.connected = true;
-    if (presence.player < s.playerCount && s.controllers.alive(slot.controller)) return; // 다시 들어왔다
+    if (presence.player < s.playerCount && s.controllers.alive(slot.controller)) return; // rejoined
     s.playerCount = std::max(s.playerCount, presence.player + 1u);
     Loadout l;
     slot.body = presence.readLoadout(l) && l.body < world.bodyKinds.size() ? l.body : 0u;
     if (s.controllers.count() >= s.controllers.capacity()) s.controllers.grow(s.controllers.capacity() + 1);
-    s.pawns.grow(s.controllers.capacity() * 2); // World::reset과 같은 비율
+    s.pawns.grow(s.controllers.capacity() * 2); // same ratio as World::reset
     Controller c;
     c.kind = ControllerKind::Player;
     c.slot = presence.player;
-    c.spawnIndex = s.controllers.count(); // 지금 있는 컨트롤러와 겹치지 않는 스폰 자리
+    c.spawnIndex = s.controllers.count(); // a spawn spot that doesn't overlap existing controllers
     slot.controller = s.controllers.create(c);
 }
 

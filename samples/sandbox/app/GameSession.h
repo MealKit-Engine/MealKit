@@ -25,16 +25,16 @@
 #include <string>
 #include <vector>
 
-// 한 판의 진행: 확정된 틱마다 시뮬레이션(sim/)을 돌리고 로컬 입력을 보내며, 화면(view/)을 그린다.
-// 출시용 게임(main.cpp)은 이 클래스를 직접 쓰고, 범용 에디터는 게임 DLL(GameModule.cpp)을 통해 쓴다.
+// Running one match: runs the simulation (sim/) every confirmed tick, sends local input, and draws the view (view/).
+// The shipping game (main.cpp) uses this class directly, and the general-purpose editor uses it through the game DLL (GameModule.cpp).
 namespace sandbox {
 
 class GameSession final : public mealkit::game::GameInstance {
 public:
-    using TuningType = Tuning;                   // 에디터 [튜닝] 패널 (MEALKIT_GAME_MODULE이 읽는다)
-    using ProjectSettingsType = ProjectSettings; // 에디터 [프로젝트 설정] 창의 게임 항목
-    using ViewTuningType = ViewTuning;           // 화면용 튜닝 (assets/view.tuning, [튜닝] 패널 "화면" 탭)
-    using EventType = GameEvent;                 // 틱 이벤트 ([연출] 패널, assets/feedback.table)
+    using TuningType = Tuning;                   // editor [Tuning] panel (read by MEALKIT_GAME_MODULE)
+    using ProjectSettingsType = ProjectSettings; // game items in the editor [Project Settings] window
+    using ViewTuningType = ViewTuning;           // view tuning (assets/view.tuning, "View" tab of the [Tuning] panel)
+    using EventType = GameEvent;                 // tick events ([Feedback] panel, assets/feedback.table)
 
     GameSession() = default;
     GameSession(const GameSession&) = delete;
@@ -44,13 +44,13 @@ public:
                const mealkit::game::PlayOptions& options) override;
     bool started() const override { return m_sim.started(); }
     void stop(mealkit::game::GameContext& ctx) override;
-    bool menus() const override { return true; } // 타이틀·메뉴·로비·결과 화면 (app/Flow.cpp)
+    bool menus() const override { return true; } // title/menu/lobby/results screens (app/Flow.cpp)
     void update(mealkit::game::GameContext& ctx, mealkit::f64 dt) override;
     void buildFrame(mealkit::game::GameContext& ctx, mealkit::f64 now, mealkit::render::FrameParams& frame,
                     mealkit::render::DrawList& out) override;
 
     u32 nextTick() const override { return m_sim.nextTick(); }
-    // 매치 전(메뉴·로비·로딩)에도 불린다
+    // Also called before the match (menu/lobby/loading)
     u64 stateHash() const override { return m_sim.started() ? m_sim.world().hash() : 0; }
     u32 activeBodies() const override { return m_sim.started() ? m_sim.world().activeBodies() : 0; }
     bool finished() const override { return m_sim.finished(); }
@@ -68,31 +68,31 @@ public:
     void debugUi(mealkit::game::GameContext& ctx) override;
 
 private:
-    // 고정 틱 실행, 보간용 직전 상태, 그림자 시뮬레이션, 기록·되감기 (엔진 mealkit/game/Simulation.h)
+    // Fixed tick execution, previous state for interpolation, shadow simulation, recording/rewind (engine mealkit/game/Simulation.h)
     mealkit::game::Simulation<World> m_sim;
-    Flow m_flow; // 화면 흐름 (메뉴, 로비, 일시정지, 결과)
-    mealkit::scene::Scene m_scene;                       // 평평하게 펼친 매치 씬 (메뉴 뒤에도 그린다)
-    const mealkit::scene::Scene* m_sceneSource = nullptr; // m_scene을 만든 원본
+    Flow m_flow; // screen flow (menu, lobby, pause, results)
+    mealkit::scene::Scene m_scene;                       // the flattened match scene (also drawn behind menus)
+    const mealkit::scene::Scene* m_sceneSource = nullptr; // the source m_scene was made from
     mealkit::game::PlayOptions m_options;
     OrbitCamera m_camera;
     LocalInput m_input;
-    LocalPrediction m_prediction; // 내 캐릭터 겉모습만 미리 움직이기 (입력 지연을 가린다)
+    LocalPrediction m_prediction; // moves only my character's appearance ahead (hides input delay)
     WorldView m_view;
-    std::vector<mealkit::render::ReflectionProbe> m_probes; // 반사 프로브 (프레임마다 채운다)
-    std::vector<mealkit::render::PointLight> m_lights;      // 점광원 (프레임마다 채운다)
-    Vec3 m_focus{0.0f, 1.0f, 0.0f}; // 카메라가 따라가는 점 (내 Pawn이 없으면 마지막 위치)
-    Effects m_effects;              // 틱 이벤트 → 화면 효과
-    mealkit::f64 m_viewTime = 0.0;  // 화면 효과용 시계 (update의 dt 합)
-    mealkit::audio::Handle m_music; // 배경음 (매치 동안)
-    // 게임 화면 UI (assets/ui): HUD와 캐릭터 위 이름표 (월드 위 UI)
+    std::vector<mealkit::render::ReflectionProbe> m_probes; // reflection probes (filled every frame)
+    std::vector<mealkit::render::PointLight> m_lights;      // point lights (filled every frame)
+    Vec3 m_focus{0.0f, 1.0f, 0.0f}; // point the camera follows (last position if I have no Pawn)
+    Effects m_effects;              // tick events → view effects
+    mealkit::f64 m_viewTime = 0.0;  // clock for view effects (sum of update dt)
+    mealkit::audio::Handle m_music; // background music (during the match)
+    // Game screen UI (assets/ui): HUD and name tags above characters (world-space UI)
     mealkit::u32 m_hud = 0, m_nameTag = 0;
     HudVm m_hudVm;
-    // 진행 데이터 (saves/progress.save): 매치 시작·떨어질 때·30초마다 저장
+    // Progress data (saves/progress.save): saved at match start, on falls, and every 30 seconds
     SaveData m_save;
     bool m_saveLoaded = false;
     mealkit::f64 m_saveTimer = 0.0;
-    std::array<NameTagVm, mealkit::net::kMaxPlayers> m_tagVms; // drawAt이 그릴 때까지 살아 있어야 한다
-    // 화면 정지(히트 스톱) 동안 그리는 상태: 시작한 순간의 두 틱 상태와 보간 비율 (시뮬레이션은 계속 돈다)
+    std::array<NameTagVm, mealkit::net::kMaxPlayers> m_tagVms; // must live until drawAt draws them
+    // State drawn during hitstop: the two tick states and interpolation fraction at the moment it started (the simulation keeps running)
     bool m_frozen = false;
     WorldState m_frozenPrevious, m_frozenCurrent;
     f32 m_frozenAlpha = 1.0f;

@@ -1,11 +1,11 @@
 #pragma once
 
-// 엔진 버전: 저장소 루트의 VERSION 파일 (CMake가 MEALKIT_VERSION으로 넘긴다).
-// 게임 프로젝트의 mealkit.project engineVersion과 비교해, 다르면 에디터가 tools\upgrade_project.ps1을 권한다.
+// Engine version: the VERSION file at the repo root (CMake passes it as MEALKIT_VERSION).
+// Compared with the game project's mealkit.project engineVersion; if different, the editor suggests tools\upgrade_project.ps1.
 #ifndef MEALKIT_VERSION
 #define MEALKIT_VERSION "0.0.0"
 #endif
-// 이 엔진 버전의 문서 주소 (끝에 '/'). 메시지에서 MEALKIT_DOCS_URL "manual/multiplayer.html#steamworks"처럼 붙여 쓴다.
+// Docs address for this engine version (ending in '/'). Used in messages like MEALKIT_DOCS_URL "manual/multiplayer.html#steamworks".
 #ifndef MEALKIT_DOCS_URL
 #define MEALKIT_DOCS_URL "https://mealkit.readthedocs.io/en/latest/"
 #endif

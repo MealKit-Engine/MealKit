@@ -1,7 +1,7 @@
-// 출시용 게임 실행 파일의 진입점. 창·세션·화면 쪽 서비스·자동 시험 출력은 엔진이 한다 (mealkit/game/GameMain.h, --help).
-// 이 게임이 정하는 것은 GameSession(한 판 진행)과 Headless(매치 시작·봇 입력·기본 포트와 인원)뿐이다.
+// Entry point of the shipping game executable. Window, session, view-side services, and automated test output are handled by the engine (mealkit/game/GameMain.h, --help).
+// All this game decides is GameSession (running a match) and Headless (match start, bot input, default port and player count).
 //
-// 조작: WASD 이동, Space 점프, 왼쪽 클릭 밀치기, 오른쪽 드래그 카메라, 휠 줌, F8 디버그 충격파 (엔진 키: V 수직동기, F12 스크린샷, Esc 종료)
+// Controls: WASD move, Space jump, left click push, right drag camera, wheel zoom, F8 debug shockwave (engine keys: V vsync, F12 screenshot, Esc quit)
 
 #include "app/GameSession.h"
 #include "app/Headless.h"

@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-// 에디터 [소리] 패널: 소리 이벤트 미리듣기와 파라미터 슬라이더, 실제·가상 목소리 목록, 끊긴 소리와 이유, 버스 레벨과 볼륨.
-// 이벤트 자체는 저작 도구 MealKit Audio([도구] 메뉴)가 assets/sounds.events에서 고친다 (저장하면 오디오가 다시 읽어 플레이 중에도 바로 들린다).
+// Editor [Sound] panel: sound event preview with parameter sliders, real/virtual voice list, culled sounds and reasons, bus levels and volumes.
+// The events themselves are edited in assets/sounds.events by the authoring tool MealKit Audio ([Tools] menu) (saving makes audio reread them, so they're heard immediately even during play).
 namespace mealkit::editor {
 
 class SoundPanel {

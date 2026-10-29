@@ -4,37 +4,37 @@
 
 #include "mealkit/sim/Commands.h"
 
-// sim/ 시스템 함수. World::step()이 정해진 순서로 직접 부른다 (World.cpp). 각자 Update를 도는 방식은 쓰지 않는다.
-// 시스템끼리 알릴 일이 있으면 함수를 직접 호출한다 (예: controlPawns → pushProps).
+// sim/ system functions. World::step() calls them directly in a fixed order (World.cpp). Each-runs-its-own-Update style isn't used.
+// When systems need to notify each other, they call functions directly (e.g. controlPawns → pushProps).
 namespace sandbox {
 
 // Pawns.cpp
 Vec3 spawnPosition(const World& world, u32 index);
-void createControllers(World& world); // 매치 시작: 플레이어 슬롯마다 하나, 그다음 AI
+void createControllers(World& world); // match start: one per player slot, then AI
 Id<Pawn> spawnPawn(World& world, const Vec3& position, f32 massScale);
-const BodyKind* bodyOf(const World& world, u8 player); // 플레이어의 몸 종류 (AI나 표가 비면 nullptr)
+const BodyKind* bodyOf(const World& world, u8 player); // a player's body kind (nullptr for AI or an empty table)
 void possess(World& world, Id<Controller> controller, Id<Pawn> pawn);
 void unpossess(World& world, Id<Controller> controller);
-void respawnPawns(World& world);      // Pawn이 없고 리스폰 대기가 끝난 컨트롤러에 새 Pawn
-void controlPawns(World& world);      // 입력·AI → 속도, 점프, 밀치기
-void usePads(World& world);           // 점프대 위의 Pawn을 튕겨 올린다
-void removeFallenPawns(World& world); // 떨어진 Pawn을 없애고 리스폰을 기다린다
-void sensePawns(World& world);        // 물리 결과 → 위치, 속도, 접지
-void setPresence(World& world, const mealkit::sim::Presence& presence); // 매치 중 접속·끊김 (엔진 명령)
+void respawnPawns(World& world);      // a new Pawn for controllers without one whose respawn wait has ended
+void controlPawns(World& world);      // input/AI → velocity, jump, push
+void usePads(World& world);           // launches Pawns on jump pads upward
+void removeFallenPawns(World& world); // removes fallen Pawns and waits for respawn
+void sensePawns(World& world);        // physics results → position, velocity, grounded
+void setPresence(World& world, const mealkit::sim::Presence& presence); // connect/disconnect mid-match (engine command)
 
 // Match.cpp
-void startMatch(World& world);         // 매치 시작: 카운트다운 (World::reset)
-void updateMatch(World& world);        // 단계 바꾸기 (step 맨 앞, 명령 다음)
-bool matchPlaying(const World& world); // 경기 중 (입력·AI·점수가 이때만)
+void startMatch(World& world);         // match start: countdown (World::reset)
+void updateMatch(World& world);        // phase changes (at the start of step, after commands)
+bool matchPlaying(const World& world); // in play (input/AI/scoring only then)
 
 // Commands.cpp
-inline constexpr u32 kMaxShockwavePushes = 8; // 디버그 명령 하나가 밀 수 있는 횟수 (잘못된 값으로 멈추지 않게)
-void applyCommands(World& world, const mealkit::net::TickInputs& inputs); // 확정 명령 (step 맨 앞)
+inline constexpr u32 kMaxShockwavePushes = 8; // number of pushes one debug command can do (so a bad value doesn't stall)
+void applyCommands(World& world, const mealkit::net::TickInputs& inputs); // confirmed commands (at the start of step)
 
 // Props.cpp
-void spawnProps(World& world, u64 seed); // 상자 생성 영역마다 count개 (씬 순서, 같은 난수열)
+void spawnProps(World& world, u64 seed); // count boxes per box spawn area (scene order, same random sequence)
 void pushProps(World& world, const Vec3& center);
 void recoverFallenProps(World& world);
-void senseProps(World& world); // 물리 결과 → 위치, 회전
+void senseProps(World& world); // physics results → position, rotation
 
 } // namespace sandbox

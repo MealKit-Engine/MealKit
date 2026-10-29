@@ -17,7 +17,7 @@ std::wstring widen(const std::string& s) {
     return w;
 }
 
-// 컴파일러·cmd 출력은 콘솔 코드 페이지(한국어 Windows는 CP949)일 수 있다. UTF-8이 아니면 OEM 코드 페이지로 본다.
+// Compiler/cmd output may be in the console code page (CP949 on Korean Windows). If it isn't UTF-8, it's treated as the OEM code page.
 std::string toUtf8Line(const std::string& bytes) {
     if (bytes.empty()) return {};
     if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, bytes.data(), static_cast<int>(bytes.size()), nullptr, 0) >
@@ -66,7 +66,7 @@ bool ProcessGroup::launch(const std::string& exe, const std::string& arguments, 
         MEALKIT_ERROR("CreateProcess failed (%lu): %s %s", GetLastError(), exe.c_str(), arguments.c_str());
         return false;
     }
-    AssignProcessToJobObject(m_job, pi.hProcess); // 시작하기 전에 넣어야 손자 프로세스까지 묶인다
+    AssignProcessToJobObject(m_job, pi.hProcess); // must be assigned before starting so grandchild processes are included
     ResumeThread(pi.hThread);
     CloseHandle(pi.hThread);
     m_processes.push_back(pi.hProcess);
@@ -102,7 +102,7 @@ bool ChildProcess::start(const std::string& commandLine, const std::string& work
     SECURITY_ATTRIBUTES sa{sizeof(sa), nullptr, TRUE};
     HANDLE readPipe = nullptr, writePipe = nullptr;
     if (!CreatePipe(&readPipe, &writePipe, &sa, 0)) return false;
-    SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0); // 읽기 쪽은 자식에게 넘기지 않는다
+    SetHandleInformation(readPipe, HANDLE_FLAG_INHERIT, 0); // the read end isn't passed to the child
 
     STARTUPINFOW si{};
     si.cb = sizeof(si);
@@ -111,13 +111,13 @@ bool ChildProcess::start(const std::string& commandLine, const std::string& work
     si.hStdOutput = writePipe;
     si.hStdError = writePipe;
 
-    // /s: 바깥 따옴표 한 쌍만 벗긴다 → 경로에 공백이 있어도 "C:\a b\build.bat" Export 형태가 그대로 전달된다
+    // /s: strips only one pair of outer quotes → "C:\a b\build.bat" Export form is passed as is even with spaces in the path
     std::wstring cmd = L"cmd.exe /s /c \"" + widen(commandLine) + L"\"";
     const std::wstring dir = widen(workingDirectory);
     PROCESS_INFORMATION pi{};
     const BOOL ok = CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, TRUE, CREATE_NO_WINDOW, nullptr,
                                    dir.empty() ? nullptr : dir.c_str(), &si, &pi);
-    CloseHandle(writePipe); // 자식이 끝나면 파이프가 닫히도록 부모 쪽 쓰기 핸들은 바로 닫는다
+    CloseHandle(writePipe); // close the parent's write handle right away so the pipe closes when the child ends
     if (!ok) {
         MEALKIT_ERROR("CreateProcess failed (%lu): %s", GetLastError(), commandLine.c_str());
         CloseHandle(readPipe);
@@ -158,7 +158,7 @@ bool ChildProcess::poll(std::string& out) {
     if (!running()) return false;
     readAvailable(out, false);
     if (WaitForSingleObject(static_cast<HANDLE>(m_process), 0) != WAIT_OBJECT_0) return true;
-    readAvailable(out, true); // 끝나기 직전에 쓴 출력
+    readAvailable(out, true); // output written just before ending
     DWORD code = 0;
     GetExitCodeProcess(static_cast<HANDLE>(m_process), &code);
     m_exitCode = static_cast<int>(code);
@@ -166,7 +166,7 @@ bool ChildProcess::poll(std::string& out) {
     return false;
 }
 
-// 실행 중이면 기다리지 않고 놓아준다 (빌드는 끝까지 진행된다)
+// If running, let it go without waiting (the build continues to completion)
 void ChildProcess::close() {
     if (m_pipe) CloseHandle(static_cast<HANDLE>(m_pipe));
     if (m_process) CloseHandle(static_cast<HANDLE>(m_process));

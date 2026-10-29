@@ -25,7 +25,7 @@ void applyLights(const scene::Scene& scene, const WorldView& view, f64 viewTime,
                  render::FrameParams& frame) {
     lights.clear();
     render::addSceneLights(scene, lights);
-    for (const WorldView::Flash& f : view.flashes) { // 밀치기 순간의 잠깐 빛 (화면 쪽 효과, 0.25초에 꺼진다)
+    for (const WorldView::Flash& f : view.flashes) { // brief light at the moment of a push (view-side effect, off after 0.25 s)
         const f32 t = static_cast<f32>(viewTime - f.time) / 0.25f;
         if (t >= 0.0f && t < 1.0f) lights.push_back({f.position, 4.0f, Vec3{1.0f, 0.75f, 0.4f} * (6.0f * (1.0f - t))});
     }
@@ -43,7 +43,7 @@ void applyProbes(const scene::Scene& scene, asset::ModelCache& models, std::vect
 void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3& eye, f64 viewTime, render::DrawList& out) {
     const render::MeshId box = models.boxMesh();
     for (const scene::Entity& e : scene.entities) {
-        if (!scene::visibleInGame(e, &reflect::moduleObjectTypes())) continue; // 스폰 지점·영역은 게임에서 보이지 않음
+        if (!scene::visibleInGame(e, &reflect::moduleObjectTypes())) continue; // spawn points/areas are invisible in the game
         const asset::Model* model = e.model.empty() ? nullptr : models.get(e.model);
         const render::MeshId mesh = model ? models.pickLod(*model, eye, e.position, e.scale) : box;
         if (model) asset::addModel(out, *model, mesh, {e.position, e.color, e.rotation, e.scale, e.flags}, scene::animField(e), viewTime);
@@ -59,11 +59,11 @@ void onWorldEvent(const GameEvent& e, const WorldState& state, f64 viewTime, Wor
     for (auto [id, pawn] : state.pawns) {
         const Vec3 d = pawn.position - e.position;
         const f32 dist2 = d.x * d.x + d.y * d.y + d.z * d.z;
-        if (dist2 > 1e-4f && dist2 <= e.value * e.value) view.hitTime[id.slot] = viewTime; // 민 Pawn(거리 0)은 빼고
+        if (dist2 > 1e-4f && dist2 <= e.value * e.value) view.hitTime[id.slot] = viewTime; // excluding the pushing Pawn (distance 0)
     }
 }
 
-// 스킨 캐릭터 하나: 지금 클립(반복)과 직전 클립을 섞어 팔레트로 (클립 시계는 화면 시각, 캐릭터마다 같다)
+// One skinned character: blends the current clip (looping) and the previous clip into a palette (clip clock is view time, the same for every character)
 void drawFigure(const asset::Model& figure, const PawnLook& pl, const WorldView::Anim& anim, f64 viewTime,
                 const render::InstanceData& instance, render::DrawList& out) {
     thread_local std::vector<asset::JointPose> now, before, blended;
@@ -94,14 +94,14 @@ void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha,
     view.anims.resize(current.pawns.capacity());
     view.hitTime.resize(current.pawns.capacity(), -1.0);
     for (auto [id, b] : current.props) {
-        const Prop* before = previous.props.get(id); // 이번 틱에 생긴 상자는 직전 상태가 없다
+        const Prop* before = previous.props.get(id); // boxes created this tick have no previous state
         const Prop& a = before ? *before : b;
         out.add(box, {lerp(a.position, b.position, alpha), look.propColors[b.colorIndex % kPropColorCount].value,
                       nlerp(a.rotation, b.rotation, alpha), b.halfExtents * 2.0f, 0});
     }
     view.facing.resize(current.pawns.capacity(), 0.0f);
     for (auto [id, b] : current.pawns) {
-        const Pawn* before = previous.pawns.get(id); // 이번 틱에 생긴 Pawn은 직전 상태가 없다
+        const Pawn* before = previous.pawns.get(id); // Pawns created this tick have no previous state
         const Pawn& a = before ? *before : b;
         const u8 player = pawnPlayer(current, b);
         const Vec3 pos = lerp(a.position, b.position, alpha) + (player == localPlayer ? localOffset : Vec3{});
@@ -111,14 +111,14 @@ void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha,
             yaw = std::atan2(b.velocity.x, b.velocity.z);
         const Quat facing = quatFromAxisAngle({0, 1, 0}, yaw);
         const Color color = player != kNoPlayer ? look.playerColors[player % net::kMaxPlayers] : pl.aiColor;
-        // 밀쳐진 번쩍임: 인스턴스 값(스타일 프리셋)이라 머티리얼과 상관없이 흰색으로 섞인다
+        // Pushed flash: an instance value (style preset), so blended toward white regardless of material
         if (!before) view.hitTime[id.slot] = -1.0;
         const f64 sinceHit = viewTime - view.hitTime[id.slot];
         const f32 flash = view.hitTime[id.slot] >= 0.0 && sinceHit < pl.hitFlashSeconds
                               ? pl.hitFlash * (1.0f - static_cast<f32>(sinceHit) / pl.hitFlashSeconds)
                               : 0.0f;
         const u32 flags = render::instanceFlash(0, flash);
-        if (figure) { // 스킨 캐릭터: 서 있으면 idle, 움직이면 run, 바뀔 때 blendSeconds 동안 섞는다
+        if (figure) { // skinned character: idle when standing, run when moving, blended over blendSeconds when switching
             WorldView::Anim& anim = view.anims[id.slot];
             const bool running = b.velocity.x * b.velocity.x + b.velocity.z * b.velocity.z > pl.runSpeed * pl.runSpeed;
             if (!before) anim = {running, running, -100.0};
@@ -132,7 +132,7 @@ void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha,
             out.add(box, {pos, color.value, facing, pl.bodySize, flags});
             out.add(box, {pos + rotate(facing, pl.visorOffset), pl.visorColor.value, facing, pl.visorSize, flags});
         }
-        if (player == localPlayer) { // 내 캐릭터 표시
+        if (player == localPlayer) { // my character indicator
             const Quat spin = quatFromAxisAngle({0, 1, 0}, static_cast<f32>(now) * pl.markerSpin);
             const f32 size = pl.markerSize;
             out.add(box, {pos + Vec3{0, pl.markerHeight, 0}, pl.markerColor.value, spin, {size, size, size}, 0});

@@ -1,10 +1,10 @@
-// Penpot 도형 → 스냅샷 (model.ts). 플러그인 안(Penpot API)에서만 돈다. 'mixed' 같은 Penpot 값은 여기서 풀어
-// 변환기(convert.ts)는 단순한 JSON만 본다.
+// Penpot shapes → snapshot (model.ts). Runs only inside the plugin (Penpot API). Penpot values like 'mixed' are resolved here so
+// the converter (convert.ts) only sees simple JSON.
 
 import type { Board, Fill, Shape, Text, TextRange, Shadow as PShadow } from '@penpot/plugin-types';
 import type { MealkitData, SColor, SFill, SNode, STextRun } from './model.ts';
 
-export const kDataKey = 'mealkit'; // 도형의 플러그인 데이터 (JSON MealkitData)
+export const kDataKey = 'mealkit'; // the shape's plugin data (JSON MealkitData)
 
 export function readData(shape: Shape): MealkitData | undefined {
   const raw = shape.getPluginData(kDataKey);
@@ -73,7 +73,7 @@ function runOf(r: TextRange, start: number, end: number): STextRun {
   };
 }
 
-// 스타일 구간: 범위가 'mixed'면 반으로 나눠 다시 보고, 같은 스타일의 이웃 구간은 합친다
+// Style spans: if a range is 'mixed', split it in half and look again; adjacent spans with the same style are merged
 function textRuns(t: Text): STextRun[] {
   const out: STextRun[] = [];
   const walk = (start: number, end: number) => {
@@ -114,7 +114,7 @@ function rangeOr(t: Text, key: 'align', fallback: string | null): string | null 
 }
 
 export interface SnapOptions {
-  variants: boolean; // 컴포넌트 variants의 상태를 같이 (variants 안에서는 다시 하지 않는다)
+  variants: boolean; // include states from component variants too (not repeated inside variants)
 }
 
 export function snapshot(shape: Shape, board: Shape, opt: SnapOptions = { variants: true }): SNode {
@@ -150,7 +150,7 @@ export function snapshot(shape: Shape, board: Shape, opt: SnapOptions = { varian
     blur: !!shape.blur && !shape.blur.hidden && (shape.blur.value ?? 0) > 0,
     backgroundBlur: !!shape.backgroundBlur && !shape.backgroundBlur.hidden && (shape.backgroundBlur.value ?? 0) > 0,
     radius: [shape.borderRadiusTopLeft ?? 0, shape.borderRadiusTopRight ?? 0, shape.borderRadiusBottomRight ?? 0, shape.borderRadiusBottomLeft ?? 0],
-    // 네 모서리가 같은 토큰일 때만 $토큰 (다르면 숫자)
+    // $token only when all four corners have the same token (numbers otherwise)
     radiusToken:
       tokens['borderRadiusTopLeft'] && ['borderRadiusTopRight', 'borderRadiusBottomRight', 'borderRadiusBottomLeft'].every((k) => tokens[k as keyof typeof tokens] === tokens['borderRadiusTopLeft'])
         ? tokens['borderRadiusTopLeft']
@@ -205,19 +205,19 @@ export function snapshot(shape: Shape, board: Shape, opt: SnapOptions = { varian
     n.text = {
       characters: t.characters,
       growType: t.growType,
-      // 정렬은 문단(글자 범위)에 있다: 도형의 align은 문단과 다를 수 있다
+      // Alignment lives on the paragraph (text range): the shape's align may differ from the paragraph
       align: String(rangeOr(t, 'align', t.align) ?? 'left'),
       verticalAlign: String(t.verticalAlign ?? 'top'),
       runs: textRuns(t),
     };
   }
   if ('children' in shape && Array.isArray(shape.children)) {
-    // Penpot 자식 순서는 위(앞)에 그리는 것부터다. .ui는 먼저 쓴 것이 아래에 그려진다
+    // Penpot child order starts from what's drawn on top (front). In .ui, what's written first is drawn below
     const kids = [...shape.children].sort((a, b) => a.parentIndex - b.parentIndex);
     n.children = kids.map((c) => snapshot(c, board, { variants: opt.variants }));
   }
   if (opt.variants && shape.isComponentInstance()) {
-    // 컴포넌트가 variant이고 "state" 속성이 있으면, 다른 값의 variant들을 상태로
+    // If the component is a variant with a "state" property, variants with other values become states
     const comp = shape.component();
     if (comp && comp.isVariant() && comp.variants) {
       const prop = comp.variants.properties.find((p) => p.toLowerCase() === 'state');

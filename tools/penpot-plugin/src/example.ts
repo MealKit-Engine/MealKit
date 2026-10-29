@@ -1,10 +1,10 @@
-// "예제 화면 만들기": 지금 페이지에 일시정지 메뉴 모양의 보드를 Penpot API로 그린다.
-// 디자이너가 형식(Flex·Grid·글자 키·버튼 바인딩·구울 아이콘)을 보는 예제이자, 플러그인 시험용 화면이다.
+// "Create example screen": draws a pause-menu-shaped board on the current page with the Penpot API.
+// An example for designers to see the format (Flex/Grid/text keys/button bindings/icons to bake), and a screen for plugin tests.
 
 import type { Board, Shape, Text } from '@penpot/plugin-types';
 import { kDataKey } from './snapshot.ts';
 
-const font = 'Pretendard'; // 엔진 예제 프로젝트의 글꼴 (Penpot 팀 글꼴로 올려 두면 쓴다)
+const font = 'Pretendard'; // font of the engine sample project (used if uploaded as a Penpot team font)
 
 function text(characters: string, name: string, size: number, color: string): Text {
   const t = penpot.createText(characters);
@@ -65,7 +65,7 @@ export function createExample(): Board {
   const title = text('Paused', 'pause.title', 40, '#f2f4f8');
   panel.appendChild(title);
   fillWidth(title);
-  title.getRange(0, title.characters.length).align = 'center'; // 정렬은 문단에 (도형의 align만 바꾸면 그리지 않는다)
+  title.getRange(0, title.characters.length).align = 'center'; // alignment goes on the paragraph (changing only the shape's align doesn't render)
 
   for (const [name, label, action, color] of [
     ['resume', 'Resume', 'pause.resume', '#ffc83d'],
@@ -84,7 +84,7 @@ export function createExample(): Board {
     button.appendChild(t);
   }
 
-  // Grid: 왼쪽 열은 남는 자리, 오른쪽은 120 고정. 아래 칸은 두 열을 합친다
+  // Grid: the left column takes the remaining space, the right is fixed at 120. The bottom cell spans both columns
   const stats = board('stats', 428, 100, null);
   panel.appendChild(stats);
   fillWidth(stats);
@@ -116,7 +116,7 @@ export function createExample(): Board {
   wide.fills = [{ fillColor: '#ffc83d', fillOpacity: 1 }];
   grid.appendChild(wide, 2, 2);
 
-  // 아이콘 (패스 → PNG로 굽는다)
+  // Icon (path → baked to PNG)
   const icon = penpot.createShapeFromSvg(
     '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M6 4h4v16H6zM14 4h4v16h-4z" fill="#ffffff"/></svg>',
   );
@@ -126,9 +126,9 @@ export function createExample(): Board {
     icon.x = root.x + 940;
     icon.y = root.y + 240;
   }
-  panel.bringToFront(); // dim 위에
+  panel.bringToFront(); // above dim
 
-  // 디자인 토큰: 색 accent를 [계속] 버튼 채우기에 (내보내면 theme.ui의 color accent, .ui에는 $accent)
+  // Design token: color accent on the [Resume] button fill (exported as color accent in theme.ui, $accent in the .ui)
   try {
     const catalog = penpot.library.local.tokens;
     const set = catalog.sets.find((s) => s.name === 'mealkit') ?? catalog.addSet({ name: 'mealkit', active: true });
@@ -137,7 +137,7 @@ export function createExample(): Board {
     const resume = panel.children.find((c) => c.name === 'resume');
     if (resume) resume.applyToken(accent, ['fill']);
   } catch {
-    // 토큰이 없는 Penpot 버전: 예제는 색 값만 쓴다
+    // Penpot versions without tokens: the example uses only color values
   }
   return root;
 }

@@ -8,8 +8,8 @@
 #include <array>
 #include <string>
 
-// 게임 화면 UI의 뷰 모델 (mealkit/ui/Ui.h). 화면 쪽이 매 프레임 상태 → 뷰 모델을 채우고, assets/ui/*.ui가 필드 이름으로 바인딩한다.
-// UI는 이 값을 읽기만 한다 (버튼은 액션을 내고, 시뮬레이션을 바꾸는 일은 GameSession이 확정 명령으로 보낸다).
+// View models for game screen UI (mealkit/ui/Ui.h). The view side fills state → view model every frame, and assets/ui/*.ui binds by field name.
+// The UI only reads these values (buttons fire actions; changes to the simulation are sent by GameSession as confirmed commands).
 namespace sandbox {
 
 MEALKIT_STRUCT(PlayerRowVm) {
@@ -48,7 +48,7 @@ MEALKIT_VIEWMODEL(NameTagVm) {
     MEALKIT_FIELD(mealkit::Color, color, {}, "플레이어 색");
 };
 
-// 상태 → HUD (매 프레임). names: 플레이어 번호마다 이름 (로비에서 정한 것)
+// State → HUD (every frame). names: a name per player index (set in the lobby)
 void fillHud(const WorldState& state, const Tuning& tuning, u8 localPlayer, const ViewTuning& look,
              const std::array<std::string, mealkit::net::kMaxPlayers>& names, HudVm& vm);
 

@@ -8,7 +8,7 @@ using namespace mealkit;
 namespace sandbox {
 namespace {
 
-constexpr f32 kPi = 3.14159265f; // 단위 변환 (도 → 라디안)
+constexpr f32 kPi = 3.14159265f; // unit conversion (degrees → radians)
 
 } // namespace
 
@@ -22,11 +22,11 @@ void OrbitCamera::control(Window& window, const input::Actions& actions, const C
     if (actions.pressed("orbit")) orbiting = true;
     if (!actions.down("orbit") || !window.focused()) orbiting = false;
     window.setCursorCaptured(orbiting);
-    Vec2 look = actions.axis2("turn"); // 게임패드 스틱: 누르지 않고 바로 (rate = 초당 픽셀 환산)
-    if (orbiting) look += actions.axis2("look"); // 마우스는 픽셀, 위가 +
+    Vec2 look = actions.axis2("turn"); // gamepad stick: immediately, without holding (rate = converted to pixels per second)
+    if (orbiting) look += actions.axis2("look"); // the mouse is in pixels, up is +
     yaw += look.x * t.orbitSensitivity;
     pitch -= look.y * t.orbitSensitivity;
-    pitch = std::clamp(pitch, t.minPitch, t.maxPitch); // 튜닝을 바꾸면 범위 안으로 돌아온다
+    pitch = std::clamp(pitch, t.minPitch, t.maxPitch); // returns within range when tuning changes
     distance -= actions.axis("zoom") * t.zoomStep;
     distance = std::clamp(distance, t.minDistance, t.maxDistance);
 }
@@ -47,7 +47,7 @@ void OrbitCamera::apply(const Vec3& focus, render::Viewport viewport, const Came
     frame.viewProj =
         lookAtLH(from, focus, Vec3{0, 1, 0}) * perspectiveReversedZ(fovY, width / height, t.nearPlane, t.farPlane);
     frame.cameraPos = from;
-    frame.cameraForward = normalize(focus - from); // 소리 리스너 방향
+    frame.cameraForward = normalize(focus - from); // sound listener direction
 }
 
 } // namespace sandbox

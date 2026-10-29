@@ -1,11 +1,11 @@
-"""MealKit 샘플 모델 생성기: 표준 라이브러리만으로 glTF 2.0 바이너리(.glb)를 만든다.
+"""MealKit sample model generator: makes glTF 2.0 binaries (.glb) with only the standard library.
 
     python tools/make_sample_models.py            -> assets/models/{tree,rock,ring}.glb, models/props/{crate,fence,style_*}.glb
 
-tree·rock·ring은 정점 색 없이 재질 색만 쓰고(씬·고정 기록이 쓴다, 바꾸면 콘텐츠 해시가 바뀐다), crate·fence는 텍스처
-예제다 (glTF PBR: 기본 색·법선·금속/거칠기 텍스처, 알파 마스크. assets/scenes/materials.scene, 그래픽 회귀 테스트).
+tree/rock/ring use only material colors without vertex colors (used by scenes and fixed recordings; changing them changes the content hash), crate/fence are texture
+examples (glTF PBR: base color/normal/metal-roughness textures, alpha mask. assets/scenes/materials.scene, graphics regression tests).
 
-glTF 규칙(오른손 좌표계, y 위, 앞면 = 반시계)으로 저장한다. MealKit이 불러올 때 왼손 좌표계로 바꾼다.
+Saved with glTF rules (right-handed, y up, front face = counterclockwise). MealKit converts to left-handed when loading.
 """
 
 import json
@@ -36,7 +36,7 @@ def normalize(v):
 
 
 class Part:
-    """한 재질(색)을 쓰는 삼각형 묶음 = glTF primitive 하나."""
+    """A group of triangles using one material (color) = one glTF primitive."""
 
     def __init__(self, color):
         self.color = color
@@ -45,7 +45,7 @@ class Part:
         self.indices = []
 
     def flat_triangle(self, a, b, c, inside):
-        """각진 삼각형. inside(물체 안쪽 점)를 기준으로 바깥을 보게 감는 순서를 맞춘다."""
+        """Faceted triangles. Winding is fixed to face outward relative to inside (a point inside the object)."""
         n = cross(sub(b, a), sub(c, a))
         centroid = ((a[0] + b[0] + c[0]) / 3, (a[1] + b[1] + c[1]) / 3, (a[2] + b[2] + c[2]) / 3)
         if dot(n, sub(centroid, inside)) < 0:
@@ -146,7 +146,7 @@ def make_rock():
     faces = [(0, 11, 5), (0, 5, 1), (0, 1, 7), (0, 7, 10), (0, 10, 11), (1, 5, 9), (5, 11, 4), (11, 10, 2),
              (10, 7, 6), (7, 1, 8), (3, 9, 4), (3, 4, 2), (3, 2, 6), (3, 6, 8), (3, 8, 9), (4, 9, 5), (2, 4, 11),
              (6, 2, 10), (8, 6, 7), (9, 8, 1)]
-    for _ in range(2):  # 정이십면체를 두 번 나눠 320면
+    for _ in range(2):  # subdivide an icosahedron twice for 320 faces
         cache, new_faces = {}, []
 
         def midpoint(a, b):
@@ -160,7 +160,7 @@ def make_rock():
             ab, bc, ca = midpoint(a, b), midpoint(b, c), midpoint(c, a)
             new_faces += [(a, ab, ca), (b, bc, ab), (c, ca, bc), (ab, bc, ca)]
         faces = new_faces
-    # 결정론적인 울퉁불퉁함 (난수 대신 정수 해시)
+    # Deterministic bumpiness (integer hash instead of random numbers)
     shaped = []
     for i, v in enumerate(verts):
         h = ((i * 2654435761) & 0xFFFFFFFF) / 0xFFFFFFFF
@@ -173,7 +173,7 @@ def make_rock():
 
 
 def make_ring():
-    """세워진 고리(토러스). 매끈한 법선, 삼각형 3072개 → LOD 시험용."""
+    """An upright ring (torus). Smooth normals, 3072 triangles → for LOD tests."""
     ring = Part((0.85, 0.60, 0.12))
     major, minor, seg_u, seg_v = 1.0, 0.3, 64, 24
     lift = major + minor
@@ -196,16 +196,16 @@ def make_ring():
             for tri in ((a, b, c), (a, c, d)):
                 p0, p1, p2 = (ring.positions[k] for k in tri)
                 n = cross(sub(p1, p0), sub(p2, p0))
-                if dot(n, ring.normals[tri[0]]) < 0:  # 바깥이 반시계가 되게
+                if dot(n, ring.normals[tri[0]]) < 0:  # so the outside is counterclockwise
                     tri = (tri[0], tri[2], tri[1])
                 ring.indices += list(tri)
     write_glb(os.path.join(OUT_DIR, "ring.glb"), "ring", [ring])
 
 
-# ---------------------------------------------------------------- 텍스처 예제 (crate, fence)
+# ---------------------------------------------------------------- Texture examples (crate, fence)
 
 def png_bytes(width, height, pixel):
-    """pixel(x, y) -> (r, g, b, a) 0..255 로 RGBA PNG를 만든다 (zlib만 쓴다)."""
+    """Makes an RGBA PNG from pixel(x, y) -> (r, g, b, a) 0..255 (uses only zlib)."""
     rows = bytearray()
     for y in range(height):
         rows.append(0)
@@ -220,14 +220,14 @@ def png_bytes(width, height, pixel):
 
 
 def hash01(x, y, seed):
-    """좌표마다 정해진 0..1 값 (나뭇결 잡음)."""
+    """A fixed 0..1 value per coordinate (wood grain noise)."""
     h = (x * 374761393 + y * 668265263 + seed * 2147483647) & 0xFFFFFFFF
     h = ((h ^ (h >> 13)) * 1274126177) & 0xFFFFFFFF
     return ((h ^ (h >> 16)) & 0xFFFF) / 65535.0
 
 
 def crate_textures(size=256):
-    """나무 판자 + 금속 테두리. 기본 색, 법선(판자 홈·테두리 경사), 금속/거칠기 (G = 거칠기, B = 금속)."""
+    """Wooden planks + metal frame. Base color, normals (plank grooves/frame bevels), metal-roughness (G = roughness, B = metal)."""
     border = size // 10
     plank = size // 4
 
@@ -261,7 +261,7 @@ def crate_textures(size=256):
 
 
 def fence_texture(size=128):
-    """격자 철망: 알파 마스크로 구멍을 뚫는다."""
+    """Wire mesh: holes punched with an alpha mask."""
     cell = size // 8
 
     def pixel(x, y):
@@ -272,7 +272,7 @@ def fence_texture(size=128):
 
 
 def write_textured_glb(path, name, positions, normals, uvs, indices, material, images):
-    """정점 하나에 위치·법선·UV가 있는 메시 하나와 텍스처 머티리얼 하나. images: PNG 바이트 목록 (텍스처 번호 순)."""
+    """One mesh with position/normal/UV per vertex and one textured material. images: list of PNG bytes (in texture index order)."""
     blob = bytearray()
     views, accessors = [], []
 
@@ -325,12 +325,12 @@ def write_textured_glb(path, name, positions, normals, uvs, indices, material, i
 
 
 def make_crate():
-    """한 변 1 m 상자, 면마다 텍스처 전체 (glTF: 오른손, 반시계 앞면)."""
+    """A 1 m box, the whole texture on each face (glTF: right-handed, counterclockwise front faces)."""
     positions, normals, uvs, indices = [], [], [], []
     faces = [((1, 0, 0), (0, 0, -1)), ((-1, 0, 0), (0, 0, 1)), ((0, 1, 0), (1, 0, 0)),
              ((0, -1, 0), (1, 0, 0)), ((0, 0, 1), (1, 0, 0)), ((0, 0, -1), (-1, 0, 0))]
     for n, u in faces:
-        v = cross(n, u)  # 오른손: u × v = n 이면 반시계가 앞면
+        v = cross(n, u)  # right-handed: if u × v = n, counterclockwise is the front face
         c = (n[0] * 0.5, n[1] * 0.5, n[2] * 0.5)
         base = len(positions)
         for su, sv, tu, tv in ((-1, -1, 0, 1), (1, -1, 1, 1), (1, 1, 1, 0), (-1, 1, 0, 0)):
@@ -350,7 +350,7 @@ def make_crate():
 
 
 def make_fence():
-    """폭 2 m, 높이 1 m 철망 판 (앞뒤 두 면, 알파 마스크)."""
+    """A 2 m wide, 1 m tall wire mesh panel (two faces front and back, alpha mask)."""
     positions, normals, uvs, indices = [], [], [], []
     for n in ((0, 0, 1), (0, 0, -1)):
         base = len(positions)
@@ -366,11 +366,11 @@ def make_fence():
                        [fence_texture()])
 
 
-# ---------------------------------------------------------------- 스타일 프리셋 예제 (외곽선·림·바람·디졸브)
-# 머티리얼 기능은 glTF extras "mealkit_<키>" (Blender 애드온의 커스텀 속성과 같다). assets/scenes/styles.scene, 그래픽 회귀 테스트
+# ---------------------------------------------------------------- Style preset examples (outline/rim/wind/dissolve)
+# Material features are glTF extras "mealkit_<key>" (same as the Blender add-on's custom properties). assets/scenes/styles.scene, graphics regression tests
 
 def write_style_glb(path, name, parts):
-    """parts: (positions, normals, indices, colors(RGBA 또는 None), material) 목록. 메시 하나에 프리미티브 여러 개."""
+    """parts: list of (positions, normals, indices, colors (RGBA or None), material). Multiple primitives in one mesh."""
     blob = bytearray()
     views, accessors, materials, primitives = [], [], [], []
 
@@ -419,7 +419,7 @@ def write_style_glb(path, name, parts):
 
 
 def smooth_sphere(center, radius, rings=16, segments=24, squash=1.0):
-    """매끈한 법선의 구 (외곽선 껍질이 갈라지지 않게 정점을 나누지 않는다). glTF 앞면 = 반시계."""
+    """A sphere with smooth normals (vertices aren't split so the outline hull doesn't crack). glTF front face = counterclockwise."""
     positions, normals, indices = [], [], []
     for r in range(rings + 1):
         theta = math.pi * r / rings
@@ -447,7 +447,7 @@ def pbr(name, color, roughness=0.6, metallic=0.0, **extras):
 def make_styles():
     out = os.path.join(OUT_DIR, "props")
     os.makedirs(out, exist_ok=True)
-    # 인형: 몸(외곽선 + 림) + 머리(외곽선만, 굵게) — 툰 조명에서 가장 잘 보인다
+    # Figure: body (outline + rim) + head (outline only, thick) — shows best under toon lighting
     body = smooth_sphere((0.0, 0.75, 0.0), 0.5, squash=1.4)
     head = smooth_sphere((0.0, 1.75, 0.0), 0.35)
     write_style_glb(os.path.join(out, "style_figure.glb"), "style_figure", [
@@ -455,7 +455,7 @@ def make_styles():
                          rimColor=[1.0, 0.85, 0.6])),
         head + (None, pbr("figure_head", (0.95, 0.8, 0.6), roughness=0.4, outline=0.04)),
     ])
-    # 풀: 얇은 잎 여러 장, 정점 알파 = 바람 세기 (뿌리 0 → 끝 1). 양면이 보이게 앞뒤 두 장
+    # Grass: several thin blades, vertex alpha = wind strength (root 0 → tip 1). Two sheets front and back so both sides show
     positions, normals, indices, colors = [], [], [], []
     for i in range(14):
         h = ((i * 2654435761) & 0xFFFFFFFF) / 0xFFFFFFFF
@@ -474,7 +474,7 @@ def make_styles():
     write_style_glb(os.path.join(out, "style_grass.glb"), "style_grass", [
         (positions, normals, indices, colors, pbr("grass", (1.0, 1.0, 1.0), roughness=0.8, wind=0.12)),
     ])
-    # 구슬: 디졸브(씬 물체 flags의 진행도로 반쯤 사라진 모습) + 림
+    # Bead: dissolve (half vanished by the progress in the scene object's flags) + rim
     orb = smooth_sphere((0.0, 0.6, 0.0), 0.6)
     write_style_glb(os.path.join(out, "style_orb.glb"), "style_orb", [
         orb + (None, pbr("orb", (0.3, 0.45, 0.9), roughness=0.3, metallic=0.5, dissolve=0.08,
@@ -483,7 +483,7 @@ def make_styles():
 
 
 def make_probe_ball():
-    # 반사 프로브 확인용 거울 구슬 (assets/scenes/probes.scene): 금속 1, 거칠기 0.08이라 주변이 그대로 비친다
+    # Mirror bead for checking reflection probes (assets/scenes/probes.scene): metal 1, roughness 0.08, so the surroundings reflect as is
     out = os.path.join(OUT_DIR, "props")
     os.makedirs(out, exist_ok=True)
     ball = smooth_sphere((0.0, 0.5, 0.0), 0.5)
@@ -493,7 +493,7 @@ def make_probe_ball():
 
 
 def ellipsoid(center, radii, rings=12, segments=16):
-    """축마다 반지름이 다른 매끈한 타원체. glTF 앞면 = 반시계."""
+    """A smooth ellipsoid with a different radius per axis. glTF front face = counterclockwise."""
     positions, normals, indices = [], [], []
     for r in range(rings + 1):
         theta = math.pi * r / rings
@@ -517,24 +517,24 @@ def quat_axis(axis, degrees):
 
 
 def make_rig():
-    # 스켈레탈 애니메이션 확인용 인형 (sandbox의 Pawn, scenes/anim.scene): 관절 8개, 클립 idle·run·wave.
-    # 부위마다 관절 하나에 붙고, 몸통만 엉덩이·등뼈 사이를 섞는다 (가중치 섞기 확인). glTF에서 앞은 -z (MealKit에서 +z)
+    # Figure for checking skeletal animation (sandbox's Pawn, scenes/anim.scene): 8 joints, clips idle/run/wave.
+    # Each part is attached to one joint, only the torso blends between hips and spine (checks weight blending). In glTF forward is -z (+z in MealKit)
     out = os.path.join(OUT_DIR, "characters")
     os.makedirs(out, exist_ok=True)
-    # 관절: 이름, 부모, 부모 기준 위치
+    # Joints: name, parent, position relative to parent
     joints = [("root", -1, (0, 0, 0)), ("hips", 0, (0, 0.7, 0)), ("spine", 1, (0, 0.3, 0)), ("head", 2, (0, 0.5, 0)),
               ("arm.L", 2, (0.3, 0.25, 0)), ("arm.R", 2, (-0.3, 0.25, 0)), ("leg.L", 1, (0.15, 0, 0)), ("leg.R", 1, (-0.15, 0, 0))]
     world = []
     for name, parent, t in joints:
         world.append(tuple(t[k] + (world[parent][k] if parent >= 0 else 0) for k in range(3)))
     J = {name: i for i, (name, _, _) in enumerate(joints)}
-    parts = []  # (positions, normals, indices, joint(또는 None = 몸통), material)
+    parts = []  # (positions, normals, indices, joint (or None = torso), material)
     skin_mat = pbr("rig_skin", (0.95, 0.75, 0.6), roughness=0.5)
-    cloth = pbr("rig_cloth", (0.92, 0.92, 0.95), roughness=0.7)  # 인스턴스 색(플레이어 색)이 그대로 보이게 흰색
+    cloth = pbr("rig_cloth", (0.92, 0.92, 0.95), roughness=0.7)  # white so the instance color (player color) shows as is
     dark = pbr("rig_dark", (0.15, 0.15, 0.2), roughness=0.6)
     parts.append(ellipsoid((0, 1.0, 0), (0.28, 0.36, 0.2)) + (None, cloth))
     parts.append(ellipsoid((0, 1.62, 0), (0.2, 0.22, 0.2)) + ("head", skin_mat))
-    parts.append(ellipsoid((0, 1.6, -0.2), (0.05, 0.05, 0.05)) + ("head", dark))  # 코: 앞쪽 표시
+    parts.append(ellipsoid((0, 1.6, -0.2), (0.05, 0.05, 0.05)) + ("head", dark))  # nose: marks the front
     for side, sx in (("L", 1), ("R", -1)):
         parts.append(ellipsoid((0.4 * sx, 0.95, 0), (0.08, 0.32, 0.08)) + ("arm." + side, skin_mat))
         parts.append(ellipsoid((0.15 * sx, 0.38, 0), (0.1, 0.36, 0.1)) + ("leg." + side, dark))
@@ -561,7 +561,7 @@ def make_rig():
             if joint:
                 js += [J[joint], 0, 0, 0]
                 ws += [1.0, 0.0, 0.0, 0.0]
-            else:  # 몸통: 0.85 아래는 엉덩이, 1.05 위는 등뼈, 사이는 섞는다
+            else:  # torso: below 0.85 is hips, above 1.05 is spine, blended in between
                 t = min(1.0, max(0.0, (p[1] - 0.85) / 0.2))
                 js += [J["hips"], J["spine"], 0, 0]
                 ws += [1.0 - t, t, 0.0, 0.0]
@@ -573,12 +573,12 @@ def make_rig():
                  "JOINTS_0": add(struct.pack("<%dB" % len(js), *js), 34962, len(positions), "VEC4", ctype=5121),
                  "WEIGHTS_0": add(struct.pack("<%df" % len(ws), *ws), 34962, len(positions), "VEC4")}
         idx = add(struct.pack("<%dH" % len(indices), *indices), 34963, len(indices), "SCALAR", ctype=5123)
-        if not any(m is material for m in materials):  # 같은 머티리얼은 한 번만 (예산: 머티리얼 수)
+        if not any(m is material for m in materials):  # the same material only once (budget: material count)
             materials.append(material)
         primitives.append({"attributes": attrs, "indices": idx, "material": next(i for i, m in enumerate(materials) if m is material)})
         tris += len(indices) // 3
     ibm = []
-    for w in world:  # 역바인드 = 바인드 자세 관절 월드의 역 (이동만), 열 우선
+    for w in world:  # inverse bind = inverse of the bind pose joint world (translation only), column-major
         ibm += [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, -w[0], -w[1], -w[2], 1]
     ibm_acc = add(struct.pack("<%df" % len(ibm), *ibm), None, len(world), "MAT4")
     nodes = [{"name": "rig_figure", "mesh": 0, "skin": 0}]
@@ -589,7 +589,7 @@ def make_rig():
             node["children"] = children
         nodes.append(node)
 
-    # 클립: (관절, 경로, 축, (키 시각, 값)). 10 Hz 키, 선형, 마지막 키 = 첫 키 (감기)
+    # Clips: (joint, path, axis, (key time, value)). 10 Hz keys, linear, last key = first key (looping)
     def wave(period, amp, offset=0.0, absolute=False):
         steps = max(2, int(round(period * 10)))
         times = [period * k / steps for k in range(steps + 1)]

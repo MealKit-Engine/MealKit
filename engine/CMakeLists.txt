@@ -1,9 +1,9 @@
-# 엔진 폴더가 최상위가 아닐 수도 있으므로(게임 프로젝트에서 include) CMAKE_SOURCE_DIR 대신 이 경로를 쓴다.
+# The engine folder may not be top-level (included from a game project), so this path is used instead of CMAKE_SOURCE_DIR.
 get_filename_component(MEALKIT_THIRD_PARTY "${CMAKE_CURRENT_SOURCE_DIR}/../third_party" ABSOLUTE)
 
-# --- 셰이더: 빌드 시점에 DXC로 바이트 배열 헤더를 만든다 (런타임 컴파일러 의존성 없음). Windows 화면 쪽만 ---
-# 모든 빌드가 DXIL(DX12)과 SPIR-V(Vulkan)를 둘 다 만든다: 한쪽 컴파일 실패는 빌드 실패다 (ROADMAP 2단계 "RHI 층").
-# 이 빌드의 백엔드 것은 shaders/<이름>.h(렌더러가 include), 다른 쪽은 shaders/other/<이름>.h(검사용, exe에 들어가지 않는다).
+# --- Shaders: DXC generates byte-array headers at build time (no runtime compiler dependency). Windows front end only ---
+# Every build produces both DXIL (DX12) and SPIR-V (Vulkan): a compile failure on either side fails the build (ROADMAP stage 2 "RHI layer").
+# This build's backend output goes to shaders/<name>.h (included by the renderer), the other to shaders/other/<name>.h (for checking, not in the exe).
 set(MEALKIT_SHADER_OUT ${CMAKE_CURRENT_BINARY_DIR}/shaders)
 set(MEALKIT_SHADER_HEADERS "")
 if(NOT MEALKIT_HEADLESS_ONLY)
@@ -19,13 +19,13 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     endif()
     list(APPEND MEALKIT_SPIRV_FLAGS -spirv -fspv-target-env=vulkan1.3)
 
-    # 나머지 인자는 전처리 정의 (예: LIGHTING_MODEL=1 → -D LIGHTING_MODEL=1, 스타일 프리셋 변형)
+    # Remaining arguments are preprocessor defines (e.g. LIGHTING_MODEL=1 → -D LIGHTING_MODEL=1, style preset variants)
     function(mealkit_shader source entry profile name)
         set(defines "")
         foreach(d ${ARGN})
             list(APPEND defines -D ${d})
         endforeach()
-        # Vulkan 백엔드는 진입점 이름 VSMain·PSMain으로 파이프라인을 만든다: 다른 진입점(VSOutline 등)은 SPIR-V에서 이름을 바꾼다
+        # The Vulkan backend builds pipelines with entry point names VSMain/PSMain: other entry points (VSOutline etc.) are renamed in SPIR-V
         if(profile MATCHES "^vs_")
             set(spirv_entry -fspv-entrypoint-name=VSMain)
         else()
@@ -54,8 +54,8 @@ if(NOT MEALKIT_HEADLESS_ONLY)
         set(MEALKIT_SHADER_HEADERS ${MEALKIT_SHADER_HEADERS} ${dxil} ${spirv} PARENT_SCOPE)
     endfunction()
 
-    # SM 6.6 = 최소 사양. 바인딩 모양은 shaders/Bindless.hlsli (mealkit/rhi/Rhi.h)
-    # 조명 모델(render::LightingModel)마다 픽셀 셰이더 하나 + 외곽선 패스. 모두 exe에 들어가고 렌더러 init이 파이프라인을 만든다
+    # SM 6.6 = minimum spec. Binding layout is shaders/Bindless.hlsli (mealkit/rhi/Rhi.h)
+    # One pixel shader per lighting model (render::LightingModel) + an outline pass. All go into the exe and the renderer init builds the pipelines
     mealkit_shader(shaders/Forward.hlsl VSMain vs_6_6 g_ForwardVS)
     mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardPbrPS LIGHTING_MODEL=0)
     mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardToonPS LIGHTING_MODEL=1)
@@ -79,7 +79,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     mealkit_shader(shaders/Ui.hlsl PSMain ps_6_6 g_UiPS)
 endif()
 
-# --- meshoptimizer (모델 최적화/LOD) ---
+# --- meshoptimizer (model optimization/LOD) ---
 file(GLOB MEALKIT_MESHOPT_SOURCES ${MEALKIT_THIRD_PARTY}/meshoptimizer/src/*.cpp)
 add_library(mealkit_meshopt STATIC ${MEALKIT_MESHOPT_SOURCES})
 target_include_directories(mealkit_meshopt SYSTEM PUBLIC ${MEALKIT_THIRD_PARTY}/meshoptimizer/src)
@@ -89,8 +89,8 @@ else()
     target_compile_options(mealkit_meshopt PRIVATE -w)
 endif()
 
-# --- LZ4 (중간 참가 스냅샷 압축) ---
-set_source_files_properties(${MEALKIT_THIRD_PARTY}/lz4/lz4.c PROPERTIES LANGUAGE CXX) # 프로젝트는 C++만 켠다
+# --- LZ4 (late-join snapshot compression) ---
+set_source_files_properties(${MEALKIT_THIRD_PARTY}/lz4/lz4.c PROPERTIES LANGUAGE CXX) # the project only enables C++
 add_library(mealkit_lz4 STATIC ${MEALKIT_THIRD_PARTY}/lz4/lz4.c)
 set_target_properties(mealkit_lz4 PROPERTIES LINKER_LANGUAGE CXX)
 target_include_directories(mealkit_lz4 SYSTEM PUBLIC ${MEALKIT_THIRD_PARTY}/lz4)
@@ -100,11 +100,11 @@ else()
     target_compile_options(mealkit_lz4 PRIVATE -w)
 endif()
 
-# --- 엔진 라이브러리 ---
-# 코어(MEALKIT_CORE_SOURCES): 시뮬레이션·물리·네트워크·데이터·플랫폼 최소 기능. 창·그래픽 없이 돈다 (헤드리스, Linux·macOS도).
-# 화면 쪽(MEALKIT_FRONT_SOURCES): 창·입력·렌더러·온라인 서비스·에디터용 플랫폼 기능. Windows만 (다른 OS는 5단계).
-# Game 빌드: mealkit_core(정적) + mealkit(정적, 코어를 PUBLIC으로 링크). 출시 exe는 mealkit, <게임>_headless는 mealkit_core만 쓴다.
-# Editor 빌드: 둘을 합친 mealkit.dll (에디터와 게임 DLL이 같이 쓴다).
+# --- Engine libraries ---
+# Core (MEALKIT_CORE_SOURCES): minimal simulation/physics/network/data/platform features. Runs without a window or graphics (headless, also Linux/macOS).
+# Front end (MEALKIT_FRONT_SOURCES): window, input, renderer, online services, platform features for the editor. Windows only (other OSes in stage 5).
+# Game build: mealkit_core (static) + mealkit (static, links the core PUBLIC). The shipping exe uses mealkit, <game>_headless only mealkit_core.
+# Editor build: both combined into mealkit.dll (shared by the editor and game DLL).
 set(MEALKIT_CORE_SOURCES
     src/mealkit/core/Types.h
     src/mealkit/core/Version.h
@@ -160,14 +160,14 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/platform/Paths.cpp
     src/mealkit/platform/System.h
     src/mealkit/platform/System.cpp
-    src/mealkit/platform/Input.h   # 헤더만 (키·마우스 상태, 입력 액션이 읽는다)
-    src/mealkit/platform/Gamepad.h # PadState는 입력 액션이 읽는다. Gamepads 구현은 화면 쪽(win32/Gamepad.cpp)
+    src/mealkit/platform/Input.h   # header only (key/mouse state, read by input actions)
+    src/mealkit/platform/Gamepad.h # PadState is read by input actions. Gamepads implementation is front end (win32/Gamepad.cpp)
     src/mealkit/scene/Scene.h
     src/mealkit/scene/Scene.cpp
     src/mealkit/asset/Budget.h
-    src/mealkit/asset/TextureCache.h # 헤더만 (ModelCache.h의 텍스처 올리기). 구현은 화면 쪽
+    src/mealkit/asset/TextureCache.h # header only (texture upload in ModelCache.h). Implementation is front end
     src/mealkit/asset/ModelCache.h
-    src/mealkit/asset/Environment.h # 선언만 (굽기 Environment.cpp는 화면 쪽, ModelCache::setRenderer 인라인이 부른다)
+    src/mealkit/asset/Environment.h # declarations only (baking in Environment.cpp is front end, called by the ModelCache::setRenderer inline)
     src/mealkit/asset/ModelCache.cpp
     src/mealkit/asset/Animation.h
     src/mealkit/asset/Animation.cpp
@@ -176,7 +176,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/render/Mesh.h
     src/mealkit/render/Mesh.cpp
     src/mealkit/render/Renderer.h
-    src/mealkit/rhi/Rhi.h # 헤더만 (Renderer.h의 GpuInfo). 백엔드 구현은 화면 쪽
+    src/mealkit/rhi/Rhi.h # header only (GpuInfo in Renderer.h). Backend implementations are front end
     src/mealkit/net/Socket.h
     src/mealkit/net/Socket.cpp
     src/mealkit/net/Transport.h
@@ -236,8 +236,8 @@ set(MEALKIT_FRONT_SOURCES
     shaders/Bindless.hlsli
     ${MEALKIT_SHADER_HEADERS})
 
-# 플랫폼 계층 구현 (docs/CODING_MODEL.md "그래픽 API와 OS 기능"): OS API는 platform/<os>/ 안에서만 부른다.
-# posix/는 헤드리스(Linux·macOS)에 필요한 만큼만 있다(시간·파일·UDP·로그). 창·입력·DLL·대화상자·그림은 Windows만 (5단계).
+# Platform layer implementations (docs/CODING_MODEL.md "Graphics APIs and OS features"): OS APIs are called only inside platform/<os>/.
+# posix/ has only what headless (Linux/macOS) needs (time, files, UDP, logging). Window, input, DLL, dialogs, images are Windows only (stage 5).
 if(WIN32)
     list(APPEND MEALKIT_CORE_SOURCES
         src/mealkit/platform/win32/Clock.cpp
@@ -259,12 +259,12 @@ else()
         src/mealkit/platform/posix/System.cpp)
 endif()
 
-# RHI 백엔드 (MEALKIT_RHI, cmake/MealKit.cmake): 그래픽 API는 rhi/<api>/ 안에서만 부른다 (tools\check_platform.ps1)
+# RHI backend (MEALKIT_RHI, cmake/MealKit.cmake): graphics APIs are called only inside rhi/<api>/ (tools\check_platform.ps1)
 if(MEALKIT_RHI STREQUAL "Vulkan")
     list(APPEND MEALKIT_FRONT_SOURCES
         src/mealkit/rhi/vulkan/Vk.h
         src/mealkit/rhi/vulkan/VkDevice.cpp
-        src/mealkit/rhi/vulkan/VkLibs.cpp) # volk + VMA 구현
+        src/mealkit/rhi/vulkan/VkLibs.cpp) # volk + VMA implementation
     set(mealkit_rhi_imgui src/mealkit/rhi/vulkan/VkImGui.cpp)
 else()
     list(APPEND MEALKIT_FRONT_SOURCES
@@ -273,13 +273,13 @@ else()
     set(mealkit_rhi_imgui src/mealkit/rhi/dx12/Dx12ImGui.cpp)
 endif()
 
-# 디버그 UI (MEALKIT_DEBUG_UI, cmake/MealKit.cmake): ImGui 연결 층. 에디터와 개발용 게임 exe의 오버레이가 같이 쓴다
+# Debug UI (MEALKIT_DEBUG_UI, cmake/MealKit.cmake): ImGui glue layer. Shared by the editor and the dev game exe's overlay
 if(MEALKIT_DEBUG_UI)
     list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/debug/ImGuiLayer.h src/mealkit/debug/ImGuiLayer.cpp
         src/mealkit/debug/DebugDraw.h src/mealkit/debug/DebugDrawRender.h src/mealkit/debug/DebugDraw.cpp
         src/mealkit/platform/ImGuiPlatform.h src/mealkit/platform/win32/ImGuiPlatform.cpp
         ${mealkit_rhi_imgui}
-        # 텍스처 압축 (asset/TextureCache.cpp): 개발 빌드만 만들고, 출시 빌드는 압축된 캐시만 읽는다
+        # Texture compression (asset/TextureCache.cpp): dev builds only create it; shipping builds only read the compressed cache
         ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp)
 endif()
 
@@ -296,7 +296,7 @@ else()
 endif()
 if(NOT MEALKIT_HEADLESS_ONLY)
     set_source_files_properties(shaders/Forward.hlsl shaders/Ui.hlsl PROPERTIES HEADER_FILE_ONLY ON)
-    # 셰이더 핫 리로드 (render/ShaderReload.cpp): 개발 빌드만. 빌드와 같은 DXC·옵션으로 이 백엔드 형식을 다시 만든다
+    # Shader hot reload (render/ShaderReload.cpp): dev builds only. Rebuilds this backend's format with the same DXC and options as the build
     if(MEALKIT_DEBUG_UI)
         if(MEALKIT_RHI STREQUAL "Vulkan")
             list(JOIN MEALKIT_SPIRV_FLAGS " " mealkit_hot_flags)
@@ -308,9 +308,9 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     endif()
 endif()
 
-# mealkit.dll: 엔진 함수와 클래스를 모두 내보낸다 (__declspec 표시 없이). 게임 코드가 엔진 전역 변수에 직접 접근하지 않는 한 충분하다.
-# CMake의 WINDOWS_EXPORT_ALL_SYMBOLS와 같은 방식(__create_def)으로 def를 만들되, MSVC CRT의 약한 별칭이 남기는
-# 잘못된 줄("==")을 지운 뒤 링크한다 (WINDOWS_EXPORT_ALL_SYMBOLS 그대로는 LNK2001로 실패한다).
+# mealkit.dll: exports all engine functions and classes (no __declspec markup). Enough as long as game code doesn't access engine globals directly.
+# The def is generated the same way as CMake's WINDOWS_EXPORT_ALL_SYMBOLS (__create_def), but the bad lines ("==") left by
+# MSVC CRT weak aliases are removed before linking (WINDOWS_EXPORT_ALL_SYMBOLS as-is fails with LNK2001).
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     set(mealkit_def ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.def)
     set(mealkit_objs ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.objs)
@@ -323,14 +323,14 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     target_link_options(mealkit PRIVATE /DEF:${mealkit_def})
 endif()
 
-# 아래 PUBLIC 설정은 코어 타깃에 둔다 (Game 빌드의 mealkit은 코어를 PUBLIC으로 링크해 물려받는다)
+# The PUBLIC settings below live on the core target (the Game build's mealkit inherits them by linking the core PUBLIC)
 target_include_directories(${mealkit_core_target} PUBLIC src)
 target_include_directories(${mealkit_core_target} SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf)
 if(NOT MEALKIT_HEADLESS_ONLY)
     target_include_directories(mealkit PRIVATE ${MEALKIT_SHADER_OUT})
-    # 소리: 런타임 mkaudio (별도 저장소 MealKit-Audio, third_party/mkaudio에 버전 고정. miniaudio + stb_vorbis는 엔진의 것)를
-    # mealkit/audio/(접착층)가 감싼다. 게임은 mealkit/audio/Audio.h가 쓰는 mkaudio 헤더의 타입(Handle 등)만 보므로 include 경로만 넘긴다.
-    # 런타임과 같이 고칠 때는 -DMEALKIT_MKAUDIO_DIR=<MealKit-Audio 체크아웃> (끝나면 tools\update_mkaudio.ps1로 가져온다)
+    # Sound: the mkaudio runtime (separate repo MealKit-Audio, version-pinned in third_party/mkaudio; miniaudio + stb_vorbis are the engine's)
+    # is wrapped by mealkit/audio/ (glue layer). The game only sees mkaudio header types (Handle etc.) used by mealkit/audio/Audio.h, so only the include path is passed.
+    # When editing together with the runtime: -DMEALKIT_MKAUDIO_DIR=<MealKit-Audio checkout> (pull it in with tools\update_mkaudio.ps1 when done)
     set(MEALKIT_MKAUDIO_DIR "" CACHE PATH "로컬 MealKit-Audio 체크아웃 (비면 third_party/mkaudio)")
     if(MEALKIT_MKAUDIO_DIR)
         set(mealkit_mkaudio_dir ${MEALKIT_MKAUDIO_DIR})
@@ -341,11 +341,11 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     set(MKAUDIO_MINIAUDIO_DIR ${MEALKIT_THIRD_PARTY}/miniaudio)
     set(MKAUDIO_STB_DIR ${MEALKIT_THIRD_PARTY}/stb)
     set(MKAUDIO_BUILD_TESTS OFF)
-    set(MKAUDIO_BUILD_TOOL OFF) # 저작 도구는 MealKit-Audio 저장소에서 빌드한다
+    set(MKAUDIO_BUILD_TOOL OFF) # the authoring tool is built in the MealKit-Audio repo
     add_subdirectory(${mealkit_mkaudio_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkaudio)
     target_link_libraries(mealkit PRIVATE mkaudio)
     target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${mealkit_mkaudio_dir}/include>)
-    # 외부 코드 구현 파일은 경고를 끈다
+    # Disable warnings for external code implementation files
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb
                                ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp
                                ${MEALKIT_THIRD_PARTY}/bc7enc)   # asset/TextureCache.cpp
@@ -362,20 +362,20 @@ target_compile_definitions(${mealkit_core_target} PUBLIC
 if(WIN32)
     target_compile_definitions(${mealkit_core_target} PUBLIC NOMINMAX WIN32_LEAN_AND_MEAN UNICODE _UNICODE)
 endif()
-# MEALKIT_ASSERT는 Editor 빌드(에디터 + 게임 DLL)에서도 켠다. PUBLIC이라 MealKitTargets.cmake로 게임 DLL에도 넘어간다.
+# MEALKIT_ASSERT is also on in the Editor build (editor + game DLL). It's PUBLIC so it reaches the game DLL via MealKitTargets.cmake.
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     target_compile_definitions(mealkit PUBLIC MEALKIT_ASSERTS=1)
 endif()
-# 라이브 연결 (cmake/MealKit.cmake MEALKIT_LIVE): 개발 빌드 게임 exe가 서버를 연다. 출시 빌드(Export)는 0
+# Live connection (cmake/MealKit.cmake MEALKIT_LIVE): dev build game exes open the server. 0 for shipping builds (Export)
 if(MEALKIT_LIVE)
     target_compile_definitions(mealkit PUBLIC MEALKIT_LIVE=1)
 else()
     target_compile_definitions(mealkit PUBLIC MEALKIT_LIVE=0)
 endif()
 
-# 부동소수점 결정론 (docs/CODING_MODEL.md "결정론 규칙"): /fp:fast, /fp:contract, /arch:AVX2, -ffast-math를 쓰지 않는다.
-# MSVC는 /fp:precise. clang-cl(build.bat ClangCL)은 기본이 precise지만 식 안의 곱셈-덧셈 합치기(fp-contract=on)를 허용하므로 그것만 끈다.
-# Linux·macOS의 Clang·GCC(헤드리스)도 -ffp-contract=off, -fno-fast-math.
+# Floating-point determinism (docs/CODING_MODEL.md "Determinism rules"): no /fp:fast, /fp:contract, /arch:AVX2, -ffast-math.
+# MSVC uses /fp:precise. clang-cl (build.bat ClangCL) defaults to precise but allows in-expression multiply-add fusion (fp-contract=on), so only that is turned off.
+# Clang/GCC on Linux/macOS (headless) also use -ffp-contract=off, -fno-fast-math.
 if(MSVC)
     target_compile_options(${mealkit_core_target} PUBLIC /W4 /permissive- /utf-8 /Zc:__cplusplus /GR-
         $<IF:$<CXX_COMPILER_ID:Clang>,/clang:-ffp-contract=off,/fp:precise>)
@@ -393,7 +393,7 @@ endif()
 if(NOT MEALKIT_HEADLESS_ONLY)
     target_link_libraries(mealkit PUBLIC windowscodecs uuid dwmapi comdlg32 xinput)
     if(MEALKIT_RHI STREQUAL "Vulkan")
-        # SDK 없이 빌드한다: 헤더는 third_party, 로더(vulkan-1.dll)는 volk가 실행 중에 불러온다
+        # Built without the SDK: headers are in third_party, the loader (vulkan-1.dll) is loaded at runtime by volk
         set(MEALKIT_VULKAN_INCLUDES ${MEALKIT_THIRD_PARTY}/vulkan-headers/include ${MEALKIT_THIRD_PARTY}/volk ${MEALKIT_THIRD_PARTY}/vma)
         target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_VULKAN_INCLUDES})
         target_compile_definitions(mealkit PRIVATE VK_NO_PROTOTYPES VK_USE_PLATFORM_WIN32_KHR)
@@ -405,7 +405,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     endif()
 endif()
 
-# --- SimCheck: 게임 sim/ 폴더의 결정론 규칙 검사 (빌드 도구, mealkit_add_game이 게임 코드보다 먼저 실행한다) ---
+# --- SimCheck: determinism rule check for the game's sim/ folder (build tool, mealkit_add_game runs it before the game code) ---
 add_executable(mealkit_simcheck tools/SimCheck.cpp)
 if(MSVC)
     target_compile_options(mealkit_simcheck PRIVATE /W4 /permissive- /utf-8)
@@ -414,7 +414,7 @@ else()
 endif()
 set_target_properties(mealkit_simcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tools)
 
-# 문자열 표의 글자가 글꼴에 다 있는지 (게임 빌드 전에, mealkit_add_game). 창 있는 빌드만 (헤드리스는 글자를 그리지 않는다)
+# Whether all characters in the string tables exist in the fonts (before the game build, mealkit_add_game). Windowed builds only (headless draws no text)
 if(NOT MEALKIT_HEADLESS_ONLY)
     add_executable(mealkit_stringcheck tools/StringCheck.cpp)
     target_include_directories(mealkit_stringcheck SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb)
@@ -422,13 +422,13 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     set_target_properties(mealkit_stringcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tools)
 endif()
 
-# --- 엔진 단위 테스트: 엔진 저장소 빌드에만 (tools\check.ps1이 Release와 Editor 빌드에서 돌린다). 화면 쪽 없이 코어만 쓴다 ---
+# --- Engine unit tests: engine repo build only (tools\check.ps1 runs them in Release and Editor builds). Uses only the core, no front end ---
 if(MEALKIT_IS_ENGINE)
     add_executable(mealkit_tests tests/Tests.cpp tests/TestRegistry.h)
     target_link_libraries(mealkit_tests PRIVATE ${mealkit_core_target})
-    target_compile_definitions(mealkit_tests PRIVATE MEALKIT_ENGINE_DIR="${MEALKIT_ENGINE_DIR}") # Penpot 플러그인 기대 파일
+    target_compile_definitions(mealkit_tests PRIVATE MEALKIT_ENGINE_DIR="${MEALKIT_ENGINE_DIR}") # Penpot plugin expected files
     if(NOT MEALKIT_HEADLESS_ONLY AND NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
-        target_link_libraries(mealkit_tests PRIVATE mealkit) # 게임 화면 UI 배치 시험 (창 없이)
+        target_link_libraries(mealkit_tests PRIVATE mealkit) # game screen UI layout tests (no window)
         target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1)
     elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
         target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1)
@@ -436,17 +436,17 @@ if(MEALKIT_IS_ENGINE)
 endif()
 
 if(MEALKIT_HEADLESS_ONLY)
-    return() # Linux·macOS: 헤드리스만 (온라인 서비스·에디터는 5단계)
+    return() # Linux/macOS: headless only (online services/editor in stage 5)
 endif()
 
-# --- 온라인 서비스 (mealkit/online/): 빌드 때 백엔드 하나. 헤드리스는 쓰지 않는다 ---
-# 백엔드 고르기: MEALKIT_ONLINE = Auto | Steam | EOS | None. Auto는 Steam SDK가 있으면 Steam, 없고 EOS가 있으면 EOS.
-# 크로스플레이 빌드는 -DMEALKIT_ONLINE=EOS (build.bat EOS). Steam SDK도 있으면 Steam 계정으로 EOS에 로그인한다
+# --- Online services (mealkit/online/): one backend per build. Headless doesn't use it ---
+# Backend choice: MEALKIT_ONLINE = Auto | Steam | EOS | None. Auto picks Steam if the Steam SDK is present, otherwise EOS if present.
+# Crossplay build: -DMEALKIT_ONLINE=EOS (build.bat EOS). If the Steam SDK is also present, it logs into EOS with the Steam account
 set(MEALKIT_ONLINE "Auto" CACHE STRING "Online backend: Auto, Steam, EOS, None")
 set_property(CACHE MEALKIT_ONLINE PROPERTY STRINGS Auto Steam EOS None)
-# Steamworks (선택): SDK를 third_party/steamworks/sdk 에 풀면 쓸 수 있다
+# Steamworks (optional): usable when the SDK is extracted to third_party/steamworks/sdk
 set(MEALKIT_STEAMWORKS_SDK ${MEALKIT_THIRD_PARTY}/steamworks/sdk)
-# EOS (선택): SDK의 SDK 폴더 내용을 third_party/eos/sdk 에, Epic 개발자 포털 값 다섯 개를 third_party/eos/credentials.txt 에
+# EOS (optional): the SDK's SDK folder contents in third_party/eos/sdk, and the five Epic Developer Portal values in third_party/eos/credentials.txt
 set(MEALKIT_EOS_SDK ${MEALKIT_THIRD_PARTY}/eos/sdk)
 set(MEALKIT_EOS_CREDENTIALS ${MEALKIT_THIRD_PARTY}/eos/credentials.txt)
 set(mealkit_has_steam OFF)
@@ -458,7 +458,7 @@ if(EXISTS ${MEALKIT_EOS_SDK}/Include/eos_sdk.h AND EXISTS ${MEALKIT_EOS_SDK}/Lib
     set(mealkit_has_eos ON)
 endif()
 set(mealkit_online None)
-# 에디터 빌드는 온라인 백엔드를 쓰지 않는다 (여러 명 플레이 시험은 출시 exe로 한다)
+# The editor build doesn't use an online backend (multiplayer testing is done with the shipping exe)
 if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
     if(MEALKIT_ONLINE STREQUAL "Auto")
         if(mealkit_has_steam)
@@ -482,11 +482,11 @@ if(mealkit_online STREQUAL "Steam")
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_STEAMWORKS_SDK}/public)
     target_link_libraries(mealkit PUBLIC ${MEALKIT_STEAMWORKS_SDK}/redistributable_bin/win64/steam_api64.lib)
     target_compile_definitions(mealkit PUBLIC MEALKIT_STEAM=1)
-    # 게임 실행 파일 옆에 복사된다 (mealkit_add_game). steam_appid.txt도 거기서 만든다.
+    # Copied next to the game executable (mealkit_add_game). steam_appid.txt is also made there.
     set(MEALKIT_STEAM_DLL ${MEALKIT_STEAMWORKS_SDK}/redistributable_bin/win64/steam_api64.dll CACHE INTERNAL "")
 elseif(mealkit_online STREQUAL "EOS")
     message(STATUS "MealKit: online backend EOS - EOS lobbies and P2P relay enabled")
-    # credentials.txt ("이름: 값" 줄) → 빌드 폴더의 EosCredentials.h. 저장소에는 들어가지 않는다
+    # credentials.txt ("name: value" lines) → EosCredentials.h in the build folder. Never goes into the repo
     file(STRINGS ${MEALKIT_EOS_CREDENTIALS} mealkit_eos_lines)
     foreach(key ProductId SandboxId DeploymentId ClientId ClientSecret)
         set(EOS_${key} "")
@@ -505,7 +505,7 @@ elseif(mealkit_online STREQUAL "EOS")
     target_link_libraries(mealkit PUBLIC ${MEALKIT_EOS_SDK}/Lib/EOSSDK-Win64-Shipping.lib)
     target_compile_definitions(mealkit PUBLIC MEALKIT_EOS=1)
     set(MEALKIT_EOS_DLL ${MEALKIT_EOS_SDK}/Bin/EOSSDK-Win64-Shipping.dll CACHE INTERNAL "")
-    # Steam SDK도 있으면: Steam 계정으로 EOS 로그인 + Steam 친구 초대(로비 코드를 싣는다). 매치 전송은 EOS 하나
+    # If the Steam SDK is also present: EOS login with the Steam account + Steam friend invites (carrying the lobby code). Match transport is EOS only
     if(mealkit_has_steam)
         message(STATUS "MealKit: Steamworks SDK found - EOS logs in with the Steam account, invites go through Steam")
         target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_STEAMWORKS_SDK}/public)
@@ -520,9 +520,9 @@ else()
     target_sources(mealkit PRIVATE src/mealkit/online/OnlineNone.cpp)
 endif()
 
-# --- Dear ImGui (MEALKIT_DEBUG_UI): 엔진 라이브러리 안에 넣는다 ---
-# Editor 빌드는 mealkit.dll 안(내보내기 def에도)이라 에디터와 게임 DLL이 ImGui 하나·컨텍스트 하나를 같이 쓴다.
-# Game 빌드는 정적 mealkit에 들어가 개발용 exe의 디버그 오버레이가 쓴다. ImGuizmo는 에디터만.
+# --- Dear ImGui (MEALKIT_DEBUG_UI): built into the engine library ---
+# In the Editor build it's inside mealkit.dll (also in the export def), so the editor and game DLL share one ImGui and one context.
+# In the Game build it goes into static mealkit and is used by the dev exe's debug overlay. ImGuizmo is editor only.
 if(MEALKIT_DEBUG_UI)
     set(mealkit_imgui_sources
         ${MEALKIT_THIRD_PARTY}/imgui/imgui.cpp
@@ -540,7 +540,7 @@ if(MEALKIT_DEBUG_UI)
         list(APPEND mealkit_imgui_sources ${MEALKIT_THIRD_PARTY}/imguizmo/ImGuizmo.cpp)
         list(APPEND mealkit_imgui_includes ${MEALKIT_THIRD_PARTY}/imguizmo)
     endif()
-    # 외부 코드는 엔진 경고·옵션(/W4, UNICODE)과 따로 컴파일한다 (OBJECT 라이브러리 → 목적 파일만 엔진 타깃에)
+    # External code is compiled separately from engine warnings/options (/W4, UNICODE) (OBJECT library → only object files into the engine target)
     add_library(mealkit_imgui OBJECT ${mealkit_imgui_sources})
     target_include_directories(mealkit_imgui PUBLIC ${mealkit_imgui_includes})
     target_compile_definitions(mealkit_imgui PRIVATE IMGUI_IMPL_WIN32_DISABLE_GAMEPAD NOMINMAX WIN32_LEAN_AND_MEAN)
@@ -554,11 +554,11 @@ if(MEALKIT_DEBUG_UI)
     target_include_directories(mealkit SYSTEM PUBLIC ${mealkit_imgui_includes})
     target_compile_definitions(mealkit PUBLIC MEALKIT_DEBUG_UI=1 IMGUI_IMPL_WIN32_DISABLE_GAMEPAD)
     if(NOT MEALKIT_RHI STREQUAL "Vulkan")
-        target_link_libraries(mealkit PUBLIC d3dcompiler) # ImGui DX12 백엔드의 셰이더
+        target_link_libraries(mealkit PUBLIC d3dcompiler) # shaders for the ImGui DX12 backend
     endif()
 endif()
 
-# --- 범용 에디터 (Editor 빌드): MealKitEditor.exe = mealkit.dll(+ Dear ImGui + ImGuizmo). 출시 exe에는 들어가지 않는다 ---
+# --- General-purpose editor (Editor build): MealKitEditor.exe = mealkit.dll (+ Dear ImGui + ImGuizmo). Not in the shipping exe ---
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     add_library(mealkit_editor STATIC
         src/mealkit/editor/ImGuiLayer.h
@@ -614,11 +614,11 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
 
     add_executable(MealKitEditor src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)
     target_link_libraries(MealKitEditor PRIVATE mealkit_editor)
-    # 창 프로그램: 뒤에 콘솔 창이 뜨지 않는다 (명령 창에서 실행하면 attachParentConsole이 붙인다)
+    # GUI program: no console window behind it (run from a command prompt, attachParentConsole attaches)
     target_link_options(MealKitEditor PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
-    # 프로젝트 관리자의 새 프로젝트 만들기가 쓰는 엔진 폴더 (에디터는 배포하지 않는다)
+    # Engine folder used by the project manager's new project creation (the editor isn't distributed)
     target_compile_definitions(MealKitEditor PRIVATE MEALKIT_ENGINE_DIR="${MEALKIT_ENGINE_DIR}")
 
-    # 게임 프로젝트의 에디터 빌드가 include한다: mealkit.dll의 가져오기 라이브러리, 헤더 경로, 컴파일 옵션, SimCheck
+    # Included by a game project's editor build: mealkit.dll import library, header paths, compile options, SimCheck
     export(TARGETS mealkit mealkit_tracy mealkit_simcheck mealkit_stringcheck FILE ${CMAKE_BINARY_DIR}/MealKitTargets.cmake)
 endif()

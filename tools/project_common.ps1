@@ -1,6 +1,6 @@
-﻿# new_project.ps1과 upgrade_project.ps1이 같이 쓰는 함수 (dot-source: . "$PSScriptRoot\project_common.ps1")
-# 템플릿(templates/project)을 채워 만든 파일은 .mealkit-template에 SHA-256을 남긴다.
-# 업그레이드는 이 값과 같으면(사용자가 고치지 않았으면) 새 템플릿으로 바꾸고, 다르면 덮어쓰지 않는다.
+﻿# Functions shared by new_project.ps1 and upgrade_project.ps1 (dot-source: . "$PSScriptRoot\project_common.ps1")
+# Files made by filling in the template (templates/project) record their SHA-256 in .mealkit-template.
+# Upgrades replace with the new template if it matches this value (the user didn't edit it), and don't overwrite otherwise.
 
 $MealKitEngine = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
 $MealKitUtf8 = New-Object System.Text.UTF8Encoding $false
@@ -16,11 +16,11 @@ function Get-TemplateTokens([string]$name) {
         "@MEALKIT_ROOT@"     = $MealKitEngine
         "@MEALKIT_ROOT_FWD@" = $MealKitEngine.Replace("\", "/")
         "@ENGINE_VERSION@"   = (Get-MealKitVersion)
-        "@CREATED@"          = (Get-Date -Format "yyyy-MM-dd") # mealkit.project에만 쓴다 (해시하지 않는 파일)
+        "@CREATED@"          = (Get-Date -Format "yyyy-MM-dd") # written only to mealkit.project (a file that isn't hashed)
     }
 }
 
-# 템플릿 파일을 채운 내용: 프로젝트 기준 상대 경로 → 텍스트
+# Filled-in template file contents: project-relative path → text
 function Get-RenderedTemplate([string]$name) {
     $tokens = Get-TemplateTokens $name
     $template = Join-Path $MealKitEngine "templates\project"
@@ -33,7 +33,7 @@ function Get-RenderedTemplate([string]$name) {
     return $files
 }
 
-# 줄바꿈(CRLF/LF)과 무관한 내용 해시
+# Content hash independent of line endings (CRLF/LF)
 function Get-TextHash([string]$text) {
     $bytes = $MealKitUtf8.GetBytes($text.Replace("`r`n", "`n"))
     $sha = [Security.Cryptography.SHA256]::Create()
@@ -62,10 +62,10 @@ function Write-TemplateManifest([string]$project, [hashtable]$map) {
     Write-TextFile (Join-Path $project $MealKitManifestName) (($lines -join "`r`n") + "`r`n")
 }
 
-# mealkit.project 한 줄: "경로 값" 또는 예전 형식 "키=값" (mealkit/game/ProjectSettings.cpp와 같은 규칙)
+# One mealkit.project line: "path value" or the old "key=value" format (same rules as mealkit/game/ProjectSettings.cpp)
 $MealKitProjectLine = '^\s*([A-Za-z_][A-Za-z0-9_.\[\]]*)(?:\s*=\s*|\s+|$)(.*?)\s*$'
 
-# mealkit.project 읽기 (경로 → 값)
+# Reads mealkit.project (path → value)
 function Read-ProjectFile([string]$project) {
     $values = [ordered]@{}
     foreach ($line in [IO.File]::ReadAllLines((Join-Path $project "mealkit.project"), $MealKitUtf8)) {
@@ -75,7 +75,7 @@ function Read-ProjectFile([string]$project) {
     return $values
 }
 
-# 예제 게임 코드(samples/sandbox의 sim/ view/ app/)를 프로젝트 source/로 옮길 때의 내용. 창 제목과 도움말의 이름만 바꾼다.
+# Contents when moving the sample game code (sim/ view/ app/ of samples/sandbox) into the project's source/. Only names in the window title and help are changed.
 function Get-SampleSource([string]$name) {
     $sample = Join-Path $MealKitEngine "samples\sandbox"
     $files = [ordered]@{}

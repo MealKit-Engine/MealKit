@@ -1,4 +1,4 @@
-// 흩어진 상자: 무작위 생성(Pcg32), 밀치기, 떨어지면 위에서 다시 떨어뜨리기.
+// Scattered boxes: random generation (Pcg32), pushing, dropping again from above after falling.
 #include "sim/Systems.h"
 
 #include "mealkit/core/Random.h"
@@ -26,7 +26,7 @@ void spawnProps(World& world, u64 seed) {
             d.friction = t.friction;
             d.restitution = t.restitution;
             const Vec3 h = b.halfExtents;
-            d.mass = std::max(t.minMass, t.density * 8.0f * h.x * h.y * h.z); // const-ok: 부피 = 8 × 반 크기 곱
+            d.mass = std::max(t.minMass, t.density * 8.0f * h.x * h.y * h.z); // const-ok: volume = 8 × product of half sizes
             b.body = world.physics.createBox(b.halfExtents, d);
             world.state.props.create(b);
         }
@@ -40,7 +40,7 @@ void pushProps(World& world, const Vec3& center) {
         const f32 dist2 = mealkit::lengthSq(d);
         if (dist2 >= t.pushRadius * t.pushRadius) continue;
         const f32 dist = std::sqrt(dist2);
-        const Vec3 dir = dist > 1e-4f ? d / dist : Vec3{0, 1, 0}; // const-ok: 0으로 나누지 않는 문턱
+        const Vec3 dir = dist > 1e-4f ? d / dist : Vec3{0, 1, 0}; // const-ok: threshold to avoid dividing by 0
         const f32 strength = 1.0f - dist / t.pushRadius;
         world.physics.addLinearVelocity(prop.body,
                                         dir * (t.pushSpeed * strength) + Vec3{0.0f, t.pushLift * strength, 0.0f});
@@ -49,7 +49,7 @@ void pushProps(World& world, const Vec3& center) {
     }
 }
 
-// 경기 영역 바닥 아래로 떨어진 상자는 영역 위에서 다시 떨어뜨린다
+// Boxes that fell below the match area floor are dropped again from above the area
 void recoverFallenProps(World& world) {
     const Vec3 lo = world.arenaMin, hi = world.arenaMax;
     for (auto [propId, prop] : world.state.props) {

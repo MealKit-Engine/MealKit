@@ -1,17 +1,17 @@
-﻿# 소스 모듈을 프로젝트 modules/<이름>/에 넣고, 갱신하고, 뺀다 (docs/MODULES.md). 에디터·MealKit Manager도 이것을 부른다.
-#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 search [<검색어>] [-Tag <태그>] [-Project <폴더>] [-Tsv]   (-Tsv: 에디터·Manager용 줄)
-#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 list   -Project <폴더>
-#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 add    -Project <폴더> <이름[@버전] | 폴더 | git주소[#태그]> [-Name <모듈>] [-WithRequires]
-#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 update -Project <폴더> <모듈> [-To <버전>] [-From <폴더 | git주소[#태그]>] [-DryRun] [-Force]
-#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 remove -Project <폴더> <모듈> [-Force]
+﻿# Adds, updates, and removes source modules in the project's modules/<name>/ (docs/MODULES.md). The editor and MealKit Manager call this too.
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 search [<query>] [-Tag <tag>] [-Project <folder>] [-Tsv]   (-Tsv: lines for the editor/Manager)
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 list   -Project <folder>
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 add    -Project <folder> <name[@version] | folder | git url[#tag]> [-Name <module>] [-WithRequires]
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 update -Project <folder> <module> [-To <version>] [-From <folder | git url[#tag]>] [-DryRun] [-Force]
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 remove -Project <folder> <module> [-Force]
 #
-# - 원본은 모듈 폴더(루트에 module.txt) 또는 그런 폴더를 가진 git 저장소. 저장소에 modules/<이름>/module.txt가 여럿이면 -Name으로 고른다.
-#   이름은 레지스트리(MealKit-Modules) index.json에서 찾는다: 이 엔진 MINOR용 가장 새 버전을 태그로 받고, 커밋이 목록과 같은지 본다.
-#   목록은 -Index 또는 환경 변수 MEALKIT_MODULE_INDEX(주소 또는 파일)로 바꾼다. 받은 목록은 %LOCALAPPDATA%\MealKit\module-index.json에 두고 오프라인이면 그것을 쓴다.
-# - 복사하는 것: module.txt, sim/, view/, assets/, art/, docs/, 루트의 LICENSE*·README* (*.new 제외). 복사한 파일의 해시와 가져온 곳은 modules/<이름>/module.files에 남는다.
-# - update는 upgrade_project.ps1과 같은 규칙: 고치지 않은 파일(해시가 기록과 같음)만 새것으로 바꾸고, 고친 파일은 남기고 <파일>.new를 쓴다.
-#   새 버전에서 없어진 파일은 고치지 않았으면 지우고, 고쳤으면 남기고 알린다. -Force면 고친 파일도 바꾼다.
-# - remove는 다른 모듈의 requires에 있거나 게임 source/가 include하면 거절한다(-Force로 강행). 되돌리기는 git이 맡는다.
+# - The source is a module folder (module.txt at its root) or a git repo containing such folders. If the repo has several modules/<name>/module.txt, pick one with -Name.
+#   Names are looked up in the registry (MealKit-Modules) index.json: fetches the newest version for this engine MINOR by tag and checks the commit matches the list.
+#   The list can be changed with -Index or the environment variable MEALKIT_MODULE_INDEX (URL or file). The fetched list is kept in %LOCALAPPDATA%\MealKit\module-index.json and used when offline.
+# - What's copied: module.txt, sim/, view/, assets/, art/, docs/, LICENSE*/README* at the root (excluding *.new). Hashes of copied files and where they came from are kept in modules/<name>/module.files.
+# - update follows the same rules as upgrade_project.ps1: only unmodified files (hash matches the record) are replaced; modified files are kept and <file>.new is written.
+#   Files gone in the new version are deleted if unmodified, kept and reported if modified. -Force replaces modified files too.
+# - remove refuses if another module's requires lists it or game source/ includes it (force with -Force). Undo is git's job.
 param(
     [Parameter(Mandatory = $true, Position = 0)][ValidateSet("search", "list", "add", "update", "remove")][string]$Command,
     [Parameter(Position = 1)][string]$Target = "",
@@ -30,14 +30,14 @@ $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\project_common.ps1"
 
 $modulesDir = ""
-if ($Command -ne "search" -or $Project) { # search는 프로젝트 없이도 된다 (있으면 설치 표시)
+if ($Command -ne "search" -or $Project) { # search works without a project too (shows installed state if given)
     if ($Project -eq "") { $Project = (Get-Location).Path }
-    $Project = (Get-Item -LiteralPath (Resolve-Path $Project).Path -Force).FullName.TrimEnd("\") # 긴 경로 (8.3 짧은 이름 아님)
+    $Project = (Get-Item -LiteralPath (Resolve-Path $Project).Path -Force).FullName.TrimEnd("\") # long path (not an 8.3 short name)
     if (-not (Test-Path (Join-Path $Project "mealkit.project"))) { Write-Error "$Project has no mealkit.project"; exit 1 }
     $modulesDir = Join-Path $Project "modules"
 }
 $filesName = "module.files"
-# 복사하는 것은 모듈 구조뿐이다 (docs/MODULES.md): .git, .github, tests/, 빌드 폴더 등은 프로젝트에 가지 않는다
+# Only the module structure is copied (docs/MODULES.md): .git, .github, tests/, build folders etc. don't go into the project
 $copyTop = @("module.txt", "sim", "view", "assets", "art", "docs")
 $textExtensions = @(".h", ".hpp", ".cpp", ".c", ".inl", ".txt", ".md", ".ui", ".table", ".tuning", ".scene", ".events", ".bindings",
     ".json", ".yml", ".yaml", ".gltf", ".cube", ".fx", ".gitignore", ".gitattributes")
@@ -45,7 +45,7 @@ $engineMinor = ((Get-MealKitVersion) -replace '^(\d+\.\d+).*$', '$1')
 $defaultIndex = "https://raw.githubusercontent.com/MealKit-Engine/MealKit-Modules/main/index.json"
 $registryNamePattern = '^[a-z][a-z0-9_]*(@\d+\.\d+\.\d+)?$'
 
-# ---------------------------------------------------------------- 공통
+# ---------------------------------------------------------------- Common
 
 function Read-ModuleInfo([string]$dir) {
     $info = @{ name = ""; version = "0"; engine = ""; requires = @() }
@@ -60,7 +60,7 @@ function Read-ModuleInfo([string]$dir) {
     return $info
 }
 
-# 줄바꿈과 무관한 해시 (텍스트), 바이트 해시 (그 밖)
+# Hash independent of line endings (text), byte hash (everything else)
 function Get-ModuleFileHash([string]$file) {
     if ($textExtensions -contains [IO.Path]::GetExtension($file).ToLowerInvariant()) {
         return Get-TextHash ([IO.File]::ReadAllText($file, $MealKitUtf8))
@@ -69,10 +69,10 @@ function Get-ModuleFileHash([string]$file) {
     return ([BitConverter]::ToString($sha.ComputeHash([IO.File]::ReadAllBytes($file)))).Replace("-", "").ToLowerInvariant()
 }
 
-# 모듈 폴더의 복사 대상 파일: 모듈 기준 경로(/) → 전체 경로
+# Files to copy from a module folder: module-relative path (/) → full path
 function Get-ModuleFiles([string]$dir) {
     $files = [ordered]@{}
-    # 기준은 Get-Item이 준 긴 경로 (%TEMP%처럼 8.3 짧은 이름으로 받은 경로와 FullName의 길이가 다르다)
+    # The base is the long path from Get-Item (paths received as 8.3 short names like %TEMP% differ in length from FullName)
     $base = (Get-Item -LiteralPath $dir -Force).FullName.TrimEnd("\")
     Get-ChildItem -LiteralPath $base -Recurse -File -Force | Sort-Object FullName | ForEach-Object {
         $rel = $_.FullName.Substring($base.Length + 1).Replace("\", "/")
@@ -102,7 +102,7 @@ function Write-FilesRecord([string]$dir, [string]$source, [hashtable]$hashes) {
     Write-TextFile (Join-Path $dir $filesName) (($lines -join "`r`n") + "`r`n")
 }
 
-# 레지스트리 목록 (MealKit-Modules index.json). 받지 못하면 지난번 받은 캐시
+# Registry list (MealKit-Modules index.json). If it can't be fetched, the last fetched cache
 $script:registry = $null
 function Get-Registry {
     if ($script:registry) { return $script:registry }
@@ -134,9 +134,9 @@ function Find-RegistryModule([string]$name) {
     return $m[0]
 }
 
-# 고를 버전: 정한 버전, 아니면 이 엔진 MINOR용 가장 새 버전, 그것도 없으면 가장 새 버전(경고)
+# Version to pick: the given version, otherwise the newest for this engine MINOR, failing that the newest version (warning)
 function Select-RegistryVersion($module, [string]$version) {
-    $versions = @($module.versions) # build_index.py가 새 버전부터 적는다
+    $versions = @($module.versions) # build_index.py writes newest first
     if ($version) {
         $v = @($versions | Where-Object { $_.version -eq $version })
         if ($v.Count -eq 0) { throw "$($module.name) has no version $version (has $(($versions | ForEach-Object version) -join ', '))" }
@@ -148,7 +148,7 @@ function Select-RegistryVersion($module, [string]$version) {
     return $versions[0]
 }
 
-# 원본(레지스트리 이름[@버전], 폴더, git 주소#태그) → @{ dir; source } . git은 캐시 폴더에 새로 받는다
+# Source (registry name[@version], folder, git url#tag) → @{ dir; source } . git is freshly cloned into a cache folder
 function Get-ModuleSource([string]$spec, [string]$want) {
     $root = ""
     $source = ""
@@ -175,7 +175,7 @@ function Get-ModuleSource([string]$spec, [string]$want) {
         New-Item -ItemType Directory -Force $cacheRoot | Out-Null
         $gitArgs = @("-c", "advice.detachedHead=false", "clone", "--quiet", "--depth", "1")
         if ($ref) { $gitArgs += @("--branch", $ref) }
-        # git은 알림도 stderr로 쓴다: Stop이면 PowerShell 5.1이 그것을 오류로 끊으므로 종료 코드로만 판단한다
+        # git writes notices to stderr too: with Stop, PowerShell 5.1 would abort on them as errors, so only the exit code decides
         $ErrorActionPreference = "Continue"
         & git @gitArgs $url $root 2>&1 | ForEach-Object { Write-Host "  git: $_" }
         $cloned = $LASTEXITCODE -eq 0
@@ -217,7 +217,7 @@ function Test-ModuleWarnings([hashtable]$info) {
     }
 }
 
-# 설치된 모듈 하나: module.txt, 기록과 다른(고친) 파일 수, 남은 .new 수, 출처
+# One installed module: module.txt, number of files differing from the record (modified), remaining .new count, source
 function Get-ModuleState([string]$dir) {
     $record = Read-FilesRecord $dir
     $modified = 0
@@ -234,15 +234,15 @@ function Get-Installed {
     return @(Get-ChildItem $modulesDir -Directory | Where-Object { Test-Path (Join-Path $_.FullName "module.txt") } | Sort-Object Name)
 }
 
-# ---------------------------------------------------------------- 명령
+# ---------------------------------------------------------------- Commands
 
 switch ($Command) {
     "search" {
         if ($Tsv) {
-            # 에디터 [모듈] 창과 MealKit Manager [모듈] 탭이 읽는 줄 (탭으로 나눔, UTF-8). 한 번 불러 설치된 것과 목록을 같이 받는다:
-            #   installed <이름> <버전> <고친 파일 수> <.new 수> <출처>
-            #   module <이름> <이 엔진용 버전 또는 -> <가장 새 버전> <그 버전의 엔진> <제목> <요약> <태그(공백)> <작성자> <저장소>
-            #   error <문구>   (목록을 받지 못했다. installed 줄은 그대로 나온다)
+            # Lines read by the editor [Modules] window and the MealKit Manager [Modules] tab (tab-separated, UTF-8). One call returns both installed modules and the list:
+            #   installed <name> <version> <modified file count> <.new count> <source>
+            #   module <name> <version for this engine or -> <newest version> <engine of that version> <title> <summary> <tags (space)> <author> <repo>
+            #   error <message>   (the list couldn't be fetched. installed lines still appear)
             [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false
             $clean = { param($s) "$s" -replace "[`t`r`n]", " " }
             foreach ($m in Get-Installed) {
@@ -265,7 +265,7 @@ switch ($Command) {
             (-not $Tag -or $m.tags -contains $Tag) -and -not ($words | Where-Object { -not $text.Contains($_) })
         })
         if ($hits.Count -eq 0) { Write-Host "No modules found"; break }
-        # 이 엔진 MINOR용 버전이 있는 것 먼저
+        # Those with a version for this engine MINOR first
         $hits = $hits | Sort-Object @{ Expression = { @($_.versions | Where-Object { $_.engine -eq $engineMinor }).Count -eq 0 } }, name
         foreach ($m in $hits) {
             $fit = @($m.versions | Where-Object { $_.engine -eq $engineMinor })
@@ -363,7 +363,7 @@ switch ($Command) {
                     if (-not $DryRun) { Copy-Item -LiteralPath $entry.Value $dst -Force }
                     $hashes[$rel] = $newHash; $changed++
                 } elseif ($recorded -eq $newHash) {
-                    $hashes[$rel] = $recorded # 모듈은 그대로이고 게임만 고쳤다
+                    $hashes[$rel] = $recorded # the module is unchanged and only the game modified it
                 } else {
                     Write-Host "  modified  $rel  (kept; new version in $rel.new. -Force to replace)" -ForegroundColor Yellow
                     if (-not $DryRun) { Copy-Item -LiteralPath $entry.Value "$dst.new" -Force }

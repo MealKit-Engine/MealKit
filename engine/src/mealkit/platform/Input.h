@@ -6,7 +6,7 @@
 
 namespace mealkit {
 
-// Win32 가상 키 코드. 글자 키는 'W' 처럼 대문자 문자를 그대로 쓴다.
+// Win32 virtual key codes. Letter keys use the uppercase character as is, like 'W'.
 namespace key {
 inline constexpr u8 Backspace = 0x08;
 inline constexpr u8 Tab = 0x09;
@@ -40,18 +40,18 @@ public:
         const u8 i = static_cast<u8>(b);
         return m_mouse[i] && !m_prevMouse[i];
     }
-    f32 mouseDeltaX() const { return m_dx; } // Raw Input: 가속 없는 픽셀 단위 이동량
+    f32 mouseDeltaX() const { return m_dx; } // Raw Input: pixel movement without acceleration
     f32 mouseDeltaY() const { return m_dy; }
-    f32 wheelDelta() const { return m_wheel; } // 노치 단위 (+ = 위로)
-    // 커서 위치 (창 안쪽 픽셀, 왼쪽 위가 0). 이번 프레임에 움직였는가
+    f32 wheelDelta() const { return m_wheel; } // in notches (+ = up)
+    // Cursor position (pixels inside the window, top left is 0). Whether it moved this frame
     f32 mouseX() const { return m_x; }
     f32 mouseY() const { return m_y; }
     bool mouseMoved() const { return m_moved; }
-    // 이번 프레임에 친 글자 (UTF-8, 한글 입력기 조합이 끝난 글자 포함, 제어 문자 없음)와 지우기 횟수 (키 반복 포함). 글자 입력 위젯용
+    // Text typed this frame (UTF-8, including characters finished composing in the Korean IME, no control characters) and backspace count (including key repeat). For text input widgets
     const std::string& text() const { return m_text; }
     u32 backspaces() const { return m_backspaces; }
 
-    // --- Window 내부 사용 ---
+    // --- Used internally by Window ---
     void beginFrame() {
         for (int i = 0; i < 256; ++i) m_prevKeys[i] = m_keys[i];
         for (int i = 0; i < 3; ++i) m_prevMouse[i] = m_mouse[i];
@@ -60,7 +60,7 @@ public:
         m_text.clear();
         m_backspaces = 0;
     }
-    void addText(u32 codepoint) { // 글자 하나 (UTF-8로 붙인다)
+    void addText(u32 codepoint) { // one character (appended as UTF-8)
         if (codepoint == 8) {
             ++m_backspaces;
             return;

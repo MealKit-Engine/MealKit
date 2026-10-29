@@ -29,7 +29,7 @@ void GameSession::loadSave(const std::string& userFolder) {
     m_saveLoaded = true;
 }
 
-// 매치 전: 로드아웃 (봇은 플레이어마다 다른 몸, 사람은 로비에서 고른 몸 = 세이브). 로비 화면이 몸을 고른다 (app/Flow.cpp)
+// Before the match: loadout (bots get a different body per player, humans the body chosen in the lobby = save). The lobby screen picks the body (app/Flow.cpp)
 void GameSession::lobby(net::LockstepSession& session, const game::PlayOptions& options, const std::string& userFolder) {
     if (options.bot) {
         Headless::botLoadout(session.localPlayer(), session);
@@ -43,14 +43,14 @@ void GameSession::lobby(net::LockstepSession& session, const game::PlayOptions& 
 
 void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const game::PlayOptions& options) {
     const net::LockstepSession& session = ctx.session;
-    m_scene = scene::flattened(scene); // 부모·자식 계층을 월드 좌표로 펼친다 (시뮬레이션과 그리기는 평평한 목록만 본다)
+    m_scene = scene::flattened(scene); // flattens the parent/child hierarchy to world coordinates (simulation and drawing only see the flat list)
     m_sceneSource = &scene;
     m_options = options;
     Tuning tuning;
     game::loadTuning(reflect::typeOf<Tuning>(), &tuning, options.tuningPath);
-    const game::MatchInfo match = game::matchInfo(session); // 시드, 인원, 매치 데이터, 플레이어별 로드아웃
+    const game::MatchInfo match = game::matchInfo(session); // seed, player count, match data, per-player loadouts
     m_sim.start(options, game::tickDt(), [&](World& world, u32 physicsThreads) {
-        Headless::startWorld(world, match, tuning, m_scene, ctx.models, physicsThreads); // 헤드리스와 같은 매치 시작
+        Headless::startWorld(world, match, tuning, m_scene, ctx.models, physicsThreads); // same match start as headless
     });
     m_input.clearLatches();
     m_prediction.reset();
@@ -66,7 +66,7 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     ctx.ui.bind(m_hud, m_hudVm);
 }
 
-// 매치 끝 (로비로 돌아감, 나감, 끊김): World를 버리고 매치 화면을 닫는다. 세이브는 남긴다
+// Match end (back to lobby, left, disconnected): discard the World and close match screens. The save remains
 void GameSession::stop(game::GameContext& ctx) {
     m_sim.stop();
     ctx.audio.stop(m_music);
@@ -87,33 +87,33 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     net::LockstepSession& session = ctx.session;
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     loadSave(ctx.userFolder);
-    // 화면 흐름: 세션 단계에 맞는 화면을 열고 버튼을 처리한다 (메뉴·로비·일시정지·결과·채팅)
+    // Screen flow: opens screens matching the session phase and handles buttons (menu/lobby/pause/results/chat)
     m_flow.update(ctx, m_sim.started() ? &m_sim.world() : nullptr, m_save, m_hudVm, m_hud, dt);
     if (m_flow.takeSaveChanged()) game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
     if (!m_sim.started()) {
-        if (ctx.scene && ctx.scene != m_sceneSource) { // 메뉴 뒤에 보일 경기장
+        if (ctx.scene && ctx.scene != m_sceneSource) { // arena shown behind the menu
             m_scene = scene::flattened(*ctx.scene);
             m_sceneSource = ctx.scene;
         }
         return;
     }
 
-    const bool menuOpen = m_flow.blocksInput(); // 일시정지·채팅·결과 중: 캐릭터는 서 있고 카메라도 그대로
+    const bool menuOpen = m_flow.blocksInput(); // during pause/chat/results: the character stands still and the camera stays
     if (!menuOpen) {
         m_camera.control(ctx.window, ctx.actions, look.camera);
         m_input.poll(ctx.actions);
-        // 디버그 치트는 상태를 직접 고치지 않고 확정 명령으로 보낸다 (모든 피어가 같은 틱에 처리)
+        // Debug cheats don't modify state directly; they're sent as confirmed commands (all peers process them on the same tick)
         if (ctx.actions.pressed("debug.shockwave")) sim::sendCommand(session, DebugShockwave{});
-        if (ctx.actions.pressed("menu.settings")) ctx.settings.open(); // 표준 설정 화면 (HUD의 [설정] 버튼은 .ui에서 바로 settings.open)
+        if (ctx.actions.pressed("menu.settings")) ctx.settings.open(); // standard settings screen (the HUD's [Settings] button calls settings.open directly from the .ui)
     } else {
         ctx.window.setCursorCaptured(false);
         m_camera.orbiting = false;
     }
-    const bool hitStop = ctx.feedback.hitStop(); // 화면만 멈춘다: 화면 시계·효과·카메라 초점 (시뮬레이션은 계속)
+    const bool hitStop = ctx.feedback.hitStop(); // freezes only the view: view clock/effects/camera focus (the simulation continues)
     if (!hitStop) m_viewTime += dt;
     m_effects.prune(m_viewTime, look.shockwave);
 
-    // 확정된 틱마다: 로컬 입력을 만들어 보내고, 틱 이벤트를 화면 효과로 옮긴다
+    // Every confirmed tick: build and send local input, and move tick events into view effects
     auto sample = [&](u32 tick) {
         GameInput gi = m_input.sample(ctx.actions, m_camera);
         if (m_flow.blocksInput()) gi = GameInput{};
@@ -132,21 +132,21 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
             if (e.player == session.localPlayer() && e.kind == EventKind::Fall) ++m_save.falls, saveNow = true;
             if (e.player == session.localPlayer() && e.kind == EventKind::Push) ++m_save.pushes;
             m_effects.onEvent(e, m_viewTime, look.shockwave, world.tuning.pawnHalfHeight);
-            onWorldEvent(e, world.state, m_viewTime, m_view); // 밀쳐진 캐릭터 번쩍임
-            ctx.feedback.trigger(e, session.localPlayer()); // 소리·흔들림·번쩍임·화면 정지는 연출 표가 정한다
+            onWorldEvent(e, world.state, m_viewTime, m_view); // flash on a pushed character
+            ctx.feedback.trigger(e, session.localPlayer()); // sound/shake/flash/hitstop are decided by the feedback table
         }
         if (saveNow) game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
     };
-    if (!m_flow.pausesSimulation()) m_sim.update(session, dt, sample, onTick); // 혼자 하기의 일시정지는 매치를 멈춘다
+    if (!m_flow.pausesSimulation()) m_sim.update(session, dt, sample, onTick); // pause in solo play halts the match
 
-    // 내 캐릭터 미리 움직이기: 보냈지만 아직 실행되지 않은 내 이동 입력만큼 (화면만, 경기 중에만)
+    // Moving my character ahead: by my movement inputs sent but not yet executed (view only, only during play)
     const World& world = m_sim.world();
     const u8 me = session.localPlayer();
     m_prediction.begin();
     m_sim.forEachPendingInput([&](u32, const net::PlayerInput& in) { m_prediction.addInput(world, me, in); });
     m_prediction.update(static_cast<f32>(dt), look.prediction, world.state.phase == MatchPhase::Playing && playerPawn(world.state, me));
 
-    // 게임 화면 UI: 상태 → 뷰 모델, 버튼 액션 (시뮬레이션을 바꾸는 것은 확정 명령으로)
+    // Game screen UI: state → view model, button actions (changes to the simulation go through confirmed commands)
     std::array<std::string, net::kMaxPlayers> names;
     for (u32 i = 0; i < names.size(); ++i) names[i] = Flow::playerName(session, i);
     fillHud(m_sim.world().state, m_sim.world().tuning, session.localPlayer(), look, names, m_hudVm);
@@ -156,7 +156,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
         m_saveTimer = 0.0;
         game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
     }
-    // 플레이어용 네트워크 표시 (플레이어 설정으로 끈다): 플레이어별 핑, 입력을 기다리며 멈추면 누구 때문인지
+    // Network display for players (turned off in player settings): per-player ping, and who it is when stalled waiting for input
     const bool showNet = ctx.settings.values().gameplay.showNetwork && !session.isOffline();
     for (u32 i = 0; i < m_hudVm.playersCount; ++i) {
         PlayerRowVm& row = m_hudVm.players[i];
@@ -181,7 +181,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     const u8 localPlayer = ctx.session.localPlayer();
     const bool started = m_sim.started();
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
-    if (!started) { // 메뉴·로비 뒤: 경기장을 천천히 돌며 보여 준다
+    if (!started) { // behind the menu/lobby: slowly circles and shows the arena
         CameraTuning camera = look.camera;
         camera.fovDegrees = ctx.settings.values().display.fov;
         OrbitCamera menuCamera;
@@ -195,7 +195,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
         drawScene(m_scene, ctx.models, frame.cameraPos, m_viewTime, out);
         return;
     }
-    // 화면 정지가 시작되면 그 순간의 그림을 붙잡아 두고, 끝나면 지금 상태로 돌아온다
+    // When hitstop starts, hold the image of that moment, and return to the current state when it ends
     const bool hitStop = ctx.feedback.hitStop();
     if (hitStop && !m_frozen) {
         m_frozenPrevious = m_sim.previous();
@@ -207,7 +207,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     const WorldState& current = m_frozen ? m_frozenCurrent : m_sim.world().state;
     const f32 alpha = m_frozen ? m_frozenAlpha : m_sim.alpha();
 
-    // 카메라는 내가 빙의한 Pawn을 따라간다. 리스폰을 기다리는 동안은 마지막 자리에 머문다 (관전).
+    // The camera follows the Pawn I possess. While waiting to respawn it stays at the last spot (spectating).
     if (localPlayer < current.playerCount) {
         const Controller* c = current.controllers.get(current.slots[localPlayer].controller);
         const Pawn* pawn = c ? current.pawns.get(c->pawn) : nullptr;
@@ -218,15 +218,15 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
         }
     }
     CameraTuning camera = look.camera;
-    camera.fovDegrees = ctx.settings.values().display.fov; // 시야각은 플레이어 설정
-    m_camera.apply(m_focus + ctx.feedback.cameraShake(m_focus), ctx.viewport, camera, frame); // 흔들림은 연출 표
+    camera.fovDegrees = ctx.settings.values().display.fov; // field of view is a player setting
+    m_camera.apply(m_focus + ctx.feedback.cameraShake(m_focus), ctx.viewport, camera, frame); // shake comes from the feedback table
     applyEnvironment(m_scene.environment, ctx.models, frame);
     applyProbes(m_scene, ctx.models, m_probes, frame);
     applyLights(m_scene, m_view, m_viewTime, m_lights, frame);
 
     drawScene(m_scene, ctx.models, frame.cameraPos, m_viewTime, out);
     drawWorld(previous, current, alpha, localPlayer, now, m_viewTime, look, ctx.models, m_view, out, m_prediction.offset);
-    // 캐릭터 위 이름표 (월드 위 UI): 보간한 위치 위에
+    // Name tags above characters (world-space UI): above the interpolated position
     for (u32 slot = 0; slot < current.playerCount && slot < m_tagVms.size(); ++slot) {
         const Pawn* pawn = playerPawn(current, slot);
         if (!pawn) continue;
@@ -243,7 +243,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     m_effects.draw(m_viewTime, look.shockwave, ctx.models.boxMesh(), out);
 }
 
-// 디버그 창 (개발 빌드 F1, 에디터 플레이 중). 시뮬레이션을 바꾸는 버튼은 확정 명령으로 보낸다.
+// Debug window (F1 in dev builds, during editor play). Buttons that change the simulation send confirmed commands.
 void GameSession::debugUi(game::GameContext& ctx) {
 #if MEALKIT_DEBUG_UI
     if (!m_sim.started()) return;

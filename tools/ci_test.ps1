@@ -1,15 +1,15 @@
-﻿# CI 테스트 (한 빌드): 단위 테스트, 고정 입력 기록 재생, 헤드리스 mp_test. Windows PowerShell 5.1과 pwsh 7(Linux·macOS)에서 돈다.
+﻿# CI tests (one build): unit tests, fixed input recording replay, headless mp_test. Runs on Windows PowerShell 5.1 and pwsh 7 (Linux/macOS).
 #   pwsh tools/ci_test.ps1 -Bin build/Headless/bin -Name linux-clang [-Out ci-out/linux-clang] [-NoHeadless]
-# 결과(-Out 폴더, CI가 아티팩트로 올린다):
-#   detmath-bits.txt          mealkit_tests의 "detmath-bits <hash>" 줄 (모든 빌드에서 같아야 한다)
-#   <샘플>-<기록>.hashes.txt   samples/*/replays/*.rec 재생의 틱별 해시 (모든 OS·CPU·컴파일러에서 같아야 한다)
-#   *.log                     각 실행의 출력
-# 빌드끼리의 비교는 tools/ci_compare.ps1. 하나라도 실패하면 종료 코드 1.
+# Results (-Out folder, uploaded as artifacts by CI):
+#   detmath-bits.txt          the "detmath-bits <hash>" line of mealkit_tests (must be the same on all builds)
+#   <sample>-<recording>.hashes.txt   per-tick hashes from replaying samples/*/replays/*.rec (must be the same on all OSes/CPUs/compilers)
+#   *.log                     output of each run
+# Comparison between builds is tools/ci_compare.ps1. Exit code 1 if anything fails.
 param(
     [Parameter(Mandatory = $true)][string]$Bin,
     [Parameter(Mandatory = $true)][string]$Name,
     [string]$Out = "",
-    [switch]$NoHeadless # Editor 빌드: 헤드리스 타깃이 없다 (단위 테스트만)
+    [switch]$NoHeadless # Editor build: no headless target (unit tests only)
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -19,7 +19,7 @@ if ($Out -eq "") { $Out = Join-Path $root "build/ci/$Name" }
 New-Item -ItemType Directory -Force $Out | Out-Null
 $Out = (Resolve-Path $Out).Path
 $failed = @()
-$ErrorActionPreference = "Continue" # 여기부터는 실패를 모아서 끝에 보고한다
+$ErrorActionPreference = "Continue" # from here, failures are collected and reported at the end
 
 function Run-Exe([string]$exe, [string[]]$arguments, [string]$log) {
     $output = & $exe @arguments 2>&1
@@ -28,7 +28,7 @@ function Run-Exe([string]$exe, [string[]]$arguments, [string]$log) {
     return $code
 }
 
-# --- 단위 테스트 + detmath-bits
+# --- Unit tests + detmath-bits
 $tests = Join-Path $Bin "mealkit_tests$exeSuffix"
 $log = Join-Path $Out "unit-tests.log"
 $code = Run-Exe $tests @() $log
@@ -41,7 +41,7 @@ if ($code -ne 0 -or -not $bits) {
 }
 
 if (-not $NoHeadless) {
-    # --- 고정 입력 기록 재생: 기록에 든 틱별 해시와 비교하고(REPLAY ok), 해시 로그를 남겨 다른 빌드와 비교한다
+    # --- Fixed input recording replay: compare with the per-tick hashes in the recording (REPLAY ok), and keep a hash log to compare with other builds
     $replays = Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Filter *.rec |
         Where-Object { $_.Directory.Name -eq "replays" } | Sort-Object FullName
     if ($replays.Count -eq 0) { $failed += "no samples/*/replays/*.rec" }
@@ -58,10 +58,10 @@ if (-not $NoHeadless) {
         if ($code -ne 0 -or -not ($text -match "^REPLAY ok")) { $failed += "replay $id ($text)" }
     }
 
-    # --- 헤드리스 mp_test: 이 러너 안에서 호스트 1 + 클라이언트 3, 물리 스레드 수를 다르게
+    # --- Headless mp_test: host 1 + clients 3 within this runner, with different physics thread counts
     $mpExe = Join-Path $Bin "sandbox_headless$exeSuffix"
     $log = Join-Path $Out "mp_test.log"
-    # mp_test는 Write-Host로 쓰므로 모든 스트림(*>&1)을 받는다
+    # mp_test writes with Write-Host, so all streams (*>&1) are captured
     $output = & (Join-Path $PSScriptRoot "mp_test.ps1") -Clients 3 -Ticks 900 -Headless -Exe $mpExe *>&1 |
         ForEach-Object { "$_" }
     $code = $LASTEXITCODE
@@ -69,7 +69,7 @@ if (-not $NoHeadless) {
     $output | ForEach-Object { Write-Host "  $_" }
     if ($code -ne 0 -or @($output -match "^PASS").Count -eq 0) {
         $failed += "mp_test -Headless"
-        # 실패하면 각 피어의 출력을 남긴다 (mp_test 로그 폴더: <build>/mp_test)
+        # On failure, keep each peer's output (mp_test log folder: <build>/mp_test)
         $mpLogs = Join-Path (Split-Path -Parent (Split-Path -Parent $Bin)) "mp_test"
         if (Test-Path $mpLogs) {
             Copy-Item (Join-Path $mpLogs "*") $Out -ErrorAction SilentlyContinue

@@ -1,4 +1,4 @@
-// 시스템 기능의 Windows 부분: 디버거, 오류 대화상자, 프로세스.
+// Windows part of system features: debugger, error dialogs, processes.
 #include "mealkit/platform/System.h"
 
 #include <windows.h>
@@ -20,11 +20,11 @@ void showErrorDialog(const char* title, const char* message) {
 }
 
 void attachParentConsole() {
-    if (GetConsoleWindow()) return; // 콘솔 프로그램이거나 이미 붙었다
+    if (GetConsoleWindow()) return; // a console program or already attached
     const bool outRedirected = GetStdHandle(STD_OUTPUT_HANDLE) != nullptr;
     const bool errRedirected = GetStdHandle(STD_ERROR_HANDLE) != nullptr;
-    if (outRedirected && errRedirected) return; // 파일·파이프로 받고 있다 (검사 스크립트)
-    if (!AttachConsole(ATTACH_PARENT_PROCESS)) return; // 탐색기에서 실행: 콘솔 없음
+    if (outRedirected && errRedirected) return; // being captured by a file/pipe (check scripts)
+    if (!AttachConsole(ATTACH_PARENT_PROCESS)) return; // run from Explorer: no console
     FILE* f = nullptr;
     if (!outRedirected) freopen_s(&f, "CONOUT$", "w", stdout);
     if (!errRedirected) freopen_s(&f, "CONOUT$", "w", stderr);
@@ -36,7 +36,7 @@ u32 processId() { return static_cast<u32>(GetCurrentProcessId()); }
 
 bool processRunning(u32 pid) {
     HANDLE h = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
-    if (!h) return GetLastError() == ERROR_ACCESS_DENIED; // 다른 사용자의 프로세스: 살아 있다
+    if (!h) return GetLastError() == ERROR_ACCESS_DENIED; // another user's process: alive
     DWORD code = 0;
     const bool alive = GetExitCodeProcess(h, &code) && code == STILL_ACTIVE;
     CloseHandle(h);
@@ -46,12 +46,12 @@ bool processRunning(u32 pid) {
 ProcessMemory processMemory() {
     PROCESS_MEMORY_COUNTERS c{};
     c.cb = sizeof(c);
-    if (!K32GetProcessMemoryInfo(GetCurrentProcess(), &c, sizeof(c))) return {}; // kernel32 (psapi.lib 필요 없음)
+    if (!K32GetProcessMemoryInfo(GetCurrentProcess(), &c, sizeof(c))) return {}; // kernel32 (no psapi.lib needed)
     return {static_cast<u64>(c.WorkingSetSize), static_cast<u64>(c.PeakWorkingSetSize)};
 }
 
 std::string environmentVariable(const char* name) {
-    std::wstring wname(name, name + std::strlen(name)); // 이름은 ASCII
+    std::wstring wname(name, name + std::strlen(name)); // the name is ASCII
     const DWORD size = GetEnvironmentVariableW(wname.c_str(), nullptr, 0);
     if (size == 0) return {};
     std::wstring value(size, L'\0');

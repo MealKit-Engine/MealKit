@@ -1,5 +1,5 @@
-// Penpot 안에서 도는 플러그인 코드: 패널(ui.html)을 열고, 고른 레이어의 엔진 값(플러그인 데이터)을 읽고 쓰고,
-// 화면 보드를 스냅샷 → .ui로 바꾸고, 구울 도형을 PNG로 내보낸다. 파일 쓰기는 패널이 한다 (에디터 서버 또는 zip).
+// Plugin code running inside Penpot: opens the panel (ui.html), reads/writes engine values (plugin data) of the selected layer,
+// turns screen boards into snapshot → .ui, and exports shapes to bake as PNG. File writing is done by the panel (editor server or zip).
 
 import type { Board, Shape } from '@penpot/plugin-types';
 import { convertBoard, convertTheme, nodeName, type TokenEntry } from './convert.ts';
@@ -9,10 +9,10 @@ import { kDataKey, readData, snapshot } from './snapshot.ts';
 import { pngSize } from './encode.ts';
 import { createExample } from './example.ts';
 
-const kFileKey = 'mealkit.file'; // 화면 보드의 .ui 경로
-const kPreviewScale = 0.5; // 픽셀 비교용 보드 그림 (엔진 --ui-render도 보드의 반 크기로 그린다)
+const kFileKey = 'mealkit.file'; // .ui path of a screen board
+const kPreviewScale = 0.5; // board image for pixel comparison (the engine's --ui-render also draws at half the board size)
 
-// 에디터 서버가 plugin.js를 줄 때 자기 주소로 바꾼다 (zip 모드처럼 다른 곳에서 줄 때는 상대 경로)
+// Replaced with its own address when the editor server serves plugin.js (a relative path when served elsewhere, like zip mode)
 const base = '__MEALKIT_BASE__';
 const uiUrl = base.startsWith('__') ? 'ui.html' : base + 'ui.html';
 
@@ -93,7 +93,7 @@ async function exportBoards(msg: Extract<ToPlugin, { type: 'export' }>) {
         const data = await shape.export({ type: 'png', scale: b.scale, skipChildren: b.skipChildren });
         const size = pngSize(data);
         const logicalW = size ? size.w / b.scale : shape.width, logicalH = size ? size.h / b.scale : shape.height;
-        // 그림자·블러가 있으면 PNG가 도형보다 크다: 엔진은 도형 상자에 늘려 그린다
+        // With shadows/blur the PNG is larger than the shape: the engine stretches it into the shape box
         if (Math.abs(logicalW - shape.width) > 1 || Math.abs(logicalH - shape.height) > 1)
           r.warnings.push(`${shape.name}: the baked image (${logicalW}x${logicalH}) is larger than the layer (${shape.width}x${shape.height}), effects outside the layer are squeezed in`);
         images.push({ path: b.path, data, logicalW, logicalH });
@@ -121,7 +121,7 @@ async function exportBoards(msg: Extract<ToPlugin, { type: 'export' }>) {
     try {
       source = { name: nodeName(fileName, 'ui') + '.penpot', data: await file.export('penpot', 'all') };
     } catch (e) {
-      // Penpot의 플러그인 파일 내보내기가 실패하는 버전이 있다 (2.18: "No matching clause"): 손으로 저장하게 알린다
+      // Some versions fail Penpot's plugin file export (2.18: "No matching clause"): tell the user to save manually
       send({ type: 'progress', text: '' });
       saveWarning = `Could not save the Penpot file from the plugin (${String(e)}). Save it by hand: main menu > File > Export as .penpot, into art/ui/ of the project.`;
     }

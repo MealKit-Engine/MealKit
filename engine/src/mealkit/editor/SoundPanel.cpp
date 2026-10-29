@@ -13,7 +13,7 @@ namespace {
 
 constexpr const char* kSoundsWindow = "Sounds###Sounds";
 
-// audio::CullInfo::reason (엔진의 영어 낱말) → 화면 글자
+// audio::CullInfo::reason (English word from the engine) → display text
 const char* reasonText(const char* r) {
     const std::string s = r;
     if (s == "cooldown") return tr("cooldown");
@@ -43,7 +43,7 @@ void SoundPanel::draw(audio::Engine& audio, bool* open) {
     const audio::Stats& st = audio.stats();
     ImGui::Text("%s", trf("Voices: %u mixed, %u virtual | %.3f ms per frame", st.realVoices, st.virtualVoices, st.updateMs).c_str());
 
-    // ---- 미리듣기
+    // ---- Preview
     ImGui::SeparatorText(tr("Preview"));
     const std::vector<std::string> names = audio.eventNames();
     if (m_event.empty() && !names.empty()) m_event = names[0];
@@ -61,7 +61,7 @@ void SoundPanel::draw(audio::Engine& audio, bool* open) {
     }
     ImGui::SameLine();
     if (ImGui::Button(tr("Stop"))) audio.stop(m_preview, 0.2f);
-    if (def && !def->param.empty()) { // 곡선·스위치·블렌드 파라미터
+    if (def && !def->param.empty()) { // curve/switch/blend parameter
         ImGui::SetNextItemWidth(220.0f);
         if (ImGui::SliderFloat(def->param.c_str(), &m_param, std::min(def->paramMin, def->paramMax),
                                std::max(def->paramMin, def->paramMax)))
@@ -74,7 +74,7 @@ void SoundPanel::draw(audio::Engine& audio, bool* open) {
     }
     ImGui::TextDisabled("%s", tr("Edit sound events in MealKit Audio (Tools menu)."));
 
-    // ---- 버스
+    // ---- Buses
     ImGui::SeparatorText(tr("Buses"));
     audio.buses(m_buses);
     for (const audio::BusInfo& b : m_buses) {
@@ -89,7 +89,7 @@ void SoundPanel::draw(audio::Engine& audio, bool* open) {
         ImGui::PopID();
     }
 
-    // ---- 목소리
+    // ---- Voices
     ImGui::SeparatorText(tr("Voices"));
     audio.voices(m_voices);
     std::sort(m_voices.begin(), m_voices.end(), [](const audio::VoiceInfo& a, const audio::VoiceInfo& b) {
@@ -119,7 +119,7 @@ void SoundPanel::draw(audio::Engine& audio, bool* open) {
         ImGui::EndTable();
     }
 
-    // ---- 끊긴 소리
+    // ---- Culled sounds
     ImGui::SeparatorText(tr("Culled (newest first)"));
     const std::deque<audio::CullInfo>& culls = audio.culls();
     if (ImGui::BeginChild("##culls", ImVec2(0.0f, 0.0f))) {

@@ -22,7 +22,7 @@ std::string narrow(const wchar_t* w) {
     return s;
 }
 
-// "이름\0패턴\0...\0\0" 형식
+// "name\0pattern\0...\0\0" format
 std::wstring filterString(const FileFilter* filters, int count) {
     std::wstring out;
     for (int i = 0; i < count; ++i) {

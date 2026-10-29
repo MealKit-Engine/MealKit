@@ -1,6 +1,6 @@
-// 변환기 시험: Penpot 스냅샷 고정 데이터 → .ui. 기대 파일(test/expected/*.ui)은 엔진 단위 테스트(penpot_expected)가
-// 실제 파서로 다시 읽어 오류가 없는지 본다. 변환 결과를 일부러 바꾸면 UPDATE=1로 기대 파일을 다시 쓴다.
-//   node --test test/            (tools/penpot-plugin에서)
+// Converter tests: fixed Penpot snapshot data → .ui. The expected files (test/expected/*.ui) are reread with the real parser by the engine unit test (penpot_expected)
+// to check for errors. If the conversion result is changed on purpose, rewrite the expected files with UPDATE=1.
+//   node --test test/            (in tools/penpot-plugin)
 //   set UPDATE=1 && node --test test/
 
 import { test } from 'node:test';
@@ -92,7 +92,7 @@ const flowChild = (h: 'fix' | 'fill' | 'auto', v: 'fix' | 'fill' | 'auto') => ({
 
 const opt: Options = { file: 'ui/pause.ui', fileName: 'Sandbox UI', fileId: 'file-1', fonts: ['Pretendard-Medium'], nodeBudget: 500 };
 
-// 일시정지 화면: Flex 패널, 키·스타일 구간이 있는 글자, hover variant가 있는 버튼, 이미지 채우기(굽기), 납작해지는 그룹, Grid, 블러 경고
+// Pause screen: Flex panel, text with keys and style spans, a button with a hover variant, image fill (baking), a flattened group, Grid, blur warning
 function pauseBoard(): SNode {
   const title = node({
     name: 'pause.title',
@@ -157,7 +157,7 @@ function pauseBoard(): SNode {
     shadows: [{ style: 'drop-shadow', offsetX: 0, offsetY: 12, blur: 40, spread: 0, color: { hex: '#000000', opacity: 0.67 } }],
     backgroundBlur: true,
     layout: layout({ kind: 'flex', dir: 'column', rowGap: 14, columnGap: 14, padding: [32, 36, 32, 36] }),
-    children: [icon, grid, resume, title], // 아래 레이어부터: Flex에서는 title이 맨 앞
+    children: [icon, grid, resume, title], // from the bottom layer: in Flex, title comes first
   });
   const dim = node({ name: 'dim', type: 'rectangle', width: 1920, height: 1080, constraintsH: 'leftright', constraintsV: 'topbottom', fills: [{ color: { hex: '#05070c', opacity: 0.6 } }] });
   const photo = node({ name: 'photo', type: 'rectangle', x: 10, y: 20, width: 64, height: 64, fills: [{ image: true }], data: { slice: [8, 8, 8, 8] } });
@@ -191,7 +191,7 @@ test('pause board', () => {
   ]);
   assert.ok(r.warnings.some((w) => w.includes('background blur')));
   assert.ok(!r.warnings.some((w) => w.includes('variant state')), 'Default is the normal state');
-  // 납작해진 그룹은 상자도 없다. 자식 위치는 그룹만큼 옮겨진다
+  // A flattened group has no box either. Child positions are moved by the group's offset
   assert.ok(!r.boxes.some((b) => b.name === 'Group_1'));
   assert.match(r.ui, /frame dot\n {4}id id-dot\n {4}pos 105 905\n/);
 });

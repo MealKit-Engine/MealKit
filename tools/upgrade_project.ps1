@@ -1,14 +1,14 @@
-﻿# 게임 프로젝트를 지금 엔진의 템플릿으로 올린다.
-#   powershell -ExecutionPolicy Bypass -File tools\upgrade_project.ps1 -Project <프로젝트 폴더> [-DryRun] [-Force] [-Source]
+﻿# Upgrades a game project to the current engine's templates.
+#   powershell -ExecutionPolicy Bypass -File tools\upgrade_project.ps1 -Project <project folder> [-DryRun] [-Force] [-Source]
 #
-# - 템플릿이 관리하는 파일(build.bat, editor.bat, CMakeLists.txt, CLAUDE.md, README.md, .vscode, .clang-format 등)만 다룬다.
-#   source/와 assets/는 건드리지 않는다 (-Source를 줄 때만 예외).
-# - 사용자가 고치지 않은 파일(.mealkit-template의 해시와 같음)은 새 템플릿으로 바꾼다. 고친 파일은 덮어쓰지 않고
-#   새 내용을 <파일>.new로 남겨 차이를 보여 준다. -Force면 고친 파일도 바꾼다.
-# - mealkit.project는 engine과 engineVersion 줄만 고친다 (이름·시작 씬·게임 항목은 그대로, 줄 형식도 그대로).
-# - 바꾸기 전 파일은 .upgrade_backup\<시각>\에 남긴다.
-# - -Source: source/ 게임 코드를 엔진 예제 코드(samples/sandbox)로 바꾼다. 템플릿 코드를 고치지 않은 프로젝트를 새 엔진 구조로
-#   옮길 때 쓴다. 예제에 없는 source/sim·view·app 파일은 지운다(백업). assets/에는 없는 파일만 더한다(덮어쓰지 않음).
+# - Handles only files managed by the template (build.bat, editor.bat, CMakeLists.txt, CLAUDE.md, README.md, .vscode, .clang-format, etc.).
+#   source/ and assets/ aren't touched (except with -Source).
+# - Files the user didn't edit (matching the hash in .mealkit-template) are replaced with the new template. Edited files aren't overwritten;
+#   the new content is left as <file>.new to show the difference. -Force replaces edited files too.
+# - mealkit.project only gets its engine and engineVersion lines changed (name/start scene/game items unchanged, line format unchanged too).
+# - Files from before the change are kept in .upgrade_backup\<time>\.
+# - -Source: replaces source/ game code with the engine sample code (samples/sandbox). Used to move projects that didn't edit the template code
+#   to a new engine structure. source/sim/view/app files not in the sample are deleted (backed up). Only missing files are added to assets/ (no overwriting).
 param(
     [Parameter(Mandatory = $true)][string]$Project,
     [switch]$DryRun,
@@ -47,15 +47,15 @@ function Report([string]$status, [string]$rel, [ConsoleColor]$color = "Gray") {
     Write-Host ("  {0,-9} {1}" -f $status, $rel) -ForegroundColor $color
 }
 
-# ---------------------------------------------------------------- 템플릿 파일
+# ---------------------------------------------------------------- Template files
 foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
     $rel = $entry.Key
     $new = $entry.Value
     $target = Join-Path $Project $rel
 
     if ($rel -eq "mealkit.project") {
-        # 사용자 값(name, scene, game.* 등)은 두고 엔진 경로와 버전만 바꾼다.
-        # 예전 "키=값" 줄은 그 형식 그대로 둔다 (고친 build.bat이 예전 형식만 읽을 수 있다).
+        # Keeps user values (name, scene, game.* etc.) and changes only the engine path and version.
+        # Old "key=value" lines keep their format (an edited build.bat may only read the old format).
         $current = [IO.File]::ReadAllText($target, $MealKitUtf8)
         $lines = [Collections.Generic.List[string]]::new()
         $seenEngine = $false; $seenVersion = $false; $separator = " "
@@ -99,11 +99,11 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
         $newManifest[$rel] = $newHash
         $changed++
     } elseif ($manifest.Contains($rel) -and $manifest[$rel] -eq $newHash) {
-        # 템플릿은 그대로이고 사용자만 고쳤다: 할 일 없음
+        # The template is unchanged and only the user edited it: nothing to do
         Report "custom" $rel
         $newManifest[$rel] = $manifest[$rel]
     } else {
-        # 사용자가 고친 파일 (또는 해시 기록이 없는 예전 프로젝트): 덮어쓰지 않고 새 내용을 옆에 둔다
+        # Files the user edited (or old projects without a hash record): not overwritten, the new content is placed alongside
         $diff = Compare-Object ($current -split "`r?`n") ($new -split "`r?`n")
         Report "modified" "$rel  (kept; new template in $rel.new, $($diff.Count) line(s) differ. -Force to replace)" Yellow
         if (-not $DryRun) { Write-TextFile "$target.new" $new }
@@ -112,9 +112,9 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
     }
 }
 
-# ---------------------------------------------------------------- 형식 옮기기
-# 0.5.2: 소리 이벤트 assets/sounds.table(엔진 표) → assets/sounds.events(오디오 런타임 mkaudio 형식, MealKit Audio가 고친다).
-# 키 이름이 같아 "row <이름>"을 "event <이름>"으로, 머리말·형식 줄을 바꾸면 된다. 표는 백업에 남기고 지운다
+# ---------------------------------------------------------------- Format migrations
+# 0.5.2: sound events assets/sounds.table (engine table) → assets/sounds.events (audio runtime mkaudio format, edited by MealKit Audio).
+# Key names are the same, so "row <name>" becomes "event <name>" and the header/format line change. The table is kept in the backup and deleted
 $oldSounds = Join-Path $Project "assets\sounds.table"
 $newSounds = Join-Path $Project "assets\sounds.events"
 if ((Test-Path $oldSounds) -and -not (Test-Path $newSounds)) {
@@ -135,7 +135,7 @@ if ((Test-Path $oldSounds) -and -not (Test-Path $newSounds)) {
     $changed++
 }
 
-# ---------------------------------------------------------------- 게임 코드 (-Source)
+# ---------------------------------------------------------------- Game code (-Source)
 if ($Source) {
     $sample = Get-SampleSource $name
     foreach ($dir in "sim", "view", "app") {
@@ -159,7 +159,7 @@ if ($Source) {
         if (-not $DryRun) { Backup $entry.Key; Write-TextFile $target $entry.Value }
         $changed++
     }
-    # 예제가 쓰는 소스 모듈 중 프로젝트에 없는 것을 더한다 (있는 모듈은 tools\module.ps1 update로 갱신)
+    # Adds source modules used by the sample that the project lacks (existing modules are updated with tools\module.ps1 update)
     $engineModules = Join-Path $MealKitEngine "modules"
     if (Test-Path $engineModules) {
         foreach ($m in Get-ChildItem $engineModules -Directory) {
@@ -170,7 +170,7 @@ if ($Source) {
             $changed++
         }
     }
-    # 예제가 쓰는 에셋 중 프로젝트에 없는 것만 더한다 (예: assets/game.tuning)
+    # Adds only assets used by the sample that the project lacks (e.g. assets/game.tuning)
     $assets = Join-Path $MealKitEngine "assets"
     Get-ChildItem $assets -Recurse -File | Where-Object { $_.Extension -ne ".autosave" } | ForEach-Object {
         $rel = "assets\" + $_.FullName.Substring($assets.Length + 1)

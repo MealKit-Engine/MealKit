@@ -14,7 +14,7 @@ namespace mealkit {
 
 std::string cpuName() {
 #if defined(_M_X64) || defined(__x86_64__)
-    // CPUID 0x80000002~4가 48바이트 브랜드 문자열을 준다.
+    // CPUID 0x80000002~4 gives the 48-byte brand string.
     int regs[12] = {};
     for (int i = 0; i < 3; ++i) {
 #if defined(_MSC_VER)
@@ -35,7 +35,7 @@ std::string cpuName() {
     const size_t last = name.find_last_not_of(' ');
     return first == std::string::npos ? std::string() : name.substr(first, last - first + 1);
 #else
-    return {}; // ARM64 등은 5단계 플랫폼 이식 때
+    return {}; // ARM64 etc. with the stage 5 platform port
 #endif
 }
 

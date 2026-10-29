@@ -1,4 +1,4 @@
-// 시스템 기능의 POSIX 부분 (Linux·macOS 헤드리스). 대화상자는 없다(로그만).
+// POSIX part of system features (Linux/macOS headless). No dialogs (log only).
 #include "mealkit/platform/System.h"
 
 #include <cerrno>
@@ -14,7 +14,7 @@
 namespace mealkit {
 
 void debugOutput(const char*) {}
-bool debuggerAttached() { return false; } // 필요해지면 /proc/self/status의 TracerPid (5단계)
+bool debuggerAttached() { return false; } // TracerPid from /proc/self/status if ever needed (stage 5)
 void debugBreak() { std::raise(SIGTRAP); }
 void showErrorDialog(const char*, const char*) {}
 void attachParentConsole() {}
@@ -31,9 +31,9 @@ ProcessMemory processMemory() {
     mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
     if (task_info(mach_task_self(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&info), &count) == KERN_SUCCESS)
         out.resident = info.resident_size;
-    if (getrusage(RUSAGE_SELF, &usage) == 0) out.peakResident = static_cast<u64>(usage.ru_maxrss); // macOS: 바이트
+    if (getrusage(RUSAGE_SELF, &usage) == 0) out.peakResident = static_cast<u64>(usage.ru_maxrss); // macOS: bytes
 #else
-    if (FILE* f = std::fopen("/proc/self/statm", "r")) { // 페이지 단위: 전체 크기, 상주
+    if (FILE* f = std::fopen("/proc/self/statm", "r")) { // in pages: total size, resident
         unsigned long long size = 0, resident = 0;
         if (std::fscanf(f, "%llu %llu", &size, &resident) == 2)
             out.resident = resident * static_cast<u64>(sysconf(_SC_PAGESIZE));

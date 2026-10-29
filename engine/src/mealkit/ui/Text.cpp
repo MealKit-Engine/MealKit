@@ -9,7 +9,7 @@ namespace {
 
 constexpr u32 kEllipsis = 0x2026; // …
 
-bool isWide(u32 cp) { // 음절 단위로 끊는 글자 (한글, 한자, 가나, 전각 기호)
+bool isWide(u32 cp) { // characters broken per syllable (Hangul, Han, Kana, fullwidth symbols)
     return (cp >= 0x1100 && cp <= 0x11FF) || (cp >= 0x2E80 && cp <= 0x9FFF) || (cp >= 0xAC00 && cp <= 0xD7AF) ||
            (cp >= 0xF900 && cp <= 0xFAFF) || (cp >= 0xFF00 && cp <= 0xFFEF);
 }
@@ -49,7 +49,7 @@ u32 transformCp(u32 cp, TextTransform t) {
 
 } // namespace
 
-// 태그(<1>…</1>)를 스타일로 풀고, 글자마다 글꼴·크기·폭을 정한다
+// Resolves tags (<1>…</1>) into styles and decides font/size/width per glyph
 void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& out) {
     out = {};
     TextRun base;
@@ -63,7 +63,7 @@ void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& o
     const std::vector<u32> cps = decodeUtf8(text);
     for (size_t i = 0; i < cps.size(); ++i) {
         const u32 cp = cps[i];
-        if (cp == '<') { // <n> 또는 </n>
+        if (cp == '<') { // <n> or </n>
             size_t j = i + 1;
             const bool closing = j < cps.size() && cps[j] == '/';
             if (closing) ++j;
@@ -113,11 +113,11 @@ void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& o
 namespace {
 
 void measureLine(const Node& d, Shaped& s, ShapedLine& line, Atlas& atlas) {
-    u32 visibleEnd = line.end; // 끝 공백 빼기
+    u32 visibleEnd = line.end; // excluding trailing spaces
     while (visibleEnd > line.begin && (s.glyphs[visibleEnd - 1].cp == ' ' || s.glyphs[visibleEnd - 1].cp == '\n')) --visibleEnd;
     line.width = 0.0f;
     for (u32 i = line.begin; i < visibleEnd; ++i) line.width += s.glyphs[i].advance;
-    if (visibleEnd > line.begin) line.width -= s.runs[s.glyphs[visibleEnd - 1].run].letterSpacing; // 마지막 자간은 뺀다
+    if (visibleEnd > line.begin) line.width -= s.runs[s.glyphs[visibleEnd - 1].run].letterSpacing; // the last letter spacing is removed
     f32 asc = 0, desc = 0, height = 0;
     auto add = [&](const TextRun& r, i32 font) {
         const FontMetrics& fm = atlas.metrics(font);
@@ -129,12 +129,12 @@ void measureLine(const Node& d, Shaped& s, ShapedLine& line, Atlas& atlas) {
     for (u32 i = line.begin; i < line.end; ++i) add(s.runs[s.glyphs[i].run], s.glyphs[i].font);
     line.ascent = asc;
     line.descent = desc;
-    line.height = height; // CSS처럼 줄 높이 그대로 (글자가 넘칠 수 있다)
+    line.height = height; // line height as is, like CSS (glyphs may overflow)
 }
 
 } // namespace
 
-// 줄 나누기 (구간 경계를 넘어 한 번에). wrapWidth < 0이면 줄바꿈 글자에서만
+// Line breaking (across run boundaries in one pass). If wrapWidth < 0, only at newline characters
 void breakLines(const Node& d, Shaped& s, f32 wrapWidth, f32 maxHeight, Atlas& atlas) {
     s.lines.clear();
     const u32 count = static_cast<u32>(s.glyphs.size());
@@ -164,7 +164,7 @@ void breakLines(const Node& d, Shaped& s, f32 wrapWidth, f32 maxHeight, Atlas& a
         if (wrap && x + g.advance > wrapWidth + 0.01f && i > lineStart && g.cp != ' ') {
             u32 cut = lastBreak > lineStart ? lastBreak : i;
             pushLine(lineStart, cut);
-            while (cut < count && s.glyphs[cut].cp == ' ') ++cut; // 다음 줄 앞 공백은 버린다
+            while (cut < count && s.glyphs[cut].cp == ' ') ++cut; // leading spaces of the next line are dropped
             lineStart = lastBreak = cut;
             x = 0.0f;
             for (u32 j = cut; j < i; ++j) x += s.glyphs[j].advance;
@@ -174,7 +174,7 @@ void breakLines(const Node& d, Shaped& s, f32 wrapWidth, f32 maxHeight, Atlas& a
     }
     if (lineStart < count || s.lines.empty() || (count > 0 && s.glyphs[count - 1].cp == '\n')) pushLine(lineStart, count);
 
-    // 줄 수 제한 (maxLines, 고정 높이) → 마지막 줄 말줄임
+    // Line count limit (maxLines, fixed height) → ellipsis on the last line
     u32 keep = static_cast<u32>(s.lines.size());
     if (d.maxLines > 0) keep = std::min(keep, d.maxLines);
     if (maxHeight >= 0.0f) {
@@ -204,7 +204,7 @@ void breakLines(const Node& d, Shaped& s, f32 wrapWidth, f32 maxHeight, Atlas& a
         f32 w = 0.0f;
         for (u32 i = last.begin; i < end; ++i) w += s.glyphs[i].advance;
         while (end > last.begin && w + dots.advance > limit) w -= s.glyphs[--end].advance;
-        s.glyphs.resize(end); // 뒤의 글자는 버린다 (다음 줄들은 이미 잘랐다)
+        s.glyphs.resize(end); // later glyphs are dropped (the following lines were already cut)
         s.glyphs.push_back(dots);
         last.end = static_cast<u32>(s.glyphs.size());
         measureLine(d, s, last, atlas);
