@@ -320,6 +320,15 @@ EOS의 남은 것은 PC 두 대와 Epic 포털 설정(Steam 공급자)이 있어
 - **결정론**: 영향 없음 (`mp_test`에 EOS 전송 시나리오).
 - **진행 (2026-10-28)**: 1부 끝 — `OnlineEOS.cpp`(기기 ID 로그인, 로비 코드, P2P), `MEALKIT_ONLINE`·`build.bat EOS`, 엔진 패킷 상한 1170바이트. Steam 계정 로그인·Steam 초대(코드를 싣는다, 포털 설정 전엔 기기 ID). 남은 것(모두 PC 두 대·포털 설정이 필요, 사용자가 준비되면): PC 두 대 참가·RTT·대역폭 측정, 호스트 이전 때 로비 소유자, 포털 Steam 공급자로 Steam 로그인·초대 확인, `mp_test` EOS 시나리오. 상세는 `docs/CHANGELOG.md`
 
+### [ ] 외부 라이브러리 점검 후속 (2026-10-29 점검) — v0.7을 막지 않음
+- **점검 결과**: 엔진 `third_party/` 17개와 MealKit-Audio·Manager의 SDL3·Dear ImGui를 사용처·빌드 설정까지 봤다. 바꾸거나 뺄 라이브러리는 없다. 검토 후보는 `docs/DECISIONS.md` 보류 표(2026-10-29 점검 행들).
+- **miniaudio 보안 수정**: 0.11.25에 CVE-2026-32837(WAV BEXT 메타데이터 읽기의 힙 범위 밖 읽기, 조작한 WAV로 크래시)이 있다. 엔진은 WAV 디코딩을 쓰므로(`MiniaudioConfig.h`에 `MA_NO_WAV` 없음) 해당된다. 0.11.26이 아직 없어 upstream 수정 커밋을 엔진 `third_party/miniaudio/`와 MealKit-Audio `third_party/miniaudio/` 양쪽에 같이 넣고 `mealkit.txt` 버전에 커밋을 적는다. 자기 에셋만 읽으면 위험은 낮지만, 모듈·사용자 파일을 읽게 되면 문제가 된다.
+- **stb_image**: 2.30의 GIF 디코더 CVE(CVE-2026-5185 등)는 `STBI_ONLY_PNG/JPEG/HDR`(`ui/StbImpl.cpp`)로 GIF를 빼서 해당하지 않는다. 이 설정을 유지하고, 형식을 더할 때는 그 형식의 CVE를 먼저 본다.
+- **도구 저장소의 외부 라이브러리 규칙**: MealKit-Audio·Manager에는 `mealkit.txt`·생성 고지문이 없고 README 표뿐이다. 엔진과 같은 `mealkit.txt` + 생성 방식으로 맞춘다(약속은 하나). SDL3 전체 소스(33 MB)가 두 저장소에 따로 있으니 빌드에 필요한 것만 남길 수 있는지 본다.
+- **줄바꿈**: 두 도구 저장소의 ImGui 백엔드가 줄바꿈(LF/CRLF)만 다르다. `.gitattributes`로 `third_party/`를 고정해 버전 올릴 때 diff가 깨끗하게 한다.
+- **새 버전·CVE 확인 도구**: 지금은 사람이 찾아봐야 안다. `mealkit.txt`의 `source`·`version`으로 upstream 최신 태그와 OSV(osv.dev) 취약점을 조회해 보여 주는 스크립트(`tools\check_third_party.ps1`, 네트워크가 필요해 `check.ps1`에는 넣지 않고 손으로 돌린다)를 검토한다.
+- **결정론**: 영향 없음 (miniaudio·stb는 시뮬레이션에 닿지 않는다).
+
 ---
 
 ### [ ] 한 PC 여러 명 (같은 화면·분할 화면) — 첫 게임 장르가 맞을 때
