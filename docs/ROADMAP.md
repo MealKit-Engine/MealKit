@@ -380,6 +380,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
   | `procgen` procedural generation | generation from one seed (`Pcg32`, deterministic math) | none | Fits lockstep well (send only the seed instead of the map). Also provides baking into `.scene` in the editor for hand-tweaking |
   | `inventory` inventory | fixed-array slots, item definitions in a definition data table (`.table`) | grid `.ui` | Connected to saves and match start data |
   | `minimap` minimap | none | top-down render or icons | View only |
+  | `ai` decision making | utility scoring + `enum` state machines per `Controller`, perception (sight cones, hearing) via physics queries | debug drawing | Uses "AI pathfinding" for movement. No behavior tree graph editor (DECISIONS 2026-10-29) |
 
 - **Docs**: one page, the module repo's `docs/index.md` (English, optional `index.ko.md`) — Overview / How to add (glue code) / Usage / How it works (algorithms, determinism caveats) / Version history. Rendered by the registry site. The docs repo has a one-page guide in "Game developer guide > Modules" + a site link, and module-making rules in "Engine developer guide > Writing modules".
 - **Implementation order**: ① engine build integration (`module.txt`, gathering modules, SimCheck rules) → ② asset paths → ③ `tools\module.ps1` (folders, git URLs) → ④ module template + `cooldown` (local) + applying to sandbox → ⑤ registry repo and CI (the user creates GitHub repos and pushes) → ⑥ adding by name, Manager/editor lists → ⑦ site → ⑧ docs repo → ⑨ the remaining official modules. ①~④ are done first without the game flow framework (only `health` waits).
@@ -401,6 +402,12 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 - **Order**: kinematic → floating → active ragdoll. The physics capsule moves the current code into a mode.
 - **Active ragdoll**: depends on stage 2 skeletal animation's "pose sampling for the simulation". The cost is about 11~15 bodies plus constraints per character. Benchmark whether it fits the tick budget (4 ms) with 4 players, and if it exceeds, use a simplified ragdoll with fewer joints.
 - **Determinism**: every mode processes in Pawn id order, and angle math uses only the deterministic math utils. Per-mode state goes into `hash()`.
+
+### [ ] Animation state table + animation events
+- **Why**: skeletal animation has only a crossfade set by game code. Every game rewrites idle/run/jump/attack switching.
+- **Approach**: a view-side data table per character kind: states (clip or 1D/2D blend space), blend times, and transitions on parameters the game sets (`speed`, `grounded`, triggers). No graph editor; edited as a table with editor preview. Animation events come from glTF marker names → the feedback table (footsteps, swing sounds), the same path as cutscenes.
+- **Determinism**: no effect (`view/`). The simulation pose path (`samplePoseTick`) stays separate. IK and root motion are in the `docs/DECISIONS.md` deferred table.
+- **Depends on**: character movement modes (parameters come from movement state).
 
 ### [ ] Virtual cameras (Cinemachine style) + cutscenes
 - **Why**: the camera is half of control feel, yet every game builds it from scratch. Camera transitions and staging written in code can't be touched by artists either.
@@ -450,6 +457,11 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
   Assets opened only via path strings in code can't be followed by references, so they're listed in the project settings' "always include" list (the shipping build warns if missed).
 - **Effect**: near-instant loading, and cgltf/meshoptimizer removed from the shipping exe.
 - **Caution**: physics hull points must be extracted from the original vertices before optimization (determinism). The content hash is computed from the cooked results, and there's an option to run editor play on the cooked version too, to prevent "works in the editor but differs in the game" bugs.
+- **Build stamp**: Export writes engine version, git commit, and content hash into `build.txt` next to the exe; bug reports and `--help` show it.
+- **Async loading** stays deferred; its shape when it comes is in `docs/DECISIONS.md` 2026-10-29.
+
+### [ ] Performance baseline check
+- `check.ps1` runs `--benchmark` on a fixed scene and compares frame/GPU times and memory against `engine/tests/perf/baseline.txt` with a tolerance. **Warning only** (CI machines differ); `-UpdatePerf` rewrites the baseline on the measuring PC.
 
 ### [ ] Multiple project templates
 - Empty project, arena versus (the current sample), and genre templates like racing and co-op. Chosen in the editor's "New Project".
