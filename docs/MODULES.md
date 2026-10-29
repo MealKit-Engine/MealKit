@@ -1,52 +1,52 @@
-# 소스 모듈 시스템 기획
+# Source module system plan
 
-4단계 "소스 모듈 시스템"의 구현 기획이다. 방향은 `docs/DECISIONS.md` 2026-10-16·2026-10-21에서 이미 정했다: 소스째 복사, 자기 상태만 받는 함수, 업그레이드 도구 방식 갱신.
-이 문서는 그 위에서 **무엇을 만들고, 어떻게 동작하고, 모듈을 어디에 두고 어떻게 찾을지**를 정한다. 결정은 `docs/DECISIONS.md` 2026-10-28 "소스 모듈". 항목이 끝나면 규칙은 `docs/CODING_MODEL.md`와 문서 저장소 "Writing modules"로, 구현은 `docs/CHANGELOG.md`로 옮기고 이 문서는 지운다.
+The implementation plan for stage 4 "Source module system". The direction was already set in `docs/DECISIONS.md` 2026-10-16/2026-10-21: copy as source, functions that take only their own state, updates the way the upgrade tool works.
+On top of that, this document decides **what to build, how it works, and where modules live and how they're found**. The decision is `docs/DECISIONS.md` 2026-10-28 "Source modules". When the item is done, rules move to `docs/CODING_MODEL.md` and the docs repo's "Writing modules", implementation to `docs/CHANGELOG.md`, and this document is deleted.
 
-초안 1과 다른 점(2026-10-28 사용자 의견): 공식 모듈을 엔진 저장소에 두지 않는다. **공식 모듈도 다른 사람 모듈과 똑같이 자기 저장소에서 만들고**, 모든 모듈은 **모듈 목록 저장소(레지스트리) 하나**에서 모아 본다.
+Differences from draft 1 (user feedback 2026-10-28): official modules aren't kept in the engine repo. **Official modules are built in their own repos just like anyone else's**, and all modules are gathered in **one module list repo (registry)**.
 
-## 한 줄 요약
+## Summary
 
-모듈은 **프로젝트 `modules/<이름>/`에 복사된 소스 폴더**다. 빌드는 그 폴더의 `sim/`·`view/`를 게임 코드처럼 모아 SimCheck와 시뮬레이션 버전 해시에 넣는다. 에셋은 `modules/<이름>/...` 경로로 읽는다.
-게임 코드가 모듈 상태를 `WorldState` 필드로 넣고 `World::step()`에서 모듈 함수를 부른다. 엔진이 자동으로 부르지 않는다.
-**모듈 하나 = git 저장소 하나**이고, 공식이든 아니든 같다. 저장소 **`MealKit-Modules`(레지스트리)**에 모듈마다 한 줄 정보 파일을 두면 CI가 검증해서 `index.json`과 검색 사이트를 만든다. 에디터·Manager·`tools\module.ps1`은 그 목록에서 이름으로 찾아 추가한다.
-엔진 저장소에는 모듈이 없다. 기준 샘플이 쓰는 모듈의 복사본만 다른 게임처럼 있다.
+A module is **a source folder copied into the project's `modules/<name>/`**. The build gathers that folder's `sim/` and `view/` like game code and includes them in SimCheck and the simulation version hash. Assets are read via `modules/<name>/...` paths.
+Game code puts module state in as a `WorldState` field and calls module functions from `World::step()`. The engine doesn't call them automatically.
+**One module = one git repo**, official or not. When a one-line info file per module is placed in the repo **`MealKit-Modules` (registry)**, CI verifies it and builds `index.json` and a search site. The editor, Manager, and `tools\module.ps1` find modules by name in that list and add them.
+There are no modules in the engine repo. Only copies of modules used by the reference samples exist, like in any other game.
 
-## 왜 이 방식인가
+## Why this approach
 
-| 대안 | 안 쓰는 이유 |
+| Alternative | Why not used |
 |---|---|
-| 엔진 기본 기능 | 엔진이 무거워지고 설계 하나를 모든 게임에 강요한다 |
-| 공식 모듈을 엔진 저장소 `modules/`에 (초안 1) | 출시 exe에는 추가한 모듈만 들어가지만, 엔진 저장소·배포본에 안 쓰는 기능이 따라오고, "엔진이 고른 답"처럼 보여 다른 사람 모듈과 대우가 달라진다. 공식 모듈의 출시가 엔진 출시에 묶인다 |
-| 프리팹만 | 데이터(배치·값)만 담아 `sim/` 로직을 옮길 수 없다 |
-| 바이너리 플러그인(DLL) | 출시 exe는 정적 단일 파일이고, `sim/`은 SimCheck를 통과해야 한다 |
-| 패키지 매니저(vcpkg·npm식 설치 때 의존 해석) | 오프라인·버전 고정·소스 포함 원칙과 맞지 않고, 게임이 모듈 코드를 고쳐 쓸 수 없다 |
-| 업로드 서버(에셋 스토어식: 계정, 파일 올리기, 심사) | 계정·저장소·운영 비용이 들고, 아직 쓸 사람이 없다. 레지스트리로 모자랄 때 다시 본다(보류 표) |
+| Built-in engine features | The engine gets heavier and one design is forced on every game |
+| Official modules in the engine repo's `modules/` (draft 1) | Only added modules go into the shipping exe, but unused features come along in the engine repo and distributions, and they look like "the engine's chosen answer", getting different treatment from others' modules. Official module releases get tied to engine releases |
+| Prefabs only | They hold only data (placement, values) and can't carry `sim/` logic |
+| Binary plugins (DLLs) | The shipping exe is a static single file, and `sim/` must pass SimCheck |
+| Package managers (dependency resolution at install, vcpkg/npm style) | Doesn't fit the offline, version-pinned, source-included principles, and games couldn't modify module code |
+| Upload server (asset store style: accounts, file uploads, review) | Costs accounts, storage, and operations, and nobody would use it yet. Revisit when the registry isn't enough (deferred table) |
 
-소스 복사라서 얻는 것이 있다. 프로젝트 저장소 하나만 받으면 빌드되고, 게임이 모듈을 마음대로 고친다. SimCheck·해시·스냅샷·디싱크 진단도 그대로 적용된다.
-대가는 갱신할 때 고친 파일을 손으로 합쳐야 한다는 것이다(`.new`).
+Copying source has benefits. Cloning one project repo is enough to build, and games freely modify modules. SimCheck, hashes, snapshots, and desync diagnosis apply as is.
+The cost is that modified files must be merged by hand on update (`.new`).
 
-## 모듈 저장소 구조
+## Module repo layout
 
-모듈 저장소의 루트가 곧 모듈 폴더다. 프로젝트 폴더 구조(`docs/CODING_MODEL.md` "프로젝트 폴더 구조")를 반복하고, `tools\check_layout.ps1`이 같은 규칙으로 검사한다.
+The module repo's root is the module folder. It repeats the project folder layout (`docs/CODING_MODEL.md` "Project folder layout"), and `tools\check_layout.ps1` checks it with the same rules.
 
 ```
-module-cooldown/             (저장소 = 프로젝트에 복사되면 modules/cooldown/)
-  module.txt          모듈 정보 (아래)
+module-cooldown/             (repo = modules/cooldown/ once copied into a project)
+  module.txt          module info (below)
   LICENSE
-  sim/                상태 MEALKIT_STRUCT + 시스템 함수. SimCheck 대상
-  view/               그리기, 뷰 모델 채우기, 연출
-  assets/<종류>/      .ui, .table, 프리팹, 소리 등. 종류 폴더 규칙은 프로젝트 assets/와 같다
-  art/                Penpot 원본 등 (출시·해시 제외)
-  docs/               index.md (영어 원문, 한 페이지 틀은 DECISIONS 2026-10-21)
-  tests/              모듈 단위 시험 (모듈 CI만 빌드, 게임 빌드는 무시)
-  .github/workflows/  레지스트리가 주는 공용 워크플로 한 줄 (아래 "모듈 CI")
+  sim/                state MEALKIT_STRUCT + system functions. Checked by SimCheck
+  view/               drawing, filling view models, feedback
+  assets/<kind>/      .ui, .table, prefabs, sounds, etc. Kind folder rules are the same as the project's assets/
+  art/                Penpot sources etc. (excluded from shipping and hash)
+  docs/               index.md (English source, single-page template per DECISIONS 2026-10-21)
+  tests/              module unit tests (built only by module CI, ignored by game builds)
+  .github/workflows/  one line calling the registry's shared workflow (below, "Module CI")
 ```
 
-- 복사하는 것은 모듈 구조뿐이다: `module.txt`, `sim/`, `view/`, `assets/`, `art/`, `docs/`, 루트의 `LICENSE*`·`README*`(`*.new` 제외). 빌드 폴더·`tests/`·`.git`·`.github/`는 가지 않는다. 이때 `module.files`(설치 기록)를 더한다. `module.files`는 첫 줄 `source folder <경로>` 또는 `source git <주소> <태그|-> <커밋> [modules/<이름>]`, 그 뒤 `<sha256>  <모듈 기준 경로>` 줄들이다. 해시는 텍스트 파일이면 줄바꿈과 무관하게, 그 밖은 바이트로 잰다.
-- `app/`은 없다. 화면 흐름과 세션은 게임 것이다. 모듈 하나는 기능 하나이고, 큰 기능은 작은 모듈 여럿과 의존으로 쪼갠다.
-- **공식 모듈은 없다** (2026-10-28 사용자 결정). 첫 모듈들도 작성자 KingProtea99의 저장소(`github.com/KingProtea99/module-<이름>`, MIT)에 두고 다른 사람 모듈과 똑같이 등록한다. `index.json`·사이트·도구에 공식 표시가 없다. 저장소 이름 `module-<이름>`은 권장만 한다.
-- 새 모듈은 레지스트리의 `template/`에서 `python tools/new_module.py <이름> <폴더> --author <이름>`으로 만든다(따로 `module-template` 저장소를 두지 않는다. 템플릿과 공용 CI·등록 검사가 한 저장소에 있어야 같이 고쳐진다).
+- Only the module structure is copied: `module.txt`, `sim/`, `view/`, `assets/`, `art/`, `docs/`, and root `LICENSE*`/`README*` (excluding `*.new`). Build folders, `tests/`, `.git`, `.github/` don't go. `module.files` (the install record) is added at that time. `module.files` has a first line `source folder <path>` or `source git <url> <tag|-> <commit> [modules/<name>]`, followed by `<sha256>  <module-relative path>` lines. Hashes are line-ending-independent for text files and bytewise otherwise.
+- There's no `app/`. Screen flow and sessions belong to the game. One module is one feature, and big features are split into several small modules with dependencies.
+- **There are no official modules** (user decision 2026-10-28). The first modules also live in author KingProtea99's repos (`github.com/KingProtea99/module-<name>`, MIT) and are registered exactly like others' modules. `index.json`, the site, and tools have no official mark. The repo name `module-<name>` is only recommended.
+- New modules are made from the registry's `template/` with `python tools/new_module.py <name> <folder> --author <name>` (no separate `module-template` repo. The template, shared CI, and registration checks must be in one repo to be fixed together).
 
 ### `module.txt`
 
@@ -61,47 +61,47 @@ tags gameplay timer ui
 requires
 ```
 
-| 키 | 뜻 |
+| Key | Meaning |
 |---|---|
-| `name` | 폴더 이름이자 C++ namespace이자 에셋 경로 접두. 소문자·숫자·`_`만. 레지스트리에서 먼저 등록한 쪽이 갖는다 |
-| `version` | 모듈의 semver. 저장소 태그 `v<버전>`과 같아야 한다(레지스트리 CI가 검사) |
-| `engine` | 맞는 엔진 MINOR. 0.x 동안은 MINOR가 API 경계다 |
-| `requires` | 의존 모듈 `이름 최소버전`, 공백으로 구분 |
-| `title`·`summary`·`tags` | 목록과 검색에 쓴다 |
+| `name` | The folder name, C++ namespace, and asset path prefix. Lowercase letters, digits, `_` only. Whoever registers first in the registry gets it |
+| `version` | The module's semver. Must match the repo tag `v<version>` (checked by registry CI) |
+| `engine` | The compatible engine MINOR. During 0.x, MINOR is the API boundary |
+| `requires` | Dependency modules as `name minVersion`, space-separated |
+| `title`/`summary`/`tags` | Used for listing and search |
 
-## 빌드에 들어가는 방식
+## How modules enter the build
 
-`cmake/MealKit.cmake`의 `mealkit_add_game()`이 `source/`와 같은 방식으로 `modules/*/`를 모은다. 게임 `CMakeLists.txt`는 바꾸지 않는다. 모듈은 CMake 파일을 갖지 않으므로, 모듈을 추가해도 configure 때 모듈 코드가 실행되지 않는다.
+`mealkit_add_game()` in `cmake/MealKit.cmake` gathers `modules/*/` the same way as `source/`. The game's `CMakeLists.txt` doesn't change. Modules have no CMake files, so adding a module doesn't run module code at configure time.
 
-| 무엇 | 지금 (게임 `source/`) | 모듈에 더할 것 |
+| What | Now (game `source/`) | Added for modules |
 |---|---|---|
-| 소스 모으기 | `source/{sim,view,app}/**` | `modules/*/{sim,view}/**` |
-| include 경로 | `source/` → `#include "sim/World.h"` | `modules/` → `#include "cooldown/sim/Cooldown.h"` |
-| SimCheck | `sim/` 파일 | 모듈 `sim/`도 검사한다. 모듈 `sim/`은 엔진 코어, 같은 모듈의 `sim/`, 의존 모듈의 `sim/`만 include한다. 게임 `source/`를 include하면 실패시킨다(모듈은 게임을 모른다) |
-| 시뮬레이션 버전 해시 | 게임 `sim/` + 엔진 코어 | 모듈 `sim/`도 넣는다. 모듈 sim 코드가 다른 피어는 접속을 거부한다(지금 규칙 그대로) |
-| 헤드리스 타깃 | `sim/` + `Headless.cpp` | 모듈 `sim/`도 넣는다 |
-| 핫 리로드 | 게임 DLL | 같은 DLL에 들어가므로 그대로 |
+| Source gathering | `source/{sim,view,app}/**` | `modules/*/{sim,view}/**` |
+| Include paths | `source/` → `#include "sim/World.h"` | `modules/` → `#include "cooldown/sim/Cooldown.h"` |
+| SimCheck | `sim/` files | Module `sim/` is checked too. A module's `sim/` includes only the engine core, the same module's `sim/`, and dependency modules' `sim/`. Including the game's `source/` fails (modules don't know the game) |
+| Simulation version hash | game `sim/` + engine core | Module `sim/` is included too. Peers with different module sim code are refused connection (the current rule as is) |
+| Headless target | `sim/` + `Headless.cpp` | Module `sim/` is included too |
+| Hot reload | game DLL | Goes into the same DLL, so as is |
 
-- **namespace**: 모듈 코드는 `namespace <name>`이다(예 `cooldown::`). 레지스트리가 이름을 하나씩만 주므로 모듈끼리는 겹치지 않는다.
-- **"자기 상태만 받는다"**: 모듈 시스템 함수의 인자는 모듈 상태 참조, 틱 번호, 모듈 튜닝, 엔진 코어 타입(`Pool`, `Id`, `PhysicsWorld&` 질의 등)뿐이다. 게임에 알릴 일은 반환값이나 모듈 상태 안의 결과 배열로 돌려준다(콜백 등록 없음, `docs/CODING_MODEL.md` "시뮬레이션 안에서 알리기").
+- **namespace**: module code is in `namespace <name>` (e.g. `cooldown::`). The registry gives out each name only once, so modules don't collide.
+- **"Takes only its own state"**: module system function arguments are only the module state reference, the tick number, the module tuning, and engine core types (`Pool`, `Id`, `PhysicsWorld&` queries, etc.). Anything to tell the game is returned via return values or a result array inside the module state (no callback registration, `docs/CODING_MODEL.md` "Notifying within the simulation").
 
-### 게임이 모듈을 쓰는 모양
+### How a game uses a module
 
 ```cpp
 // source/sim/World.h
 #include "cooldown/sim/Cooldown.h"
 MEALKIT_STRUCT(WorldState) {
     ...
-    MEALKIT_FIELD(cooldown::Cooldowns, cooldowns, {}, "쿨타임");   // 해시·스냅샷·[상태] 패널에 자동으로 들어간다
+    MEALKIT_FIELD(cooldown::Cooldowns, cooldowns, {}, "Cooldowns");   // automatically goes into the hash, snapshots, and [State] panel
 };
 
 // source/sim/Tuning.h
 MEALKIT_STRUCT(Tuning) {
     ...
-    MEALKIT_FIELD(cooldown::Tuning, cooldown, {}, "쿨타임 모듈");  // game.tuning에 "cooldown.slots 8"처럼 들어간다
+    MEALKIT_FIELD(cooldown::Tuning, cooldown, {}, "Cooldown module");  // goes into game.tuning like "cooldown.slots 8"
 };
 
-// source/sim/World.cpp — 부르는 순서는 게임이 정한다
+// source/sim/World.cpp — the game decides the call order
 void World::step(...) {
     ...
     cooldown::step(state.cooldowns, tick);
@@ -109,32 +109,32 @@ void World::step(...) {
 }
 ```
 
-- **튜닝**: 모듈은 기본값을 담은 자기 `Tuning` 구조체만 낸다. 게임 `Tuning`의 중첩 필드라 따로 파일이 없다. `game.tuning`, [튜닝] 패널, 콘텐츠 해시가 지금 그대로 쓴다(Reflect는 중첩 `MEALKIT_STRUCT`와 `a.b` 경로를 이미 지원한다). 화면용 값은 같은 방식으로 `view.tuning`에 둔다.
-- **표**: 모듈에 정의 데이터 표가 필요하면 모듈 폴더의 예시 표를 가리킨다. 예: `MEALKIT_TABLE(ItemDef, "modules/inventory/tables/items.table", 0)`. 게임이 그 표를 고쳐 쓰면 고친 파일이 된다.
-- **자동 등록·호출은 없다.** 순서가 게임 코드에 그대로 보여야 결정론 디버깅이 된다. 붙이는 코드는 모듈 문서의 "추가 방법"에 그대로 싣는다.
+- **Tuning**: a module only provides its own `Tuning` struct with defaults. It's a nested field of the game's `Tuning`, so there's no separate file. `game.tuning`, the [Tuning] panel, and the content hash use it as now (Reflect already supports nested `MEALKIT_STRUCT`s and `a.b` paths). View values go in `view.tuning` the same way.
+- **Tables**: if a module needs a definition data table, it points to the example table in the module folder. e.g. `MEALKIT_TABLE(ItemDef, "modules/inventory/tables/items.table", 0)`. If the game edits that table, it becomes a modified file.
+- **No automatic registration or calls.** The order must be visible in game code as is for determinism debugging. The glue code is put verbatim in the module docs' "How to add".
 
-## 에셋 경로
+## Asset paths
 
-Export는 `modules/*/assets/`를 출시 폴더 `modules/<이름>/assets/`로 같이 복사한다(`cmake/MealKitExport.cmake`). `.ui`의 `use <이름> modules/<모듈>/ui/x.ui`로 모듈 컴포넌트를 게임 화면에 넣는다.
+Export also copies `modules/*/assets/` to the shipping folder `modules/<name>/assets/` (`cmake/MealKitExport.cmake`). Module components are put into game screens with `use <name> modules/<module>/ui/x.ui` in `.ui`.
 
-`modules/<이름>/<종류>/...`로 시작하는 경로는 그 모듈의 `assets/` 아래로 푼다. 예: `modules/health/ui/healthbar.ui` → `<프로젝트>/modules/health/assets/ui/healthbar.ui`.
-`assets/` 바로 밑에는 종류 폴더만 올 수 있으므로 프로젝트 에셋과 겹치지 않는다. 경로는 `platform/Paths.h`의 `assetFilePath`(파일 찾기는 `findAssetFile`) 한 곳에서만 푼다(맨 아래 층이라 표·UI·소리·모델·에디터가 모두 쓸 수 있다). 콘텐츠 해시, 에셋 브라우저, 에셋 쿠킹도 같은 함수를 쓴다.
-게임이 모듈의 `.ui`를 크게 바꾸고 싶으면 프로젝트 `assets/ui/`에 복사해서 자기 경로를 쓴다. 이렇게 하면 모듈 파일이 고치지 않은 상태로 남아 갱신이 쉽다.
+Paths starting with `modules/<name>/<kind>/...` resolve under that module's `assets/`. e.g. `modules/health/ui/healthbar.ui` → `<project>/modules/health/assets/ui/healthbar.ui`.
+Only kind folders can be directly under `assets/`, so this doesn't collide with project assets. Paths are resolved in only one place, `assetFilePath` in `platform/Paths.h` (file lookup is `findAssetFile`) (it's the bottom layer, so tables, UI, sound, models, and the editor can all use it). The content hash, asset browser, and asset cooking use the same function.
+If a game wants to change a module's `.ui` a lot, it copies it into the project's `assets/ui/` and uses its own path. That leaves the module file unmodified, keeping updates easy.
 
-## 레지스트리 `MealKit-Modules`
+## The registry `MealKit-Modules`
 
-모듈을 모아 보는 곳이다. 서버 없이 **git 저장소 + CI + 정적 사이트**로 만든다. 이름은 하나의 진실이 있는 곳이다(crates.io-index·Homebrew tap과 같은 방식).
+This is where modules are gathered. It's made without a server, as **a git repo + CI + a static site**. Names have a single source of truth here (the same approach as crates.io-index or a Homebrew tap).
 
 ```
 MealKit-Modules/
-  entries/<이름>.txt       모듈마다 한 파일 (사람이 PR로 더함)
-  index.json               CI가 만든 전체 목록 (에디터·Manager·module.ps1이 받는 것)
-  site/                    CI가 만든 검색 사이트 (GitHub Pages)
-  template/                새 모듈 템플릿 (module-template 저장소의 원본)
-  .github/workflows/       PR 검사, 매일 다시 읽기, 모듈 저장소가 부르는 공용 워크플로
+  entries/<name>.txt       one file per module (added by people via PR)
+  index.json               full list built by CI (what the editor, Manager, and module.ps1 download)
+  site/                    search site built by CI (GitHub Pages)
+  template/                new module template (the source of the module-template repo)
+  .github/workflows/       PR checks, daily re-reads, the shared workflow module repos call
 ```
 
-### 등록 파일 `entries/<이름>.txt`
+### Registration file `entries/<name>.txt`
 
 ```
 @format module-entry 1
@@ -143,18 +143,18 @@ repo https://github.com/KingProtea99/module-cooldown
 author KingProtea99
 ```
 
-- 등록 파일에는 이름과 저장소만 적는다. 버전·요약·의존·엔진은 모듈 저장소의 태그와 `module.txt`에서 CI가 읽는다. 정보가 두 곳에 있지 않게 하려는 것이다.
-- 공식 표시는 없다. 모든 모듈이 같은 대우를 받는다.
+- Registration files contain only the name and repo. Version, summary, dependencies, and engine are read by CI from the module repo's tags and `module.txt`. This keeps information from living in two places.
+- There's no official mark. All modules get the same treatment.
 
-### CI가 하는 일
+### What CI does
 
-| 언제 | 하는 일 |
+| When | What it does |
 |---|---|
-| 등록 PR | 이름이 비어 있는지와 규칙에 맞는지 본다. 저장소에서 `v*` 태그를 읽고 각 태그의 `module.txt`가 맞는지(이름·버전 일치), `LICENSE`, `docs/index.md`가 있는지 본다. 최신 태그를 **빈 프로젝트에 넣어 `module.txt`의 엔진 버전으로 빌드**하고, SimCheck와 모듈 `tests/`를 돌린다. 실패하면 PR이 막힌다 |
-| 매일 | 모든 등록 모듈의 새 태그를 읽어 `index.json`과 사이트를 다시 만든다. 새 태그는 위와 같이 검사하고, 최신 엔진 출시본으로도 빌드해서 "엔진 0.9에서 빌드 실패" 같은 상태를 남긴다 |
-| 엔진 출시 전 | 엔진 저장소 CI가 레지스트리의 공용 워크플로로 **등록 모듈 전부를 새 엔진에 빌드**해 본다. API를 바꿔 모듈이 깨지면 출시 전에 안다(초안 1에서 엔진 저장소에 두려던 이유를 이것으로 대신한다) |
+| Registration PR | Checks that the name is free and follows the rules. Reads `v*` tags from the repo and checks each tag's `module.txt` (name/version match), `LICENSE`, and `docs/index.md`. Puts the latest tag **into an empty project and builds with the engine version in `module.txt`**, and runs SimCheck and the module's `tests/`. Failure blocks the PR |
+| Daily | Reads new tags of all registered modules and rebuilds `index.json` and the site. New tags are checked as above, and also built with the latest engine release, recording states like "build fails on engine 0.9" |
+| Before an engine release | Engine repo CI uses the registry's shared workflow to **build all registered modules against the new engine**. If an API change breaks modules, it's known before release (this replaces draft 1's reason for keeping them in the engine repo) |
 
-### `index.json` (한 모듈 예)
+### `index.json` (one module example)
 
 ```json
 { "name": "cooldown", "repo": "https://github.com/KingProtea99/module-cooldown",
@@ -163,89 +163,89 @@ author KingProtea99
                   "checks": { "0.8": "pass", "0.9": "fail" } } ] }
 ```
 
-`commit`을 적어 두므로, 누가 태그를 옮기면 받을 때 커밋이 달라서 알아챈다.
+`commit` is recorded, so if someone moves a tag, the commit differs on download and it's noticed.
 
-### 모아 보는 곳 세 군데 (같은 `index.json`)
+### Three places to browse (same `index.json`)
 
-| 어디 | 무엇 |
+| Where | What |
 |---|---|
-| 사이트 (`mealkit-engine.github.io/MealKit-Modules`) | 검색, 태그, 엔진 버전 필터. 모듈마다 `docs/index.md`를 그린 페이지, 버전·빌드 상태, 저장소 링크, 추가 명령 한 줄 |
-| MealKit Manager [모듈] 탭 | 사이트와 같은 목록과 검색. 고른 프로젝트에 추가(그 프로젝트 엔진의 `tools\module.ps1`을 부른다). 받은 목록은 `%LOCALAPPDATA%\MealKit\module-index.json`에 캐시하고, 오프라인이면 캐시를 보여 준다(`module.ps1`도 같은 캐시를 쓴다. 목록 주소 `raw.githubusercontent.com/MealKit-Engine/MealKit-Modules/main/index.json`, `-Index`·`MEALKIT_MODULE_INDEX`로 바꾼다) |
-| 에디터 [파일] > [모듈...] (`editor/ModulesPanel`) | 설치된 모듈 표(이름, 버전과 새 버전, 고친 파일·`.new` 수, 출처, [갱신]·[제거]·[문서])와 레지스트리 목록([추가]). 플레이 중에는 바꾸지 않고, 바꾸면 게임 코드를 다시 빌드한다 |
+| Site (`mealkit-engine.github.io/MealKit-Modules`) | Search, tags, engine version filter. A page per module rendering `docs/index.md`, version/build status, repo link, a one-line add command |
+| MealKit Manager [Modules] tab | The same list and search as the site. Adds to the chosen project (calls that project engine's `tools\module.ps1`). The downloaded list is cached in `%LOCALAPPDATA%\MealKit\module-index.json`, and the cache is shown when offline (`module.ps1` uses the same cache. The list URL is `raw.githubusercontent.com/MealKit-Engine/MealKit-Modules/main/index.json`, changed with `-Index`/`MEALKIT_MODULE_INDEX`) |
+| Editor [File] > [Modules...] (`editor/ModulesPanel`) | An installed module table (name, version and new version, modified file/`.new` counts, source, [Update]/[Remove]/[Docs]) and the registry list ([Add]). Not changed during play; changes rebuild game code |
 
-에디터와 Manager는 `module.ps1 search -Tsv -Project <폴더>` 한 번으로 설치된 모듈(`installed` 줄)과 레지스트리(`module` 줄, 받지 못하면 `error` 줄)를 받는다. 줄 모양은 `module.ps1`, 에디터 `ModulesPanel.cpp`, Manager `Catalog.cpp`의 `parseModuleList` 세 곳이 같이 안다.
+The editor and Manager get installed modules (`installed` lines) and the registry (`module` lines, or `error` lines if download fails) with one `module.ps1 search -Tsv -Project <folder>`. The line shape is known in three places together: `module.ps1`, the editor's `ModulesPanel.cpp`, and Manager's `parseModuleList` in `Catalog.cpp`.
 
-레지스트리 모듈을 처음 추가할 때는 한 번 경고한다(어떤 모듈이든 같다). "이 코드는 에디터와 게임 안에서 실행됩니다. 레지스트리 CI는 빌드만 확인하고 코드를 검토하지 않습니다."
+When adding a registry module for the first time, it warns once (the same for any module). "This code runs inside the editor and the game. Registry CI only checks the build and doesn't review the code."
 
-## 추가·갱신·제거 (`tools\module.ps1`)
+## Add, update, remove (`tools\module.ps1`)
 
-규칙은 PowerShell 도구 한 곳(`tools\module.ps1`, `project_common.ps1` 재사용)에 둔다. 에디터와 Manager는 이 도구를 부른다(지금 `upgrade_project.ps1`과 같은 관계).
+The rules live in one PowerShell tool (`tools\module.ps1`, reusing `project_common.ps1`). The editor and Manager call this tool (the same relationship as `upgrade_project.ps1` now).
 
 ```
-tools\module.ps1 search  [<검색어>] [-Tag <태그>]                  레지스트리 목록 (프로젝트 엔진 버전에 맞는 것 먼저)
-tools\module.ps1 list    -Project <폴더>                           설치된 모듈, 버전, 고친 파일 수, 새 버전 있음
-tools\module.ps1 add     -Project <폴더> <이름[@버전] | git주소#태그 | 폴더>
-tools\module.ps1 update  -Project <폴더> <이름> [-To <버전>] [-DryRun] [-Force]
-tools\module.ps1 remove  -Project <폴더> <이름>
+tools\module.ps1 search  [<query>] [-Tag <tag>]                    registry list (those matching the project engine version first)
+tools\module.ps1 list    -Project <folder>                         installed modules, versions, modified file counts, new versions available
+tools\module.ps1 add     -Project <folder> <name[@version] | gitUrl#tag | folder>
+tools\module.ps1 update  -Project <folder> <name> [-To <version>] [-DryRun] [-Force]
+tools\module.ps1 remove  -Project <folder> <name>
 ```
 
-| 동작 | 하는 일 |
+| Action | What it does |
 |---|---|
-| add (이름) | `index.json`에서 프로젝트 엔진 MINOR에 맞는 가장 새 버전을 고른다. `git clone --depth 1 --branch <태그>`로 `%LOCALAPPDATA%\MealKit\module-cache\`에 받고, 커밋이 목록과 같은지 본다. `requires`에서 빠진 모듈은 목록을 보여 준다(`-WithRequires`면 같이 추가). 복사한 뒤 `module.files`에 파일별 sha256과 `source registry cooldown 0.1.0 <커밋> <저장소> <태그>`를 쓰고(`update`는 이 줄로 레지스트리에서 다시 찾고 `-To <버전>`으로 버전을 고른다), 모듈 문서의 "추가 방법"을 연다 |
-| add (git 주소·폴더) | 레지스트리에 없는 모듈(만드는 중인 것, 사내 모듈)이다. 같은 방식이고 `source git …`·`source folder …`로 적는다 |
-| update | 업그레이드 도구 규칙 그대로다. 고치지 않은 파일(해시가 기록과 같음)은 새것으로 바꾸고, 고친 파일은 남기고 `<파일>.new`를 쓴다. 새 버전에서 없어진 파일은 안 고쳤으면 지우고, 고쳤으면 남기고 알린다 |
-| remove | 다른 모듈이 `requires`하면 거절한다. 게임 `source/`에 `"<이름>/`를 include하는 줄이 있으면 그 줄을 보여 주고 거절한다(`-Force`로 강행). 폴더를 지운다(되돌리기는 git이 맡는다) |
+| add (name) | Picks the newest version in `index.json` matching the project engine MINOR. Downloads with `git clone --depth 1 --branch <tag>` into `%LOCALAPPDATA%\MealKit\module-cache\` and checks the commit matches the list. Shows a list of modules missing from `requires` (`-WithRequires` adds them too). After copying, writes per-file sha256 and `source registry cooldown 0.1.0 <commit> <repo> <tag>` to `module.files` (`update` uses this line to find it in the registry again, and `-To <version>` picks a version), and opens the module docs' "How to add" |
+| add (git URL/folder) | Modules not in the registry (in development, in-house). Same approach, recorded as `source git …`/`source folder …` |
+| update | The upgrade tool rules as is. Unmodified files (hash matches the record) are replaced with new ones, and modified files are left with `<file>.new` written. Files removed in the new version are deleted if unmodified, or left with a notice if modified |
+| remove | Refuses if another module `requires` it. If the game's `source/` has lines including `"<name>/`, it shows those lines and refuses (`-Force` to proceed anyway). Deletes the folder (git handles undo) |
 
-- **설치 목록은 `modules/` 폴더 자체다.** `mealkit.project`에 따로 목록을 두지 않는다(ROADMAP 원안의 `modules=` 목록을 바꾼다). 목록과 폴더가 어긋날 일이 없다.
-- 모듈은 프로젝트 저장소에 커밋된다. 팀원과 CI는 아무것도 받지 않고 빌드한다. 네트워크는 `search`·`add`·`update` 때만 쓴다.
-- 기준 샘플(엔진 저장소 루트의 sandbox 프로젝트)도 다른 게임과 똑같이 `modules/cooldown/` 복사본을 커밋한다. 엔진 저장소에 있는 모듈은 이것뿐이다.
+- **The installed list is the `modules/` folder itself.** There's no separate list in `mealkit.project` (changes the ROADMAP draft's `modules=` list). The list and folders can't drift apart.
+- Modules are committed to the project repo. Teammates and CI build without downloading anything. The network is used only for `search`, `add`, `update`.
+- The reference sample (the sandbox project at the engine repo root) also commits a `modules/cooldown/` copy just like any other game. This is the only module in the engine repo.
 
-## 모듈 CI (모듈 저장소마다)
+## Module CI (per module repo)
 
-모듈 단위 시험은 `tests/CMakeLists.txt`(엔진 `cmake/MealKit.cmake`를 include해 `mealkit_core`에 링크, 빌드 폴더에 `#include "<이름>/..."` 전달 헤더를 만든다) + `tests/*.cpp`(`main`). `cmake -S tests -B build/tests -G Ninja -DMEALKIT_ROOT=<엔진> -DMEALKIT_HEADLESS_ONLY=ON`으로 혼자 빌드한다. 공용 워크플로는 이것을 돌린다.
+Module unit tests are `tests/CMakeLists.txt` (includes the engine's `cmake/MealKit.cmake`, links `mealkit_core`, and creates `#include "<name>/..."` forwarding headers in the build folder) + `tests/*.cpp` (`main`). Built standalone with `cmake -S tests -B build/tests -G Ninja -DMEALKIT_ROOT=<engine> -DMEALKIT_HEADLESS_ONLY=ON`. The shared workflow runs this.
 
-템플릿에 워크플로 한 줄이 들어 있다. 레지스트리의 공용 워크플로(`uses: MealKit-Engine/MealKit-Modules/.github/workflows/module.yml@v1`)를 부른다.
-공용 워크플로는 `module.txt`의 엔진 버전에 맞는 가장 새 엔진 태그 `v<MAJOR.MINOR>.*`(없으면 `main`)를 받아, Windows·Linux에서 레지스트리 `tools/check_module.ps1`을 돌린다: `module.txt`·`LICENSE`·`docs/index.md` 확인, `tests/` 빌드·실행, `modules/<이름>/`에 놓고 SimCheck. 로컬에서도 같은 스크립트로 검사한다. 빈 프로젝트에 넣어 게임째 빌드하는 것과 플랫폼 간 해시 비교는 아직 없다(⑥ 뒤에 더한다).
-모든 모듈이 같은 검사를 쓰므로, 저장소가 여러 개여도 CI는 한 곳에서 고친다.
+The template contains one workflow line. It calls the registry's shared workflow (`uses: MealKit-Engine/MealKit-Modules/.github/workflows/module.yml@v1`).
+The shared workflow fetches the newest engine tag `v<MAJOR.MINOR>.*` matching the engine version in `module.txt` (`main` if none), and runs the registry's `tools/check_module.ps1` on Windows and Linux: checks `module.txt`, `LICENSE`, `docs/index.md`, builds and runs `tests/`, places it in `modules/<name>/` and runs SimCheck. The same script checks locally too. Building a whole game in an empty project and cross-platform hash comparison don't exist yet (added after ⑥).
+All modules use the same checks, so even with many repos, CI is fixed in one place.
 
-## 문서
+## Docs
 
-모듈 문서는 모듈 저장소의 `docs/index.md` 한 페이지다. 틀은 그대로다: 개요 / 추가 방법(붙이는 코드) / 사용법 / 동작 원리 / 버전 기록. 프로젝트에 같이 복사되므로 쓰는 버전의 문서가 옆에 남는다.
+Module docs are one page, `docs/index.md`, in the module repo. The template stays: Overview / How to add (glue code) / Usage / How it works / Version history. It's copied into projects too, so the docs for the version in use stay alongside.
 
-- **어디서 보나**: 레지스트리 사이트가 모든 모듈 문서를 같은 모양으로 그린다. 작성자와 무관하게 같다.
-- 문서 저장소(MealKit-docs)의 "게임 개발자 안내 > Modules"는 쓰는 법 한 페이지와 레지스트리 사이트 링크만 둔다. "엔진 개발자 안내 > Writing modules"에는 이 문서의 규칙(폴더, `module.txt`, include 규칙, namespace, 등록 방법)을 옮긴다.
-- 이렇게 하면 DECISIONS 2026-10-21의 "문서 빌드가 엔진 `modules/*/docs`를 모은다"를 바꾸게 된다. 한국어는 모듈 저장소의 `docs/index.ko.md`(선택)로 두고, 사이트에서 언어를 고른다.
+- **Where to read them**: the registry site renders all module docs in the same shape. The same regardless of author.
+- The docs repo (MealKit-docs) "Game developer guide > Modules" has only one how-to page and a link to the registry site. "Engine developer guide > Writing modules" gets this document's rules (folders, `module.txt`, include rules, namespace, how to register).
+- This changes DECISIONS 2026-10-21's "the docs build gathers the engine's `modules/*/docs`". Korean goes in the module repo's `docs/index.ko.md` (optional), and the site lets you pick the language.
 
-## 첫 모듈 목록과 순서 (KingProtea99 저장소)
+## First module list and order (KingProtea99 repos)
 
-| 순서 | 모듈 | 의존 | 비고 |
+| Order | Module | Dependencies | Notes |
 |---|---|---|---|
-| 1 | `cooldown` 쿨타임 | 없음 | 가장 작다. 시스템 전체(저장소, 등록, 추가, 빌드, SimCheck, 튜닝 중첩, `.ui` 경로, 문서, 갱신)를 이것으로 검증한다. sandbox 밀치기 쿨타임을 옮긴다 |
-| 2 | `objects` 기본 오브젝트 | 없음 | 트리거 볼륨, 경로 발판, 아이템 스폰 지점 |
-| 3 | `procgen` 절차적 생성 | 없음 | 시드 → 배치. 에디터에서 `.scene`으로 굽는다 |
-| 4 | `health` 체력·데미지 | 게임 흐름 프레임워크 | 사망 → 리스폰이 매치 상태 머신과 엮인다 |
-| 5 | `inventory` 인벤토리 | 없음 (`.table`) | 세이브·매치 시작 데이터와 연결한다 |
-| 6 | `minimap` 미니맵 | 없음 | `view/`만 있는 모듈의 예 |
+| 1 | `cooldown` cooldowns | none | The smallest. The whole system (repo, registration, adding, build, SimCheck, nested tuning, `.ui` paths, docs, updating) is verified with it. Moves the sandbox push cooldown |
+| 2 | `objects` basic objects | none | Trigger volumes, path platforms, item spawn points |
+| 3 | `procgen` procedural generation | none | Seed → placement. Baked into `.scene` in the editor |
+| 4 | `health` health/damage | game flow framework | Death → respawn ties into the match state machine |
+| 5 | `inventory` inventory | none (`.table`) | Connects to saves and match start data |
+| 6 | `minimap` minimap | none | An example of a `view/`-only module |
 
-## 구현 순서 (항목 안에서)
+## Implementation order (within the item)
 
-1. 엔진: `module.txt` 읽기. `mealkit_add_game()`이 모듈을 모은다(소스, include, SimCheck, 시뮬레이션 버전, 헤드리스). SimCheck에 "모듈은 `source/`를 모른다" 규칙을 더한다
-2. 엔진: 에셋 경로 `modules/<이름>/...` 풀기, `check_layout.ps1`에 모듈 폴더, 콘텐츠 해시
-3. `tools\module.ps1`: 폴더·git 주소로 add/update/remove/list, 스크립트 시험
-4. 모듈 템플릿 + `cooldown` 저장소(로컬): 코드, `tests/`, 문서. sandbox에 add해서 `mp_test` PASS, 해시가 같은지 확인
-5. 레지스트리 저장소: `entries/`, 공용 워크플로(모듈 CI), PR 검사, `index.json` 만들기
-6. `module.ps1 search`와 이름으로 add, Manager [모듈] 탭, 에디터 [모듈] 창
-7. 레지스트리 사이트(정적 페이지: 검색, 필터, 문서 그리기)
-8. ~~문서 저장소: Modules 안내 페이지, Writing modules(영어·한국어)~~ (끝)
-9. 나머지 첫 모듈은 위 표 순서로, 각각 자기 저장소에서
+1. Engine: read `module.txt`. `mealkit_add_game()` gathers modules (sources, include, SimCheck, simulation version, headless). Add the "modules don't know `source/`" rule to SimCheck
+2. Engine: resolving asset paths `modules/<name>/...`, module folders in `check_layout.ps1`, content hash
+3. `tools\module.ps1`: add/update/remove/list by folder or git URL, script tests
+4. Module template + `cooldown` repo (local): code, `tests/`, docs. Add it to sandbox and confirm `mp_test` PASS and matching hashes
+5. Registry repo: `entries/`, shared workflow (module CI), PR checks, building `index.json`
+6. `module.ps1 search` and add by name, Manager [Modules] tab, editor [Modules] window
+7. Registry site (static pages: search, filters, rendering docs)
+8. ~~Docs repo: Modules guide page, Writing modules (English/Korean)~~ (done)
+9. The rest of the first modules in the table order above, each in its own repo
 
-1~4는 GitHub 없이 로컬에서 끝난다. 5부터는 GitHub 저장소(`MealKit-Modules`, `module-cooldown`)가 필요하다. 저장소 만들기와 push는 사용자가 한다(오디오 2와 같음).
+1~4 finish locally without GitHub. From 5, GitHub repos (`MealKit-Modules`, `module-cooldown`) are needed. Creating repos and pushing is done by the user (same as Audio 2).
 
-## 정한 것 (2026-10-28)
+## Decisions (2026-10-28)
 
-1. 모듈 하나 = 저장소 하나 (공식 모듈만 한 저장소에 모으지 않는다)
-2. 레지스트리는 git 저장소 + CI + GitHub Pages (토픽 검색만, 업로드 서버는 아님 — 서버는 보류 표)
-3. 등록 PR은 CI 통과 뒤 사람이 합친다
-4. 설치 목록은 `modules/` 폴더 자체 (`mealkit.project`에 목록 없음)
-5. 에셋 경로 접두 `modules/<이름>/...`, namespace는 모듈 이름
-6. 모듈 문서는 레지스트리 사이트, MealKit-docs는 안내 한 페이지와 링크. 한국어는 `index.ko.md`
+1. One module = one repo (official modules alone aren't gathered into one repo)
+2. The registry is a git repo + CI + GitHub Pages (not just topic search, not an upload server — the server is in the deferred table)
+3. Registration PRs are merged by a person after CI passes
+4. The installed list is the `modules/` folder itself (no list in `mealkit.project`)
+5. Asset path prefix `modules/<name>/...`, namespace is the module name
+6. Module docs on the registry site, MealKit-docs has one guide page and links. Korean in `index.ko.md`

@@ -1,561 +1,561 @@
-# MealKit 엔진 로드맵
+# MealKit engine roadmap
 
-엔진에 넣을 기능과 순서. 이 저장소에서는 게임을 만들지 않는다. 다른 엔진(Unity·Unreal·Godot 등)에서 게임에 필요했던 기능을 기준으로 정하고,
-각 기능은 `samples/`의 기준 샘플로 검증한다(1단계 "기준 샘플").
-끝낸 항목은 `[x]` 한 줄로 줄이고 구현 상세는 `docs/CHANGELOG.md`로 옮긴다. 순서가 바뀌면 이 문서를 고친다. 결정의 이유와 넣지 않거나 미룬 기능("보류" 표)은 `docs/DECISIONS.md`.
+Features to put in the engine and their order. Games aren't built in this repo. Features are chosen based on what games needed in other engines (Unity, Unreal, Godot, etc.),
+and each feature is verified with the reference samples in `samples/` (stage 1 "Reference samples").
+Finished items are shortened to one `[x]` line and implementation details move to `docs/CHANGELOG.md`. When the order changes, update this document. Reasons for decisions and features not included or deferred (the "Deferred" table) are in `docs/DECISIONS.md`.
 
-## 판단 기준
+## Decision criteria
 
-모든 기능은 아래 순서로 따져서 넣을지 정한다.
+Every feature is weighed in the order below to decide whether it goes in.
 
-1. **3D + 멀티플레이를 해치지 않는가.** 시뮬레이션에 닿는 기능은 락스텝 결정론(`docs/CODING_MODEL.md` "결정론 규칙")을 지켜야 한다.
-2. **가벼움과 속도.** 목표 하드웨어는 Intel 내장 그래픽 사무용 PC, **최소 사양은 Intel 11세대(Xe 내장 그래픽) 이상**이다. 아래 예산을 넘는 기능은 끌 수 있어야 한다.
-3. **여러 플랫폼, DX12가 기준.** OS API는 플랫폼 계층(`mealkit/platform/`), 그래픽 API는 얇은 RHI(`mealkit/rhi/`) 뒤에서만 부른다.
-   새 렌더링 기능은 DX12 백엔드에서 먼저 설계하고 **Vulkan 백엔드는 2단계부터 같은 항목 안에서 같이** 만든다. Metal·WebGPU·콘솔 백엔드(5단계)는 따라간다. 다른 API에 맞추려고 기능을 낮추지 않고, 백엔드가 못 하는 기능은 그 플랫폼 프리셋에서 끈다.
-   에디터는 Windows 먼저, macOS·Linux는 5단계. 목표는 모든 플랫폼 사이 크로스플레이다(플랫폼 표와 조건은 5단계).
-4. **직접 만들지 않고 완성된 것을 가져다 쓴다.** 엔진 저장소가 맡는 것은 결정론 시뮬레이션(+ 물리 접착), 락스텝 네트워크, 렌더러, 에디터(배치·가져오기·검사·디버깅, 도구 바로가기)뿐이다.
-   - **외부 제작 도구**(Blender, Penpot, Effekseer 에디터, VS Code, DaVinci 등)는 적극적으로 쓴다. 게임 exe에 들어가지 않으므로 비용이 없다. 엔진은 가져오기·검사·미리보기와 도구용 플러그인만 만든다.
-   - **MealKit 도구**: 담당의 워크플로우에 맞는 무료 도구가 없을 때만 만든다(첫 번째는 오디오). 엔진 저장소 밖 별도 저장소, MIT, 도구 사이 약속 하나(아래 "도구 제품군", `docs/DECISIONS.md` 2026-10-26).
-   - **런타임 라이브러리**(exe에 링크)도 직접 만드는 것보다 우선한다. 단 조건이 있다:
-     화면 쪽(`view/`)만 쓰면 자유롭게, 시뮬레이션에 닿으면 결정론을 검증한 것만(Jolt처럼). 소스 포함·버전 고정(`third_party/`), 허용 라이선스(MIT/BSD/zlib/퍼블릭 도메인 등), 출시 exe 예산(5 MB) 안.
-     모든 대상 플랫폼에서 돌아가는 라이브러리를 먼저 본다. 한 플랫폼의 기본 API(XAudio2, XInput, WIC 등)는 플랫폼 계층의 그 플랫폼 구현 안에서만 쓴다.
+1. **Does it not hurt 3D + multiplayer?** Features touching the simulation must keep lockstep determinism (`docs/CODING_MODEL.md` "Determinism rules").
+2. **Lightness and speed.** The target hardware is office PCs with Intel integrated graphics, **minimum spec Intel 11th gen (Xe integrated graphics) or newer**. Features exceeding the budgets below must be toggleable.
+3. **Multiple platforms, DX12 as reference.** OS APIs are called only behind the platform layer (`mealkit/platform/`), graphics APIs only behind the thin RHI (`mealkit/rhi/`).
+   New rendering features are designed on the DX12 backend first, and **from stage 2 the Vulkan backend is built together within the same item**. Metal, WebGPU, and console backends (stage 5) follow. Features aren't lowered to fit other APIs; features a backend can't do are turned off in that platform's preset.
+   The editor is Windows first, macOS/Linux in stage 5. The goal is crossplay between all platforms (platform table and conditions in stage 5).
+4. **Use finished things instead of building them.** The engine repo handles only the deterministic simulation (+ physics glue), lockstep networking, renderer, and editor (placement, import, checks, debugging, tool shortcuts).
+   - **External authoring tools** (Blender, Penpot, the Effekseer editor, VS Code, DaVinci, etc.) are used actively. They don't go into the game exe, so they cost nothing. The engine builds only import, checks, previews, and plugins for the tools.
+   - **MealKit tools**: built only when no free tool fits a role's workflow (the first is audio). Separate repos outside the engine repo, MIT, one contract between tools ("Tool suite" below, `docs/DECISIONS.md` 2026-10-26).
+   - **Runtime libraries** (linked into the exe) are also preferred over building our own. With conditions:
+     freely if used only on the view side (`view/`), only determinism-verified ones if they touch the simulation (like Jolt). Source included, version pinned (`third_party/`), permissive license (MIT/BSD/zlib/public domain, etc.), within the shipping exe budget (5 MB).
+     Libraries that run on every target platform are looked at first. One platform's native APIs (XAudio2, XInput, WIC, etc.) are used only inside that platform's implementation in the platform layer.
 
-### 성능 예산 (최소 사양 Intel 11세대 Xe 내장 그래픽, 1280×720, 60 fps 기준)
+### Performance budget (minimum spec Intel 11th gen Xe integrated graphics, 1280×720, 60 fps)
 
-"현재" 값은 최소 사양보다 빠른 Core Ultra 5 125U(Xe-LPG)에서 잰 것이다. 최소 사양 실기에서 다시 재야 한다.
-이 표는 Windows 기준이다. 다른 플랫폼의 최소 사양과 예산은 그 플랫폼을 시작할 때(5단계) 같은 모양의 표로 정한다. 실행 파일 5 MB는 모든 플랫폼에 같다.
+"Current" values were measured on a Core Ultra 5 125U (Xe-LPG), faster than the minimum spec. They must be re-measured on minimum spec hardware.
+This table is for Windows. Minimum specs and budgets for other platforms are set in a table of the same shape when that platform is started (stage 5). The 5 MB executable is the same on all platforms.
 
-| 항목 | 예산 | 현재 |
+| Item | Budget | Current |
 |---|---|---|
-| 프레임 전체 (GPU) | 8 ms 이하 (60 fps에서 절반을 여유로 남김) | 약 2.2 ms (arena, 그림자·포스트 켬: opaque 1.33, shadow 0.39, post 0.45, 2026-10-27 `--benchmark 20`) |
-| 시뮬레이션 틱 (30 Hz) | 틱당 4 ms 이하 | 0.9~2.5 ms (바디 2,000개) |
-| 드로우 콜 | 200회 이하 | 26회 (인스턴스 816개, arena) |
-| 네트워크 (4인, 호스트 송신) | 10 KB/s 이하 | 약 5 KB/s |
-| 게임 실행 파일 | 5 MB 이하 (에셋 제외) | 약 3.2 MB (Export 빌드, 오디오·Jolt·포스트 포함) |
+| Whole frame (GPU) | 8 ms or less (half left as headroom at 60 fps) | about 2.2 ms (arena, shadows/post on: opaque 1.33, shadow 0.39, post 0.45, 2026-10-27 `--benchmark 20`) |
+| Simulation tick (30 Hz) | 4 ms or less per tick | 0.9~2.5 ms (2,000 bodies) |
+| Draw calls | 200 or fewer | 26 (816 instances, arena) |
+| Network (4 players, host send) | 10 KB/s or less | about 5 KB/s |
+| Game executable | 5 MB or less (excluding assets) | about 3.2 MB (Export build, including audio, Jolt, post) |
 
-## 버전
+## Versions
 
-엔진 버전은 저장소 루트 `VERSION`. **v0.n = n단계를 끝낸 엔진**이다(0단계 → v0.4는 그 전 버전 번호를 이어받았다). 0.x 동안은 `GameInstance` API(`kApiVersion`)와 파일 형식이 바뀔 수 있고, 기존 프로젝트는 업그레이드 도구로 옮긴다.
+The engine version is `VERSION` at the repo root. **v0.n = the engine having finished stage n** (stage 0 → v0.4 inherited the previous version number). During 0.x the `GameInstance` API (`kApiVersion`) and file formats may change, and existing projects are migrated with the upgrade tool.
 
-| 버전 | 뜻 |
+| Version | Meaning |
 |---|---|
-| v0.4 | 0단계: 에디터·핫 리로드·결정론 검사·디버깅 도구. 1단계 항목을 끝내며 템플릿이 바뀌면 0.4.x를 올렸다 |
-| v0.5 (지금 0.5.0, 2026-10-19) | 1단계: 게임 하나를 끝까지 낼 수 있는 기능 (플랫폼 계층, 데이터 분리, 소리, UI, 입력, 메뉴, 세이브). 기준 샘플이 타이틀부터 결과 화면까지 끝까지 돈다. 2단계 항목을 끝내며 템플릿이 바뀌면 0.5.x를 올린다 |
-| v0.6 / v0.7 / v0.8 | 그래픽(RHI: DX12 + Vulkan) / 멀티플레이 강화 / 게임플레이 프레임워크·모듈·툴 |
-| v0.9 | 5단계 1군: Linux·Steam Deck, macOS 출시와 에디터, 1군 사이 크로스플레이(EOS). 2군(모바일·웹·콘솔)은 그 뒤 순서대로, v1.0을 막지 않는다 |
-| **v1.0** | v0.9 이후, **기준 샘플이 모두 1군 플랫폼에서 Export·결정론 검사(`mp_test`, 플랫폼 사이 포함)를 통과**하고 **약속을 고정**한 버전: `GameInstance` API, 파일 형식(`.scene`, `.tuning`, `.table`, `.ui`, `mealkit.project`, 세이브), `sim/` 규칙(SimCheck) |
-| v1.x 이후 | 고정한 약속을 깨지 않는다. 꼭 깨야 하면 메이저 버전(v2.0)을 올리고 업그레이드 도구가 옮긴다 |
+| v0.4 | Stage 0: editor, hot reload, determinism checks, debugging tools. When the template changed while finishing stage 1 items, 0.4.x was bumped |
+| v0.5 (now 0.5.0, 2026-10-19) | Stage 1: features to ship one game end to end (platform layer, data separation, sound, UI, input, menus, saves). The reference sample runs end to end from title to results screen. When the template changes while finishing stage 2 items, 0.5.x is bumped |
+| v0.6 / v0.7 / v0.8 | Graphics (RHI: DX12 + Vulkan) / stronger multiplayer / gameplay framework, modules, tools |
+| v0.9 | Stage 5 tier 1: Linux/Steam Deck and macOS shipping and editors, crossplay between tier 1 (EOS). Tier 2 (mobile, web, consoles) follows in order and doesn't block v1.0 |
+| **v1.0** | After v0.9, the version where **all reference samples pass Export and determinism checks (`mp_test`, including cross-platform) on tier 1 platforms** and **contracts are frozen**: the `GameInstance` API, file formats (`.scene`, `.tuning`, `.table`, `.ui`, `mealkit.project`, saves), `sim/` rules (SimCheck) |
+| v1.x and later | Frozen contracts aren't broken. If one truly must break, the major version (v2.0) is bumped and the upgrade tool migrates |
 
-## 현재 있는 것 (v0.5, 1단계 완료)
+## What exists now (v0.5, stage 1 done)
 
-1단계에서 더한 것: 플랫폼 계층(`win32/`·`posix/`), 헤드리스 시뮬레이션과 입력 기록·재생, CI(Windows MSVC·clang-cl, Linux x64·macOS ARM64 틱별 해시 비교), 데이터 분리(튜닝·화면용 튜닝·정의 데이터 표·프로젝트 설정, 시간은 초), 소리(이벤트·버스·목소리 관리), 이벤트 → 연출 표, 입력 액션·게임패드, 확정 명령, 디버그 UI, 문자열 표, 게임 화면 UI(`.ui` 런타임, 글자 입력), 플레이어 설정과 표준 설정 화면, 세이브, 로드아웃,
-기본 화면 흐름(타이틀 → 메뉴 → 로비 → 매치 → 결과 → 로비, `game::MatchService`, LAN 방 찾기, 채팅), 네트워크 상태 흉내, 플레이어용 네트워크 표시, 입력 지연 자동 조절, 내 캐릭터 겉모습 예측, 접근성 기본, 틱레이트 설정(30/60), 버전 표시·접속 거부 이유. 상세는 `docs/CHANGELOG.md` v0.4.1~v0.5.0.
+Added in stage 1: the platform layer (`win32/`, `posix/`), headless simulation and input recording/playback, CI (Windows MSVC/clang-cl, Linux x64/macOS ARM64 per-tick hash comparison), data separation (tuning, view tuning, definition data tables, project settings, time in seconds), sound (events, buses, voice management), events → feedback table, input actions/gamepads, confirmed commands, debug UI, string tables, game screen UI (`.ui` runtime, text input), player settings and the standard settings screen, saves, loadouts,
+basic screen flow (title → menu → lobby → match → results → lobby, `game::MatchService`, LAN room discovery, chat), network condition simulation, player-facing network display, automatic input delay adjustment, predicting my character's appearance, accessibility basics, tick rate setting (30/60), version display and connection refusal reasons. Details in `docs/CHANGELOG.md` v0.4.1~v0.5.0.
 
-0단계까지:
+Up to stage 0:
 
-Windows 전용. DX12 포워드 렌더러(인스턴싱, 정점 색, RHI 없이 DX12 직접 호출), Jolt 물리(결정론, 스냅샷), 입력만 보내는 락스텝(UDP/Steam), glTF 모델 + LOD,
-`.scene` 씬(게임 정의 오브젝트 종류, 부모·자식 계층), 범용 에디터(프로젝트 관리자, 게임 DLL 핫 리로드, 기즈모, 되돌리기, 자동 저장,
-튜닝·상태 패널, 혼자/여러 명 플레이, 그림자 시뮬레이션, 일시정지·되감기, 출시 빌드), 필드 선언(`MEALKIT_FIELD`), 결정론 수학,
-`sim/` 검사(SimCheck), Tracy 프로파일링, 프로젝트 템플릿과 업그레이드 도구, 검증 스크립트(`tools/check.ps1`).
+Windows only. DX12 forward renderer (instancing, vertex colors, DX12 called directly without an RHI), Jolt physics (deterministic, snapshots), input-only lockstep (UDP/Steam), glTF models + LOD,
+`.scene` scenes (game-defined object kinds, parent/child hierarchy), general-purpose editor (project manager, game DLL hot reload, gizmos, undo, autosave,
+tuning/state panels, solo/multiplayer play, shadow simulation, pause/rewind, shipping builds), field declarations (`MEALKIT_FIELD`), deterministic math,
+the `sim/` check (SimCheck), Tracy profiling, project template and upgrade tool, verification script (`tools/check.ps1`).
 
-**네트워크 방식** (`net::LockstepSession`):
-- **호스트-클라이언트(리슨 서버형)**: 방장 PC가 플레이어이자 중계자다. 전용 서버는 없다(헤드리스 시뮬레이션이 생기면 방장 역할만 하는 프로세스는 가능).
-- **결정론 입력 락스텝**(서버 권위형 아님): 모든 피어가 같은 시뮬레이션을 돌리고 틱당 플레이어 입력 8바이트만 주고받는다. 호스트가 입력을 모아 확정·배포하고 상태 해시로 디싱크를 잡는다.
-- **UDP**(TCP 안 씀): 재전송 대신 확인받지 못한 입력을 매 패킷에 다시 싣는 중복 전송, 패킷 1200바이트 이하. Steam을 쓰면 Steam 네트워킹 릴레이(NAT 통과, 포트 포워딩 불필요).
-- **맞는 장르**: 협동, 파티, RTS, 물리 게임, 8명 이하 소규모 대전. 물체가 수천 개여도 대역폭이 일정하고(4인 약 5 KB/s), 상태 조작 치트(스피드핵 등)는 디싱크로 드러난다.
-- **안 맞는 장르**: 경쟁 FPS, 대규모 인원. 모든 피어가 전체 상태를 가져 맵핵을 막을 수 없고, 입력 지연(핑에 맞춰 60~270 ms, 내 캐릭터는 미리 움직여 그린다)이 있고, 최대 8명(`kMaxPlayers`)이다. 방장이 나가면 매치가 끝난다(3단계 호스트 이전).
+**Networking approach** (`net::LockstepSession`):
+- **Host-client (listen server style)**: the host's PC is both a player and the relay. There's no dedicated server (once headless simulation exists, a process acting only as host is possible).
+- **Deterministic input lockstep** (not server-authoritative): every peer runs the same simulation and exchanges only 8 bytes of player input per tick. The host collects, confirms, and distributes inputs and catches desyncs with state hashes.
+- **UDP** (no TCP): instead of retransmission, redundant sending that re-includes unacknowledged inputs in every packet, packets of 1200 bytes or less. With Steam, Steam networking relays (NAT traversal, no port forwarding needed).
+- **Suitable genres**: co-op, party, RTS, physics games, small-scale versus with 8 or fewer. Bandwidth is constant even with thousands of objects (about 5 KB/s for 4 players), and state-tampering cheats (speed hacks, etc.) show up as desyncs.
+- **Unsuitable genres**: competitive FPS, large player counts. Every peer holds the full state so map hacks can't be prevented, there's input delay (60~270 ms depending on ping; my character is drawn moving ahead), and the maximum is 8 players (`kMaxPlayers`). If the host leaves, the match ends (stage 3 host migration).
 
-**없는 것 중 게임을 만들 때 바로 막히는 것**: 텍스처·머티리얼·그림자(2단계), 중간 참가·재접속(3단계).
-
----
-
-## 0단계 (v0.4): 개발자 경험 — 완료
-
-기능을 더 쌓기 전에 툴부터 편하게 만든다. 원칙: **무엇을 어디에, 얼마나는 에디터(데이터)에서, 어떻게 동작하는지는 코드에서** 다룬다. 비주얼 스크립팅은 만들지 않는다.
-항목별 구현 상세와 남은 것은 `docs/CHANGELOG.md` "v0.4".
-
-- [x] 고도식 범용 에디터 + 게임 DLL 핫 리로드
-- [x] 게임 코드 구조: `sim/` · `view/` 폴더와 결정론 검사
-- [x] 기본 도구: `Pool<T>` · 틱 이벤트 · 틱 타이머 · `GameContext`
-- [x] 게임 정의 오브젝트 타입 + 인스펙터 필드
-- [x] 튜닝 값을 데이터로
-- [x] 상태 필드를 한 번만 선언
-- [x] 결정론 수학 유틸 (삼각함수 근사)
-- [x] 플레이어와 캐릭터 분리 (빙의)
-- [x] 씬 트리 계층 (부모·자식)
-- [x] 에디터에서 여러 명으로 플레이
-- [x] 그림자 시뮬레이션으로 디싱크 즉시 감지
-- [x] 일시정지, 한 틱씩 진행, 되감기
-- [x] 주기적 자동 저장
-- [x] 한 번에 도는 검증 스크립트 (`tools/check.ps1`)
-- [x] 프로젝트 업그레이드 도구 + 엔진 버전
-- [x] 코드 서식 통일 (`.clang-format`, `.editorconfig`)
-
-**0단계에서 남은 작은 일** (관련 작업 때 같이 한다):
-- 디버거가 붙어 있으면 PDB가 잠겨 핫 리로드 빌드가 실패할 수 있다(PDB 이름을 빌드마다 바꾸는 방식 검토). 디버그 CRT용 에디터 구성(EditorDebug)이 없다.
-- Pool 삭제 경로는 단위 테스트로만 확인했다. 샘플 코드에서 처음 지울 때 `mp_test`로 다시 확인한다.
-- 헤드리스 시뮬레이션(1단계)이 생기면 `check.ps1`의 GPU 없이 도는 부분을 늘린다.
+**What's missing that blocks you right away when making a game**: textures, materials, shadows (stage 2), mid-match joining/reconnecting (stage 3).
 
 ---
 
-## 1단계 (v0.5): 게임이 되게 하는 최소 기능 — 완료 (2026-10-19)
+## Stage 0 (v0.4): developer experience — done
 
-아래에 `[ ]`로 남은 게임 화면 UI 3부는 v0.5를 막지 않는 항목이라 디자이너가 생길 때 한다. 게임 코드용 시나리오 테스트는 4단계 맨 앞으로 옮겼다(2026-10-28).
+Make the tools comfortable before stacking more features. Principle: **what, where, and how much are handled in the editor (data); how it behaves is handled in code**. No visual scripting.
+Per-item implementation details and what's left are in `docs/CHANGELOG.md` "v0.4".
 
-게임을 실제로 내놓으려면 빠져서는 안 되는 기능. 대부분 렌더링·시뮬레이션과 독립적이라 결정론 위험이 낮다. 진행 순서:
+- [x] Godot-style general-purpose editor + game DLL hot reload
+- [x] Game code structure: `sim/` · `view/` folders and the determinism check
+- [x] Basic tools: `Pool<T>` · tick events · tick timers · `GameContext`
+- [x] Game-defined object types + inspector fields
+- [x] Tuning values as data
+- [x] Declaring state fields only once
+- [x] Deterministic math utils (trig approximations)
+- [x] Separating players and characters (possession)
+- [x] Scene tree hierarchy (parent/child)
+- [x] Multiplayer play in the editor
+- [x] Instant desync detection with shadow simulation
+- [x] Pause, single-tick stepping, rewind
+- [x] Periodic autosave
+- [x] One-shot verification script (`tools/check.ps1`)
+- [x] Project upgrade tool + engine version
+- [x] Unified code formatting (`.clang-format`, `.editorconfig`)
 
-1. **위험 확인**(하루 이틀): 최소 사양 실기·다른 PC 결정론(+ clang-cl 비교)·Steam 실검증(+ 온라인 서비스 계층으로 감싸기). 실패하면 2단계 그래픽 계획과 `docs/DECISIONS.md` 보류 표가 바뀌므로 무엇보다 먼저 한다.
-2. **플랫폼 계층 → 헤드리스 → CI**: 오디오·입력·게임패드·UI 이미지가 OS API를 고르기 전에 OS 코드를 한 곳으로 모은다. 늦으면 그 항목들을 다시 짠다. 그 위에 헤드리스 모드와 CI를 세워 이후 모든 작업이 컴파일러·OS·CPU(x64·ARM64) 사이 결정론 검사를 받게 한다. 결정론은 나중에 고치기 가장 어려운 것이라 이식보다 먼저 검사부터 건다. 라이선스는 이때 정한다.
-3. **데이터와 코드 분리**: 화면용 튜닝 → 폴더 구조 → 예제 정리 → 정의 데이터 표. 예제(sandbox)가 새 프로젝트의 템플릿이라, 예제에 코드 안 숫자가 남아 있으면 모든 프로젝트가 따라 한다.
-4. **나머지는 아래 순서대로**: 게임을 같이 만들지 않으므로 순서는 이 문서가 정한다. 항목을 끝낼 때 기준 샘플에서 실제로 쓰여야 끝난 것으로 친다.
-
-- [x] 프로젝트 설정 (`mealkit.project`를 필드 선언으로) — v0.4.1, 상세는 `docs/CHANGELOG.md`
-- [x] 고도식 프로젝트 관리자 + 에디터 한국어/영어 + 게임 exe 아이콘 — v0.4.2, 상세는 `docs/CHANGELOG.md`
-
-- [x] 최소 사양 실기 측정과 다른 PC 결정론 — v0.4.3, GPU 검사·`--system-info`·clang-cl 비교. **실기·Intel↔AMD 시험은 하지 않고 통과로 가정**(2026-10-18 결정), 상세는 `docs/CHANGELOG.md`
-
-- [x] Steam 실검증 — **실제 접속 시험은 하지 않고 통과로 가정**(2026-10-18 결정), 상세는 `docs/CHANGELOG.md`
-- [x] 온라인 서비스 계층 (`mealkit/online/`, Steam·없음 백엔드) — v0.4.3, 상세는 `docs/CHANGELOG.md`. 업적·통계·리더보드는 4단계 항목, 클라우드 세이브는 "세이브" 항목, 백엔드 여럿 같이 켜기는 3단계 EOS에서 더한다
-
-- [x] 플랫폼 계층 (`mealkit/platform/`, OS 구현은 `win32/`·`posix/`, `check_platform.ps1`) — v0.4.3, 상세는 `docs/CHANGELOG.md`. SDL3 평가는 오디오·게임패드 항목으로 옮겼다(2026-10-18 결정)
-
-- [x] 헤드리스 시뮬레이션 (`--headless`, `<게임>_headless`, `--hash-log`, `--record-inputs`/`--replay-inputs`) — v0.4.3, 상세는 `docs/CHANGELOG.md`. Linux·macOS 실제 컴파일은 CI 항목에서, 플레이하지 않는 전용 중계 프로세스는 3단계 "호스트 이전"과 같이 본다
-
-- [x] CI 빌드 매트릭스 (`.github/workflows/ci.yml`: Windows MSVC·Editor·clang-cl, Linux x64·macOS ARM64 Clang 헤드리스, `detmath-bits`·고정 입력 기록 틱별 해시 비교) — v0.4.3, 상세는 `docs/CHANGELOG.md`. Windows on ARM은 저장소 공개 뒤(러너), 다른 샘플의 기록은 기준 샘플 항목에서
-
-- [x] 엔진 라이선스: MIT (`LICENSE`) — `docs/DECISIONS.md` 2026-10-16
-
-- [x] 저장소 공개 범위: 사용자가 요청할 때 공개, 기여는 DCO, 샘플 에셋은 CC0 — `docs/DECISIONS.md` 2026-10-18
-
-- [x] 문서 저장소 (`MealKit-docs`: Sphinx + MyST, 영어 원문 + 한국어 gettext, `tools/build.py check`, 1.0 전에는 `master` 하나·1.0부터 엔진 MINOR 브랜치 — `docs/DECISIONS.md` 2026-10-21) — v0.4.4, 상세는 `docs/CHANGELOG.md`. Read the Docs 열기는 저장소 공개 때, `--dump-reference` 레퍼런스 생성과 Weblate는 나중에
-
-- [x] 화면용 튜닝 (`ViewTuning`, `assets/view.tuning`, 파일이 바뀌면 다시 읽음) + 시간 값은 초로(`Ticks`) + 색 필드(`Color`) — v0.4.5, 상세는 `docs/CHANGELOG.md`
-- [x] 프로젝트 폴더 구조 강제 (`tools\check_layout.ps1`: check.ps1·Export·에디터, `third_party/<lib>/mealkit.txt` → `tools\gen_notices.ps1`, 게임 라이브러리·SIM011, exe 예산) — v0.4.6, 상세는 `docs/CHANGELOG.md`
-- [x] 예제(sandbox) 데이터 분리 정리 (코드 숫자 → `Tuning`·씬 영역 물체·`ViewTuning`, SimCheck 실수 리터럴 경고 SIM012, 해시 그대로) — v0.4.7, 상세는 `docs/CHANGELOG.md`
-- [x] 정의 데이터 표 (`MEALKIT_TABLE`, `assets/tables/*.table`, `RowRef<Row>`, 에디터 [표] 패널, CSV 가져오기·내보내기, 시뮬레이션 표는 콘텐츠 해시) — v0.4.8, 상세는 `docs/CHANGELOG.md`
-- [x] 오디오 (`mealkit/audio/`: miniaudio 위 소리 이벤트·컨테이너·목소리 관리·버스, `assets/sounds.table`, 에디터 [소리] 패널, 물리 충돌 이벤트). SDL3는 재 보고 쓰지 않음 — v0.4.9, 상세는 `docs/CHANGELOG.md`
-- [x] 이벤트 → 연출 표 (`assets/feedback.table`, `feedback::Player`: 소리·카메라 흔들림·화면 번쩍임·화면 정지, 에디터 [연출] 패널, `MEALKIT_ENUM`) — v0.4.10, 상세는 `docs/CHANGELOG.md`
-- [x] 입력 액션 매핑 (`mealkit/input/Actions.h`, 엔진 표 `assets/input.bindings`, `ctx.actions`, 플레이어가 바꾼 키는 사용자 폴더) — v0.4.11, 상세는 `docs/CHANGELOG.md`
-- [x] 게임패드 (`mealkit/platform/Gamepad.h`, Windows XInput, 빈 슬롯은 1초에 한 번, 입력 액션의 `pad` 바인딩) — v0.4.12, 상세는 `docs/CHANGELOG.md`. 실제 패드로는 시험하지 않았다
-- [x] 확정 명령 채널 (`LockstepSession::submitCommand`, `net::TickInputs`의 명령 바이트, `mealkit/sim/Commands.h`, 입력 기록 버전 2) — v0.4.13, 상세는 `docs/CHANGELOG.md`
-- [x] 디버그 UI (Dear ImGui: `GameInstance::debugUi`, 개발 exe는 F1 오버레이, 에디터는 플레이 중, 출시 빌드 `build\Export`는 `MEALKIT_DEBUG_UI` 끔) — v0.4.14, 상세는 `docs/CHANGELOG.md`
-- [x] 로컬라이제이션 문자열 표 (`assets/strings/<언어>.txt`, `ctx.strings`, 기본 언어 대체, 빌드 때 글꼴 글자 검사 `mealkit_stringcheck`, 글꼴 Pretendard) — v0.4.15, 상세는 `docs/CHANGELOG.md`. Penpot 플러그인 쪽(키 붙이기, 태그 내보내기)은 게임 화면 UI 항목에서
-- [x] 게임 화면 UI 1부: `.ui` 런타임(`mealkit/ui/`: Flex·제약·여러 스타일 글자·SDF 도형과 글자·이미지·위젯·포커스·테마·컴포넌트·목록·월드 위 UI, 2D 패스 하나) + 뷰 모델(`MEALKIT_VIEWMODEL`) + 에디터 [UI] 미리보기 — v0.4.16, 상세는 `docs/CHANGELOG.md`. 2부(Penpot 플러그인)는 아래
-- [x] 설정 시스템 + 표준 설정 화면 (`settings::Service`, 사용자 폴더 `settings.ini`, `assets/ui/settings.ui`: 화면·소리·조작·키·게임 탭, 화면 변경 15초 확인, 키 바꾸기) — v0.4.17, 상세는 `docs/CHANGELOG.md`
-- [x] 세이브 — 진행 데이터 (`game::writeSave`/`readSave`, 사용자 폴더 `saves/<이름>.save`, 형식 버전·migrate, `.bak`, `GameContext::userFolder`) — v0.4.18, 상세는 `docs/CHANGELOG.md`. 매치 중간 저장(스냅샷 파일)은 3단계 중간 참가와 같이, 클라우드는 Steam Auto-Cloud 설정·3단계 EOS
-- [x] 매치 시작 데이터 — 플레이어별 로드아웃 (`game::setLoadout`/`readLoadout`, 로비 신호로 보내고 시작 패킷으로 확정, 128바이트, 입력 기록 버전 3, `GameInstance::lobby`) — v0.4.19, 상세는 `docs/CHANGELOG.md`
-
-### [x] 기준 샘플 (게임 대신 엔진을 검증하는 작은 예제) — sandbox가 타이틀 → 로비 → 매치 → 결과 → 로비를 끝까지 돈다(v0.5.0). 아래 규칙은 계속 지킨다
-- **왜**: 이 저장소에서는 게임을 같이 만들지 않는다(`docs/DECISIONS.md`). 그러면 "실제로 쓰여서 맞는지"를 확인할 곳이 없어, 쓰는 곳 없는 기능과 쓰기 불편한 API가 쌓인다. 기준 샘플이 그 자리를 맡는다.
-- **방식**: `samples/<이름>/`에 장르가 다른 작은 샘플을 둔다. 모두 에디터에서 프로젝트로 열 수 있고 템플릿 후보다(지금 sandbox는 저장소 루트 `mealkit.project`로 연다. 샘플이 둘이 되면 샘플 폴더마다 `mealkit.project`를 둔다).
-  - `sandbox`(지금 있음): 물리 파티 대전. 1단계 기능(소리, UI, 입력, 설정, 세이브, 화면 흐름)을 모두 여기서 쓴다. v0.5 = sandbox가 타이틀 → 로비 → 매치 → 결과 → 로비를 끝까지 돈다.
-  - 그 뒤 샘플은 기능이 필요로 할 때 하나씩 더한다(예: 유닛 수천 개 RTS — Job System·컬링·길찾기, 협동 3인칭 — 캐릭터 이동 모드·가상 카메라·스켈레탈 애니메이션). 샘플 수는 4개 이하로 유지한다.
-- **규칙**:
-  - 엔진 항목은 기준 샘플 하나 이상에서 실제로 쓰여야 `[x]`가 된다. 단위 테스트만으로는 끝나지 않는다.
-  - 샘플을 만들다 엔진이 없어 막히면 샘플 쪽 우회 코드로 넘어가지 않고 그 항목을 당긴다(`docs/CODING_MODEL.md`의 단계 표시 규칙).
-  - 모든 샘플이 `check.ps1`(빌드, `mp_test`, 화면 캡처)과 Export를 통과한다. 5단계부터는 각 플랫폼에서도.
-- **범위**: 샘플은 게임이 아니다. 아트·콘텐츠·밸런스는 기능을 보일 만큼만 넣는다.
-
-- [x] 게임 화면 UI 2부: Penpot 플러그인(`tools/penpot-plugin`) + 에디터 가져오기 서버 + Grid 런타임 + 배치·픽셀 비교(`--ui-check`, `--ui-render`, check.ps1) — 2026-10-20, 실제 Penpot(2.18)에서 확인, 상세는 `docs/CHANGELOG.md`
-
-### [ ] 게임 화면 UI 3부: 기본 화면 템플릿의 Penpot 원본 + 컴포넌트 재사용 (디자이너가 생겼을 때)
-- **기본 화면 흐름 템플릿의 Penpot 원본**(`art/ui/`): 지금 손으로 쓴 8개 화면(title, menu, join, lobby, loading, pause, results, message)과 settings·HUD를 Penpot에서 다시 그려 내보낸 파일로 바꾼다. 목록(`list`)·뷰 모델이 많은 화면이라 디자이너와 같이. Penpot 원본 저장은 지금 Penpot 버전에서 플러그인으로 안 되므로 손으로(`DECISIONS.md` 2026-10-20).
-- **컴포넌트 → 재사용 `.ui`(`use`)**: 지금은 컴포넌트 인스턴스를 펼쳐서 내보낸다(모양은 같다). 같은 버튼이 여러 화면에 있으면 `ui/components/`의 `.ui` 하나 + `use`로.
-- **상태 variants의 실제 Penpot 확인**: 변환은 고정 데이터로만 시험했다(예제 화면에는 variants가 없다). 토큰 세트별 테마 변형도 이때.
-
-- [x] 코드 정리 (2026-10-19 검토: 매치 데이터 한 곳, 옵션 하나, 에디터 패널 나누기, 코어 include 검사, 참가 창을 `runGame`으로, `ui/Text.cpp` 분리, 참가 창 명령줄 공유) — 2026-10-20, 상세는 `docs/CHANGELOG.md`
-
-- [x] 기본 화면 흐름 템플릿 (타이틀 → 메뉴 → 로비 → 로딩 → 매치·일시정지 → 결과 → 로비, 엔진 `game::MatchService` + sandbox `app/Flow`, 세션 재경기, `.ui` 글자 입력) — v0.4.24, 상세는 `docs/CHANGELOG.md`
-- [x] LAN 방 찾기 (`net/Rooms.h`, 로비 동안 1초마다 방 알림, 참가 메뉴의 방 목록) — v0.4.24
-- [x] 로비·매치 텍스트 채팅 (`LockstepSession::sendChat`/`chatLog`, 호스트 중계·확인 재전송, 로비 화면·매치 중 Enter) — v0.4.24
-
-- [x] 네트워크 상태 흉내 내기 (`--net-lag`/`--net-jitter`/`--net-loss`, `net/Conditions.h` 전송 래퍼, `mp_test.ps1 -Lag -Jitter -Loss`) — v0.4.25, 상세는 `docs/CHANGELOG.md`
-
-- [x] 버전 표시와 접속 거부 이유 (`mealkit.project` `version`, 빌드 정보 헤더 `cmake/BuildInfo.cmake` → `game::BuildInfo`: 게임 버전·git 커밋·시뮬레이션 버전, 접속 비교는 결정론 그룹 + 시뮬레이션 버전 + 콘텐츠 해시 구성, `rejectInfo()`, 출시 폴더 `exportVersionFolder`) — v0.4.31, 상세는 `docs/CHANGELOG.md`
-
-- [x] 플레이어용 네트워크 표시 (`LockstepSession::pingMs`·`waitingFor`, 매치 중 명단 패킷, HUD 핑·"P3 기다리는 중", 로비 핑, 설정 `gameplay.showNetwork`) — v0.4.26, 상세는 `docs/CHANGELOG.md`
-
-- [x] 입력 지연 자동 조절 (호스트가 로비 핑으로 시작 값, 매치 중 엔진 확정 명령으로 같은 틱부터 변경, `mealkit.project` `inputDelayAuto`·`inputDelayMinMs`·`inputDelayMaxMs`, 로비 경고) — v0.4.27, 상세는 `docs/CHANGELOG.md`. 플랫폼 종류별 기본값·상한은 5단계에서 각 플랫폼 실측으로, 상한을 넘는 피어를 막는 게임 설정은 필요해질 때
-
-- [x] 내 캐릭터 겉모습만 예측 (`Simulation::forEachPendingInput`, sandbox `view/Prediction`: 아직 실행 안 된 내 이동만큼 내 캐릭터·카메라·이름표를 앞서 그림, `view.tuning` `prediction`) — v0.4.28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 접근성 기본 묶음 (설정 `gameplay.shakeScale`·`flashScale`·`hitStop` → `feedback::Player::setAccessibility`, 소리 표 `subtitle`·`subtitleSeconds` → `audio::Engine::subtitles` → 표준 `ui/subtitles.ui`) — v0.4.29, 상세는 `docs/CHANGELOG.md`. 색맹 보정은 포스트 프로세싱의 LUT에서 (설정 `gameplay.colorBlind`, 2026-10-27)
-
-- [x] 틱레이트를 프로젝트 설정으로 (`mealkit.project` `tickRate` 30/60, 콘텐츠 해시, `game::applyTickRate`·`tickDt`·`msToTicks`, `--delay <ms>`, sandbox `World::tickRate`·`tickDt`) — v0.4.30, 상세는 `docs/CHANGELOG.md`
+**Small things left from stage 0** (done alongside related work):
+- With a debugger attached, the PDB gets locked and hot reload builds can fail (consider renaming the PDB per build). There's no editor configuration for the debug CRT (EditorDebug).
+- The Pool deletion path was verified only with unit tests. Re-verify with `mp_test` when sample code first deletes.
+- Once headless simulation (stage 1) exists, extend the parts of `check.ps1` that run without a GPU.
 
 ---
 
-## 2단계 (v0.6): 보기 좋게 (그래픽)
+## Stage 1 (v0.5): minimum features to make a game — done (2026-10-19)
 
-모두 **끌 수 있는 옵션**으로 넣고, 내장 그래픽 프리셋을 기본값으로 둔다.
-**모든 그래픽 항목은 DX12와 Vulkan 백엔드에서 같이 끝난다**(아래 "RHI 층"). 한쪽만 된 항목은 `[x]`가 아니다.
+Game screen UI part 3, left below as `[ ]`, doesn't block v0.5, so it'll be done when a designer appears. Scenario tests for game code moved to the very start of stage 4 (2026-10-28).
 
-**제작 원칙** (`docs/CODING_MODEL.md` "그래픽 콘텐츠를 만드는 방법"): 그래픽 콘텐츠는 **외부 도구에서 시각적으로 만들고 엔진은 표준 형식을 읽어 그리기만 한다.**
-엔진 안에 제작 도구(머티리얼 에디터, 셰이더 그래프, 파티클 에디터)는 만들지 않는다. 에디터는 배치·미리보기·지원 범위 경고만 한다.
-그래서 이 단계에서는 **외부 도구 → 엔진 반영이 빠른 것**이 기능만큼 중요하다(아래 "에셋 핫 리로드"를 앞으로 당김).
+Features that must not be missing to actually ship a game. Most are independent of rendering/simulation, so determinism risk is low. Order:
 
-| 콘텐츠 | 외부 도구 (원본) | 엔진이 읽는 것 | 에디터에서 하는 것 |
+1. **Risk checks** (a day or two): minimum spec hardware, cross-PC determinism (+ clang-cl comparison), real Steam verification (+ wrapping in an online service layer). A failure would change the stage 2 graphics plan and the `docs/DECISIONS.md` deferred table, so these come before anything.
+2. **Platform layer → headless → CI**: gather OS code into one place before audio, input, gamepads, and UI images choose OS APIs. Too late and those items get rewritten. On top of that, set up headless mode and CI so all later work gets determinism checks across compilers, OSes, and CPUs (x64, ARM64). Determinism is the hardest to fix later, so checks are put in place before porting. The license is decided at this point.
+3. **Separating data and code**: view tuning → folder layout → sample cleanup → definition data tables. The sample (sandbox) is the template for new projects, so if numbers remain in the sample's code, every project copies them.
+4. **The rest in the order below**: since games aren't built together, this document sets the order. An item counts as done only when actually used in a reference sample.
+
+- [x] Project settings (`mealkit.project` via field declarations) — v0.4.1, details in `docs/CHANGELOG.md`
+- [x] Godot-style project manager + editor Korean/English + game exe icon — v0.4.2, details in `docs/CHANGELOG.md`
+
+- [x] Minimum spec hardware measurement and cross-PC determinism — v0.4.3, GPU checks, `--system-info`, clang-cl comparison. **Hardware and Intel↔AMD tests weren't run and are assumed passed** (decided 2026-10-18), details in `docs/CHANGELOG.md`
+
+- [x] Real Steam verification — **actual connection tests weren't run and are assumed passed** (decided 2026-10-18), details in `docs/CHANGELOG.md`
+- [x] Online service layer (`mealkit/online/`, Steam and none backends) — v0.4.3, details in `docs/CHANGELOG.md`. Achievements, stats, and leaderboards are a stage 4 item, cloud saves are in the "Saves" item, and enabling several backends together is added with stage 3 EOS
+
+- [x] Platform layer (`mealkit/platform/`, OS implementations in `win32/`, `posix/`, `check_platform.ps1`) — v0.4.3, details in `docs/CHANGELOG.md`. SDL3 evaluation moved to the audio/gamepad items (decided 2026-10-18)
+
+- [x] Headless simulation (`--headless`, `<game>_headless`, `--hash-log`, `--record-inputs`/`--replay-inputs`) — v0.4.3, details in `docs/CHANGELOG.md`. Actual Linux/macOS compiling is in the CI item, and a dedicated relay process that doesn't play is considered together with stage 3 "Host migration"
+
+- [x] CI build matrix (`.github/workflows/ci.yml`: Windows MSVC/Editor/clang-cl, Linux x64/macOS ARM64 Clang headless, `detmath-bits` and fixed input recording per-tick hash comparison) — v0.4.3, details in `docs/CHANGELOG.md`. Windows on ARM after the repo is published (runners), other samples' recordings in the reference samples item
+
+- [x] Engine license: MIT (`LICENSE`) — `docs/DECISIONS.md` 2026-10-16
+
+- [x] Repo publication scope: published when the user requests it, contributions via DCO, sample assets CC0 — `docs/DECISIONS.md` 2026-10-18
+
+- [x] Docs repo (`MealKit-docs`: Sphinx + MyST, English source + Korean gettext, `tools/build.py check`, only `master` before 1.0 and engine MINOR branches from 1.0 — `docs/DECISIONS.md` 2026-10-21) — v0.4.4, details in `docs/CHANGELOG.md`. Opening Read the Docs on repo publication; `--dump-reference` reference generation and Weblate later
+
+- [x] View tuning (`ViewTuning`, `assets/view.tuning`, re-read when the file changes) + time values in seconds (`Ticks`) + color fields (`Color`) — v0.4.5, details in `docs/CHANGELOG.md`
+- [x] Enforcing the project folder layout (`tools\check_layout.ps1`: check.ps1, Export, editor; `third_party/<lib>/mealkit.txt` → `tools\gen_notices.ps1`, game libraries and SIM011, exe budget) — v0.4.6, details in `docs/CHANGELOG.md`
+- [x] Sample (sandbox) data separation cleanup (numbers in code → `Tuning`, scene area objects, `ViewTuning`; SimCheck float literal warning SIM012; hashes unchanged) — v0.4.7, details in `docs/CHANGELOG.md`
+- [x] Definition data tables (`MEALKIT_TABLE`, `assets/tables/*.table`, `RowRef<Row>`, editor [Tables] panel, CSV import/export, simulation tables in the content hash) — v0.4.8, details in `docs/CHANGELOG.md`
+- [x] Audio (`mealkit/audio/`: sound events, containers, voice management, buses on top of miniaudio; `assets/sounds.table`, editor [Sound] panel, physics collision events). SDL3 measured and not used — v0.4.9, details in `docs/CHANGELOG.md`
+- [x] Events → feedback table (`assets/feedback.table`, `feedback::Player`: sound, camera shake, screen flash, screen freeze; editor [Feedback] panel, `MEALKIT_ENUM`) — v0.4.10, details in `docs/CHANGELOG.md`
+- [x] Input action mapping (`mealkit/input/Actions.h`, engine table `assets/input.bindings`, `ctx.actions`, player-changed keys in the user folder) — v0.4.11, details in `docs/CHANGELOG.md`
+- [x] Gamepads (`mealkit/platform/Gamepad.h`, Windows XInput, empty slots polled once per second, `pad` bindings in input actions) — v0.4.12, details in `docs/CHANGELOG.md`. Not tested with a real pad
+- [x] Confirmed command channel (`LockstepSession::submitCommand`, command bytes in `net::TickInputs`, `mealkit/sim/Commands.h`, input recording version 2) — v0.4.13, details in `docs/CHANGELOG.md`
+- [x] Debug UI (Dear ImGui: `GameInstance::debugUi`, F1 overlay in the dev exe, during play in the editor, `MEALKIT_DEBUG_UI` off in shipping builds `build\Export`) — v0.4.14, details in `docs/CHANGELOG.md`
+- [x] Localization string tables (`assets/strings/<language>.txt`, `ctx.strings`, default language fallback, build-time font glyph check `mealkit_stringcheck`, font Pretendard) — v0.4.15, details in `docs/CHANGELOG.md`. The Penpot plugin side (attaching keys, exporting tags) is in the game screen UI item
+- [x] Game screen UI part 1: `.ui` runtime (`mealkit/ui/`: Flex, constraints, multi-style text, SDF shapes and text, images, widgets, focus, themes, components, lists, world-space UI, one 2D pass) + view models (`MEALKIT_VIEWMODEL`) + editor [UI] preview — v0.4.16, details in `docs/CHANGELOG.md`. Part 2 (Penpot plugin) below
+- [x] Settings system + standard settings screen (`settings::Service`, user folder `settings.ini`, `assets/ui/settings.ui`: display, sound, controls, keys, game tabs; 15-second confirmation for display changes, key rebinding) — v0.4.17, details in `docs/CHANGELOG.md`
+- [x] Saves — progress data (`game::writeSave`/`readSave`, user folder `saves/<name>.save`, format version/migrate, `.bak`, `GameContext::userFolder`) — v0.4.18, details in `docs/CHANGELOG.md`. Mid-match saves (snapshot files) together with stage 3 mid-match joining; cloud via Steam Auto-Cloud settings and stage 3 EOS
+- [x] Match start data — per-player loadouts (`game::setLoadout`/`readLoadout`, sent via lobby signal and confirmed with the start packet, 128 bytes, input recording version 3, `GameInstance::lobby`) — v0.4.19, details in `docs/CHANGELOG.md`
+
+### [x] Reference samples (small examples that verify the engine instead of a game) — sandbox runs title → lobby → match → results → lobby end to end (v0.5.0). The rules below stay in force
+- **Why**: games aren't built together in this repo (`docs/DECISIONS.md`). Then there's nowhere to check "it works because it's actually used", and unused features and awkward APIs pile up. The reference samples take that place.
+- **Approach**: small samples of different genres go in `samples/<name>/`. All can be opened as projects in the editor and are template candidates (sandbox currently opens via the repo root `mealkit.project`. When there are two samples, each sample folder gets its own `mealkit.project`).
+  - `sandbox` (exists now): physics party versus. All stage 1 features (sound, UI, input, settings, saves, screen flow) are used here. v0.5 = sandbox runs title → lobby → match → results → lobby end to end.
+  - Later samples are added one at a time when features need them (e.g. RTS with thousands of units — Job System, culling, pathfinding; co-op third person — character movement modes, virtual cameras, skeletal animation). Keep the sample count at 4 or fewer.
+- **Rules**:
+  - An engine item becomes `[x]` only when actually used in at least one reference sample. Unit tests alone don't finish it.
+  - If building a sample gets blocked by a missing engine feature, don't move on with workaround code in the sample; pull that item forward (the stage mark rule in `docs/CODING_MODEL.md`).
+  - Every sample passes `check.ps1` (build, `mp_test`, screen capture) and Export. From stage 5, on each platform too.
+- **Scope**: samples aren't games. Art, content, and balance only as much as needed to show features.
+
+- [x] Game screen UI part 2: Penpot plugin (`tools/penpot-plugin`) + editor import server + Grid runtime + layout/pixel comparison (`--ui-check`, `--ui-render`, check.ps1) — 2026-10-20, verified in real Penpot (2.18), details in `docs/CHANGELOG.md`
+
+### [ ] Game screen UI part 3: Penpot sources for the default screen templates + component reuse (when a designer appears)
+- **Penpot sources for the default screen flow templates** (`art/ui/`): replace the current 8 hand-written screens (title, menu, join, lobby, loading, pause, results, message) and settings/HUD with files redrawn in Penpot and exported. Many screens have lists (`list`) and view models, so together with a designer. Saving Penpot sources doesn't work via the plugin in the current Penpot version, so by hand (`DECISIONS.md` 2026-10-20).
+- **Components → reusable `.ui` (`use`)**: currently component instances are flattened on export (the look is the same). When the same button is on several screens, one `.ui` in `ui/components/` + `use`.
+- **Checking state variants in real Penpot**: conversion was tested only with fixed data (the sample screens have no variants). Theme variations per token set at that time too.
+
+- [x] Code cleanup (2026-10-19 review: match data in one place, one options struct, splitting editor panels, core include check, join windows via `runGame`, splitting out `ui/Text.cpp`, sharing the join window command line) — 2026-10-20, details in `docs/CHANGELOG.md`
+
+- [x] Default screen flow template (title → menu → lobby → loading → match/pause → results → lobby, engine `game::MatchService` + sandbox `app/Flow`, session rematches, `.ui` text input) — v0.4.24, details in `docs/CHANGELOG.md`
+- [x] LAN room discovery (`net/Rooms.h`, room announcements every second during the lobby, room list in the join menu) — v0.4.24
+- [x] Lobby/match text chat (`LockstepSession::sendChat`/`chatLog`, host relay and acknowledged resend, lobby screen and Enter during a match) — v0.4.24
+
+- [x] Network condition simulation (`--net-lag`/`--net-jitter`/`--net-loss`, `net/Conditions.h` transport wrapper, `mp_test.ps1 -Lag -Jitter -Loss`) — v0.4.25, details in `docs/CHANGELOG.md`
+
+- [x] Version display and connection refusal reasons (`mealkit.project` `version`, build info header `cmake/BuildInfo.cmake` → `game::BuildInfo`: game version, git commit, simulation version; connection comparison uses determinism group + simulation version + content hash composition, `rejectInfo()`, shipping folder `exportVersionFolder`) — v0.4.31, details in `docs/CHANGELOG.md`
+
+- [x] Player-facing network display (`LockstepSession::pingMs`/`waitingFor`, roster packets during a match, HUD ping and "waiting for P3", lobby ping, setting `gameplay.showNetwork`) — v0.4.26, details in `docs/CHANGELOG.md`
+
+- [x] Automatic input delay adjustment (host picks the start value from lobby pings, changes from the same tick during a match via engine confirmed commands, `mealkit.project` `inputDelayAuto`/`inputDelayMinMs`/`inputDelayMaxMs`, lobby warning) — v0.4.27, details in `docs/CHANGELOG.md`. Per-platform-kind defaults/caps from real measurements on each platform in stage 5; a game setting blocking peers above the cap when needed
+
+- [x] Predicting only my character's appearance (`Simulation::forEachPendingInput`, sandbox `view/Prediction`: draws my character, camera, and name tag ahead by my not-yet-executed movement, `view.tuning` `prediction`) — v0.4.28, details in `docs/CHANGELOG.md`
+
+- [x] Basic accessibility bundle (settings `gameplay.shakeScale`/`flashScale`/`hitStop` → `feedback::Player::setAccessibility`, sound table `subtitle`/`subtitleSeconds` → `audio::Engine::subtitles` → standard `ui/subtitles.ui`) — v0.4.29, details in `docs/CHANGELOG.md`. Color blindness correction via the post-processing LUT (setting `gameplay.colorBlind`, 2026-10-27)
+
+- [x] Tick rate as a project setting (`mealkit.project` `tickRate` 30/60, content hash, `game::applyTickRate`/`tickDt`/`msToTicks`, `--delay <ms>`, sandbox `World::tickRate`/`tickDt`) — v0.4.30, details in `docs/CHANGELOG.md`
+
+---
+
+## Stage 2 (v0.6): looking good (graphics)
+
+Everything goes in as **a toggleable option**, with the integrated graphics preset as the default.
+**Every graphics item finishes on both the DX12 and Vulkan backends** ("RHI layer" below). An item done on only one side isn't `[x]`.
+
+**Production principle** (`docs/CODING_MODEL.md` "How to make graphics content"): graphics content is **made visually in external tools, and the engine only reads standard formats and draws them.**
+No authoring tools (material editor, shader graph, particle editor) are built inside the engine. The editor only does placement, preview, and supported-range warnings.
+So in this stage, **fast external tool → engine turnaround** matters as much as features ("Asset hot reload" below is pulled forward).
+
+| Content | External tool (source) | What the engine reads | What's done in the editor |
 |---|---|---|---|
-| 모델·머티리얼 | Blender + MealKit 애드온 | glTF (PBR metallic-roughness 지원 범위 + `extras`) | 배치, 범위 밖·예산 초과 경고, 룩데브 미리보기 |
-| 하늘·반사 | HDRI (CC0 등) | `.hdr` → 환경광·큐브맵 캐시, 반사 프로브 | 환경 패널, 프로브 굽기 |
-| 텍스처 | Substance Painter·Krita·Blender 등 | glTF 안의 PNG → BC7/BC5 캐시 | 미리보기 |
-| 애니메이션 | Blender | glTF 애니메이션 | 재생 미리보기 |
-| 컷신 카메라 (4단계) | Blender | glTF 카메라 애니메이션 | 재생 미리보기 |
-| 효과(파티클) | - (엔진 안 작은 런타임, 2026-10-27) | `assets/effects/*.fx` | [연출] 패널 [효과] 칸 + 미리보기 |
-| 색감 | 게임 캡처 → DaVinci Resolve·Photoshop 등 | 3D LUT `.cube` | 환경 패널에서 LUT 고르기, 포스트 값 슬라이더 |
-| 셰이더 모양 | - (엔진의 스타일 프리셋) | 프로젝트 설정의 조명 모델 + glTF `extras` 기능 | 미리보기 |
-| 타격감 연출 | - | `feedback.table` | [연출] 패널 |
-| 지형 높이 | Gaea·World Machine 등 (선택) | 16비트 PNG 하이트맵 | 브러시로 다듬기 |
-| 환경 빛·하늘·안개 | - (장면에서 봐야 정한다) | `.scene` 환경 값 | 환경 패널 (지금 있음) |
+| Models, materials | Blender + MealKit add-on | glTF (PBR metallic-roughness supported range + `extras`) | Placement, out-of-range/over-budget warnings, look dev preview |
+| Sky, reflections | HDRI (CC0, etc.) | `.hdr` → ambient light/cubemap cache, reflection probes | Environment panel, probe baking |
+| Textures | Substance Painter, Krita, Blender, etc. | PNGs inside glTF → BC7/BC5 cache | Preview |
+| Animation | Blender | glTF animations | Playback preview |
+| Cutscene cameras (stage 4) | Blender | glTF camera animations | Playback preview |
+| Effects (particles) | - (a small runtime inside the engine, 2026-10-27) | `assets/effects/*.fx` | [Effects] section of the [Feedback] panel + preview |
+| Color grading | Game capture → DaVinci Resolve, Photoshop, etc. | 3D LUT `.cube` | Picking LUTs in the environment panel, post value sliders |
+| Shader looks | - (the engine's style presets) | Lighting model in project settings + glTF `extras` features | Preview |
+| Impact feedback | - | `feedback.table` | [Feedback] panel |
+| Terrain height | Gaea, World Machine, etc. (optional) | 16-bit PNG heightmaps | Refining with brushes |
+| Ambient light, sky, fog | - (decided by seeing the scene) | `.scene` environment values | Environment panel (exists now) |
 
-- [x] RHI 층 (`mealkit/rhi/`: `Device`·`CommandList`, DX12 + Vulkan 1.3 백엔드, 푸시 상수 + bindless 배열 바인딩, `build.bat Vulkan`·`VulkanEditor`, 고정 DXC로 DXIL+SPIR-V, check.ps1 백엔드 캡처 비교·검증 레이어) — 2026-10-20, 상세는 `docs/CHANGELOG.md`. 이후 2단계 그래픽 항목은 두 백엔드에서 같이 끝난다
+- [x] RHI layer (`mealkit/rhi/`: `Device`, `CommandList`, DX12 + Vulkan 1.3 backends, push constants + bindless array bindings, `build.bat Vulkan`/`VulkanEditor`, DXIL+SPIR-V via pinned DXC, check.ps1 backend capture comparison and validation layers) — 2026-10-20, details in `docs/CHANGELOG.md`. Later stage 2 graphics items finish on both backends together
 
-- [x] 셰이더 핫 리로드 (`render/ShaderReload`: 개발 빌드에서 `engine/shaders` 변경을 0.5초마다 보고 빌드와 같은 DXC·옵션으로 다시 컴파일, `rhi::Device::recreatePipeline`, 오류면 이전 셰이더 유지, DX12·Vulkan) — 2026-10-21, 상세는 `docs/CHANGELOG.md`
+- [x] Shader hot reload (`render/ShaderReload`: in dev builds, checks `engine/shaders` changes every 0.5 seconds and recompiles with the same DXC and options as the build, `rhi::Device::recreatePipeline`, keeps the previous shader on error, DX12/Vulkan) — 2026-10-21, details in `docs/CHANGELOG.md`
 
-- [x] 벤치마크 모드 + GPU 예산 나누기 + 메모리 숫자 (`--benchmark [초]` → `benchmark.txt`, RHI 타임스탬프 `beginTimer`/`gpuTimes`·`gpuMemory`, `render::GpuPass`, `mealkit.project` `gpuBudget*Ms`, `FrameSample` 1% 최악·GPU·메모리) — 2026-10-21, 상세는 `docs/CHANGELOG.md`. 최소 사양(11세대) 실기 측정과 성능 예산 표 갱신은 그 PC에서
+- [x] Benchmark mode + GPU budget split + memory numbers (`--benchmark [seconds]` → `benchmark.txt`, RHI timestamps `beginTimer`/`gpuTimes`/`gpuMemory`, `render::GpuPass`, `mealkit.project` `gpuBudget*Ms`, `FrameSample` 1% worst/GPU/memory) — 2026-10-21, details in `docs/CHANGELOG.md`. Measuring on minimum spec (11th gen) hardware and updating the performance budget table on that PC
 
-- [x] 프러스텀 컬링 (`render/Culling.h`: 메시 바운딩 구 + viewProj 평면 6개, `DrawList::submit`에서 CPU로, `RenderStats::culled`) — 2026-10-21, 상세는 `docs/CHANGELOG.md`. 물체가 수만 개가 되면 묶음 단위로 먼저 거르기
+- [x] Frustum culling (`render/Culling.h`: mesh bounding spheres + 6 viewProj planes, on the CPU in `DrawList::submit`, `RenderStats::culled`) — 2026-10-21, details in `docs/CHANGELOG.md`. When objects reach tens of thousands, filter by groups first
 
-- [x] 에셋 핫 리로드 — 모델·씬 (에디터 편집 모드에서 0.5초마다 파일 시각, `ModelCache::reloadChanged`, 밖에서 바뀐 씬은 고친 것이 없을 때 다시 열기, 플레이 중에는 멈춘 뒤에) — 2026-10-21, 상세는 `docs/CHANGELOG.md`
-  - 남은 것: 텍스처·LUT·효과 파일은 그 항목(텍스처와 머티리얼, 포스트 프로세싱, 파티클)에서 같은 장치에 더한다. **불러오기 경고**(지원 범위 밖 머티리얼 기능, 뼈 64개 초과, 텍스처 크기)를 에디터 로그와 인스펙터에 파일 이름과 함께 — 머티리얼·애니메이션 항목에서.
+- [x] Asset hot reload — models and scenes (file times every 0.5 seconds in editor edit mode, `ModelCache::reloadChanged`, scenes changed outside are reopened when there are no local edits, during play after stopping) — 2026-10-21, details in `docs/CHANGELOG.md`
+  - Remaining: textures, LUTs, and effect files are added to the same mechanism in their items (textures and materials, post-processing, particles). **Load warnings** (out-of-range material features, more than 64 bones, texture size) in the editor log and inspector with file names — in the material/animation items.
 
-- [x] Blender 내보내기 애드온 (`tools/blender-addon/mealkit`, Blender 5.2 LTS 확장: 3D 뷰 [MealKit] 패널의 검사·내보내기 → 프로젝트 `assets/models/<이름>.glb`, 엔진 스키마 `asset::modelSchemaJson` = `schema.json`(단위 테스트), 머티리얼 패널의 엔진 기능 → extras, check.ps1이 Blender를 창 없이 돌려 시험) — 2026-10-21, 상세는 `docs/CHANGELOG.md`
-  - 남은 것: 머티리얼 기능 목록(외곽선·바람·림·디졸브)은 "텍스처와 머티리얼"의 스타일 프리셋에서 스키마에 더한다. 에셋 예산 검사는 다음 항목 "에셋 예산 경고"에서 같은 스키마로.
+- [x] Blender export add-on (`tools/blender-addon/mealkit`, Blender 5.2 LTS extension: checks and export from the 3D view [MealKit] panel → project `assets/models/<name>.glb`, engine schema `asset::modelSchemaJson` = `schema.json` (unit tests), engine features in the material panel → extras, check.ps1 runs Blender windowless to test) — 2026-10-21, details in `docs/CHANGELOG.md`
+  - Remaining: the material feature list (outline, wind, rim, dissolve) is added to the schema with the style presets in "Textures and materials". Asset budget checks use the same schema in the next item, "Asset budget warnings".
 
-- [x] 에셋 예산 경고 (종류 = `assets/models/` 아래 폴더 `characters`·`props`·`environment`, `mealkit.project` `budget<종류><항목>`, 불러올 때 경고·인스펙터 사용량/한도·Blender 애드온 검사) — 2026-10-21, 상세는 `docs/CHANGELOG.md`. 텍스처 크기·뼈는 그 기능이 들어올 때 세기 시작, 에셋 브라우저(에디터 다듬기)의 예산 열은 그때
+- [x] Asset budget warnings (kind = folder under `assets/models/`: `characters`, `props`, `environment`; `mealkit.project` `budget<kind><item>`; warnings on load, inspector usage/limit, Blender add-on checks) — 2026-10-21, details in `docs/CHANGELOG.md`. Texture size and bones start being counted when those features arrive; the budget column in the asset browser (Editor polish) then
 
-- [x] 그래픽 회귀 테스트 (`engine/tests/golden/shots.txt` 장면 → `MealKitEditor --render-golden`, 기준 그림과 비교 DX12·Vulkan, 차이 그림 `build\check\golden\*-diff.png`, `check.ps1 -UpdateGolden`) — 2026-10-21, 상세는 `docs/CHANGELOG.md`. 포스트는 `post_graded`·`post_off` (2026-10-27)
+- [x] Graphics regression tests (`engine/tests/golden/shots.txt` scenes → `MealKitEditor --render-golden`, comparison with reference images on DX12/Vulkan, diff images `build\check\golden\*-diff.png`, `check.ps1 -UpdateGolden`) — 2026-10-21, details in `docs/CHANGELOG.md`. Post via `post_graded`/`post_off` (2026-10-27)
 
-- [x] GPU 캡처 버튼과 에디터 보기 모드 (`--gpu-capture`: RenderDoc·PIX를 장치 전에 불러오고 [보기] > GPU 캡처·F11, `rhi/GpuCapture`; [보기] > 보기 모드: 와이어프레임·법선·LOD·오버드로·예산 초과, `render::DebugView`) — 2026-10-21, 상세는 `docs/CHANGELOG.md`. PIX는 코드만(미검증), 머티리얼 기능 보기는 그 기능이 생길 때
+- [x] GPU capture button and editor view modes (`--gpu-capture`: loads RenderDoc/PIX before the device, [View] > GPU Capture/F11, `rhi/GpuCapture`; [View] > View Mode: wireframe, normals, LOD, overdraw, over budget, `render::DebugView`) — 2026-10-21, details in `docs/CHANGELOG.md`. PIX is code only (unverified); the material feature view when those features exist
 
-- [x] 텍스처와 머티리얼 1부 — 텍스처 캐시(BC7/BC5 + 밉맵, `build/cache/textures`, bc7enc_rdo), 정점 36바이트(half UV + 머티리얼 번호), glTF PBR 머티리얼 표, GGX 정반사, 알파 클립, DX12·Vulkan — 2026-10-21, 상세는 `docs/CHANGELOG.md`
+- [x] Textures and materials part 1 — texture cache (BC7/BC5 + mipmaps, `build/cache/textures`, bc7enc_rdo), 36-byte vertices (half UV + material index), glTF PBR material table, GGX specular, alpha clip, DX12/Vulkan — 2026-10-21, details in `docs/CHANGELOG.md`
 
-- [x] 텍스처와 머티리얼 2부 — 스타일 프리셋 셰이더 (조명 모델 Pbr·Toon·Unlit + 툰 램프, 머티리얼 기능 외곽선·바람·림·디졸브(glTF extras), 인스턴스 번쩍임·디졸브 진행도(flags), 보기 모드 머티리얼 기능, DX12·Vulkan) — 2026-10-26, 상세는 `docs/CHANGELOG.md`
+- [x] Textures and materials part 2 — style preset shaders (lighting models Pbr/Toon/Unlit + toon ramp, material features outline/wind/rim/dissolve (glTF extras), instance flash/dissolve progress (flags), material feature view mode, DX12/Vulkan) — 2026-10-26, details in `docs/CHANGELOG.md`
 
 
-- [x] 텍스처와 머티리얼 3부 — 룩데브 미리보기 ([보기] > [룩데브]: 고른 물체의 모델을 회전 받침대 + 조명 프리셋 넷으로, 조명 모델·번쩍임·디졸브 바꿔 보기, RHI 오프스크린 대상 DX12·Vulkan) — 2026-10-26, 상세는 `docs/CHANGELOG.md`. HDRI는 다음 항목에서 같은 고르기 상자에
+- [x] Textures and materials part 3 — look dev preview ([View] > [Look Dev]: the selected object's model on a turntable + four lighting presets, switching lighting model/flash/dissolve, RHI offscreen target DX12/Vulkan) — 2026-10-26, details in `docs/CHANGELOG.md`. HDRI goes into the same picker in the next item
 
-- [x] 하늘 HDRI와 환경광 (씬 환경 `hdri`·세기·회전, 불러올 때 CPU로 굽기: 하늘 큐브 + GGX 반사 큐브 128² 6밉 + SH9 → `build/cache/environments`, RHI 큐브 텍스처·RGB9E5, 스카이박스, 에디터 [환경]·룩데브 고르기, 예제 Poly Haven CC0 1k) — 2026-10-26, 상세는 `docs/CHANGELOG.md`
+- [x] Sky HDRI and ambient light (scene environment `hdri`, intensity, rotation; baked on the CPU on load: sky cube + GGX reflection cube 128² 6 mips + SH9 → `build/cache/environments`, RHI cube textures/RGB9E5, skybox, editor [Environment] and look dev pickers, sample Poly Haven CC0 1k) — 2026-10-26, details in `docs/CHANGELOG.md`
 
-- [x] 반사 프로브 (씬 물체 `reflection_probe` = 영향 상자, 에디터 [굽기]·`--bake-probes`: 큐브 면 여섯을 오프스크린으로 그려 읽고(`rhi::Capture::source`) CPU GGX 밉 → `assets/probes/*.mkprobe`, 물체는 위치를 담은 상자 중 중심이 가장 가까운 프로브 하나, 프로젝트 설정 `probeMaxCount` 8·`probeSize` 128, DX12·Vulkan) — 2026-10-27, 상세는 `docs/CHANGELOG.md`. 8비트로 찍어 1보다 밝은 빛은 잘린다(HDR 대상은 포스트 프로세싱에서)
+- [x] Reflection probes (scene object `reflection_probe` = influence box, editor [Bake]/`--bake-probes`: draws six cube faces offscreen and reads them back (`rhi::Capture::source`), CPU GGX mips → `assets/probes/*.mkprobe`; objects use the one probe whose center is nearest among boxes containing their position; project settings `probeMaxCount` 8, `probeSize` 128; DX12/Vulkan) — 2026-10-27, details in `docs/CHANGELOG.md`. Captured at 8 bits, so light brighter than 1 is clipped (HDR targets in post-processing)
 
-- [x] 점광원 (씬 물체 `point_light`: 색·세기·거리 필드, 화면 쪽 잠깐 빛은 `FrameParams::lights`에 더한다. `drawInstances`가 인스턴스마다 바운딩 구에 닿는 빛 중 센 것을 CPU로 최대 4개(프로젝트 설정 `pointLightsPerObject` 1~8) 골라 8바이트 번호로, 셰이더는 창 함수 역제곱 감쇠 + Lambert·GGX(툰은 램프), 그림자 없음, 프레임당 255개, DX12·Vulkan) — 2026-10-27, 상세는 `docs/CHANGELOG.md`. 광원 수백 개는 보류 표의 Forward+
+- [x] Point lights (scene object `point_light`: color, intensity, range fields; brief view-side lights are added to `FrameParams::lights`. `drawInstances` picks on the CPU, per instance, up to 4 of the strongest lights touching its bounding sphere (project setting `pointLightsPerObject` 1~8) as 8-byte indices; the shader uses windowed inverse-square falloff + Lambert/GGX (ramp for toon), no shadows, 255 per frame, DX12/Vulkan) — 2026-10-27, details in `docs/CHANGELOG.md`. Hundreds of lights is Forward+ in the deferred table
 
-- [x] 그림자 (태양 CSM 1~2단계, 단계 하나 1024², 40 m, 텍셀 단위로 맞춘 구 + 정사영, 깊이만 대상 `rhi::Device::createDepthTarget`·`Target::Shadow`, `DrawList::submit`이 본 화면 전에 그림자 패스, 법선 밀기 + Gather 넷 PCF, 프로젝트 설정 `shadows`·`shadowCascades`·`shadowMapSize`·`shadowDistance`, DX12·Vulkan) — 2026-10-27, 상세는 `docs/CHANGELOG.md`. Core Ultra 5에서 0.36 ms(예산 1.5 ms), 최소 사양 실기 측정은 그 PC에서
+- [x] Shadows (sun CSM 1~2 cascades, 1024² per cascade, 40 m, texel-snapped sphere + orthographic, depth-only target `rhi::Device::createDepthTarget`/`Target::Shadow`, `DrawList::submit` does the shadow pass before the main view, normal offset + four-Gather PCF, project settings `shadows`/`shadowCascades`/`shadowMapSize`/`shadowDistance`, DX12/Vulkan) — 2026-10-27, details in `docs/CHANGELOG.md`. 0.36 ms on Core Ultra 5 (budget 1.5 ms); minimum spec hardware measurement on that PC
 
-- [x] 스켈레탈 애니메이션 (glTF 첫 스킨 + 애니메이션 → `asset/Animation.h` 30 Hz로 구운 클립, 관절 64개, 정점 44바이트 + `SKINNED=1` 셰이더 변형으로 GPU 스키닝, `DrawList::addSkinned` 캐릭터마다 드로우 콜 1회, 화면용 `samplePose`·`blendPoses`·`skinPalette`, 시뮬레이션용 `samplePoseTick`(틱 → 정수 프레임, detmath-bits에 포함), 씬 필드 `anim`·인스펙터 [애니메이션], sandbox Pawn idle/run 크로스페이드, Blender 애드온 스킨·액션, DX12·Vulkan) — 2026-10-27, 상세는 `docs/CHANGELOG.md`
+- [x] Skeletal animation (glTF first skin + animations → clips baked at 30 Hz in `asset/Animation.h`, 64 joints, GPU skinning with 44-byte vertices + `SKINNED=1` shader variant, `DrawList::addSkinned` one draw call per character, visual `samplePose`/`blendPoses`/`skinPalette`, simulation `samplePoseTick` (tick → integer frame, included in detmath-bits), scene field `anim` and inspector [Animation], sandbox Pawn idle/run crossfade, Blender add-on skins/actions, DX12/Vulkan) — 2026-10-27, details in `docs/CHANGELOG.md`
 
-- [x] 파티클 (Effekseer 측정 후 자체 런타임: `assets/effects/<이름>.fx` = `feedback::Effect`, 연출 표 `effect` 열 → `feedback::Player`가 화면 쪽 CPU 갱신, `render::Particle` 32바이트 카메라 쿼드를 불투명 3D 다음 드로우 콜 1회(깊이 쓰기 없음, 미리 곱한 알파로 보통·더하기 함께, GPU 패스 Vfx), [연출] 패널 [효과] 칸 + 효과 미리보기, sandbox 밀치기 불꽃·튕김 먼지, DX12·Vulkan) — 2026-10-27, 상세는 `docs/CHANGELOG.md`
-- [x] 포스트 프로세싱 (HDR 장면 대상 R11G11B10F + 블룸 듀얼 필터 + 우버 패스 하나: FXAA·색수차·노출·AgX·LUT·비네트·그레인, `.cube` → 32³ 띠 + 색맹 보정 겹치기, 씬 `post` 필드·[환경] 패널·보정용 캡처, 설정에서 효과 끄기, DX12·Vulkan) — 2026-10-27, 상세는 `docs/CHANGELOG.md`. FSR 1은 동적 해상도에서
+- [x] Particles (own runtime after measuring Effekseer: `assets/effects/<name>.fx` = `feedback::Effect`, feedback table `effect` column → `feedback::Player` updates on the view-side CPU, `render::Particle` 32-byte camera quads in one draw call after opaque 3D (no depth writes, premultiplied alpha covering normal and additive, GPU pass Vfx), [Effects] section of the [Feedback] panel + effect preview, sandbox push sparks and bounce dust, DX12/Vulkan) — 2026-10-27, details in `docs/CHANGELOG.md`
+- [x] Post-processing (HDR scene target R11G11B10F + bloom dual filter + one uber pass: FXAA, chromatic aberration, exposure, AgX, LUT, vignette, grain; `.cube` → 32³ strip + layered color blindness correction; scene `post` field, [Environment] panel, capture for grading; turning effects off in settings; DX12/Vulkan) — 2026-10-27, details in `docs/CHANGELOG.md`. FSR 1 in dynamic resolution
 
-- [x] 동적 해상도 (본 화면 3D를 HDR 대상의 줄인 영역에 그리고 우버 패스가 이중 선형 + 대비 적응 샤프닝으로 늘린다, UI는 원래 해상도. GPU 프레임 시간이 GPU 예산 합을 넘으면 배율을 낮추는 조절기, 프로젝트 설정 dynamicResolution·최저 배율·샤프닝, 플레이어 렌더 배율 = 위 한계, `--render-scale`, DX12·Vulkan) — 2026-10-27, 상세는 `docs/CHANGELOG.md`
-
----
-
-## 에디터 다듬기 (v0.6.x, 3단계보다 먼저)
-
-2단계까지 기능은 늘었지만 에디터 쓰기가 불편하다(2026-10-28 1600×900 캡처 검토). 3단계·4단계에서 씬·리플레이·디싱크를 에디터로 보기 전에 먼저 다듬는다(2026-10-28 사용자와 정함, 4단계 "에디터·디버깅 편의"를 앞으로 당김).
-모두 에디터 전용이라 결정론·출시 exe와 무관하다. 단계를 끝낸 것이 아니므로 버전은 0.6.x로 올린다. 아래 순서대로 한다: 앞 항목이 뒤 항목의 자리(아래 칸, 명령 표, 툴바)를 만든다.
-
-- [x] 기본 레이아웃 다시 나누기 (오른쪽 기둥 = 인스펙터 + [상태]·[튜닝] 탭, 아래 가로 칸 = 빌드 로그·표, [보기] > [레이아웃] 편집·플레이·룩데브, [환경] 창 대신 씬 트리 맨 위 "씬" 줄 → 인스펙터) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 로그 콘솔 창 ([빌드] > [로그], 아래 가로 칸에 탭, 정보·경고·오류 거르기와 개수, 찾기, 지우기) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 알림과 플레이 중 표시 (뷰포트 오른쪽 아래 알림, 실패는 남고 누르면 빌드 로그·로그, 빌드 진행 막대, 플레이 중 주황 테두리·메뉴 막대, 게임 DLL 없을 때 안내) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 명령 팔레트 `Ctrl+P` (명령 표 하나를 메뉴·단축키·팔레트가 같이 씀, 명령·물체·씬·도구를 한국어·영어 이름으로 찾기) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 에디터 환경설정 창과 단축키 도움말 F1 (카메라 속도·글자 크기·자동 저장 간격·코드 편집기, 창 배치 프로젝트별 `build\editor\layout.ini`, F1 = 명령 표의 단축키 목록) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 씬 트리 찾기와 정리 (찾기 칸 `Ctrl+F`, 종류 아이콘, 줄마다 보이기·잠금 → `build\editor\<씬>.view`, 고른 물체 펼치고 스크롤) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 다중 선택 (Shift 클릭·뷰포트 드래그 상자·`Ctrl+A`, 기즈모로 같이 이동·회전·크기, 같이 복제·삭제) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 뷰포트 툴바와 방향 표시 (왼쪽 위 기즈모·축·스냅·그리드·보기 모드·카메라 속도, 오른쪽 위 축 방향 표시, 바닥 그리드, 메뉴 막대에서 기즈모 버튼 뺌) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 스냅·정렬 설정 (이동·회전·크기 스냅 단위 → 환경설정·툴바, 그리드 간격, 바닥에 붙이기 `End`, X/Y/Z 맞추기·같은 간격) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 카메라 조작 보강 (`Alt`+왼쪽 끌기 궤도, 휠은 마우스가 가리키는 곳 쪽으로, 원근·정사영, 카메라 북마크 `Ctrl+1`~`9`/`1`~`9`) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 인스펙터 편의 (섹션 접기, 필드 오른쪽 클릭 기본값으로·복사·붙여넣기, 기본값과 다른 필드 점, 크기 비율 고정, 필드 설명 `"이름|설명"`, [편집] > [기록] `Ctrl+H`) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 성능 패널과 예산 경고 ([빌드] > [성능], 프레임 CPU·GPU·시뮬레이션 틱·드로우 콜·네트워크 송신의 지금 값·예산·최근 30초 그래프, 넘으면 빨강, 상태 표시줄 fps도 빨강) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 에러·오브젝트에서 코드로 이동 (빌드 로그·[로그]의 `파일(줄)`·`파일:줄` 클릭 → 환경설정 코드 편집기 `-g`, 인스펙터 [코드 열기] → `MEALKIT_OBJECT` 선언) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 디버그 그리기 API (`debug::line`·`box`·`text`, `debug/DebugDraw.h`, sim/에서도 요청만 쌓음, 출시·헤드리스는 빈 inline) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 씬 여러 개 다루기 ([파일] > [씬 목록] 창: `assets/scenes` 씬, 시작 씬 ★ 지정 → `mealkit.project`, 열기, [파일] > [최근 씬] 프로젝트별) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 여기서 플레이 (`Shift+F5`·[빌드] > [여기서 플레이], 혼자일 때 스폰 지점을 카메라 아래 바닥이나 고른 스폰으로 옮겼다가 멈추면 되돌림) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 에디터 에셋 브라우저 ([에셋] 창: `assets/` 폴더 트리·파일, 모델을 씬 뷰로 끌어 놓기, 이름 바꾸기·옮기기와 참조 같이 고치기, 이 씬의 끊긴 모델 참조 목록) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-## 3단계 (v0.7): 멀티플레이를 단단하게
-
-실제 진행은 리플레이 → 디싱크 진단 → 중간 참가 → 버그 리포트 → 호스트 이전 → EOS 1부 순서였다. **남은 순서 (2026-10-28 다시 정함)**: 크래시 리포트(4단계에서 당김) → v0.7.
-EOS의 남은 것은 PC 두 대와 Epic 포털 설정(Steam 공급자)이 있어야 해서(같은 PC의 두 프로세스는 기기 ID가 같다) 사용자가 준비될 때 하고 v0.7을 막지 않는다. 한 PC 여러 명은 첫 게임 장르가 맞을 때.
-
-- [x] 리플레이 저장 (매치마다 사용자 폴더 `replays/`에 입력 기록, 최근 `keepReplays`개, 게임 `--replay`·에디터 [파일] > [리플레이 열기], `LockstepSession::startReplay`, 다른 데이터면 경고 후 갈라진 틱에서 멈춤) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 디싱크 진단 도구 (여러 명 매치에서 스냅샷 3개, 디싱크가 나면 피어마다 갈라진 틱까지 다시 돌려 `build/desync/`(출시본은 사용자 폴더)에 상태 필드·바디 덤프, `tools\desync_diff.ps1`이 처음 다른 틱·필드·바디, 시험 `--desync-test`·`mp_test -DesyncTest`) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 중간 참가와 재접속 (끊겨도 매치 계속, 같은 토큰·이름이면 그 슬롯, 새 사람은 빈 슬롯, 호스트 스냅샷 LZ4 전송 + 빨리 감기, `sim::readPresence`, `mp_test -LateJoin`) — v0.5.4, 상세는 `docs/CHANGELOG.md`
-
-- [x] 버그 리포트 묶음 (F9 → 사용자 폴더 `bugreports/<시각>.zip`: 입력 기록·info·최근 로그·스크린샷·한 줄, 에디터 [리플레이 열기]가 zip을 그 틱까지 재생하고 멈춤, 프로젝트 설정 `bugReports`) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-- [x] 호스트 이전 (호스트가 1초마다 승계 목록, 정상 퇴장 `Handoff`·매치 중 침묵 3초 → 다음 연결자가 호스트, 앞선 확정 틱을 `TickFill`로 받아 이어 붙임, 옛 호스트는 끊김 `Presence`, Steam 로비 소유자 맞춤, `mp_test -HostLeave`) — 2026-10-28, 상세는 `docs/CHANGELOG.md`
-
-### [ ] 크래시 리포트 (4단계에서 당김)
-- **왜**: 친구 PC에서 난 문제를 재현할 때 필요하다. 버그 리포트 묶음(F9)은 사람이 누를 때만 남고, 튕기면 아무것도 남지 않는다. 리플레이 기록은 틱마다 `fflush`하므로 튕긴 틱까지 이미 남아 있다.
-- **방식**: 예외 핸들러(플랫폼 계층)에서 미니덤프 + 최근 로그 + 버그 리포트와 같은 `info.txt`·`replay.rec`를 사용자 폴더 `crash/`에 남긴다. 다음 실행 때 "지난번에 튕겼다" 알림과 폴더 열기. 에디터 [리플레이 열기]가 버그 리포트 zip처럼 그 틱까지 재생한다.
-- **결정론**: 영향 없음.
-
-### [ ] EOS 백엔드 (크로스플레이 로비·릴레이) — 코드 1부 끝, 남은 실측은 v0.7을 막지 않음
-- **왜**: 크로스플레이는 플랫폼 공통 로비·P2P가 필요하다(온라인 서비스 계층 기능 표, `docs/CHANGELOG.md` v0.4.3). 5단계 이식 전에 Windows에서 먼저 검증해 두면 이식 때 네트워크 문제와 플랫폼 문제가 섞이지 않는다.
-- **방식**: EOS Connect로 Steam 계정(또는 기기 ID)에 로그인해 Product User ID를 얻고, EOS 로비로 방을 만들고, EOS P2P를 `net::Transport`로 쓴다. Steam 친구 초대는 EOS 로비 id를 실어 보낸다.
-  크로스플레이를 켜면 매치 전송은 EOS 하나다(한 매치에 Steam 릴레이와 EOS가 섞이지 않는다).
-- **확인할 것**: EOS P2P 패킷 크기 상한(지금 엔진 상한 1200바이트보다 작으면 엔진 상한을 낮춘다), 릴레이 RTT, 4인 대역폭이 예산(10 KB/s) 안인지, 호스트 이전과 로비 소유자 변경.
-- **비용**: Epic 개발자 포털 등록(무료). SDK DLL은 exe 예산 밖이지만 출시 폴더 크기에 들어간다.
-- **결정론**: 영향 없음 (`mp_test`에 EOS 전송 시나리오).
-- **진행 (2026-10-28)**: 1부 끝 — `OnlineEOS.cpp`(기기 ID 로그인, 로비 코드, P2P), `MEALKIT_ONLINE`·`build.bat EOS`, 엔진 패킷 상한 1170바이트. Steam 계정 로그인·Steam 초대(코드를 싣는다, 포털 설정 전엔 기기 ID). 남은 것(모두 PC 두 대·포털 설정이 필요, 사용자가 준비되면): PC 두 대 참가·RTT·대역폭 측정, 호스트 이전 때 로비 소유자, 포털 Steam 공급자로 Steam 로그인·초대 확인, `mp_test` EOS 시나리오. 상세는 `docs/CHANGELOG.md`
-
-### [ ] 외부 라이브러리 점검 후속 (2026-10-29 점검) — v0.7을 막지 않음
-- **점검 결과**: 엔진 `third_party/` 17개와 MealKit-Audio·Manager의 SDL3·Dear ImGui를 사용처·빌드 설정까지 봤다. 바꾸거나 뺄 라이브러리는 없다. 검토 후보는 `docs/DECISIONS.md` 보류 표(2026-10-29 점검 행들).
-- **miniaudio 보안 수정**: 0.11.25에 CVE-2026-32837(WAV BEXT 메타데이터 읽기의 힙 범위 밖 읽기, 조작한 WAV로 크래시)이 있다. 엔진은 WAV 디코딩을 쓰므로(`MiniaudioConfig.h`에 `MA_NO_WAV` 없음) 해당된다. 0.11.26이 아직 없어 upstream 수정 커밋을 엔진 `third_party/miniaudio/`와 MealKit-Audio `third_party/miniaudio/` 양쪽에 같이 넣고 `mealkit.txt` 버전에 커밋을 적는다. 자기 에셋만 읽으면 위험은 낮지만, 모듈·사용자 파일을 읽게 되면 문제가 된다.
-- **stb_image**: 2.30의 GIF 디코더 CVE(CVE-2026-5185 등)는 `STBI_ONLY_PNG/JPEG/HDR`(`ui/StbImpl.cpp`)로 GIF를 빼서 해당하지 않는다. 이 설정을 유지하고, 형식을 더할 때는 그 형식의 CVE를 먼저 본다.
-- **도구 저장소의 외부 라이브러리 규칙**: MealKit-Audio·Manager에는 `mealkit.txt`·생성 고지문이 없고 README 표뿐이다. 엔진과 같은 `mealkit.txt` + 생성 방식으로 맞춘다(약속은 하나). SDL3 전체 소스(33 MB)가 두 저장소에 따로 있으니 빌드에 필요한 것만 남길 수 있는지 본다.
-- **줄바꿈**: 두 도구 저장소의 ImGui 백엔드가 줄바꿈(LF/CRLF)만 다르다. `.gitattributes`로 `third_party/`를 고정해 버전 올릴 때 diff가 깨끗하게 한다.
-- **새 버전·CVE 확인 도구**: 지금은 사람이 찾아봐야 안다. `mealkit.txt`의 `source`·`version`으로 upstream 최신 태그와 OSV(osv.dev) 취약점을 조회해 보여 주는 스크립트(`tools\check_third_party.ps1`, 네트워크가 필요해 `check.ps1`에는 넣지 않고 손으로 돌린다)를 검토한다.
-- **결정론**: 영향 없음 (miniaudio·stb는 시뮬레이션에 닿지 않는다).
+- [x] Dynamic resolution (main view 3D is drawn into a reduced region of the HDR target and the uber pass upscales with bilinear + contrast-adaptive sharpening, UI at native resolution. A controller lowers the scale when GPU frame time exceeds the sum of GPU budgets; project settings dynamicResolution, minimum scale, sharpening; the player render scale = the upper limit; `--render-scale`; DX12/Vulkan) — 2026-10-27, details in `docs/CHANGELOG.md`
 
 ---
 
-### [ ] 한 PC 여러 명 (같은 화면·분할 화면) — 첫 게임 장르가 맞을 때
-- **왜**: 파티 게임은 한 PC에 게임패드 여러 개가 흔하다. 게임패드 4개 읽기는 이미 있다(`Gamepads`).
-- **방식**: 한 피어가 플레이어 슬롯을 여러 개 낸다(세션: 피어당 로컬 플레이어 수, 틱 입력은 플레이어당 그대로 8바이트). 온라인과 섞을 수 있다(PC 둘에 두 명씩). 화면은 공유 카메라 또는 분할 화면(뷰포트 여러 개, `buildFrame`을 플레이어마다), UI는 플레이어별 포커스. 입력 액션은 장치 → 로컬 플레이어 배정.
-- **결정론**: 슬롯 수만 바뀌고 틱 입력 형식은 같다. `mp_test`에 "피어 하나에 두 명" 시나리오. **비용**: 중간~큼(세션, `GameContext`의 로컬 플레이어, 화면 나누기).
+## Editor polish (v0.6.x, before stage 3)
 
-## 4단계 (v0.8): 게임플레이 프레임워크와 툴
+Features grew through stage 2, but the editor is awkward to use (2026-10-28 review of 1600×900 captures). Polish it first, before viewing scenes, replays, and desyncs in the editor in stages 3·4 (decided with the user 2026-10-28, pulling stage 4 "Editor/debugging conveniences" forward).
+All of it is editor-only, unrelated to determinism and the shipping exe. It doesn't finish a stage, so the version goes to 0.6.x. Done in the order below: earlier items make room (the bottom strip, command table, toolbar) for later ones.
 
-실제 진행은 소스 모듈 시스템 ①~⑧을 먼저 했다(2026-10-28). **남은 순서 (2026-10-28 다시 정함, 아래 항목 순서와 같다)**:
-- **시나리오 테스트를 맨 앞으로**(1단계에서 옮김): 이제 들어올 게임 흐름·체력·이동 모드는 모두 규칙("죽으면 3초 뒤 리스폰")이라 단위 테스트보다 시나리오로 확인하기 좋다. 모듈 `tests/`도 같은 형식으로 시뮬레이션 동작을 검사한다.
-- **namespace 정리를 앞으로**: 작은 일이고, 미루면 그사이 만드는 프로젝트가 모두 `namespace sandbox`를 물려받는다.
-- **게임 흐름 프레임워크 → 소스 모듈 ⑨**: `health` 모듈이 게임 흐름을 기다리고, 소스 모듈 항목은 첫 모듈을 다 내야 끝난다. `health`는 가장 많이 쓰일 모듈이라 ⑨ 안에서 기본 오브젝트 바로 다음으로 당겼다.
-- 그 뒤는 처음 순서 그대로. 크래시 리포트는 버그 리포트 묶음과 같은 자리라 3단계로 당겼다.
+- [x] Redividing the default layout (right column = inspector + [State]/[Tuning] tabs, bottom horizontal strip = build log/tables, [View] > [Layout] edit/play/look dev, the pinned "Scene" row at the top of the scene tree → inspector instead of an [Environment] window) — 2026-10-28, details in `docs/CHANGELOG.md`
 
-### [ ] 게임 코드용 시나리오 테스트 (1단계에서 옮김)
-- **왜**: 결정론 엔진의 가장 큰 장점은 같은 입력이면 같은 결과라는 것이다. 엔진은 이것으로 `mp_test`·고정 기록을 검사하지만, 게임 개발자가 자기 규칙("밀치면 상대가 떨어진다")을 자동으로 확인할 방법은 없다.
-- **방식**: 프로젝트 `tests/`에 시나리오 파일(씬, 시드, 입력 기록 또는 봇, 틱마다 볼 상태 필드와 기대값: `tick 300 players[1].falls == 1`). 헤드리스 실행 파일이 `--test <파일>`로 돌리고, 상태 필드 이름은 `MEALKIT_FIELD` 선언(에디터 [상태] 패널과 같은 경로)으로 찾는다. 에디터 플레이에서 지금 입력을 시나리오로 저장하는 버튼, `check.ps1`·프로젝트 CI가 `tests/`를 모두 돈다. 시뮬레이션 결과를 일부러 바꾸면 기대값을 다시 만드는 도구(`record_replay.ps1`처럼).
-- **모듈**: 모듈 저장소 `tests/`도 같은 형식을 쓸 수 있게 한다(레지스트리 공용 CI `module.yml`이 돌린다).
-- **결정론**: 헤드리스 그대로라 플랫폼 사이 CI 비교에도 같이 쓴다. **비용**: 중간(시나리오 형식 + 필드 경로 읽기 + 에디터 버튼). 기록 재생·상태 보기·헤드리스가 이미 있다.
+- [x] Log console window ([Build] > [Log], a tab in the bottom strip, info/warning/error filters and counts, search, clear) — 2026-10-28, details in `docs/CHANGELOG.md`
 
-### [ ] 프로젝트 namespace 정리 (뒤에서 당김)
-- 새 프로젝트를 만들 때 게임 코드의 `namespace sandbox`를 프로젝트 이름으로 바꾼다. (새 프로젝트 만들기 자체는 0단계 프로젝트 관리자로 옮겨 간다.)
+- [x] Notifications and in-play indicators (notifications at the viewport's bottom right; failures stay and clicking opens the build log/log; build progress bar; orange border and menu bar during play; guidance when the game DLL is missing) — 2026-10-28, details in `docs/CHANGELOG.md`
 
-### [ ] 게임 흐름 프레임워크 (GameMode / GameState)
-- **왜**: 라운드, 타이머, 팀, 점수, 승리 조건은 거의 모든 멀티플레이 게임이 다시 만든다. 지금 sandbox는 매치 시작·끝 개념이 없다.
-- **방식**: 시뮬레이션 안의 매치 상태 머신 `대기 → 카운트다운 → 진행 → 라운드 끝 → 결과 → (다음 판)`. 상태 전환은 틱 번호로 정하고(실수 타이머 없음), 규칙(라운드 수, 제한 시간, 승리 조건, 팀 수)은 튜닝 데이터로 둔다.
-  전환이 일어나면 매치 상태 시스템이 게임 함수(`onRoundStart(World&)`, `onPawnDied(World&, ...)` 등)를 직접 호출한다(콜백 등록·구독 없음, `docs/CODING_MODEL.md` "시뮬레이션 안에서 알리기"). 점수판은 `PlayerSlot`에 둔다.
-- **결정론**: 매치 상태 전부 `hash()`에. 화면(1단계 "기본 화면 흐름")은 이 상태를 읽기만 한다.
-- **의존**: 0단계 플레이어·캐릭터 분리.
+- [x] Command palette `Ctrl+P` (one command table shared by menus, shortcuts, and the palette; finding commands, objects, scenes, and tools by Korean/English names) — 2026-10-28, details in `docs/CHANGELOG.md`
 
-### [ ] 소스 모듈 시스템 (기능 재사용)
-- **왜**: 체력바, 스킬 쿨타임, 미니맵, 인벤토리, 절차적 맵 생성처럼 게임마다 조금씩 다르지만 자주 쓰는 기능을 매번 처음부터 만든다.
-  엔진 기본 기능으로 넣으면 엔진이 무거워지고 설계를 하나로 강요한다. 프리팹은 데이터(배치)만 담아 `sim/` 로직을 실어 나를 수 없다. 바이너리 플러그인(DLL)은 정적 단일 출시 exe·SimCheck와 맞지 않는다.
-- **상세 기획**: `docs/MODULES.md` (끝나면 규칙은 `docs/CODING_MODEL.md`, 구현은 `docs/CHANGELOG.md`로 옮기고 지운다). 결정은 `docs/DECISIONS.md` 2026-10-28 "소스 모듈".
-- **방식**: 모듈 = 프로젝트 `modules/<이름>/`에 **소스째 복사**한 폴더(`module.txt`, `sim/`, `view/`, `assets/<종류>/`, `art/`, `docs/`). `mealkit_add_game()`이 `source/`처럼 모아 SimCheck·시뮬레이션 버전·헤드리스에 넣는다. 설치 목록은 `modules/` 폴더 자체다.
-  - 모듈 함수는 게임의 `World`를 모른다. 자기 상태만 받는다(`cooldown::step(Cooldowns&, u32 tick)`). 게임이 상태를 `WorldState` 필드로, 튜닝을 `Tuning`의 중첩 필드로 넣고 `World::step()`에서 순서대로 부른다. 모듈 `sim/`이 게임 `source/`를 include하면 SimCheck가 실패시킨다.
-  - 모듈 에셋 경로는 `modules/<이름>/<종류>/...`.
-  - 추가·갱신·제거는 `tools\module.ps1`(에디터 [프로젝트 설정] > [모듈], MealKit Manager [모듈] 탭이 부른다). 갱신은 업그레이드 도구 방식: 고치지 않은 파일만 새것으로, 고친 파일은 `.new`.
-- **어디에 두나**: **모듈 하나 = git 저장소 하나**(첫 모듈은 `KingProtea99/module-<이름>`, MIT). 공식 모듈·공식 표시는 없다. 엔진 저장소에는 모듈이 없다(sandbox가 쓰는 복사본만).
-  레지스트리 저장소 **`MealKit-Modules`**: 등록 파일 `entries/<이름>.txt`(PR), CI가 검사(이름, 태그의 `module.txt`, 빈 프로젝트 빌드, SimCheck, 시험)하고 `index.json`과 검색 사이트(GitHub Pages)를 만든다. 공용 모듈 CI 워크플로와 모듈 템플릿도 여기에. 엔진 출시 전 CI가 등록 모듈 전부를 새 엔진에 빌드해 본다.
-- **첫 모듈 (KingProtea99 저장소, 순서대로)**:
+- [x] Editor preferences window and F1 shortcut help (camera speed, font size, autosave interval, code editor; window layout per project in `build\editor\layout.ini`; F1 = shortcut list from the command table) — 2026-10-28, details in `docs/CHANGELOG.md`
 
-  | 모듈 | sim | view·UI | 비고 |
+- [x] Scene tree search and organization (search box `Ctrl+F`, kind icons, per-row visibility/lock → `build\editor\<scene>.view`, expanding and scrolling to the selected object) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Multi-select (Shift click, viewport drag box, `Ctrl+A`; moving/rotating/scaling together with gizmos; duplicating/deleting together) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Viewport toolbar and orientation indicator (top left gizmo, axis, snap, grid, view mode, camera speed; top right axis orientation indicator; floor grid; gizmo buttons removed from the menu bar) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Snap/align settings (move/rotate/scale snap units → preferences and toolbar, grid spacing, drop to floor `End`, align X/Y/Z, even spacing) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Camera control improvements (`Alt`+left drag orbit, wheel zooms toward where the mouse points, perspective/orthographic, camera bookmarks `Ctrl+1`~`9`/`1`~`9`) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Inspector conveniences (collapsing sections; right-clicking a field for reset to default/copy/paste; a dot on fields differing from the default; locking scale ratio; field descriptions `"name|description"`; [Edit] > [History] `Ctrl+H`) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Performance panel and budget warnings ([Build] > [Performance]: current values, budgets, and last 30 seconds graphs for frame CPU/GPU, simulation tick, draw calls, network send; red when exceeded, status bar fps red too) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Jumping from errors/objects to code (clicking `file(line)`/`file:line` in the build log/[Log] → preferences code editor `-g`, inspector [Open Code] → the `MEALKIT_OBJECT` declaration) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Debug draw API (`debug::line`, `box`, `text`, `debug/DebugDraw.h`; from sim/ too it only queues requests; empty inlines in shipping/headless) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Handling multiple scenes ([File] > [Scene List] window: scenes in `assets/scenes`, marking the start scene ★ → `mealkit.project`, opening, [File] > [Recent Scenes] per project) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Play from here (`Shift+F5`/[Build] > [Play From Here]; when solo, moves the spawn point to the floor under the camera or the selected spawn, restoring it on stop) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Editor asset browser ([Assets] window: `assets/` folder tree and files, dragging models into the scene view, renaming/moving with references fixed together, a list of this scene's broken model references) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+## Stage 3 (v0.7): making multiplayer solid
+
+The actual order was replays → desync diagnosis → mid-match joining → bug reports → host migration → EOS part 1. **Remaining order (re-decided 2026-10-28)**: crash reports (pulled from stage 4) → v0.7.
+The rest of EOS needs two PCs and Epic portal setup (Steam provider) (two processes on the same PC share a device ID), so it's done when the user is ready and doesn't block v0.7. Local multiplayer on one PC when the first game genre fits.
+
+- [x] Saving replays (input recording per match in the user folder `replays/`, latest `keepReplays`, game `--replay` and editor [File] > [Open Replay], `LockstepSession::startReplay`, warns on different data and stops at the diverging tick) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Desync diagnosis tool (3 snapshots in multiplayer matches; on a desync each peer re-runs to the diverging tick and dumps state fields/bodies to `build/desync/` (user folder in shipping builds); `tools\desync_diff.ps1` finds the first differing tick/field/body; tests `--desync-test`/`mp_test -DesyncTest`) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Mid-match joining and reconnecting (the match continues on disconnect, same token/name gets that slot, newcomers get empty slots, host snapshot LZ4 transfer + fast-forward, `sim::readPresence`, `mp_test -LateJoin`) — v0.5.4, details in `docs/CHANGELOG.md`
+
+- [x] Bug report bundles (F9 → user folder `bugreports/<time>.zip`: input recording, info, recent logs, screenshot, one-line note; editor [Open Replay] plays the zip up to that tick and stops; project setting `bugReports`) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+- [x] Host migration (host sends a succession list every second; normal leave `Handoff` / 3 seconds of silence during a match → the next connected peer becomes host, receives further-ahead confirmed ticks via `TickFill` and appends them, old host gets a disconnect `Presence`, Steam lobby owner aligned, `mp_test -HostLeave`) — 2026-10-28, details in `docs/CHANGELOG.md`
+
+### [ ] Crash reports (pulled from stage 4)
+- **Why**: needed to reproduce problems that happened on a friend's PC. Bug report bundles (F9) are only left when someone presses the key, and a crash leaves nothing. Replay recordings `fflush` every tick, so they're already saved up to the crashing tick.
+- **Approach**: the exception handler (platform layer) leaves a minidump + recent logs + the same `info.txt`/`replay.rec` as bug reports in the user folder `crash/`. On the next run, a "it crashed last time" notice and opening the folder. The editor [Open Replay] plays up to that tick like bug report zips.
+- **Determinism**: no effect.
+
+### [ ] EOS backend (crossplay lobbies/relays) — code part 1 done, remaining measurements don't block v0.7
+- **Why**: crossplay needs platform-common lobbies/P2P (online service layer feature table, `docs/CHANGELOG.md` v0.4.3). Verifying on Windows first before stage 5 porting keeps network problems and platform problems from mixing when porting.
+- **Approach**: log in with a Steam account (or device ID) via EOS Connect to get a Product User ID, create rooms with EOS lobbies, and use EOS P2P as a `net::Transport`. Steam friend invites carry the EOS lobby id.
+  With crossplay on, match transport is EOS only (Steam relays and EOS don't mix in one match).
+- **To check**: the EOS P2P packet size limit (if smaller than the current engine limit of 1200 bytes, lower the engine limit), relay RTT, whether 4-player bandwidth is within budget (10 KB/s), host migration and lobby owner changes.
+- **Cost**: Epic developer portal registration (free). The SDK DLL is outside the exe budget but counts toward the shipping folder size.
+- **Determinism**: no effect (an EOS transport scenario in `mp_test`).
+- **Progress (2026-10-28)**: part 1 done — `OnlineEOS.cpp` (device ID login, lobby codes, P2P), `MEALKIT_ONLINE`/`build.bat EOS`, engine packet limit 1170 bytes. Steam account login and Steam invites (carrying the code; device ID before portal setup). Remaining (all need two PCs and portal setup, when the user is ready): joining from two PCs and measuring RTT/bandwidth, lobby owner on host migration, verifying Steam login/invites with the portal's Steam provider, `mp_test` EOS scenario. Details in `docs/CHANGELOG.md`
+
+### [ ] External library review follow-ups (reviewed 2026-10-29) — doesn't block v0.7
+- **Review result**: looked at the engine's 17 `third_party/` libraries and MealKit-Audio/Manager's SDL3 and Dear ImGui, down to usage sites and build settings. No library needs replacing or removing. Candidates for review are in the `docs/DECISIONS.md` deferred table (the 2026-10-29 review rows).
+- **miniaudio security fix**: 0.11.25 has CVE-2026-32837 (a heap out-of-bounds read when reading WAV BEXT metadata; a crafted WAV crashes). The engine uses WAV decoding (no `MA_NO_WAV` in `MiniaudioConfig.h`), so it's affected. 0.11.26 isn't out yet, so put the upstream fix commit into both the engine's `third_party/miniaudio/` and MealKit-Audio's `third_party/miniaudio/` together and record the commit in the `mealkit.txt` version. The risk is low when reading only our own assets, but it becomes a problem once module/user files are read.
+- **stb_image**: 2.30's GIF decoder CVEs (CVE-2026-5185 etc.) don't apply since GIF is excluded via `STBI_ONLY_PNG/JPEG/HDR` (`ui/StbImpl.cpp`). Keep this setting, and when adding a format, check that format's CVEs first.
+- **External library rules in tool repos**: MealKit-Audio and Manager have no `mealkit.txt` or generated notices, only a README table. Align them with the engine's `mealkit.txt` + generation approach (there's one contract). The full SDL3 source (33 MB) lives separately in both repos, so see whether only what the build needs can be kept.
+- **Line endings**: the ImGui backends in the two tool repos differ only in line endings (LF/CRLF). Pin `third_party/` with `.gitattributes` so diffs are clean when bumping versions.
+- **New version/CVE check tool**: right now a person has to look things up. Consider a script (`tools\check_third_party.ps1`; it needs the network, so it's run by hand, not in `check.ps1`) that queries upstream latest tags and OSV (osv.dev) vulnerabilities from `mealkit.txt`'s `source`/`version` and shows them.
+- **Determinism**: no effect (miniaudio and stb don't touch the simulation).
+
+---
+
+### [ ] Local multiplayer on one PC (shared screen/split screen) — when the first game genre fits
+- **Why**: party games commonly have several gamepads on one PC. Reading 4 gamepads already exists (`Gamepads`).
+- **Approach**: one peer provides several player slots (session: local players per peer; tick input stays 8 bytes per player). It can mix with online (two people on each of two PCs). The view is a shared camera or split screen (several viewports, `buildFrame` per player), and UI has per-player focus. Input actions assign devices → local players.
+- **Determinism**: only the slot count changes; the tick input format stays the same. A "two players on one peer" scenario in `mp_test`. **Cost**: medium to large (session, local players in `GameContext`, splitting the screen).
+
+## Stage 4 (v0.8): gameplay framework and tools
+
+In practice the source module system ①~⑧ was done first (2026-10-28). **Remaining order (re-decided 2026-10-28, same as the item order below)**:
+- **Scenario tests to the front** (moved from stage 1): the game flow, health, and movement modes coming next are all rules ("respawn 3 seconds after dying"), better verified with scenarios than unit tests. Module `tests/` also check simulation behavior in the same format.
+- **Namespace cleanup to the front**: it's a small job, and putting it off means every project made in the meantime inherits `namespace sandbox`.
+- **Game flow framework → source modules ⑨**: the `health` module waits on game flow, and the source module item finishes only once the first modules are all out. `health` will be the most used module, so within ⑨ it was pulled to right after basic objects.
+- After that, the original order as is. Crash reports sit in the same place as bug report bundles, so they were pulled into stage 3.
+
+### [ ] Scenario tests for game code (moved from stage 1)
+- **Why**: the biggest advantage of a deterministic engine is that the same input gives the same result. The engine uses this to check `mp_test` and fixed recordings, but game developers have no way to automatically check their own rules ("pushing makes the opponent fall").
+- **Approach**: scenario files in the project's `tests/` (scene, seed, input recording or bot, state fields and expected values to check per tick: `tick 300 players[1].falls == 1`). The headless executable runs them with `--test <file>`, and state field names are found via the `MEALKIT_FIELD` declarations (the same paths as the editor [State] panel). A button in editor play saving the current inputs as a scenario; `check.ps1` and project CI run all of `tests/`. A tool that regenerates expected values when simulation results are changed on purpose (like `record_replay.ps1`).
+- **Modules**: module repos' `tests/` can use the same format (run by the registry's shared CI `module.yml`).
+- **Determinism**: headless as is, so it's also used for cross-platform CI comparison. **Cost**: medium (scenario format + reading field paths + editor button). Recording playback, state viewing, and headless already exist.
+
+### [ ] Project namespace cleanup (pulled forward from later)
+- When creating a new project, rename the game code's `namespace sandbox` to the project name. (Creating new projects itself moves to the stage 0 project manager.)
+
+### [ ] Game flow framework (GameMode / GameState)
+- **Why**: rounds, timers, teams, scores, and win conditions are rebuilt by almost every multiplayer game. Sandbox currently has no concept of match start/end.
+- **Approach**: a match state machine inside the simulation `waiting → countdown → playing → round end → results → (next game)`. State transitions are decided by tick numbers (no float timers), and rules (round count, time limit, win conditions, team count) are tuning data.
+  When a transition happens, the match state system calls game functions directly (`onRoundStart(World&)`, `onPawnDied(World&, ...)`, etc.) (no callback registration or subscriptions, `docs/CODING_MODEL.md` "Notifying within the simulation"). The scoreboard lives in `PlayerSlot`.
+- **Determinism**: all match state goes into `hash()`. Screens (stage 1 "Default screen flow") only read this state.
+- **Depends on**: stage 0 player/character separation.
+
+### [ ] Source module system (feature reuse)
+- **Why**: features that differ slightly per game but are used often, like health bars, skill cooldowns, minimaps, inventories, and procedural map generation, are built from scratch every time.
+  Putting them in as built-in engine features makes the engine heavier and forces one design. Prefabs hold only data (placement) and can't carry `sim/` logic. Binary plugins (DLLs) don't fit the static single shipping exe or SimCheck.
+- **Detailed plan**: `docs/MODULES.md` (when done, rules move to `docs/CODING_MODEL.md`, implementation to `docs/CHANGELOG.md`, and it's deleted). The decision is `docs/DECISIONS.md` 2026-10-28 "Source modules".
+- **Approach**: module = a folder **copied as source** into the project's `modules/<name>/` (`module.txt`, `sim/`, `view/`, `assets/<kind>/`, `art/`, `docs/`). `mealkit_add_game()` gathers it like `source/` and includes it in SimCheck, the simulation version, and headless. The installed list is the `modules/` folder itself.
+  - Module functions don't know the game's `World`. They take only their own state (`cooldown::step(Cooldowns&, u32 tick)`). The game puts the state in as a `WorldState` field and the tuning as a nested field of `Tuning`, and calls them in order from `World::step()`. If a module's `sim/` includes the game's `source/`, SimCheck fails.
+  - Module asset paths are `modules/<name>/<kind>/...`.
+  - Adding, updating, and removing is `tools\module.ps1` (called by the editor [Project Settings] > [Modules] and the MealKit Manager [Modules] tab). Updating follows the upgrade tool approach: only unmodified files are replaced, modified files get `.new`.
+- **Where they live**: **one module = one git repo** (the first modules at `KingProtea99/module-<name>`, MIT). There are no official modules or official marks. There are no modules in the engine repo (only the copy sandbox uses).
+  The registry repo **`MealKit-Modules`**: registration files `entries/<name>.txt` (PR); CI checks them (name, the tag's `module.txt`, empty project build, SimCheck, tests) and builds `index.json` and a search site (GitHub Pages). The shared module CI workflow and the module template live here too. Before an engine release, CI builds all registered modules against the new engine.
+- **First modules (KingProtea99 repos, in order)**:
+
+  | Module | sim | view/UI | Notes |
   |---|---|---|---|
-  | `cooldown` 쿨타임 | `TickTimer` 묶음 | 쿨타임 아이콘 `.ui` | 시스템 전체를 이것으로 검증. sandbox 밀치기 쿨타임을 옮긴다 |
-  | `objects` 기본 오브젝트 | 트리거 볼륨, 경로를 따라 움직이는 키네마틱 발판, 아이템 스폰 지점 | 없음 | 0단계 오브젝트 타입 시스템 위에 |
-  | `health` 체력·데미지 | 히트 질의(구·캡슐·레이), 데미지(가해자, 양, 종류), 체력, 무적 틱, 사망 → Pawn 제거 → 리스폰 대기 → 새 Pawn에 빙의 | 체력바·데미지 숫자 `.ui` | 게임 흐름 프레임워크에 의존. 히트 결과는 id 순서로 처리 |
-  | `procgen` 절차적 생성 | 시드 하나로 생성(`Pcg32`, 결정론 수학) | 없음 | 락스텝에 잘 맞는다(맵 대신 시드만 보낸다). 에디터에서 `.scene`으로 구워 손보는 방식도 제공 |
-  | `inventory` 인벤토리 | 고정 배열 슬롯, 아이템 정의는 정의 데이터 표(`.table`) | 그리드 `.ui` | 세이브·매치 시작 데이터와 연결 |
-  | `minimap` 미니맵 | 없음 | 위에서 본 렌더 또는 아이콘 | 화면 전용 |
+  | `cooldown` cooldowns | a bundle of `TickTimer`s | cooldown icon `.ui` | The whole system is verified with this. Moves the sandbox push cooldown |
+  | `objects` basic objects | trigger volumes, kinematic platforms moving along paths, item spawn points | none | On top of the stage 0 object type system |
+  | `health` health/damage | hit queries (sphere, capsule, ray), damage (attacker, amount, kind), health, invulnerability ticks, death → remove Pawn → respawn wait → possess a new Pawn | health bar and damage number `.ui` | Depends on the game flow framework. Hit results are processed in id order |
+  | `procgen` procedural generation | generation from one seed (`Pcg32`, deterministic math) | none | Fits lockstep well (send only the seed instead of the map). Also provides baking into `.scene` in the editor for hand-tweaking |
+  | `inventory` inventory | fixed-array slots, item definitions in a definition data table (`.table`) | grid `.ui` | Connected to saves and match start data |
+  | `minimap` minimap | none | top-down render or icons | View only |
 
-- **문서**: 모듈 저장소 `docs/index.md`(영어, 선택 `index.ko.md`) 한 페이지 — 개요 / 추가 방법(붙이는 코드) / 사용법 / 동작 원리(알고리즘·결정론 주의점) / 버전 기록. 레지스트리 사이트가 그린다. 문서 저장소는 "게임 개발자 안내 > Modules" 안내 한 페이지 + 사이트 링크, "엔진 개발자 안내 > Writing modules"에 모듈 만드는 규칙.
-- **구현 순서**: ① 엔진 빌드 연동(`module.txt`, 모듈 모으기, SimCheck 규칙) → ② 에셋 경로 → ③ `tools\module.ps1`(폴더·git 주소) → ④ 모듈 템플릿 + `cooldown`(로컬) + sandbox 적용 → ⑤ 레지스트리 저장소·CI(GitHub 저장소 만들기·push는 사용자가) → ⑥ 이름으로 추가, Manager·에디터 목록 → ⑦ 사이트 → ⑧ 문서 저장소 → ⑨ 나머지 공식 모듈. ①~④는 게임 흐름 프레임워크 없이 먼저 한다(`health`만 기다린다).
-- **결정론**: 모듈 상태는 게임 `WorldState`의 필드라 해시·스냅샷에 자동으로 들어간다. 모듈 `sim/` 소스는 시뮬레이션 버전에 들어가 다른 모듈 코드를 쓰는 피어는 접속 거부. 갱신은 id 순서.
-- **의존**: 플레이어·캐릭터 분리, 게임 UI(모듈의 `.ui`). `health` 모듈만 게임 흐름 프레임워크.
-- **진행 (2026-10-28)**: ① 끝 — `mealkit_add_game()`이 `modules/*/module.txt` 폴더의 `sim/`·`view/`를 모은다(include 경로 `modules/`, 이름·폴더 일치, `requires`·최소 버전 확인, 엔진 MINOR가 다르면 경고, 모듈 `sim/`은 헤드리스·시뮬레이션 버전에), SimCheck `--modules`: SIM013(모듈이 게임 `source/` include)·SIM014(`requires`에 없는 모듈). ② 끝 — 에셋 경로 → 파일은 `assetFilePath`/`findAssetFile`(`platform/Paths.h`) 한 곳, `modules/<이름>/<종류>/...` → `modules/<이름>/assets/<종류>/...`(표·모델·UI·소리·씬·툰 램프·에디터 [표]), 콘텐츠 해시는 같은 경로로 읽은 데이터라 그대로 들어간다. `check_layout.ps1`이 모듈 폴더(module.txt, 이름, 최상위 항목, 모듈 `assets/` 종류 규칙)를 검사. ③ 끝 — `tools\module.ps1` list/add/update/remove(원본은 폴더 또는 git 주소`#태그`, 여러 모듈 저장소는 `-Name`, 설치 기록 `module.files`, 갱신은 업그레이드 도구 규칙으로 고친 파일은 `.new`·없어진 파일은 안 고쳤으면 지움, 제거는 `requires`·`source/` include가 있으면 거절), 시험 `check.ps1` "Module tool". ④ 끝 — `cooldown` 0.1.0(저장소 `module-cooldown`, 로컬, 아직 push 전): `Cooldown`·`tryUse`·`readiness`, 컴포넌트 `cooldown_bar.ui`, `tests/`(엔진 코어에 링크해 혼자 빌드), 문서. sandbox가 `modules/cooldown`으로 밀치기 쿨타임과 HUD 막대를 쓴다(리플레이 다시 기록). Export가 모듈 `assets/`를 같이 내보내고, 새 프로젝트·`upgrade_project -Source`가 예제 모듈을 복사한다. ⑤ 끝 — 레지스트리 `MealKit-Modules`(로컬, push 전): `entries/cooldown.txt`, `tools/build_index.py`(등록 파일 검사, 각 `v*` 태그의 `module.txt`·`LICENSE`·`docs/index.md` 확인, 이미 올린 태그가 옮겨지면 거절, `index.json`), `tools/check_module.ps1`(모듈 시험 빌드·실행 + SimCheck, 공용 워크플로 `module.yml`이 부른다), `registry.yml`(등록 PR 검사·빌드, main·매일 `index.json` 다시 만들기), `template/` + `tools/new_module.py`. `module-cooldown`에 공용 CI 한 줄. GitHub에서 돌리려면 `MealKit-Modules` 저장소와 태그 `v1`, `module-cooldown` 태그 `v0.1.0` push가 필요하고 모듈 저장소는 공개여야 한다. 공식 모듈·공식 표시는 두지 않기로 바꿨다(DECISIONS 2026-10-28, 첫 모듈은 `KingProtea99/module-<이름>`). ⑥ 일부 끝 — `module.ps1 search [검색어] [-Tag]`(프로젝트 없이도, 이 엔진 MINOR용 먼저), `add <이름>[@버전]`(이 엔진 MINOR용 가장 새 버전, 태그 커밋이 목록과 다르면 거절, 추가할 때 코드 검토 안내, 빠진 `requires` 알림·`-WithRequires`), `update`가 레지스트리 출처면 다시 찾고 `-To <버전>`, 목록 캐시와 오프라인. 시험은 `check.ps1` "Module tool"에 로컬 `index.json`으로. ⑥ 끝 — 에디터 [파일] > [모듈...] 창(`editor/ModulesPanel`: 설치된 모듈·새 버전·고친 파일, 레지스트리 목록, 추가·갱신·제거, 바꾸면 게임 코드 다시 빌드)과 MealKit Manager [모듈] 탭(고른 프로젝트), 둘 다 `module.ps1 search -Tsv` 한 번으로 목록을 받는다. ⑦ 끝 — 레지스트리 `web/`(정적 사이트, `index.json`만 읽는다): 검색·태그·엔진 버전 필터, 모듈 페이지는 그 버전 커밋의 `docs/index.md`(marked + DOMPurify, 상대 경로는 모듈 저장소로, `index.ko.md`가 있으면 언어 선택), 추가 명령 복사, 버전·의존·검사 결과·소스 링크. `registry.yml`이 `index.json`을 만든 뒤 GitHub Pages로 올린다(저장소 설정에서 Pages 원본을 Actions로). ⑧ 끝 — 문서 저장소 "Manual > Modules"(찾기·추가·붙이기·갱신, 레지스트리 사이트 링크)와 "Working on the engine > Writing modules"(폴더, `module.txt`, 코드 규칙·SIM013·SIM014, 시험·CI, 문서 틀, 등록), 영어·한국어. 다음은 ⑨ 나머지 첫 모듈
+- **Docs**: one page, the module repo's `docs/index.md` (English, optional `index.ko.md`) — Overview / How to add (glue code) / Usage / How it works (algorithms, determinism caveats) / Version history. Rendered by the registry site. The docs repo has a one-page guide in "Game developer guide > Modules" + a site link, and module-making rules in "Engine developer guide > Writing modules".
+- **Implementation order**: ① engine build integration (`module.txt`, gathering modules, SimCheck rules) → ② asset paths → ③ `tools\module.ps1` (folders, git URLs) → ④ module template + `cooldown` (local) + applying to sandbox → ⑤ registry repo and CI (the user creates GitHub repos and pushes) → ⑥ adding by name, Manager/editor lists → ⑦ site → ⑧ docs repo → ⑨ the remaining official modules. ①~④ are done first without the game flow framework (only `health` waits).
+- **Determinism**: module state is a field of the game's `WorldState`, so it goes into hashes and snapshots automatically. Module `sim/` sources go into the simulation version, so peers using different module code are refused connection. Updates in id order.
+- **Depends on**: player/character separation, game UI (modules' `.ui`). Only the `health` module needs the game flow framework.
+- **Progress (2026-10-28)**: ① done — `mealkit_add_game()` gathers `sim/`/`view/` of folders with `modules/*/module.txt` (include path `modules/`, name/folder match, `requires` and minimum version check, warning if the engine MINOR differs, module `sim/` in headless and the simulation version), SimCheck `--modules`: SIM013 (a module includes the game's `source/`), SIM014 (a module not in `requires`). ② done — asset path → file resolution in one place, `assetFilePath`/`findAssetFile` (`platform/Paths.h`), `modules/<name>/<kind>/...` → `modules/<name>/assets/<kind>/...` (tables, models, UI, sound, scenes, toon ramps, editor [Tables]); the content hash is data read via the same paths, so it's included as is. `check_layout.ps1` checks module folders (module.txt, name, top-level entries, module `assets/` kind rules). ③ done — `tools\module.ps1` list/add/update/remove (source is a folder or git URL`#tag`, `-Name` for repos with several modules, install record `module.files`, updating follows upgrade tool rules: modified files get `.new` and removed files are deleted if unmodified, removal refuses if there are `requires` or `source/` includes), test `check.ps1` "Module tool". ④ done — `cooldown` 0.1.0 (repo `module-cooldown`, local, not pushed yet): `Cooldown`, `tryUse`, `readiness`, component `cooldown_bar.ui`, `tests/` (builds standalone linking the engine core), docs. Sandbox uses the push cooldown and HUD bar via `modules/cooldown` (replays re-recorded). Export ships module `assets/` too, and new projects and `upgrade_project -Source` copy the sample module. ⑤ done — registry `MealKit-Modules` (local, not pushed): `entries/cooldown.txt`, `tools/build_index.py` (checks registration files, verifies each `v*` tag's `module.txt`/`LICENSE`/`docs/index.md`, refuses if an already-published tag moved, `index.json`), `tools/check_module.ps1` (module test build/run + SimCheck, called by the shared workflow `module.yml`), `registry.yml` (registration PR checks/builds, rebuilding `index.json` on main and daily), `template/` + `tools/new_module.py`. One shared CI line in `module-cooldown`. Running on GitHub needs pushing the `MealKit-Modules` repo and tag `v1` and `module-cooldown` tag `v0.1.0`, and module repos must be public. Changed to have no official modules or official marks (DECISIONS 2026-10-28, first modules at `KingProtea99/module-<name>`). ⑥ partly done — `module.ps1 search [query] [-Tag]` (works without a project, this engine MINOR first), `add <name>[@version]` (newest version for this engine MINOR, refused if the tag commit differs from the list, code review notice on add, missing `requires` notice/`-WithRequires`), `update` re-finds registry sources and `-To <version>`, list cache and offline. Tested in `check.ps1` "Module tool" with a local `index.json`. ⑥ done — editor [File] > [Modules...] window (`editor/ModulesPanel`: installed modules, new versions, modified files, registry list, add/update/remove, rebuilds game code on change) and the MealKit Manager [Modules] tab (chosen project), both getting lists with one `module.ps1 search -Tsv`. ⑦ done — registry `web/` (static site, reads only `index.json`): search, tags, engine version filter; module pages render `docs/index.md` at that version's commit (marked + DOMPurify, relative paths to the module repo, language choice if `index.ko.md` exists), copyable add command, version/dependencies/check results/source link. `registry.yml` builds `index.json` then publishes to GitHub Pages (set the Pages source to Actions in repo settings). ⑧ done — docs repo "Manual > Modules" (finding, adding, wiring up, updating, registry site link) and "Working on the engine > Writing modules" (folders, `module.txt`, code rules/SIM013/SIM014, tests/CI, doc template, registration), English/Korean. Next is ⑨, the remaining first modules
 
-### [ ] 캐릭터 이동 모드
-- **왜**: 지금 sandbox의 물리 캡슐 하나뿐이다. 게임마다 원하는 조작감이 달라 매번 이동 코드를 새로 짠다.
-- **방식**: 상속이 아니라 Pawn 종류마다 **이동 모드 + 튜닝 데이터**를 고른다. 입력(`GameInput`) → 이동 의도(방향, 점프 등) → 모드별 처리 → 물리.
+### [ ] Character movement modes
+- **Why**: currently there's only sandbox's physics capsule. Each game wants a different control feel, so movement code is rewritten every time.
+- **Approach**: not inheritance; each Pawn kind picks **a movement mode + tuning data**. Input (`GameInput`) → movement intent (direction, jump, etc.) → per-mode processing → physics.
 
-  | 모드 | 방식 | 어울리는 게임 | 주의 |
+  | Mode | Method | Suited games | Caveats |
   |---|---|---|---|
-  | 키네마틱 (기본) | Jolt `CharacterVirtual` | 정확한 조작, 계단·경사·움직이는 발판 | 결정론을 `mp_test`로 먼저 검증 |
-  | 물리 캡슐 (지금 sandbox) | 리지드바디 + 속도 제어 | 밀치기 파티 게임 | 계단·경사가 어색함 |
-  | 플로팅 | 아래로 레이캐스트 + 스프링·감쇠로 띄움 | 물리 상호작용 + 부드러운 이동 | 스프링 튜닝 값 필요 |
-  | 액티브 래그돌 | Jolt `Ragdoll` + 모터가 목표 포즈를 따라감 | 몸 개그 물리 게임 | 아래 참고 |
+  | Kinematic (default) | Jolt `CharacterVirtual` | precise controls, stairs, slopes, moving platforms | verify determinism with `mp_test` first |
+  | Physics capsule (current sandbox) | rigid body + velocity control | shoving party games | stairs and slopes feel awkward |
+  | Floating | downward raycast + spring/damping to hover | physics interaction + smooth movement | needs spring tuning values |
+  | Active ragdoll | Jolt `Ragdoll` + motors following a target pose | slapstick physics games | see below |
 
-- **순서**: 키네마틱 → 플로팅 → 액티브 래그돌. 물리 캡슐은 지금 코드를 모드로 옮긴다.
-- **액티브 래그돌**: 2단계 스켈레탈 애니메이션의 "시뮬레이션용 포즈 샘플링"에 의존한다. 비용은 캐릭터당 바디 약 11~15개와 컨스트레인트. 4인 기준 틱 예산(4 ms) 안인지 벤치마크로 확인하고, 넘으면 관절 수를 줄인 간이 래그돌을 쓴다.
-- **결정론**: 모든 모드는 Pawn id 순서로 처리하고, 각도 계산은 결정론 수학 유틸만 쓴다. 모드별 상태는 `hash()`에.
+- **Order**: kinematic → floating → active ragdoll. The physics capsule moves the current code into a mode.
+- **Active ragdoll**: depends on stage 2 skeletal animation's "pose sampling for the simulation". The cost is about 11~15 bodies plus constraints per character. Benchmark whether it fits the tick budget (4 ms) with 4 players, and if it exceeds, use a simplified ragdoll with fewer joints.
+- **Determinism**: every mode processes in Pawn id order, and angle math uses only the deterministic math utils. Per-mode state goes into `hash()`.
 
-### [ ] 가상 카메라 (시네머신 방식) + 컷신
-- **왜**: 카메라는 조작감의 절반인데 게임마다 처음부터 만든다. 카메라 전환·연출도 코드로 짜면 아티스트가 만질 수 없다.
-- **가상 카메라**: 씬에 `VirtualCamera` 물체(`MEALKIT_OBJECT`, 장식 종류라 콘텐츠 해시 제외)를 놓고 우선순위, 따라갈 대상, 바라볼 대상, 데드존·화면 구도, 몸체 종류를 정한다.
-  몸체 종류: 3인칭 스프링암(벽에 부딪히면 당김), 1인칭, 탑다운, 궤도, 레일(경로를 따라감), 관전 자유 카메라(빙의 없음일 때). 기본 대상은 빙의한 Pawn.
-- **카메라 브레인**: `view/`의 브레인이 활성 가상 카메라 중 우선순위가 가장 높은 것으로 정해진 시간·이징으로 블렌드한다. 게임 코드는 카메라를 직접 움직이지 않고 우선순위·활성만 바꾼다.
-- **임펄스(흔들림)**: 1단계 "이벤트 → 연출 표"에서 만든 카메라 임펄스를 브레인 결과에 더한다.
-- **컷신**: 외부 도구 원칙대로 **Blender에서 카메라 애니메이션을 만들어 glTF로 내보낸다.** 엔진은 재생만 하고 타임라인·시퀀서 에디터는 만들지 않는다(`docs/DECISIONS.md` 보류 표). 컷신 중 이벤트(소리·효과)는 glTF 마커 이름 → 연출 표로 낸다.
-- **멀티플레이**: 컷신이 시뮬레이션을 멈추면 안 된다(락스텝). 시작은 시뮬레이션 틱 이벤트로 정해 모두 같은 틱에 보고, 그동안 입력만 막는다. 혼자 보는 연출(죽었을 때 등)은 화면 쪽에서 바로 재생한다.
-- **결정론**: 영향 없음 (`view/`에서만). 지금처럼 이동 방향을 카메라 기준으로 계산해 월드 방향으로 양자화해 보낸다. 벽 충돌 레이캐스트는 화면용 질의로, 시뮬레이션 상태를 바꾸지 않는다.
+### [ ] Virtual cameras (Cinemachine style) + cutscenes
+- **Why**: the camera is half of control feel, yet every game builds it from scratch. Camera transitions and staging written in code can't be touched by artists either.
+- **Virtual cameras**: place `VirtualCamera` objects in the scene (`MEALKIT_OBJECT`, a decoration kind so excluded from the content hash) and set priority, follow target, look-at target, dead zone/framing, and body kind.
+  Body kinds: third-person spring arm (pulls in on hitting walls), first person, top-down, orbit, rail (follows a path), free spectator camera (when not possessing). The default target is the possessed Pawn.
+- **Camera brain**: the brain in `view/` blends to the highest-priority active virtual camera over a set time and easing. Game code doesn't move cameras directly; it only changes priority/active.
+- **Impulses (shake)**: camera impulses from stage 1 "Events → feedback table" are added to the brain's result.
+- **Cutscenes**: per the external tool principle, **camera animations are made in Blender and exported as glTF.** The engine only plays them back, with no timeline/sequencer editor (`docs/DECISIONS.md` deferred table). Events during cutscenes (sounds, effects) go out via glTF marker names → the feedback table.
+- **Multiplayer**: cutscenes must not stop the simulation (lockstep). Starts are decided by simulation tick events so everyone sees them on the same tick, and only input is blocked meanwhile. Solo staging (on death, etc.) plays immediately on the view side.
+- **Determinism**: no effect (only in `view/`). As now, movement direction is computed relative to the camera and quantized into a world direction before sending. Wall collision raycasts are view-side queries and don't change simulation state.
 
-### [ ] AI 길찾기 (그리드 / 웨이포인트)
-- **왜**: AI 컨트롤러가 장애물을 돌아가려면 경로가 필요하다.
-- **방식**: 에디터에서 씬 충돌 데이터로 2D 그리드(높이 층 포함)를 굽거나 웨이포인트를 놓고, 시뮬레이션에서 A*로 찾는다. 새 외부 라이브러리 없음. 결과는 에디터 디버그 그리기로 확인.
-- **결정론**: 구운 데이터는 콘텐츠 해시에 넣는다. A*의 동점 처리는 노드 번호로 고정하고, 한 틱에 찾는 경로 수를 제한해 순서대로 처리한다.
-- **Recast 내비메시**는 `docs/DECISIONS.md` 보류 표 참고.
+### [ ] AI pathfinding (grid / waypoints)
+- **Why**: AI controllers need paths to go around obstacles.
+- **Approach**: bake a 2D grid (including height layers) from scene collision data in the editor or place waypoints, and search with A* in the simulation. No new external library. Results are checked with editor debug drawing.
+- **Determinism**: baked data goes into the content hash. A* tie-breaking is fixed by node number, and the number of paths searched per tick is limited and processed in order.
+- See the `docs/DECISIONS.md` deferred table for **Recast navmesh**.
 
-### [ ] 프리팹
-- 여러 물체 묶음을 파일로 저장하고 씬에 여러 번 배치. 에디터의 복제를 확장.
-- 프리팹은 데이터(배치·필드 값)만 담는다. 동작은 `sim/` 코드라 프리팹으로 옮길 수 없고, 동작까지 재사용하려면 소스 모듈이 프리팹을 같이 담는다.
+### [ ] Prefabs
+- Save bundles of several objects to a file and place them in a scene multiple times. Extends the editor's duplicate.
+- Prefabs hold only data (placement, field values). Behavior is `sim/` code and can't be carried by prefabs; to reuse behavior too, source modules carry prefabs along.
 
-### [ ] 하이트맵 지형
-- 하이트맵 + 청크 LOD 렌더링, Jolt `HeightFieldShape` 충돌. 에디터 브러시(올리기/내리기/평탄화).
-- 외부 지형 도구(Gaea·World Machine 등)에서 만든 16비트 PNG 하이트맵을 가져올 수 있다. 가져온 뒤 브러시로 다듬는다. 충돌 데이터라 콘텐츠 해시에 들어간다.
-- **뿌리기 브러시**: 풀·돌·작은 소품을 지형이나 바닥 위에 칠해서 수천 개를 배치한다(밀도·크기·회전 무작위 범위). 화면 전용 인스턴스라 충돌·결정론·콘텐츠 해시와 무관하고, 청크별로 묶어 컬링한다. 충돌이 필요한 큰 물체는 보통 씬 물체로 놓는다.
+### [ ] Heightmap terrain
+- Heightmap + chunk LOD rendering, Jolt `HeightFieldShape` collision. Editor brushes (raise/lower/flatten).
+- 16-bit PNG heightmaps made in external terrain tools (Gaea, World Machine, etc.) can be imported. Refined with brushes after import. It's collision data, so it goes into the content hash.
+- **Scatter brush**: paints grass, rocks, and small props onto terrain or floors to place thousands (random ranges for density, size, rotation). View-only instances, unrelated to collision, determinism, and the content hash, culled in per-chunk groups. Large objects needing collision are placed as normal scene objects.
 
 ### [ ] Job System
-- 렌더링 준비(컬링, 인스턴스 채우기, 애니메이션 포즈)를 병렬화. 물리는 이미 Jolt 스레드 풀을 쓰므로 같은 워커를 나눠 쓸지 검토.
+- Parallelize render preparation (culling, filling instances, animation poses). Physics already uses Jolt's thread pool, so consider sharing the same workers.
 
-### [ ] 공간 음향과 인터랙티브 음악 (1단계 오디오 위에)
-- **왜**: 1단계 오디오는 이벤트·목소리 관리·버스까지다. 실내·벽 너머 소리, 상황에 따라 바뀌는 음악(Wwise가 강한 부분)은 기준 샘플이 필요로 할 때 더한다.
-- **어디에**: 오디오를 뗀 뒤(아래 "도구 제품군")에는 잔향·더킹·스냅샷·인터랙티브 음악은 오디오 런타임 저장소에, 값 편집은 오디오 저작 도구에 만든다. 엔진에 남는 것은 가림 광선(Jolt)과 잔향 영역 씬 물체 → 런타임에 "목소리별 가림 값·현재 잔향 값"을 넘기는 접착뿐이다.
-- **가림**: 리스너 → 소리 위치로 Jolt 광선을 쏴서 막히면 로우패스·볼륨을 줄인다. 들리는 목소리 몇 개씩 돌아가며 검사하고(프레임당 광선 수 상한), 틱 사이 메인 스레드에서 읽기만 한다.
-- **잔향 구역**: 씬 물체 "잔향 영역"(크기, 잔향 값). 리스너가 들어가면 효과음 버스의 잔향을 천천히 바꾼다. 잔향은 Freeverb 계열 공개 구현을 miniaudio 노드로.
-- **더킹·스냅샷**: 버스 A가 소리를 내면 버스 B를 줄인다(음성 → 배경음). 스냅샷 = 버스 값 묶음(일시정지 메뉴 로우패스 등), 전환 시간과 함께 켜고 끈다.
-- **인터랙티브 음악**: PCM 프레임 단위 예약으로 마디 경계에서 곡 전환, 스팅어, 스템을 파라미터(긴장도)로 페이드. 곡의 BPM·박자·전환 지점은 음악 표의 행.
-- **결정론**: 영향 없음(`view/`). 가림 광선은 물리 상태를 읽기만 한다.
+### [ ] Spatial audio and interactive music (on top of stage 1 audio)
+- **Why**: stage 1 audio goes up to events, voice management, and buses. Indoor/behind-wall sound and music that changes with the situation (Wwise's strength) are added when a reference sample needs them.
+- **Where**: after audio is split off ("Tool suite" below), reverb, ducking, snapshots, and interactive music are built in the audio runtime repo, and value editing in the audio authoring tool. What stays in the engine is only occlusion rays (Jolt) and reverb area scene objects → glue that passes "per-voice occlusion values and the current reverb values" to the runtime.
+- **Occlusion**: cast Jolt rays from the listener → sound position, and if blocked, apply low-pass and reduce volume. A few audible voices are checked in rotation (a cap on rays per frame), only read on the main thread between ticks.
+- **Reverb zones**: scene object "reverb area" (size, reverb values). When the listener enters, the effects bus reverb changes gradually. Reverb is a public Freeverb-family implementation as a miniaudio node.
+- **Ducking/snapshots**: when bus A plays sound, bus B is lowered (voice → music). Snapshot = a set of bus values (pause menu low-pass, etc.), turned on/off with a transition time.
+- **Interactive music**: track transitions at bar boundaries via PCM-frame-level scheduling, stingers, stems faded by a parameter (tension). A track's BPM, time signature, and transition points are rows in a music table.
+- **Determinism**: no effect (`view/`). Occlusion rays only read physics state.
 
-### [ ] 업적·리더보드·통계 (온라인 서비스 계층)
-- 게임이 업적 조건을 시뮬레이션 이벤트(라운드 승리, 처치 수)로 정하고, 화면 쪽이 이벤트를 읽어 온라인 서비스 계층에 기록한다(Steam / EOS / 콘솔 트로피). 업적 목록은 데이터 하나로 두고 각 서비스 등록용으로 내보낸다. 서비스가 없으면 사용자 데이터 폴더의 통계에만 남긴다.
-- **결정론**: 영향 없음 (결과만 읽는다).
+### [ ] Achievements, leaderboards, stats (online service layer)
+- The game defines achievement conditions as simulation events (round wins, kill counts), and the view side reads the events and records them to the online service layer (Steam / EOS / console trophies). The achievement list is one piece of data, exported for each service's registration. Without a service, it's kept only in stats in the user data folder.
+- **Determinism**: no effect (only reads results).
 
-### [ ] 에셋 쿠킹 + 팩 파일
-- **왜**: 지금은 게임이 실행될 때마다 glTF를 파싱하고 meshoptimizer로 최적화·LOD를 만든다. 원본 에셋도 출시 폴더에 그대로 노출된다.
-- **방식**: 출시 빌드 때 모델·씬·텍스처를 엔진 전용 바이너리로 바꿔 팩 파일 하나(`<이름>.pak`)에 담는다. 에디터는 계속 원본을 쓴다.
-- **무엇을 넣나**: 시작 씬과 프로젝트 설정의 씬 목록에서 시작해 참조(씬 → 모델·프리팹, 튜닝·`.ui`·연출 표 → 소리·효과·이미지)를 따라가 **닿는 것만** 넣는다. 유니티 Resources처럼 폴더를 통째로 넣는 방법은 없다.
-  코드에서 경로 문자열로만 여는 에셋은 참조를 따라갈 수 없으므로, 프로젝트 설정의 "항상 포함" 목록에 적는다(빠뜨리면 출시 빌드가 경고).
-- **효과**: 로딩이 거의 즉시, 출시 exe에서 cgltf·meshoptimizer 제거.
-- **주의**: 물리 껍질 점은 최적화 전 원본 정점에서 뽑아야 한다(결정론). 콘텐츠 해시는 쿠킹 결과 기준으로 계산하고, "에디터에서는 되는데 게임에서는 다르다" 버그를 막도록 에디터 플레이에서도 쿠킹본으로 돌려 보는 옵션을 둔다.
+### [ ] Asset cooking + pack files
+- **Why**: currently the game parses glTF and builds optimizations/LODs with meshoptimizer on every run. Source assets are also exposed as is in the shipping folder.
+- **Approach**: at shipping build time, models, scenes, and textures are converted to engine-specific binaries and put into one pack file (`<name>.pak`). The editor keeps using the sources.
+- **What goes in**: starting from the start scene and the scene list in project settings, follow references (scenes → models/prefabs, tuning/`.ui`/feedback table → sounds/effects/images) and include **only what's reached**. There's no way to include whole folders like Unity's Resources.
+  Assets opened only via path strings in code can't be followed by references, so they're listed in the project settings' "always include" list (the shipping build warns if missed).
+- **Effect**: near-instant loading, and cgltf/meshoptimizer removed from the shipping exe.
+- **Caution**: physics hull points must be extracted from the original vertices before optimization (determinism). The content hash is computed from the cooked results, and there's an option to run editor play on the cooked version too, to prevent "works in the editor but differs in the game" bugs.
 
-### [ ] 프로젝트 템플릿 여러 종류
-- 빈 프로젝트, 아레나 대전(지금 예제), 레이싱·협동 같은 장르별 템플릿. 에디터의 "새 프로젝트"에서 고른다.
+### [ ] Multiple project templates
+- Empty project, arena versus (the current sample), and genre templates like racing and co-op. Chosen in the editor's "New Project".
 
-### [ ] 쿡북 문서
-- "코인 만들기", "타이머와 라운드", "새 입력 추가"처럼 결정론 규칙을 지키며 자주 하는 작업을 짧은 예제로 정리(문서 저장소 `cookbook/`, 영어·한국어).
+### [ ] Cookbook docs
+- Common tasks done while keeping the determinism rules, like "making coins", "timers and rounds", "adding a new input", organized as short examples (docs repo `cookbook/`, English/Korean).
 
 ---
 
-## 5단계 (v0.9): 다른 플랫폼, 다른 OS 에디터, 크로스플레이
+## Stage 5 (v0.9): other platforms, editors on other OSes, crossplay
 
-플랫폼 계층(1단계)과 RHI 층(2단계, DX12 + Vulkan) 위에 다른 OS 구현과 남은 그래픽 백엔드(Metal, WebGPU, 콘솔)를 더한다. 시뮬레이션 결정론은 1단계부터 CI가 Linux·macOS에서 검사하고 있다. 목표는 **모든 플랫폼이 한 매치에 같이 들어오는 크로스플레이**와 **Windows·macOS·Linux 어디서나 쓰는 에디터**다.
-플랫폼마다 시작할 때 최소 사양·성능 예산 표를 만들고, 기준 샘플 전부가 그 플랫폼에서 Export·`mp_test`(다른 플랫폼 피어 포함)를 통과해야 끝난다.
+On top of the platform layer (stage 1) and RHI layer (stage 2, DX12 + Vulkan), add other OS implementations and the remaining graphics backends (Metal, WebGPU, consoles). Simulation determinism has been checked by CI on Linux/macOS since stage 1. The goals are **crossplay where every platform joins one match** and **an editor usable anywhere on Windows, macOS, Linux**.
+Each platform gets a minimum spec/performance budget table when started, and finishes only when all reference samples pass Export and `mp_test` (including peers on other platforms) on that platform.
 
-**플랫폼 등급**:
-- **1군** (v0.9·v1.0이 기다린다): Windows, Linux·Steam Deck, macOS. 에디터와 출시 둘 다.
-- **2군** (순서대로 하되 v1.0을 막지 않는다): Android·iOS, 웹, 콘솔. 출시만. 콘솔은 개발자 등록과 개발 키트가 생겨야 시작할 수 있다.
+**Platform tiers**:
+- **Tier 1** (v0.9/v1.0 wait for these): Windows, Linux/Steam Deck, macOS. Both editor and shipping.
+- **Tier 2** (done in order but doesn't block v1.0): Android/iOS, web, consoles. Shipping only. Consoles can start only once developer registration and dev kits are in place.
 
-| 순서 | 플랫폼 | 그래픽 | CPU·컴파일러 | 먼저 확인할 것 | 비고 |
+| Order | Platform | Graphics | CPU/compiler | Check first | Notes |
 |---|---|---|---|---|---|
-| 1 | Linux · Steam Deck | Vulkan (2단계에 있음) | x64 · Clang (헤드리스는 1단계부터) | Windows exe가 Proton(vkd3d-proton)에서 그대로 도는지(1단계 Steam 실검증 때). 되면 출시는 급하지 않지만 Linux 에디터에는 네이티브가 필요하다 | Steam 그대로. 대소문자를 구분하는 파일 시스템 |
-| 2 | macOS | Metal | ARM64 · Clang (헤드리스는 1단계부터) | Metal 백엔드, 앱 번들 | Steam 그대로. 서명·공증 |
-| 3 | Android · iOS | Vulkan / Metal | ARM64 · Clang | 모바일 GPU 예산(타일 GPU, 발열), 터치 입력, ASTC, 앱 수명 주기(백그라운드로 가면 매치는?) | Steam 없음 → EOS |
-| 4 | 웹 | WebGPU | wasm · Clang | UDP가 없다(WebRTC 데이터 채널 전송), 스레드(SharedArrayBuffer·COOP/COEP), Jolt wasm 크기 | bindless 없음(`docs/CHANGELOG.md` "RHI 층"의 WebGPU), wasm 5 MB 예산 |
-| 5 | Xbox | DX12 (GDK) | x64 · MSVC | 가장 가깝다. GDK의 DX12 차이와 인증 요구 | 콘솔 공통은 아래 "콘솔" |
-| 6 | PlayStation 5 | 전용 API | x64 · Clang | 전용 그래픽 API 백엔드 | |
-| 7 | Switch (2) | 전용 API (NVN) 또는 Vulkan | ARM64 · Clang | 가장 약한 GPU라 따로 최소 사양 표 | |
+| 1 | Linux · Steam Deck | Vulkan (exists in stage 2) | x64 · Clang (headless since stage 1) | Whether the Windows exe runs as is on Proton (vkd3d-proton) (during stage 1 real Steam verification). If it does, shipping isn't urgent, but the Linux editor needs native | Steam as is. Case-sensitive file systems |
+| 2 | macOS | Metal | ARM64 · Clang (headless since stage 1) | Metal backend, app bundles | Steam as is. Signing/notarization |
+| 3 | Android · iOS | Vulkan / Metal | ARM64 · Clang | Mobile GPU budget (tiled GPUs, heat), touch input, ASTC, app lifecycle (what happens to the match when backgrounded?) | No Steam → EOS |
+| 4 | Web | WebGPU | wasm · Clang | No UDP (WebRTC data channel transport), threads (SharedArrayBuffer, COOP/COEP), Jolt wasm size | No bindless (WebGPU in `docs/CHANGELOG.md` "RHI layer"), wasm 5 MB budget |
+| 5 | Xbox | DX12 (GDK) | x64 · MSVC | The closest. GDK's DX12 differences and certification requirements | Common console items in "Consoles" below |
+| 6 | PlayStation 5 | proprietary API | x64 · Clang | A proprietary graphics API backend | |
+| 7 | Switch (2) | proprietary API (NVN) or Vulkan | ARM64 · Clang | The weakest GPU, so a separate minimum spec table | |
 
-### [ ] 플랫폼 사이 결정론 — 실기기 사이 마무리 (CI 검사는 1단계부터)
-- **왜**: 락스텝은 모든 피어가 같은 float 결과를 내야 한다. 지금은 MSVC·x86(SSE4.2)만 검증했다. 다른 플랫폼은 컴파일러(Clang)와 CPU(ARM)가 다르다.
-- **방식**:
-  - 모든 컴파일러에서 실수 연산 축약을 끈다: MSVC `/fp:precise`(지금 그대로), Clang·GCC `-ffp-contract=off`, `-ffast-math` 금지. ARM은 FMA 명령이 기본이라 이 옵션이 필수다. Jolt도 같은 옵션(`CROSS_PLATFORM_DETERMINISTIC=ON` 유지).
-  - 시뮬레이션 코드(`sim/`, 엔진 `physics`·`DetMath`)에는 플랫폼 분기(`#ifdef`, 플랫폼별 라이브러리)를 두지 않는다. SimCheck가 `sim/`의 플랫폼 매크로를 막는다.
-  - `detmath-bits` 단위 테스트 해시가 모든 플랫폼 빌드에서 같아야 한다.
-  - `mp_test`에 "다른 플랫폼 피어" 모드: 두 기기를 이어 봇 입력 900틱 이상. 헤드리스 시뮬레이션(1단계)으로 GPU 없이 돌려 CI에서 플랫폼마다 틱별 해시를 남기고 비교한다.
-- **이미 하는 것**: 1단계 CI가 Windows(MSVC·clang-cl)·Linux x64·macOS ARM64에서 같은 입력 기록의 틱별 해시를 매 커밋 비교한다. 이 항목은 그 위에 실제 네트워크로 서로 다른 기기를 잇는 시험과, 모바일·웹(wasm)·콘솔 CPU·컴파일러를 더한다.
-- **통과 전까지**: 콘텐츠 해시에 "결정론 그룹"(예: `msvc-x64`, `clang-arm64`)을 넣어 다른 그룹 피어는 접속을 거부한다. 통과한 그룹을 하나로 합쳐 간다.
-- **실패하면**: `docs/DECISIONS.md` 보류 표 "고정소수점 게임플레이 수학"을 다시 본다.
+### [ ] Cross-platform determinism — finishing between real devices (CI checks since stage 1)
+- **Why**: lockstep needs every peer to produce the same float results. So far only MSVC/x86 (SSE4.2) is verified. Other platforms differ in compiler (Clang) and CPU (ARM).
+- **Approach**:
+  - Turn off floating-point contraction in every compiler: MSVC `/fp:precise` (as now), Clang/GCC `-ffp-contract=off`, no `-ffast-math`. ARM has FMA instructions by default, so this option is mandatory. Jolt uses the same options too (keeping `CROSS_PLATFORM_DETERMINISTIC=ON`).
+  - No platform branches (`#ifdef`, platform-specific libraries) in simulation code (`sim/`, the engine's `physics`/`DetMath`). SimCheck blocks platform macros in `sim/`.
+  - The `detmath-bits` unit test hash must match across all platform builds.
+  - A "peer on another platform" mode in `mp_test`: connect two devices with bot input for 900+ ticks. Run via headless simulation (stage 1) without a GPU, leaving per-tick hashes per platform in CI for comparison.
+- **Already done**: stage 1 CI compares per-tick hashes of the same input recording on every commit on Windows (MSVC, clang-cl), Linux x64, and macOS ARM64. This item adds on top tests connecting different devices over a real network, plus mobile, web (wasm), and console CPUs/compilers.
+- **Until passing**: put a "determinism group" (e.g. `msvc-x64`, `clang-arm64`) into the content hash and refuse connections from peers of other groups. Passing groups are merged into one over time.
+- **If it fails**: revisit "Fixed-point gameplay math" in the `docs/DECISIONS.md` deferred table.
 
-### [ ] 크로스플레이
-- **같은 매치의 조건**:
-  - 결정론 그룹이 같다(위 항목).
-  - **시뮬레이션 버전**이 같다. exe는 플랫폼마다 달라 exe 해시로 비교할 수 없으므로, 게임 버전 + `sim/`·엔진 시뮬레이션 소스 해시를 빌드 때 박아 비교한다(1단계 "버전 표시와 접속 거부 이유"에서 정한다).
-  - 콘텐츠 해시는 플랫폼 공통 데이터(씬 충돌 데이터, 모델 물리 껍질, 튜닝, 표)로만 계산한다. 플랫폼별 쿠킹 결과(텍스처 형식, 셰이더, 화면용 메시)는 넣지 않는다.
-- **접속 경로**: 플랫폼마다 릴레이가 달라(Steam 릴레이, 콘솔 네트워크) 서로 닿지 않는다. 플랫폼 공통 로비·P2P 릴레이가 필요하다 → 1단계 "온라인 서비스 계층", 3단계 "EOS 백엔드". 크로스플레이 매치는 항상 EOS 로비·P2P로 잡는다.
-- **입력 차이**: 로비가 플레이어별 입력 종류(키보드·마우스 / 게임패드 / 터치)를 매치 시작 데이터에 담아 보여 주고, 섞을지는 게임 설정으로 정한다. 콘솔 정책대로 설정에 "크로스플레이 끄기"를 둔다.
-- **결정론**: 위 조건이 맞으면 지금 락스텝 그대로다. 플랫폼별 코드는 화면·입력 양자화 전까지만 있다.
+### [ ] Crossplay
+- **Conditions for the same match**:
+  - The determinism group matches (item above).
+  - The **simulation version** matches. Exes differ per platform and can't be compared by exe hash, so the game version + a hash of `sim/` and engine simulation sources is baked in at build time and compared (decided in stage 1 "Version display and connection refusal reasons").
+  - The content hash is computed only from platform-common data (scene collision data, model physics hulls, tuning, tables). Per-platform cooked results (texture formats, shaders, visual meshes) aren't included.
+- **Connection path**: relays differ per platform (Steam relays, console networks) and don't reach each other. Platform-common lobbies/P2P relays are needed → stage 1 "Online service layer", stage 3 "EOS backend". Crossplay matches are always set up via EOS lobbies/P2P.
+- **Input differences**: the lobby puts each player's input kind (keyboard/mouse / gamepad / touch) in the match start data and shows it, and whether to mix is a game setting. Per console policy, settings have a "turn off crossplay" option.
+- **Determinism**: if the conditions above hold, it's the current lockstep as is. Platform-specific code exists only up to view and input quantization.
 
-### [ ] 다른 OS 에디터 (macOS, Linux)
-- **의존**: 그 OS의 플랫폼 계층과 RHI 백엔드(에디터도 그 백엔드로 그린다).
-- **핫 리로드**: 게임 코드를 `.so`/`.dylib`로 빌드해 지금처럼 복사본을 불러온다(`dlopen`). macOS는 서명된 라이브러리 규칙을 확인한다.
-- **엔진 공유 라이브러리**: `mealkit.dll`의 MSVC 전용 내보내기(`cmake/FixExportsDef.cmake`) 대신 Clang은 기호 공개 설정으로 같은 결과를 낸다.
-- **빌드 스크립트**: `.bat`과 Windows PowerShell 5.1 스크립트를 모든 OS에서 도는 하나로 옮긴다(후보 PowerShell 7 — 지금 `.ps1`을 거의 그대로 쓸 수 있다). 에디터의 [빌드] 메뉴와 프로젝트 관리자도 이것을 부른다.
-- **파일 경로**: 에셋 경로는 `/`와 대소문자를 정확히 쓴다. Windows에서도 대소문자가 다른 참조를 `check_layout`이 오류로 잡는다(Linux에서 처음 드러나지 않게).
-- **다른 플랫폼 Export**: 에디터가 있는 OS에서 만들 수 없는 출시본(macOS·iOS는 macOS에서만)은 원격 빌드나 CI로 넘기는 길을 그때 정한다.
+### [ ] Editors on other OSes (macOS, Linux)
+- **Depends on**: that OS's platform layer and RHI backend (the editor also draws with that backend).
+- **Hot reload**: build game code as `.so`/`.dylib` and load a copy as now (`dlopen`). On macOS, check signed library rules.
+- **Engine shared library**: instead of `mealkit.dll`'s MSVC-only exports (`cmake/FixExportsDef.cmake`), Clang achieves the same result with symbol visibility settings.
+- **Build scripts**: move `.bat` and Windows PowerShell 5.1 scripts to one that runs on every OS (candidate PowerShell 7 — current `.ps1` files can be used almost as is). The editor's [Build] menu and the project manager call it too.
+- **File paths**: asset paths use `/` and exact case. `check_layout` catches references with differing case as errors even on Windows (so they don't first surface on Linux).
+- **Exporting for other platforms**: for shipping builds that can't be made on the editor's OS (macOS/iOS only on macOS), decide then on handing off to remote builds or CI.
 
-### [ ] 콘솔 (Xbox, PlayStation, Switch)
-- **시작 조건**: 각 플랫폼 개발자 프로그램 등록과 개발 키트.
-- **코드 위치**: 콘솔 SDK와 그 위의 코드는 NDA라 이 저장소에 넣지 않는다. 플랫폼 계층 구현·RHI 백엔드·온라인 서비스 백엔드를 비공개 저장소에 두고, CMake가 그 경로(`MEALKIT_PRIVATE_PLATFORMS`)가 있으면 넣는다(Steam SDK의 Stub 방식과 같다).
-- **인증 요구를 미리 설계에 넣는다** (나중에 넣으면 앱 흐름을 다시 짠다):
-  - 일시정지·재개(앱이 멈췄다 돌아옴): 락스텝 매치에서는 끊김으로 처리하고 재접속(3단계)으로 돌아온다.
-  - 사용자 로그인·전환, 컨트롤러 연결 끊김 안내.
-  - 세이브는 플랫폼 세이브 API로(사용자 데이터 폴더 직접 쓰기를 막는 플랫폼이 있다) → 1단계 세이브는 플랫폼 계층의 저장 함수로만 쓴다.
-  - 업적·친구·초대는 온라인 서비스 계층(콘솔 플랫폼 서비스 백엔드, 크로스플레이 로비는 EOS).
-- **최소 사양**: Switch는 따로 표를 만든다(내장 그래픽 프리셋보다 낮을 수 있다).
+### [ ] Consoles (Xbox, PlayStation, Switch)
+- **Start conditions**: registration in each platform's developer program and dev kits.
+- **Code location**: console SDKs and code on top of them are under NDA and aren't put in this repo. Platform layer implementations, RHI backends, and online service backends live in a private repo, and CMake includes them if that path (`MEALKIT_PRIVATE_PLATFORMS`) exists (the same as the Steam SDK Stub approach).
+- **Put certification requirements into the design ahead of time** (adding them later means rewriting the app flow):
+  - Suspend/resume (the app stops and comes back): in lockstep matches it's treated as a disconnect and comes back via reconnect (stage 3).
+  - User sign-in/switching, controller disconnect notices.
+  - Saves via platform save APIs (some platforms block writing to the user data folder directly) → stage 1 saves write only through the platform layer's save functions.
+  - Achievements, friends, and invites via the online service layer (console platform service backends; crossplay lobbies are EOS).
+- **Minimum spec**: Switch gets a separate table (may be lower than the integrated graphics preset).
 
 ---
 
-## 도구 제품군 (단계와 따로 간다)
+## Tool suite (runs separately from the stages)
 
-MealKit은 엔진 + 범용 에디터를 가운데 두고, 담당마다 워크플로우가 다른 작은 도구를 **별도 저장소**로 만들어 에디터의 바로가기로 묶는 제품군이다(`docs/DECISIONS.md` 2026-10-26).
-모두 무료, 코드는 MIT. 좋은 무료 외부 도구가 이미 있는 일은 계속 외부 도구 + 엔진 플러그인으로 한다(위 판단 기준 ④). 도구는 **한 번에 하나씩** 떼고 첫 번째는 오디오다. 언제 시작할지는 사용자가 정하고, v0.x 단계를 막지 않는다.
+MealKit is a suite with the engine + general-purpose editor at the center, where small tools for workflows that differ per role are built as **separate repos** and tied together by editor shortcuts (`docs/DECISIONS.md` 2026-10-26).
+All free, code is MIT. Jobs that already have good free external tools stay external tool + engine plugin (criterion ④ above). Tools are split off **one at a time**, the first being audio. When to start is the user's call, and it doesn't block v0.x stages.
 
-| 도구 (가칭) | 담당 | 지금 | 방향 |
+| Tool (working name) | Role | Now | Direction |
 |---|---|---|---|
-| 오디오 (런타임 + 저작 도구) | 사운드 디자이너 | 엔진 `mealkit/audio/` + `assets/sounds.table` + [소리] 패널 | 별도 저장소. 아래 항목 순서대로 |
-| 게임 UI 런타임 (도구는 Penpot 그대로) | UI 디자이너 | 엔진 `mealkit/ui/` + Penpot 플러그인 `tools/penpot-plugin` | 런타임만 오디오 1·2 방식으로 뗀다(아래 UI 1·2, `docs/DECISIONS.md` 2026-10-26 "하위 시스템을 뗄 때"). 새 저작 도구는 만들지 않는다 |
-| 레벨 편집 | 레벨 디자이너 | 범용 에디터 씬 편집 | 씬·Reflect·콘텐츠 해시와 깊게 엮여 있어 엔진 코어를 공유한다. 뗄 때 경계를 정한다 |
-| 데이터 관리 | 기획 | 에디터 [표]·[튜닝] 패널 | 같은 이유로 뗄 때 경계를 정한다 |
-| 게임 QA | QA | `mp_test`·리플레이·버그 리포트 묶음(3단계) | 엔진과 닿는 면(리플레이·로그·재현 파일)이 좁아 떼기 좋다 |
-| 코드 작업 | 프로그래머 | VS Code·Visual Studio | 자체 IDE는 보류(`docs/DECISIONS.md` 보류 표). 외부 IDE 연결부터 |
+| Audio (runtime + authoring tool) | Sound designers | engine `mealkit/audio/` + `assets/sounds.table` + [Sound] panel | Separate repo. In the order of the items below |
+| Game UI runtime (the tool stays Penpot) | UI designers | engine `mealkit/ui/` + Penpot plugin `tools/penpot-plugin` | Only the runtime is split off the Audio 1·2 way (UI 1·2 below, `docs/DECISIONS.md` 2026-10-26 "When splitting out subsystems"). No new authoring tool is built |
+| Level editing | Level designers | general-purpose editor scene editing | Deeply tied to scenes, Reflect, and the content hash, so it shares the engine core. Boundaries are decided when splitting |
+| Data management | Designers | editor [Tables]/[Tuning] panels | For the same reason, boundaries are decided when splitting |
+| Game QA | QA | `mp_test`, replays, bug report bundles (stage 3) | The surface touching the engine (replays, logs, repro files) is narrow, so it's easy to split off |
+| Code work | Programmers | VS Code, Visual Studio | An own IDE is deferred (`docs/DECISIONS.md` deferred table). Starting with external IDE integration |
 
-- [x] 도구 사이 약속 (형식 줄 `@format <종류> <N>`, 라이브 연결 `live::Server` + `build/live/*.json` + `tools\live_probe.ps1`, 에디터 [도구] 메뉴 + 매니페스트 `mealkit-tool.txt`) — 2026-10-26 (v0.5.1), 상세는 `docs/CHANGELOG.md`. 런타임 조각의 로컬 체크아웃 CMake 변수는 오디오 2에서(`MEALKIT_MKAUDIO_DIR`)
+- [x] Contract between tools (format line `@format <kind> <N>`, live connection `live::Server` + `build/live/*.json` + `tools\live_probe.ps1`, editor [Tools] menu + manifest `mealkit-tool.txt`) — 2026-10-26 (v0.5.1), details in `docs/CHANGELOG.md`. The local checkout CMake variable for runtime pieces in Audio 2 (`MEALKIT_MKAUDIO_DIR`)
 
-- [x] 오디오 1: 엔진 안에서 런타임 층 나누기 (런타임 `engine/libs/mkaudio`(임시 이름, `mkaudio::Mixer`, MealKit 헤더 없음) + 접착 `mealkit/audio`, 검사 `tools\check_libs.ps1`, 게임 API·`sounds.table` 그대로) — 2026-10-26, 상세는 `docs/CHANGELOG.md`
+- [x] Audio 1: splitting the runtime layer inside the engine (runtime `engine/libs/mkaudio` (temporary name, `mkaudio::Mixer`, no MealKit headers) + glue `mealkit/audio`, check `tools\check_libs.ps1`, game API and `sounds.table` unchanged) — 2026-10-26, details in `docs/CHANGELOG.md`
 
-- [x] 오디오 2: 런타임을 별도 저장소로 (MealKit-Audio v0.1.0: 장치 없는 시험 + CI(Windows·Linux·macOS), 엔진 `third_party/mkaudio` + `tools\update_mkaudio.ps1`, 로컬 체크아웃 `-DMEALKIT_MKAUDIO_DIR`) — 2026-10-26, 상세는 `docs/CHANGELOG.md`. GitHub 저장소 만들기·push는 사용자가
+- [x] Audio 2: the runtime in a separate repo (MealKit-Audio v0.1.0: deviceless tests + CI (Windows, Linux, macOS), engine `third_party/mkaudio` + `tools\update_mkaudio.ps1`, local checkout `-DMEALKIT_MKAUDIO_DIR`) — 2026-10-26, details in `docs/CHANGELOG.md`. Creating the GitHub repo and pushing is done by the user
 
-- [x] 오디오 3: 저작 도구 (MealKit-Audio v0.2.0 `MealKitAudio`: SDL3 + Dear ImGui, 형식 `assets/sounds.events`, 라이브 서비스 `audio/`, `upgrade_project.ps1`이 `sounds.table`을 옮긴다) — 2026-10-26 (v0.5.2), 상세는 `docs/CHANGELOG.md`. 그 뒤 공간 음향·인터랙티브 음악(4단계 항목)은 런타임과 저작 도구 저장소에서 만든다
+- [x] Audio 3: authoring tool (MealKit-Audio v0.2.0 `MealKitAudio`: SDL3 + Dear ImGui, format `assets/sounds.events`, live service `audio/`, `upgrade_project.ps1` migrates `sounds.table`) — 2026-10-26 (v0.5.2), details in `docs/CHANGELOG.md`. After that, spatial audio and interactive music (stage 4 item) are built in the runtime and authoring tool repo
 
-- [ ] UI 1: 엔진 안에서 UI 런타임 층 나누기 (`.ui` 읽기·Penpot 방식 레이아웃·글자 배치·뷰 모델 바인딩을 `engine/libs/`의 MealKit 헤더 없는 라이브러리로, 출력은 그릴 사각형·글자 목록. 엔진 `mealkit/ui/`는 접착층: 그 목록을 `render::Renderer`로 그리기, 아틀라스, 에셋 경로, `Reflect` 뷰 모델, [UI] 패널. 지금 렌더러에 닿는 곳은 `ui/Atlas.cpp`·`ui/Document.cpp`·`ui/Ui.cpp`. `check_libs.ps1` 검사, 게임 API(`ctx.ui`)·`.ui` 형식·`--ui-check`/`--ui-render` 결과 그대로)
+- [ ] UI 1: splitting the UI runtime layer inside the engine (`.ui` reading, Penpot-style layout, text layout, and view model binding as a library in `engine/libs/` without MealKit headers, outputting lists of rectangles and glyphs to draw. The engine's `mealkit/ui/` is the glue layer: drawing those lists with `render::Renderer`, atlases, asset paths, `Reflect` view models, the [UI] panel. Places that currently touch the renderer are `ui/Atlas.cpp`, `ui/Document.cpp`, `ui/Ui.cpp`. Checked by `check_libs.ps1`; game API (`ctx.ui`), `.ui` format, and `--ui-check`/`--ui-render` results unchanged)
 
-- [ ] UI 2: UI 런타임을 별도 저장소로 (오디오 2 방식: 혼자 빌드·시험·CI, 엔진은 `third_party/`에 버전 고정 + 로컬 체크아웃 CMake 변수, Penpot 플러그인도 같이 옮길지 그때 정한다). 다른 엔진·툴에서 쓸 곳이 생길 때 한다. 그 전에는 UI 1의 층 나누기만으로 경계를 지킨다
+- [ ] UI 2: the UI runtime in a separate repo (the Audio 2 approach: standalone build, tests, CI; the engine pins a version in `third_party/` + a local checkout CMake variable; whether to move the Penpot plugin too is decided then). Done when another engine/tool wants to use it. Until then, only UI 1's layer split keeps the boundary
 
 ---
 
-## 추천 순서 요약
+## Recommended order summary
 
-0. ~~범용 에디터 + 게임 DLL 핫 리로드~~ → ~~`sim/`·`view/` 구조 + 결정론 검사~~ → ~~기본 도구(Pool·틱 이벤트·틱 타이머·GameContext)~~ → ~~오브젝트 타입 + 인스펙터 필드~~ → ~~튜닝 값 데이터화~~ → ~~상태 필드 한 번 선언~~ → ~~결정론 수학 유틸~~ → ~~플레이어·캐릭터 분리(빙의)~~ → ~~씬 트리 계층~~ → ~~자동 저장~~ → ~~여러 명 플레이~~ → ~~그림자 시뮬레이션~~ → ~~되감기~~ → ~~검증 스크립트~~ → ~~프로젝트 업그레이드 + 엔진 버전~~ → ~~코드 서식~~ **(v0.4 완료)**
-1. ~~프로젝트 설정~~ → ~~프로젝트 관리자·에디터 언어·exe 아이콘~~ → **위험 확인**(~~최소 사양 실기·다른 PC 결정론·clang-cl 비교~~ → ~~Steam 실검증~~ + ~~온라인 서비스 계층~~) → ~~**플랫폼 계층**(+ POSIX 최소 구현)~~ → ~~헤드리스 시뮬레이션(+ 입력 기록 재생, Linux·macOS 빌드)~~ → ~~CI 빌드 매트릭스(OS·CPU 사이 해시 비교)~~ → ~~라이선스(MIT)~~ → ~~공개 범위 결정~~ → ~~문서 저장소~~ → **데이터 분리**(화면용 튜닝 + 시간 값 초 → 프로젝트 폴더 구조 강제 → 예제 데이터 분리 정리 → 정의 데이터 표) → 기준 샘플 규칙 → 오디오 → 이벤트 → 연출 표 → 입력 액션 매핑 → 게임패드 → 확정 명령 채널 → 디버그 UI(ImGui) → 로컬라이제이션 → 게임 UI(`.ui` 런타임 + 미리보기 패널) → 설정 시스템 + 표준 설정 화면 → 세이브(진행 데이터) → 매치 시작 데이터(로드아웃) → ~~코드 정리 1·2(매치 데이터 한 곳, 옵션 하나)~~ → ~~기본 화면 흐름(+ LAN 방 찾기, 텍스트 채팅)~~ → ~~네트워크 흉내~~ → ~~플레이어용 네트워크 표시~~ → ~~입력 지연 자동 조절~~ → ~~내 캐릭터 겉모습 예측~~ → ~~접근성 기본~~ → ~~틱레이트 설정~~ → ~~버전 표시·접속 거부 이유~~ **(v0.5 완료)**. v0.5를 막지 않음: 게임 코드용 시나리오 테스트(4단계 맨 앞으로 옮김). ~~Penpot 플러그인 + 가져오기 서버 → 배치·픽셀 비교 검사~~. 디자이너가 생기면: 기본 화면 템플릿의 Penpot 원본
-2. ~~RHI 층(DX12 + Vulkan)~~(이후 그래픽 항목은 두 백엔드 같이) → ~~벤치마크 모드(+ GPU 예산, 메모리 숫자)~~ → ~~셰이더 핫 리로드~~ → ~~프러스텀 컬링~~ → ~~에셋 핫 리로드~~ → ~~Blender 애드온~~ → ~~에셋 예산 경고~~ → ~~그래픽 회귀 테스트~~ → ~~GPU 캡처·보기 모드~~ → ~~텍스처·머티리얼 1부(텍스처 캐시, glTF PBR)~~ → ~~스타일 프리셋~~ → ~~룩데브~~ → ~~하늘 HDRI·환경광~~ → ~~반사 프로브~~ → ~~점광원~~ → ~~그림자~~ → ~~스켈레탈 애니메이션(+ 시뮬레이션용 포즈 샘플링)~~ → ~~파티클(자체 런타임)~~ → ~~포스트 프로세싱(우버 패스 + LUT)~~ → ~~동적 해상도~~ **(v0.6 완료)**
-- 에디터 다듬기(2단계 다음, 3단계 앞): 레이아웃 → 로그 콘솔 → 알림 → 명령 팔레트 → 환경설정·F1 → 씬 트리 찾기 → 다중 선택 → 뷰포트 툴바 → 스냅 → 카메라 조작 → 인스펙터 편의 → 성능 패널 → 코드로 이동 → 디버그 그리기 → 씬 여러 개 → 여기서 플레이 → 에셋 브라우저 **(v0.6.x)**
-3. ~~리플레이~~ → ~~디싱크 진단~~ → ~~중간 참가~~ → ~~버그 리포트 묶음~~ → ~~호스트 이전~~ → ~~EOS 백엔드 1부~~ → 크래시 리포트(4단계에서 당김) **(v0.7)**. v0.7을 막지 않음: EOS 실측(PC 두 대·포털 설정). 첫 게임 장르가 맞으면: 한 PC 여러 명
-4. ~~소스 모듈 시스템 ①~⑧(엔진 연동, `module.ps1`, `cooldown`, 레지스트리 `MealKit-Modules`, 에디터·Manager 목록, 사이트, 문서)~~ → 게임 코드용 시나리오 테스트(1단계에서 옮김) → 프로젝트 namespace 정리 → 게임 흐름 프레임워크 → 소스 모듈 ⑨ 나머지 첫 모듈(기본 오브젝트 → 체력·데미지 → 절차적 생성 → 인벤토리 → 미니맵) → 캐릭터 이동 모드(키네마틱 → 플로팅 → 액티브 래그돌) → 가상 카메라 + 컷신 → AI 길찾기 → 프리팹 → 지형(+ 뿌리기 브러시) → Job System → 공간 음향·인터랙티브 음악 → 업적·리더보드(온라인 서비스) → 에셋 쿠킹 + 팩 파일 → 프로젝트 템플릿 여러 종류 → 쿡북 **(v0.8)**
-5. 플랫폼 사이 결정론(실기기) → Linux·Steam Deck(Vulkan, 에디터 포함) → macOS(Metal, 에디터 포함) → 크로스플레이 **(v0.9)** → 약속 고정 **(v1.0)** → 2군: Android·iOS → 웹(WebGPU) → 콘솔(개발 키트가 생기면, Xbox → PlayStation → Switch)
-- 도구 제품군(단계와 따로, 시작은 사용자가 정함): ~~도구 사이 약속~~ → ~~오디오 1(엔진 안 층 나누기)~~ → ~~오디오 2(별도 저장소)~~ → ~~오디오 3(저작 도구)~~ → UI 1(엔진 안 층 나누기) → 다음 도구. UI 2(별도 저장소)는 쓸 곳이 생길 때
+0. ~~General-purpose editor + game DLL hot reload~~ → ~~`sim/`/`view/` structure + determinism check~~ → ~~basic tools (Pool, tick events, tick timers, GameContext)~~ → ~~object types + inspector fields~~ → ~~tuning values as data~~ → ~~declaring state fields once~~ → ~~deterministic math utils~~ → ~~player/character separation (possession)~~ → ~~scene tree hierarchy~~ → ~~autosave~~ → ~~multiplayer play~~ → ~~shadow simulation~~ → ~~rewind~~ → ~~verification script~~ → ~~project upgrade + engine version~~ → ~~code formatting~~ **(v0.4 done)**
+1. ~~Project settings~~ → ~~project manager, editor language, exe icon~~ → **risk checks** (~~minimum spec hardware, cross-PC determinism, clang-cl comparison~~ → ~~real Steam verification~~ + ~~online service layer~~) → ~~**platform layer** (+ minimal POSIX implementation)~~ → ~~headless simulation (+ input recording playback, Linux/macOS builds)~~ → ~~CI build matrix (hash comparison across OS/CPU)~~ → ~~license (MIT)~~ → ~~publication scope decision~~ → ~~docs repo~~ → **data separation** (view tuning + time values in seconds → enforcing the project folder layout → sample data separation cleanup → definition data tables) → reference sample rules → audio → events → feedback table → input action mapping → gamepads → confirmed command channel → debug UI (ImGui) → localization → game UI (`.ui` runtime + preview panel) → settings system + standard settings screen → saves (progress data) → match start data (loadouts) → ~~code cleanup 1·2 (match data in one place, one options struct)~~ → ~~default screen flow (+ LAN room discovery, text chat)~~ → ~~network simulation~~ → ~~player-facing network display~~ → ~~automatic input delay adjustment~~ → ~~predicting my character's appearance~~ → ~~accessibility basics~~ → ~~tick rate setting~~ → ~~version display and connection refusal reasons~~ **(v0.5 done)**. Not blocking v0.5: scenario tests for game code (moved to the very start of stage 4). ~~Penpot plugin + import server → layout/pixel comparison checks~~. When a designer appears: Penpot sources for the default screen templates
+2. ~~RHI layer (DX12 + Vulkan)~~ (later graphics items on both backends together) → ~~benchmark mode (+ GPU budget, memory numbers)~~ → ~~shader hot reload~~ → ~~frustum culling~~ → ~~asset hot reload~~ → ~~Blender add-on~~ → ~~asset budget warnings~~ → ~~graphics regression tests~~ → ~~GPU capture/view modes~~ → ~~textures/materials part 1 (texture cache, glTF PBR)~~ → ~~style presets~~ → ~~look dev~~ → ~~sky HDRI/ambient light~~ → ~~reflection probes~~ → ~~point lights~~ → ~~shadows~~ → ~~skeletal animation (+ pose sampling for the simulation)~~ → ~~particles (own runtime)~~ → ~~post-processing (uber pass + LUT)~~ → ~~dynamic resolution~~ **(v0.6 done)**
+- Editor polish (after stage 2, before stage 3): layout → log console → notifications → command palette → preferences/F1 → scene tree search → multi-select → viewport toolbar → snapping → camera controls → inspector conveniences → performance panel → jump to code → debug drawing → multiple scenes → play from here → asset browser **(v0.6.x)**
+3. ~~Replays~~ → ~~desync diagnosis~~ → ~~mid-match joining~~ → ~~bug report bundles~~ → ~~host migration~~ → ~~EOS backend part 1~~ → crash reports (pulled from stage 4) **(v0.7)**. Not blocking v0.7: EOS measurements (two PCs, portal setup). If the first game genre fits: local multiplayer on one PC
+4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → scenario tests for game code (moved from stage 1) → project namespace cleanup → game flow framework → source modules ⑨ remaining first modules (basic objects → health/damage → procedural generation → inventory → minimap) → character movement modes (kinematic → floating → active ragdoll) → virtual cameras + cutscenes → AI pathfinding → prefabs → terrain (+ scatter brush) → Job System → spatial audio/interactive music → achievements/leaderboards (online services) → asset cooking + pack files → multiple project templates → cookbook **(v0.8)**
+5. Cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v0.9)** → contracts frozen **(v1.0)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
+- Tool suite (separate from stages, start decided by the user): ~~contract between tools~~ → ~~Audio 1 (layer split inside the engine)~~ → ~~Audio 2 (separate repo)~~ → ~~Audio 3 (authoring tool)~~ → UI 1 (layer split inside the engine) → next tool. UI 2 (separate repo) when a use appears
 
-각 기능을 끝낼 때 확인할 것: Release 빌드 경고 없음, `mp_test.ps1 -Clients 3 -Ticks 900` PASS, 최소 사양(11세대 Xe) 내장 그래픽에서 예산 안, 기준 샘플에서 실제로 씀, `platform/`·RHI 밖에 OS·그래픽 API 호출 없음, CI의 모든 빌드에서 틱별 해시 같음, (2단계부터) Vulkan 백엔드에서도 같은 그림, 문서 저장소에 영어·한국어로 반영(`tools/build.py check` 통과),
-새 외부 라이브러리는 `third_party/<lib>/`에 `LICENSE`와 `mealkit.txt`를 두고 `tools\gen_notices.ps1`로 `third_party/VERSIONS.txt`(외부 라이브러리 표 정본)와 `THIRD_PARTY_NOTICES.txt`를 다시 만든다.
+What to check when finishing each feature: no Release build warnings, `mp_test.ps1 -Clients 3 -Ticks 900` PASS, within budget on minimum spec (11th gen Xe) integrated graphics, actually used in a reference sample, no OS/graphics API calls outside `platform/`/RHI, per-tick hashes match in every CI build, (from stage 2) the same image on the Vulkan backend too, reflected in the docs repo in English and Korean (`tools/build.py check` passes),
+and new external libraries get `LICENSE` and `mealkit.txt` in `third_party/<lib>/`, then `third_party/VERSIONS.txt` (the canonical external library table) and `THIRD_PARTY_NOTICES.txt` are regenerated with `tools\gen_notices.ps1`.

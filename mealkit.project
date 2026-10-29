@@ -1,4 +1,4 @@
-# MealKit project (경로 값): 엔진 저장소 자신도 예제 게임(samples/sandbox) 프로젝트로 열 수 있다.
+# MealKit project (path value): the engine repo itself can also be opened as the sample game (samples/sandbox) project.
 @format project 1
 name sandbox
 scene scenes/arena.scene

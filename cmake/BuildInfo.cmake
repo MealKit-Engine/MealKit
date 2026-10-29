@@ -49,7 +49,7 @@ if(GIT_FOUND)
     endif()
 endif()
 
-set(text "// 만든 파일 (cmake/BuildInfo.cmake, 빌드마다). 고치지 않는다.\n#pragma once\n#define MEALKIT_BUILD_GAME_VERSION \"${version}\"\n#define MEALKIT_BUILD_COMMIT \"${commit}\"\n#define MEALKIT_BUILD_SIM_VERSION 0x${sim}ull\n")
+set(text "// Generated file (cmake/BuildInfo.cmake, every build). Don't edit.\n#pragma once\n#define MEALKIT_BUILD_GAME_VERSION \"${version}\"\n#define MEALKIT_BUILD_COMMIT \"${commit}\"\n#define MEALKIT_BUILD_SIM_VERSION 0x${sim}ull\n")
 set(old "")
 if(EXISTS "${OUT}")
     file(READ "${OUT}" old)

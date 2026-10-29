@@ -1,4 +1,4 @@
-# MealKit 게임 프로젝트 편집기 설정 (엔진과 같은 규칙). C++ 서식 규칙은 .clang-format.
+# MealKit game project editor settings (same rules as the engine). C++ formatting rules are in .clang-format.
 root = true
 
 [*]

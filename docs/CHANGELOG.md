@@ -1,1302 +1,1301 @@
-# MealKit 변경 기록
-
-끝낸 로드맵 항목의 구현 상세(무엇을 만들었고, 왜, 어떻게, 남은 것). 앞으로의 계획과 순서는 `docs/ROADMAP.md`, 설계 답은 `docs/CODING_MODEL.md`. 결정의 이유와 넣지 않거나 미룬 기능은 `docs/DECISIONS.md`.
-로드맵 항목을 끝내면 상세를 여기로 옮기고 ROADMAP에는 한 줄만 남긴다. 최신 버전이 위에 온다.
-
-## v0.5.4 이후 — 3단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
-
-### 텍스트 파일 실수 출력 정리 (2026-10-29)
-- 필드 텍스트(`.table`·`.tuning`·`mealkit.project`·씬 물체 필드, `reflect::toText`)와 `.scene` 줄의 실수를 `%.9g`(`0.400000006`) 대신 다시 읽으면 같은 float가 되는 가장 짧은 표현(`0.4`, `std::to_chars`)으로 쓴다: `text::writeFloats`(`core/TextFormat.h`). -0은 0으로 쓴다.
-- 읽는 쪽과 형식 버전은 그대로라 예전 파일도 읽히고 값은 비트 단위로 같다. 저장하면 줄이 짧아져 diff가 한 번 크게 난다. 테스트 `core/text_floats`(무작위 비트 2000개 왕복).
-
-### [ ] 3단계: EOS 백엔드 — 1부 (2026-10-28, 항목 진행 중)
-- **백엔드** (`online/OnlineEOS.cpp`, `Backend::EOS`): `EOS_Initialize` + `EOS_Platform_Create`(오버레이 끔) → EOS Connect **기기 ID** 로그인(처음이면 기기 ID·사용자 만들기, `init`이 최대 15초 기다린다). 표시 이름은 OS 사용자 이름. EOS 로그는 경고 이상만 엔진 로그로.
-- **주소**: `net::Address::steamId`를 `userId`(온라인 백엔드 사용자 id)로 바꿨다. EOS는 Product User ID 문자열의 FNV-1a 64비트 해시이고, 백엔드가 해시 → id 표를 로비 멤버·받은 패킷·연결 요청에서 채운다. 승계 목록 패킷 형식은 그대로(u64).
-- **로비**: `createLobby`는 공개 광고 로비(버킷 `mealkit`, presence 끔) + 속성 `MKCODE`에 여섯 자리 무작위 코드. `lobbyId()`가 그 코드이고 `joinLobby(코드)`·`--steam-join <코드>`가 속성 검색으로 들어간다. Epic 계정이 없으면 친구 목록이 없어 `inviteFriends`는 코드를 로그에 쓴다. 소유자·멤버 수는 매 `update`에 SDK 로컬 사본에서 읽고, `setLobbyOwner`는 `EOS_Lobby_PromoteMember`.
-- **전송**: EOS P2P(소켓 `mealkit`, 채널 0, 비신뢰·순서 없음, 연결 중 지연 전달 허용), 연결 요청은 모두 받는다. EOS P2P 상한이 1170바이트라 락스텝 `kMaxPacket`을 1200 → 1170으로 낮췄다(스냅샷 조각 1100 + 머리는 그 안).
-- **빌드**: CMake `MEALKIT_ONLINE`(Auto·Steam·EOS·None, Auto는 Steam 먼저). EOS는 `third_party/eos/sdk` + `third_party/eos/credentials.txt`(포털 값 다섯 개, "이름: 값") → 빌드 폴더 `generated/EosCredentials.h`. `build.bat EOS` = `build\EOS`. DLL은 exe 옆·출시 폴더에(`MEALKIT_EOS_DLL`). `third_party/eos/`는 `.gitignore`, 레이아웃 검사·고지문 도구는 Steamworks처럼 저장소 밖 SDK로 본다.
-- **Steam 계정 로그인** (Steam SDK도 있으면 `MEALKIT_EOS_STEAM=1`): `SteamAPI_Init` → `GetAuthTicketForWebApi("epiconlineservices")` → 16진 문자열로 `EOS_ECT_STEAM_SESSION_TICKET` 로그인, 이름은 Steam 이름. Steam이 없거나 실패하면(포털에 Steam 공급자 없음 = `EOS_Connect_ExternalServiceConfigurationFailure`) 경고 뒤 기기 ID. 초대는 `ActivateGameOverlayInviteDialogConnectString("+connect_lobby <코드>")`, 로비에 있는 동안 rich presence `connect`, 실행 중 수락은 `GameRichPresenceJoinRequested_t` → `takeJoinRequest`. `steam_api64.dll`·`steam_appid.txt`도 EOS 빌드에 놓인다. 매치 전송은 EOS 하나.
-- **GameMain**: 백엔드가 None이 아니면 로그인하고, `--steam`·`--steam-join`을 주면 자동 실행(`--frames`)이어도 로그인한다.
-- **확인**: `build\EOS\bin\sandbox.exe --steam --frames 900` → 실제 포털 값으로 로그인, 로비 만들기·코드 설정까지. Steam 실행 중: 티켓을 받아 EOS에 보냈고, 포털에 Steam 공급자가 없어 Epic이 `steam configuration not found`로 거절 → 기기 ID로 이어서 로비까지 됐다(Steam 로그인 성공 자체는 포털 설정 뒤에 확인). `check.ps1` 전체: 실패 셋(골든 이미지, Vulkan = DX12 캡처, 실패 때 옛 DLL 유지)은 이 변경 전 HEAD에서도 같이 실패한다.
-- **남은 것 (이 항목)**: 다른 PC에서 참가(한 OS 사용자 = 기기 ID 하나라 같은 PC 두 프로세스는 같은 사용자), 릴레이 RTT·4인 대역폭 측정, 호스트 이전 때 로비 소유자, Steam 로그인·초대 실제 확인(포털 Identity Providers에 Steam, 내 Steam 앱 필요), `mp_test` EOS 시나리오.
-
-### [x] 3단계: 호스트 이전 (완료 2026-10-28)
-- **승계 목록** (`net::LockstepSession`, 패킷 `Succession`): 호스트가 1초마다(매치 시작 때 바로) 자신·클라이언트·매치 중 끊긴 사람의 번호·연결·토큰·이름·주소를 보낸다. 다음 호스트는 목록에서 지금 호스트를 뺀 첫 연결자다. 투표 없이 모두 같은 답이다.
-- **알아채기**: 호스트가 세션을 닫으면(`shutdown`, 나가기·창 닫기) `Disconnect` 대신 마지막 목록 + `Handoff`. 튕기면 매치가 흐르는 중(이번 매치 묶음에 틱이 실려 온 뒤) 호스트 침묵 3초(`kHostLost`), 로비·매치 시작 로딩은 지금처럼 10초(호스트가 로딩으로 몇 초 멈춰도 넘어가지 않게). 내가 0.5초 넘게 update를 못 했으면(내 로딩) 그동안은 침묵으로 세지 않는다. 승계자가 먼저 호스트가 되어 보낸 패킷이 오면(Handoff를 놓쳤다) 바로 넘어간다. `end()`의 `Disconnect`는 그대로 세션을 끝낸다.
-- **넘어가기** (`migrate`): 클라이언트는 승계자 주소로 다시 붙어 옛 호스트가 확인했지만 확정하지 못한 내 입력부터 다시 보낸다. 승계자는 `becomeHost`: 목록의 연결자로 피어를 만들고(끊긴 사람·옛 호스트는 `departed`라 같은 토큰으로 다시 들어오면 그 슬롯), 옛 호스트와 목록에 없던 접속자의 슬롯에 끊김 `Presence`를 붙인다.
-- **틱 이어 붙이기**: 새 호스트는 1초(`kMigrateHold`) 동안 스스로 확정하지 않고 모든 피어의 첫 입력 패킷(그 피어의 확정 끝)을 기다린다. 더 앞선 피어에게 `TickRequest`를 보내 `TickFill`(틱마다 8명 입력 + 명령)로 받아 그대로 확정한다. 옛 호스트가 정한 틱이라 피어마다 같다. 그 뒤 확정을 이어 가고, 피어마다 그 피어의 확정 끝부터 묶음을 보낸다. 해시 비교·중간 참가·입력 지연 자동 조절은 같은 코드.
-- **호스트 번호**: 이어받은 호스트는 0번이 아닐 수 있어 로비 목록·핑·빈 번호·클라이언트의 "호스트를 기다림" 표시를 `localPlayer`/`hostPlayer`로 고쳤다. 다음 매치(`startMatch`)에서 호스트는 다시 0번.
-- **Steam 로비 소유자** (`online::Service::setLobbyOwner`): 호스트가 나갈 때 로비 소유를 승계자에게 넘기고, Steam이 다른 사람을 고르면 그 사람이 락스텝 호스트에게 넘긴다(`MatchService::update`). Steam 백엔드는 컴파일만 확인했다.
-- **API**: `hostMigrations()`, `hostAddress()`, `successorAddress()`. 시험 옵션 헤드리스 `--abort-host-at <틱>`(처음 이어받은 호스트가 세션을 닫지 않고 끝난다).
-- **확인**: `mp_test.ps1 -Headless -Clients 3 -Ticks 3000 -HostLeave` — 호스트가 750틱에 나가고(Handoff) 이어받은 사람이 1500틱에 튕겨, 남은 두 클라이언트가 3000틱에 같은 해시이고 둘 다 두 번 넘어갔다. `-Lag 80 -Jitter 20 -Loss 3`에서도 통과(흉내 지연 큐에 있던 Handoff는 프로세스와 같이 사라져 3초 판정으로 넘어갔다). `check.ps1` det 묶음 "Host migration".
-- **남은 것**: 직접 UDP는 LAN만 보장(클라이언트끼리 NAT를 뚫지 않는다). 새 호스트는 LAN 방 알림(`net/Rooms.h`)을 다시 열지 않는다(매치 중에는 알림이 없으므로 로비로 돌아간 뒤 새 사람이 방 목록으로는 못 찾는다, 주소로는 들어온다). 옛 호스트가 받아 확인했지만 묶음에 싣지 못한 확정 명령은 잃는다. 호스트가 3초 넘게 멈췄다 돌아오면(창 끌기 등) 혼자 남는다. 따라잡는 중인 중간 참가자는 넘어가지 못하고 끝난다. 창 있는 게임·에디터 여러 명 플레이로 따로 돌려 보지 않았다(같은 세션 코드).
-
-### [x] 3단계: 버그 리포트 묶음 (완료 2026-10-28)
-- **남기기** (`game/BugReport.h`): 게임 exe에서 F9 → 개발 빌드는 한 줄을 적는 ImGui 창(Enter 저장, Esc 취소), 출시 빌드(ImGui 없음)는 글 없이 → 스크린샷을 요청하고 다음 프레임에 사용자 폴더 `bugreports/YYYY-MM-DD_HH-MM[-n].zip`을 쓴다. 안에 `replay.rec`(매치 중 리플레이 기록 `current.rec` 그대로, 매치 밖이면 없음), `info.txt`(엔진·게임 버전, 커밋, 시뮬레이션 버전, 결정론 그룹, 콘텐츠 해시, 씬·튜닝, 틱, 인원, CPU, 글), `log.txt`(`log::recentLines`, 최근 2000줄), `screenshot.png`.
-  프로젝트 설정 `bugReports`(기본 켬)로 끈다. 시험용 `--bug-report-at <프레임>`.
-- **zip** (`core/Zip.h`): 압축 없는 zip 쓰기·읽기 + CRC32를 직접 썼다(스크린샷 PNG·기록은 이미 작거나 압축돼 있어 deflate 라이브러리를 들이지 않았다). 탐색기·7-Zip으로 열린다. 읽기는 압축 없는 항목만.
-- **기록 읽기**: `InputRecordWriter`가 틱마다 `fflush`하고, Windows `openFile`이 공유 모드(`_wfsopen` `_SH_DENYNO`, POSIX와 같게)로 연다. 그래서 쓰는 중인 기록을 묶을 수 있고, 튕겨도 그 틱까지 남는다.
-- **보기**: 에디터 [파일] > [리플레이 열기](필터에 `.zip`)·`--replay <zip>`이 `replay.rec`를 `build/<Editor>/play/`에 꺼내 혼자 플레이로 재생하고, 기록이 끝난 틱(F9를 누른 때)에서 일시정지한다. 글은 알림으로, info는 로그로. 데이터가 다르면 리플레이와 같은 경고.
-- **확인**: `sandbox.exe --bot --frames 200 --bug-report-at 150 --record-inputs x.rec` → zip(39틱) → 에디터 `--replay <zip>`이 38틱에서 멈춘 캡처. 단위 테스트 `core zip_files`, `game bug_report`.
-- **남은 것**: F9는 엔진 키(F12처럼 `window.input()`)라 입력 바인딩 표에 없다. 출시 빌드에서 글 적기(게임 UI `.ui` 창), 리포트 보내기(업로드)는 없다. 에디터 혼자 플레이 중 F9는 없다(에디터는 리플레이가 이미 남는다).
-
-## v0.5.4 — 3단계: 중간 참가와 재접속 (2026-10-28)
-
-- **끊김**: 매치 중에 누가 나가거나(끊김 패킷) 10초 동안 소식이 없으면 매치를 끝내지 않고 그 사람만 뺀다. 호스트는 그 슬롯의 입력을 기다리지 않고(`requiredFrom`) 빈 입력으로 확정하며, 엔진 확정 명령 `mealkit.net.Presence`(끊김)를 보내 모든 피어가 같은 틱에 안다. 호스트가 끊기면 지금처럼 끝난다(호스트 이전은 다음 항목).
-- **들어오기** (`net::LockstepSession`): 매치 중 접속 요청은 끊긴 사람(같은 세션 토큰, 아니면 같은 이름)이면 그 슬롯, 아니면 빈 슬롯(`maxPlayers`까지). 같은 이름인데 예전 연결이 1초 넘게 조용하면 예전 연결을 끊은 셈 친다(알리지 못하고 꺼졌다가 다시 켠 경우).
-  호스트는 Presence(접속 + 로드아웃) 명령을 보내고 게임에게 스냅샷을 달라고 한다(`snapshotWanted` → `provideSnapshot(틱, 바이트)`, `game::Simulation`이 틱 사이에 준다). LZ4(`third_party/lz4` v1.10.0, `core/Compress.h`)로 압축해 1100바이트 조각으로 보낸다(확인 안 받은 것 32조각까지, 순서가 바뀌어도 받아 두고, 0.25초 동안 확인이 나아가지 않으면 확인받은 곳부터 다시).
-  다른 사람은 멈추지 않는다. 들어오는 사람에게 보낼 확정 틱은 링 버퍼(256틱)에서 밀려나도 `joinLog`에 남겨 둔다. 묶음 패킷은 플레이어 수(`width`)를 싣는다(중간에 늘 수 있다).
-- **따라잡기**: 클라이언트는 스냅샷을 다 받을 때까지 접속 중(Connecting)으로 있다가 `joinTick()`부터 Running. `Simulation`이 첫 update에서 `takeJoinSnapshot`으로 World를 바꾸고(물리 바디는 모두 지우고 스냅샷의 것으로: 같은 id에 다른 바디가 있을 수 있다), `catchingUp()` 동안 한 프레임에 240틱까지 돌린다. 내 입력은 따라잡은 뒤부터 보내고, 호스트는 그 입력의 첫 틱부터 기다린다. 해시가 다르면 이어서 오는 해시 보고로 디싱크가 난다.
-- **스냅샷 바이트**: `physics::PhysicsSnapshot::write/read`(바디 id·`BodyDesc`·Jolt 모양 `SaveWithChildren`(같은 모양은 한 번)·id 할당·`SaveState`), `PhysicsWorld::clearBodies`, `game::writeSnapshotBytes/readSnapshotBytes`.
-- **게임 쪽**: `sim::readPresence(command, p)`(`sim/Commands.h`, `p.readLoadout(T&)`), `sim::Pool::grow`(매치 중 용량 늘리기, 스냅샷에 들어간다), `LockstepSession::connectedMask()`. sandbox: 새 슬롯이면 컨트롤러를 만들고(다음 틱 Pawn), 끊긴 사람의 Pawn을 지우고 다시 들어올 때까지 리스폰하지 않는다. 로드아웃 `Loadout`을 `app/`에서 `sim/Loadout.h`로 옮겼다(시뮬레이션이 Presence의 로드아웃을 읽는다). 템플릿 코드가 바뀌어 버전을 올린다.
-- **옵션**: `--name <이름>`(게임·헤드리스 로비 이름, 재접속 시험).
-- **확인**: `mp_test.ps1 -Headless -Clients 2 -Ticks 3000 -LateJoin` — 클라이언트 1(`--name c1`)이 750틱에 나가고 1.5초 뒤 같은 이름으로 다시 들어오고, 시작 1.5초 뒤 새 클라이언트가 빈 슬롯으로 들어와 모두 3000틱에 같은 해시. `-Lag 80 -Jitter 20 -Loss 3`에서도 통과(스냅샷 약 0.5 MB 압축, 받는 데 약 6초). `check.ps1` det 묶음 "Late join + rejoin". 단위 테스트 `physics physics_snapshot_bytes`.
-- **남은 것**: sandbox 스냅샷이 크다(물리 상태 약 0.7 MB → 압축 0.5 MB, 먼 상대는 몇 초). 들어오는 화면(로딩 진행률), 매치 중 들어오기를 끄는 프로젝트 설정, 끊긴 사람 슬롯을 새 사람에게 넘기기, 녹화(`replays/`)는 0틱부터 본 사람만 남긴다(들어온 사람은 남기지 않는다), 창 있는 게임으로 늦게 들어오는 것은 헤드리스와 같은 코드지만 따로 돌려 보지 않았다.
-
-## v0.5.3 — 템플릿 CLAUDE.md 고침 (2026-10-28)
-
-- 템플릿 `CLAUDE.md`의 "DirectX 12 전용"을 "Windows + DirectX 12(기준)·Vulkan"으로 고쳤다(Vulkan 백엔드가 생긴 뒤 남은 문구). 템플릿을 바꿨으므로 버전을 올린다. `upgrade_project.ps1`이 고치지 않은 프로젝트 `CLAUDE.md`만 바꾼다.
-- 문서 규칙 정리: 엔진 `CLAUDE.md`에 "MINOR가 바뀌면 문서 `ENGINE_VERSION`도", MealKit-docs에 `CLAUDE.md`를 더했고 기여 안내의 엔진 규칙 사본(달라져 있던 것)을 엔진 `CLAUDE.md` 링크로 바꿨다.
-
-## v0.5.3 이후 — 3단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
-
-### [x] 3단계: 디싱크 진단 도구 (완료 2026-10-28)
-- **남겨 두기**: `game::Simulation`이 여러 명 매치(`!session.isOffline()`)이고 `PlayOptions::desyncDumpDir`가 있으면 되감기 기록과 같은 코드로 입력·해시·스냅샷을 남긴다. 스냅샷은 150틱마다 `kKeepDesyncSnapshots` = 3개(되감기는 40개)라 호스트가 알아채는 지연(창 256틱 안)을 덮는다.
-- **덤프** (`game/DesyncDump.h`, 형식 `@format desync 1`): 세션이 `desynced()`를 알리면 한 번, 그 틱 앞 스냅샷을 불러 그 틱까지 다시 돌린 상태(그 틱을 실행한 직후)를 쓰고 지금 상태로 되돌린다. 머리(플레이어·틱·시드·콘텐츠 해시, 문제가 있으면 `note`), `[hashes]` 남은 틱 해시, `[state]` 상태 필드(`reflect::toText`), `[bodies]` 바디마다 위치·회전·속도(`physics::PhysicsWorld::writeState`, `%.9g`). 다시 돌린 해시가 이 피어의 기록과 다르면 note에 "선언하지 않은 상태"를 적는다.
-  파일은 `desync_<시드>_t<틱>_p<플레이어>.txt`, 폴더는 개발 중이면 프로젝트 `build/desync/`, 출시본은 사용자 폴더 `desync/`(`desyncDumpFolder`). 게임 exe·헤드리스·에디터 여러 명 플레이(참가 창 포함)가 쓴다. 매치는 그대로 계속한다.
-- **비교** `tools\desync_diff.ps1 -A <덤프> -B <덤프>`(또는 `-Folder build\desync`: 같은 매치·틱끼리 첫 파일과): 처음 해시가 다른 틱, 값이 다른 상태 필드, 다른 바디(위치·회전·속도 중 무엇이). 종료 코드 0 같음, 1 다름, 2 읽기 실패.
-- **시험**: `--desync-test <틱>`(게임·헤드리스)이 그 틱 전에 처음 만든 움직이는 바디 속도를 0.001 m/s 바꾼다(`PhysicsWorld::nudgeForTest`, 덤프용 다시 돌리기에도 같게). `mp_test.ps1 -Headless -Clients 1 -DesyncTest 200` → 둘 다 디싱크, 덤프 2개, 비교가 200틱과 그 바디를 짚으면 PASS. `check.ps1` det 묶음 "Desync dumps + desync_diff".
-- **남은 것**: 에디터에서 덤프 두 개를 나란히 보기, 바디 이름(씬 물체) 표시, CI의 다른 OS 사이 해시가 다를 때 자동 덤프(지금은 헤드리스 해시 비교만).
-
-### [x] 3단계: 리플레이 저장 (완료 2026-10-28)
-- **기록**: 매치마다 `<사용자 폴더>/replays/current.rec`에 입력 기록(`game/InputRecord.h`, 형식은 `--record-inputs`와 같은 `MKINPUT1` 버전 3: 시드·매치 데이터·로드아웃·콘텐츠 해시 + 틱별 입력·확정 명령·해시)을 이어 쓰고, 매치가 끝나면(로비로·나가기·창 닫기) `keepReplay`가 `YYYY-MM-DD_HH-MM[-n].rec`로 옮기고 최근 `keepReplays`개(프로젝트 설정, 기본 20, 0 = 끔)만 남긴다. 튕겨서 남은 `current.rec`은 다음 실행 때 같은 식으로 남는다(끝까지 읽은 틱만큼). 틱이 없는 기록은 지운다.
-  게임 exe(`GameMain`)와 에디터 혼자 플레이(`PlaySession`, `--bot`은 빼고)가 남긴다. 자동 실행·참가 창(사용자 폴더 없음)과 `--record-inputs`를 준 실행은 남기지 않는다. 에디터 혼자 플레이는 이제 콘텐츠 해시를 계산해 기록에 넣는다.
-- **재생**: `net::LockstepSession::startReplay(시드, 매치 데이터, 로드아웃, 입력, 해시)` — 네트워크 없이 바로 Running, `canExecute`는 기록된 틱까지, `inputs`는 기록에서, 내 입력·명령은 버린다. `tickExecuted`가 기록된 해시와 비교해 처음 다른 틱을 `desynced()`/`desyncTick()`으로 알린다. `game::MatchService::playReplay`가 이것을 부르고, 리플레이 중 `returnToLobby`는 `leave`(메뉴로)다. 시뮬레이션·`startWorld`·화면 코드는 그대로다.
-  - 게임 exe `--replay <파일>`: 콘텐츠 해시가 다르면 경고하고 재생, 갈라지면 `SimDebug::setPaused`로 그 틱에서 멈춘다.
-  - 에디터 [파일] > [리플레이 열기](명령 표, 기본 폴더는 사용자 폴더 `replays/`), `--replay <파일>`: 혼자 플레이로 재생하므로 일시정지·한 틱·되감기·[상태] 패널을 그대로 쓴다. 데이터가 다르면 알림, 갈라지면 멈추고 틱을 알린다.
-- **확인**: 봇 300틱 기록 → 창 `--replay` 최종 해시 같음(`dcdc7fffa20df597`), 튜닝을 바꾸면 경고 후 90틱에서 갈라짐을 알림, 에디터 `--replay` 캡처. 단위 테스트 `net replay_session`, `game replay_files`.
-- **남은 것**: 게임 화면의 리플레이 목록(결과 화면·메뉴, `listReplays`는 있다)과 재생 속도·탐색 UI는 게임 흐름 쪽에서. 에디터 플레이 중 튜닝을 고치면 그 판의 기록은 그 틱부터 갈라진다(되감기 기록처럼 다시 시작하지 않는다). 여러 명 플레이의 에디터 기록. 30분 리플레이는 메모리에 입력을 다 올린다(틱당 약 320바이트, 약 17 MB).
-
-## v0.5.2 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
-
-### [x] 에디터 다듬기: 에디터 에셋 브라우저 (완료 2026-10-28)
-- **[에셋] 창** (`editor/EditorAssets.cpp`, [빌드] > [에셋], 아래 가로 칸 탭): 왼쪽 `assets/` 폴더 트리, 오른쪽 그 폴더의 파일(종류 아이콘, `.autosave` 제외). 모델은 두 번 누르면 카메라 앞에, 씬 뷰로 끌어 놓으면 마우스가 가리키는 곳(맞는 물체 위, 없으면 y = 0)에 모델 물체를 더한다(`handleAssetDrop`, `addModelEntity(path, at)`). 씬은 두 번 눌러 연다.
-- **이름 바꾸기·옮기기** (오른쪽 클릭, `renameAsset`): assets 기준 새 경로(폴더는 만든다)로 파일을 옮기고(`platform` `moveFile`), `assets` 아래 `.scene .tuning .ui .table .fx .events .bindings .txt`와 `mealkit.project`에서 경로를 바꾼다(앞뒤가 경로 글자가 아닌 곳만). 열린 씬은 메모리에서 고친다(저장 안 된 씬 파일은 건드리지 않고 저장할 때 쓴다).
-- **끊긴 참조**: 지금 씬의 모델 경로 중 파일이 없는 것을 창 위에 빨갛게 보여 준다(탐색기에서 바꿨을 때).
-- **확인**: 창·폴더 트리는 캡처로 봤다. 이름 바꾸기와 끌어 놓기는 자동 시험을 하지 않았다(엔진 저장소의 에셋을 옮기지 않으려고).
-- **남은 것**: 모델 미리보기 썸네일, 예산 열(ROADMAP 에셋 예산 항목이 말한 것), 하위 폴더 전체의 끊긴 참조 검사.
-
-### [x] 에디터 다듬기: 여기서 플레이 (완료 2026-10-28)
-- **명령** "Play From Here"(`Shift+F5`, [빌드] > [여기서 플레이]): 혼자 플레이일 때만. `Editor::setMode(Play)`에서 모든 스폰 지점의 월드 변환을 기억하고(`m_spawnBackup`) 한 곳으로 옮긴 뒤, `setMode(Edit)`에서 되돌린다. 씬 파일·되돌리기·저장 표시는 바뀌지 않는다.
-- **자리**: 고른 물체가 스폰 지점이면 그 자리, 아니면 카메라에서 아래로 쏜 광선이 맞는 곳(없으면 y = 0)에서 10 cm 위. 방향은 카메라가 보는 쪽이다. 게임은 시작할 때 씬의 스폰을 읽으므로(`PlaySession`이 `setMode` 뒤에 매치를 시작한다) 그대로 쓴다.
-- **남은 것**: 카메라 북마크에서 시작하기는 북마크로 카메라를 옮긴 뒤 `Shift+F5`로 한다.
-
-### [x] 에디터 다듬기: 씬 여러 개 다루기 (완료 2026-10-28)
-- **[씬 목록] 창** ([파일] > [씬 목록], `Editor::drawSceneList`): `<프로젝트>\assets\scenes`의 `.scene`. ★ = 시작 씬(`mealkit.project`의 `scene`), "(열림)" = 지금 씬. 두 번 누르거나 [열기]로 열고(저장 안 된 변경은 자동 저장본으로 남긴다, `openSceneFile`), [시작 씬으로]는 `ProjectSettingsPanel::setStartScene`이 그 값만 바꿔 바로 저장한다(창에서 고치는 중인 다른 값은 저장하지 않는다).
-- **최근 씬** ([파일] > [최근 씬]): 프로젝트마다 `build\editor\recent_scenes.txt`, 열거나 저장한 씬 8개까지(없어진 파일은 뺀다). 명령 팔레트의 씬 열기도 같은 `openSceneFile`.
-- **남은 것**: 하위 폴더의 씬은 목록에 없다(`assets/scenes` 바로 아래만).
-
-### [x] 에디터 다듬기: 디버그 그리기 API (완료 2026-10-28)
-- **API** (`debug/DebugDraw.h`): `debug::line(a, b, 색, 초)`, `debug::box(중심, 반 크기, 회전, 색, 초)`(모서리 12개), `debug::text(위치, 글자, 색, 초)`. 초 0 = 다음에 그리는 한 프레임. 색은 sRGB RGBA8(`kYellow`·`kRed`·`kGreen`·`kBlue`).
-- **결정론**: 요청을 잠금 있는 목록에 쌓기만 하고 시뮬레이션이 읽는 값은 없다. 그래서 게임 `sim/`에서 불러도 된다(SimCheck가 막지 않는 `mealkit/debug/`). 되감기·그림자 시뮬레이션이 같은 틱을 다시 돌리면 겹쳐 그려질 수 있다. 최대 20,000개.
-- **빌드**: `MEALKIT_DEBUG_UI` 빌드(에디터, 개발 게임 exe)에만 `DebugDraw.cpp`가 들어간다. 출시(Export)·헤드리스는 헤더의 빈 inline이라 호출이 빠진다.
-- **그리기** (`debug/DebugDrawRender.h` `flushDebugDraw`): 게임 exe(`GameMain`)와 에디터 플레이(`PlaySession::buildFrame`)가 게임 `buildFrame` 다음에 부른다. 선은 두께 3 cm 상자 인스턴스(깊이 있음), 글자는 ImGui 앞 그리기 목록이다(게임 exe는 F1 디버그 UI가 켜져 있을 때만).
-- **확인**: sandbox에 잠시 상자·선·글자를 넣어 에디터 플레이 캡처로 보고 되돌렸다. 샘플 코드에는 쓰는 곳을 남기지 않았다.
-
-### [x] 에디터 다듬기: 에러·오브젝트에서 코드로 이동 (완료 2026-10-28)
-- **`editor/CodeLink`**: `parseFileLine`(MSVC `a.cpp(27):`, clang·일반 `a.cpp:27:` 모양, 소스 확장자만), `openInCodeEditor`(환경설정 "코드 편집기", 기본 `code`, `-g 파일:줄`. `.exe`가 아니면 `cmd /c`로 부른다), `findInHeaders`(폴더 아래 `.h`에서 글자 찾기, `build`·점 폴더 제외).
-- **빌드 로그**: 줄마다 그리게 바꿨다(`ImGuiListClipper`). 파일·줄이 있는 줄은 파란색이고 누르면 연다(상대 경로는 프로젝트 폴더 기준). **[로그] 창**도 같은 줄을 누르면 연다.
-- **인스펙터 [코드 열기]**: 게임 종류(엔진 기본 종류 제외)면 종류 아래 버튼. 프로젝트 `source\`, 엔진 저장소면 `samples\`에서 `MEALKIT_OBJECT(<이름>)`를 찾아 연다. 못 찾으면 실패 알림.
-- **확인**: 빌드만 했다. 편집기를 실제로 띄우는 시험은 하지 않았다.
-
-### [x] 에디터 다듬기: 성능 패널과 예산 경고 (완료 2026-10-28)
-- **[성능] 창** (`editor/PerfPanel`, [빌드] > [성능], 상태 표시줄 fps를 눌러도): `game::FrameStats`의 보고 주기(0.25초)마다 `FrameSample`을 120개(30초) 쌓아 항목마다 지금 값·예산·그래프(빨간 예산선)를 보여 준다. 넘으면 빨강이고 상태 표시줄 fps도 빨강.
-- **항목과 예산** (`PerfPanel::k*`, ROADMAP "성능 예산"): 프레임 CPU 16.7 ms, GPU 8 ms(타임스탬프가 있을 때), 시뮬레이션 틱 4 ms(플레이 중), 드로우 콜 200, 네트워크 송신 10 KB/s(세션이 있을 때).
-- **숫자 출처**: 에디터의 `FrameStats`가 이제 렌더러를 출처로 받는다(드로우 콜·GPU·메모리). 플레이 중에는 `PlaySession`이 `Editor::setPlaySample`로 시뮬레이션·네트워크 숫자를 넘겨 합친다.
-
-### [x] 에디터 다듬기: 인스펙터 편의 (완료 2026-10-28)
-- **섹션 접기**: 필드·애니메이션·반사 프로브·모델·변환·모양이 접히는 머리줄(`CollapsingHeader`, 처음엔 펼침).
-- **필드 오른쪽 클릭** (`drawFields`, 인스펙터·튜닝·표가 같이): 기본값으로(`FieldContext::defaults`가 있을 때) / 값 복사(같은 모양 필드끼리, 클립보드에도 "경로 값" 줄) / 붙여넣기. 기본값과 다른 필드는 왼쪽에 파란 점(값 해시 비교). 변환 세 줄도 같은 메뉴와 점(위치·회전 0, 크기 1, 붙여넣기는 "x y z" 글자).
-- **크기 비율 고정**: 크기 줄 앞 자물쇠, 한 축을 바꾸면 나머지도 같은 비율.
-- **필드 설명**: `MEALKIT_FIELD`의 표시 이름을 `"이름|설명"`으로 쓰면 설명이 마우스 툴팁으로 나온다(`splitFieldLabel`, 매크로·형식은 그대로). 엔진 기본 종류의 필드에는 아직 달지 않았다.
-- **기록** ([편집] > [기록], `Ctrl+H`): 되돌리기 항목에 이름(같은 프레임의 상태 메시지 "복제: …", 없으면 "<물체> 변경"), 누르면 그 지점까지 되돌린다. 다시 하기 쪽은 흐리게.
-- **남은 것**: 숫자 칸 미세 조정은 ImGui 기본(`Alt` 느리게, `Shift` 빠르게)을 그대로 쓴다(`Ctrl`은 ImGui에서 글자 입력이라 바꾸지 않았다). 이름 끌기로 값 바꾸기는 하지 않았다.
-
-### [x] 에디터 다듬기: 카메라 조작 보강 (완료 2026-10-28)
-- **궤도**: `Alt` + 왼쪽 끌기 = 고른 물체(없으면 앞 10 m)를 중심으로 돈다. 그동안 클릭 선택·상자 선택은 하지 않는다.
-- **휠**: 마우스 광선(`Editor::mouseRay`) 쪽으로 움직인다. 맞는 물체가 있으면 그 거리의 15%씩, 없으면 3 m.
-- **원근·정사영** (툴바 버튼, 키패드 5): Reversed-Z 정사영(`Editor::projection`), 휠 = 화면 크기, 가운데 끌기 이동량도 화면 크기에 맞춘다. 클릭 선택·기즈모도 정사영 광선을 쓴다.
-- **카메라 북마크**: `Ctrl+1`~`9` 저장, `1`~`9` 이동. 씬마다 `build\editor\<씬>.view`의 `camera N x y z yaw pitch` 줄("여기서 플레이"가 쓸 수 있다).
-
-### [x] 에디터 다듬기: 스냅·정렬 설정 (완료 2026-10-28)
-- **스냅 단위** (`Preferences::snapMove/snapRotate/snapScale`, 기본 0.5 m·15°·0.1): 환경설정 창과 툴바 [스냅] 옆 화살표에서 고친다(`drawSnapSettings`). 바닥 그리드 간격도 이동 스냅을 따른다(0.25 m보다 촘촘하면 두 배씩 묶는다).
-- **바닥에 붙이기** ([편집], `End`): 고른 물체(최상위)마다 회전한 경계 상자의 가장 낮은 점에서 아래로 광선을 쏘아 처음 맞는 물체 위에, 없으면 y = 0에 놓는다. 광선 검사는 뷰포트 클릭과 같은 `Editor::raycast`(숨김·잠김·자기 자식 제외)로 떼어냈다.
-- **정렬** ([편집] > [정렬], 여럿 골랐을 때): X/Y/Z 맞추기 = 나머지를 주 선택의 그 축 위치로, 같은 간격으로 놓기 = 가장 넓게 퍼진 축에서 양 끝 사이를 같은 간격(3개 이상).
-- **자동 실행**: `--command "<영어 이름>"`(명령 표의 명령을 시작 직후 실행, 여러 번 가능).
-
-### [x] 에디터 다듬기: 뷰포트 툴바와 방향 표시 (완료 2026-10-28)
-- **툴바** (`Editor::drawViewportToolbar`, 뷰포트 왼쪽 위에 겹친 창): 이동·회전·크기, 로컬·월드 축, 스냅(켜면 Ctrl 없이 스냅, Ctrl은 잠시 끄기), 그리드, 보기 모드, 카메라 속도. 메뉴 막대에는 플레이·인원·그림자 검사만 남았다([보기] > [보기 모드]도 그대로).
-- **축 방향 표시** (뷰포트 오른쪽 위, ImGuizmo `ViewManipulate`): 면·축을 누르면 앞 10 m 점을 중심으로 그쪽에서 보게 돌고, 결과 보기 행렬을 카메라 위치·각도로 되돌려 넣는다(위·아래는 ±89°까지). 정사영은 "카메라 조작 보강" 항목.
-- **바닥 그리드** (`addGrid`): y = 0에 카메라 주변 80칸, 1 m 간격(10칸마다 진하게), 깊이가 있게 얇은 상자 인스턴스로. 편집 화면만, 자동 캡처(`--frames`·골든)에는 그리지 않는다. 간격은 다음 항목(스냅 설정)이 정한다.
-
-### [x] 에디터 다듬기: 다중 선택 (완료 2026-10-28)
-- **모양** (`Editor::m_multi`): `m_selected`는 그대로 주 선택(인스펙터·기즈모)이고 같이 고른 나머지는 `m_multi`. 다른 코드가 `m_selected`를 바꾸면 다음 프레임에 `m_multi`가 풀린다(`m_multiOwner`), 그래서 예전 선택 코드는 고치지 않았다.
-- **고르기**: 씬 트리·뷰포트 Shift 클릭 = 더하기·빼기(주 선택을 빼면 다음 것이 주 선택), 뷰포트 빈 곳에서 왼쪽 끌기 = 상자 안(물체 중심이 화면 상자 안)의 물체(Shift면 더하기, 숨김·잠금 제외), `Ctrl+A` [편집] > [모두 선택]. 뷰포트 클릭 선택은 이제 누를 때가 아니라 놓을 때 정한다.
-- **같이 고치기**: 기즈모로 주 선택을 움직이면 나머지 고른 물체의 최상위(`selectionRoots`)가 같은 만큼 움직인다(회전은 주 선택 위치 중심, 크기는 비율). 복제·삭제는 고른 것 모두(자식 포함), 되돌리기는 한 번에.
-- **인스펙터**: 여럿을 골랐으면 위에 "물체 N개 선택" 안내, 값은 주 선택만 고친다.
-- **자동 실행**: `--select 3,4,5`.
-
-### [x] 에디터 다듬기: 씬 트리 찾기와 정리 (완료 2026-10-28)
-- **찾기** (씬 트리 위 칸, `Ctrl+F` = 명령 "씬 트리에서 찾기"): 이름·종류 이름·종류 표시 이름(한국어)으로, 글자가 있으면 맞는 물체만 평평하게 보인다.
-- **종류 아이콘** (`Editor::entityIcon`, `icon::` Segoe 아이콘 글자): 상자·모델·스폰/표시·영역·점광원·반사 프로브·그 밖의 게임 종류. 색 견본 대신 아이콘을 물체 색으로 그린다.
-- **보이기·잠금** (줄 오른쪽, 마우스를 올리거나 켜져 있을 때 보인다): 숨긴 물체(자식 포함)는 편집 화면에 그리지 않고, 잠근 물체(자식 포함)는 뷰포트 클릭으로 고르지 않는다. 씬 파일이 아니라 `<프로젝트>\build\editor\<씬 파일>.view`("hidden id…", "locked id…")에 둔다. 플레이 화면에는 영향 없음.
-- **선택 따라가기**: 뷰포트 등에서 새로 고른 물체는 트리에서 조상을 펼치고 그 줄로 스크롤한다.
-
-### [x] 에디터 다듬기: 환경설정 창과 단축키 도움말 (완료 2026-10-28)
-- **환경설정** (`editor/Preferences.h`, [파일] > [환경설정...]): 사용자별 `%LOCALAPPDATA%\MealKit\editor_settings.txt`의 `cameraSpeed`·`uiScale`·`autosaveSeconds`·`externalEditor`·`projectLayout` 줄. 같은 파일의 `language`·`toolPath` 줄은 그대로 둔다. 바꾸면 바로 저장한다.
-  카메라 속도는 켤 때 값(휠로 바꾼 값은 저장하지 않는다), 글자 크기는 `style.FontScaleMain`, 자동 저장 간격 0 = 끄기(예전 고정 90초), 코드 편집기는 "코드로 이동" 항목이 쓴다(기본 `code`).
-- **프로젝트별 창 배치** (`ImGuiLayer::setIniPath`): 프로젝트를 열면 `<프로젝트>\build\editor\layout.ini`를 쓴다. 처음 여는 프로젝트는 기본 레이아웃이라 예전 공용 `mealkit_editor.ini`로 [로그]가 떠 있던 문제도 없어진다. 끄면 예전처럼 공용 파일.
-- **F1 단축키** ([보기] > [단축키]): 명령 표의 단축키 + 마우스 조작 몇 줄.
-- **남은 것**: 단축키 바꾸기는 아직 없다(명령 표의 `chord`를 설정에서 덮어쓰는 방식으로 할 수 있다).
-
-### [x] 에디터 다듬기: 명령 팔레트 (완료 2026-10-28)
-- **명령 표** (`editor/EditorCommands.cpp`, `Editor::Command`): 이름(영어 원문 = `tr` 키), 단축키 두 개까지(`ImGuiKeyChord`), 켜짐 조건, 실행. `runShortcuts()`가 예전 `handleShortcuts()`를 대신하고, 메뉴는 `commandMenuItem(이름)`으로 이름·단축키 글자·켜짐을 표에서 가져온다(파일·편집·보기·빌드의 고정 항목). [추가]·보기 모드·레이아웃 미리 설정·[도구]는 목록이 바뀌는 메뉴라 그대로.
-- **팔레트** (`Ctrl+P`, [보기] > [명령 팔레트]): 지금 켜진 명령, 씬 물체(이름·종류, 고르면 선택하고 카메라 이동), `assets/scenes`의 씬, 설치된 도구를 한국어·영어 이름(대소문자 무시)으로 찾는다. 위아래 화살표·Enter·Esc. 플레이 중에는 명령만.
-- **자동 실행**: `--palette <글자>`.
-- **남은 것**: F1 단축키 도움말과 단축키 바꾸기는 다음 항목(환경설정)에서 이 표 위에 만든다.
-
-### [x] 에디터 다듬기: 알림과 플레이 중 표시 (완료 2026-10-28)
-- **알림** (`Editor::setStatus(text, failed, open)`, `drawNotices`): 상태 표시줄 메시지를 뷰포트 오른쪽 아래에도 쌓는다(최대 5개). 성공은 4초 뒤 사라지고, 실패(저장·열기·쓰기·모델 읽기·빌드 실패)는 x로 닫을 때까지 남으며 누르면 [빌드 로그]나 [로그]를 연다. 게임 DLL 핫 리로드도 알림으로 뜬다. 빌드 중에는 걸린 시간과 진행 막대.
-- **플레이 중 표시**: 메뉴 막대 바탕이 갈색, 뷰포트에 주황 테두리, 인스펙터 위에 "멈추면 씬 값은 되돌아갑니다".
-- **빈 화면 안내** (`drawEmptyViewport`): 프로젝트의 게임 DLL이 아직 없으면 뷰포트 가운데에 [게임 코드 빌드]·[빌드 로그] 버튼.
-- **남은 것**: 표·소리 패널이 비었을 때 안내, 프로브 굽기 진행 막대는 그 패널을 손볼 때.
-
-### [x] 에디터 다듬기: 로그 콘솔 창 (완료 2026-10-28)
-- **로그 싱크** (`core/Log.h` `log::setSink`): 로그 한 줄마다 레벨·시간·메시지를 넘긴다(로그 잠금 안에서, 아무 스레드에서나). stdout·디버거 출력은 그대로.
-- **[로그] 창** (`editor/LogPanel`): 엔진·게임 DLL 로그를 최근 5000줄까지 모은다. 정보·경고·오류 체크(개수 표시), 찾기(대소문자 무시), 지우기, 맨 아래에 있으면 새 줄을 따라간다. 기본 레이아웃의 아래 가로 칸(`kBottomWindows`) 첫 탭, [빌드] > [로그]로 연다.
-- **남은 것**: 예전 `mealkit_editor.ini`면 처음에 떠 있는 창으로 나온다([레이아웃 초기화]로 아래 칸에 붙는다). `파일:줄` 클릭은 "코드로 이동" 항목.
-
-### [x] 에디터 다듬기: 기본 레이아웃 다시 나누기 (완료 2026-10-28)
-- **레이아웃** (`Editor::setupDefaultLayout(dockId, LayoutPreset)`): 왼쪽 씬 트리(17%), 오른쪽 기둥 하나(인스펙터 + [상태]·[튜닝] 탭), 씬 뷰 아래 가로 칸(`kBottomWindows`: 빌드 로그·표, 로그 콘솔이 들어올 자리). 아래 칸은 열린 창이 없으면 접힌다. [보기] > [레이아웃]에서 편집·플레이(아래 칸 18%, [상태] 앞으로)·룩데브(오른쪽 42%, 위에 [룩데브] 창) 중 하나를 골라 다시 놓는다.
-- **씬 환경** (`docs/DECISIONS.md` 2026-10-28): [환경] 창을 지웠다. 씬 트리 맨 위 고정 줄 "씬: <파일>"을 고르면(`m_sceneRow`, 물체를 고르면 풀린다) 인스펙터가 `drawEnvironment()`(태양·하늘·안개·HDRI·포스트 프로세싱)를 그린다. 아무것도 안 골랐을 때는 그대로 "선택한 물체가 없습니다". 씬 파일 형식은 그대로.
-- **창 이름**: `TablesPanel::kWindow`·`LookdevPanel::kWindow`를 헤더로 꺼냈다(레이아웃이 도킹 자리를 정한다). [튜닝]은 처음 열 때 인스펙터 탭으로 붙는다.
-- **자동 실행**: `--select scene`(씬 줄을 고르고 시작).
-- **남은 것**: 예전 `mealkit_editor.ini`를 쓰는 사람은 [레이아웃 초기화]를 눌러야 새 배치가 된다(레이아웃 파일 프로젝트별 분리는 환경설정 항목).
-
-### 고침: 셰이더 핫 리로드 표, 에디터 자동 실행의 동적 해상도 (2026-10-27)
-- **셰이더 핫 리로드** (`Renderer::Impl::addShaderReloads`): 파이프라인마다 따로 쓰던 람다 아홉 개를 표 한 줄씩(파일, 파이프라인, desc, 진입점, 정의)으로 합쳤다. `Forward.hlsl`을 고쳐도 스킨 보기 모드(`wireSkin`·`overdrawSkin`)가 이전 셰이더로 남던 것을 고쳤다: PBR 변형(일반·스킨)이 바뀌면 `recreateViewModePipelines`가 보기 모드 넷을 같이 다시 만든다.
-- **에디터 자동 실행** (`Editor::setAutomated`): `--frames`·`--render-golden`이면 동적 해상도를 끈다(게임 자동 실행과 같다). 전에는 켜진 채라 골든·Vulkan = DX12 비교가 GPU 시간에 따라 가장자리 1~3%씩 달라 들쭉날쭉 실패했다.
-- **성능 표** (ROADMAP "성능 예산"): 첫 커밋 숫자(GPU 0.3 ms, 드로우 4회)를 `--benchmark 20` arena 값(GPU 2.21 ms, 26회)으로 바꿨다.
-
-### [x] 동적 해상도 (완료 2026-10-27)
-- **방식**: 본 화면 3D는 HDR 장면 대상(창 크기 그대로, 다시 만들지 않는다)의 왼쪽 위 `뷰포트 × 배율` 영역에 그린다. 우버 패스는 출력 픽셀 × 배율 / 크기(`sceneSize.zw`)로 읽어 이중 선형으로 늘리고, 줄였을 때만 대비 적응 샤프닝(`Post.hlsl` `sharpen`, CAS·FSR 1 RCAS 계열 탭 5개, HDR은 compress 공간)을 FXAA 다음에 한다. 블룸·비네트·색수차는 같은 uv 공간이라 그대로. UI·디버그 UI는 늘 백버퍼 원래 해상도. 오프스크린(룩데브·프로브 굽기)과 보기 모드는 배율 1.
-- **조절기** (`Renderer::Impl::updateResolution`): GPU 프레임 시간 지수 평균이 예산의 95%를 넘으면 배율 × √(예산 85% / 시간)로 한 번에, 75% 아래면 +0.02씩 올린다. 1/64 단위, 바꾼 뒤 8프레임 기다린다(타임스탬프가 2프레임 늦다). `RenderStats::resolutionScale`.
-- **설정**: 프로젝트 `dynamicResolution`(기본 켬), `dynamicResolutionMinScale`(0.5), `upscaleSharpness`(0.5), 예산은 `gpuBudget*` 합(`game::applyRenderStyle`). 플레이어 설정 렌더 배율(저장만 하던 값)이 위 한계(`Renderer::setRenderScale`). 자동 실행(`--exit-tick`·`--frames`·`--benchmark`)은 조절기를 끈다(그림이 GPU 속도에 따라 바뀌지 않게). `--render-scale <s>`는 배율 고정.
-- **검증**: `sandbox --render-scale 0.5` 캡처(3D 절반, UI 선명), `check.ps1 -Changed` 골든 DX12·Vulkan·검증 레이어 통과(배율 1은 그림 그대로).
-- **남은 것**: FSR 1 EASU(가장자리 방향 12탭 업스케일)는 넣지 않았다 — 이중 선형 + 샤프닝으로 먼저 보고 최소 사양에서 화질이 모자라면 우버 패스의 읽기만 바꾼다(`docs/DECISIONS.md` 2026-10-27). 블룸 사슬은 창 크기 기준이라 줄여도 블룸 비용은 같다. 최소 사양 실기에서 조절기 반응.
-
-### [x] 포스트 프로세싱 (완료 2026-10-27)
-- **방식** (`docs/DECISIONS.md` 2026-10-27): 장면은 HDR 대상(R11G11B10F + D32, 픽셀당 4바이트)에 그리고, 블룸만 절반 해상도 듀얼 필터 사슬(5단, 내려가며 반씩 → 더하기 섞기로 올라온다), 나머지는 우버 패스 하나(`shaders/Post.hlsl` `PSUber`)가 백버퍼에 sRGB 값으로 낸다: FXAA(이웃 HDR 값을 밝기로 눌러 가장자리 찾기·섞기) → 색수차 → 노출 × 밝기 설정 + 블룸 → AgX(Wrensch 다항식 근사, MIT) → 색 보정 LUT → 비네트 → 그레인·디더. 효과 하나를 끄면 셰이더가 그 단계를 건너뛴다.
-- **RHI**: `Target::Scene`이 백버퍼가 아니라 HDR 장면 대상이 됐다(`Target::Hdr` 블룸, `Target::Overlay` = 백버퍼·`TargetKind::Ldr`). `createRenderTarget(w, h, TargetKind)`·`destroyRenderTarget`(창 크기 대상), `beginTarget`의 `clearColor` nullptr = 내용 유지(블룸 더하기). 백버퍼의 sRGB 뷰·깊이와 `beginScene`을 지웠고 Vulkan은 `VK_KHR_swapchain_mutable_format`이 필요 없어졌다(대신 B10G11R11 그리기·섞기·선형 샘플을 최소 사양 검사에 더함).
-- **렌더러**: `FrameParams::post`(`PostParams`: 톤 매핑, 노출 EV, LUT 번호, 블룸 세기·문턱·색, 비네트, 그레인, 색수차), `setPostOptions`(`PostOptions`: 플레이어 설정의 효과 끄기·밝기·색맹 보정), `createLut`. 본 화면은 `drawToTarget`·`beginOverlay`·`drawUi`·`endFrame` 중 처음 오는 곳에서 포스트를 거친다(`resolveScene`, GPU 패스 `post`). 오프스크린(`createRenderTarget`)은 같은 크기의 HDR 대상을 짝으로 갖는다. 보기 모드와 `toneMapping = false`(반사 프로브 굽기)는 선형 값을 잘라 sRGB로만 — 예전 그림과 같다(`post_off` 기준 그림 = 예전 `styles_pbr`).
-- **LUT**: `.cube`(3D, 아무 크기, `DOMAIN_MIN/MAX`) → 32³으로 세 선형 보간(`asset::parseCubeLut`) → 1024 × 32 RGBA8 띠, 셰이더는 파랑 두 조각을 섞는다. 종류 폴더 `assets/lut/`(레이아웃 규칙에 이미 있던 자리), `ModelCache::lut`·`postParams`(핫 리로드). 색맹 보정(1·2·3형, Machado 2009 + daltonize)은 CPU가 LUT 위에 겹쳐 LUT 하나로 만든다(셰이더 비용 없음, 설정을 바꾸면 LUT를 다시 올린다).
-- **씬·에디터**: `scene::PostFields`(`MEALKIT_STRUCT`, 씬 파일 `post <필드> <값>` 줄, `@format scene 4`, 콘텐츠 해시 제외). [환경] 패널 [포스트 프로세싱] 칸: 톤 매핑, 노출, LUT 고르기, 블룸 세기·문턱·색, 비네트, 그레인, 색수차, [보정용 캡처](씬 뷰를 LUT 없이 `art/grading/<씬>.png` + `neutral.cube` → Resolve·Photoshop에서 보정해 `assets/lut/`로 내보낸다).
-- **설정**: `display.bloom`·`antiAliasing`·`filmGrain`·`chromaticAberration`(끄기), `display.brightness`(이제 노출에 곱한다), `gameplay.colorBlind`(끔·1형·2형·3형). 게임 문자열 en·ko.
-- **예제·시험**: `assets/lut/warm.cube`(8칸, 엔진이 32로 다시 뽑는다), `scenes/post.scene`(노출·LUT·블룸·비네트·그레인·색수차)·`post_off.scene`(톤 매핑 끔), 기준 그림 `post_graded`·`post_off`를 더하고 기존 17장은 톤 매핑이 생겨 다시 만들었다(DX12 = Vulkan 문턱 안). 단위 시험 `asset/cube_lut`(크기 2 표 보간, 중립 LUT 왕복, 1D·모자란 표 거절), `scene/scene_hierarchy`에 포스트 값 저장·읽기.
-- **측정**: `sandbox --benchmark 10`(arena 720p, Core Ultra 5 125U): GPU 프레임 2.30 ms 중 post 0.46 ms(예산 1.0, 블룸 + FXAA 켬), opaque 1.40, shadow 0.41. 출시 exe(Export) 3.14 → 3.19 MiB.
-- **남은 것**: AgX 기본은 채도가 낮다(Blender "AgX" 그대로, "Punchy" 같은 룩은 LUT로). FSR 1 업스케일은 동적 해상도 항목. 반사 프로브를 HDR로 굽기(지금도 선형을 잘라 찍는다). 에디터 씬 뷰 밖(뷰포트 바깥) 백버퍼는 지우지 않는다(ImGui가 덮는다). 최소 사양 실기에서 포스트 GPU 시간.
-
-### [x] 파티클 (완료 2026-10-27)
-- **먼저 확인**: Effekseer 1.80.1 코어를 출시 exe와 같은 조건(정적 CRT, 크기 최적화)으로 링크해 +약 400 KB, 렌더러까지 +0.8~1 MB 예상. 공식 렌더러가 D3D12·LLGI를 직접 불러 RHI 규칙에 어긋나 자체 런타임으로 정했다(`docs/DECISIONS.md` 2026-10-27).
-- **데이터**: `assets/effects/<이름>.fx` = `feedback::Effect`(`@format effect 1`): 입자 수, 수명(+무작위), 시작 구 반지름, 주 방향·퍼짐, 속도(+무작위), 중력, 공기 저항, 크기 처음→끝, 색 처음→끝(알파 포함), 가장자리 흐림, 회전, 더하기. 연출 표 `Reaction`에 `effect` 열(위치가 있는 행만 띄운다, 세기만큼 입자 수).
-- **런타임** (`feedback/Feedback.cpp`): `Player`가 효과 파일을 처음 쓸 때 읽고 0.25초마다 파일 시각을 본다(핫 리로드). 화면 쪽 CPU 갱신(연출용 `Pcg32`, 결정론 밖), 화면 정지 중에는 멈춘다, 최대 16384개. `playEffect`(화면 코드·미리보기), `addParticles(drawList)`(엔진 루프·에디터가 buildFrame 뒤에), `clear`가 지운다.
-- **렌더러**: `render::Particle`(32바이트) → `DrawList::addParticles`, `submit` 마지막에 `Renderer::drawParticles`: 업로드 링에 쓰고 `shaders/Particle.hlsl`로 인스턴스마다 6정점 카메라 쿼드, 드로우 콜 1회. 깊이 시험만(RHI `PipelineDesc::depthWrite` 새로, DX12·Vulkan), 미리 곱한 알파 하나로 보통(색·알파)·더하기(알파 0) 함께, 안개만큼 옅어진다. GPU 시간은 `GpuPass::Vfx`. 셰이더 핫 리로드.
-- **에디터**: [연출] 패널 아래 [효과] 칸: 효과 고르기·새 효과, 필드 편집(0.3초 뒤 자동 저장), [효과 미리보기](카메라 초점). 행 미리보기도 효과를 띄운다.
-- **sandbox**: `spark.fx`(밀치기, 더하기 불꽃), `dust.fx`(튕김, 반투명 먼지). 출시 exe 3.92 → 3.95 MB.
-- **남은 것**: 연속 방출(발자국·불), 텍스처 시트, 크기·색 커브, 정렬(지금은 생성 순서, 반투명끼리 겹치면 틀릴 수 있다), 최소 사양 실기에서 수천 개 GPU 시간. 기준 그림 장면에는 파티클이 없다.
-
-### [x] 스켈레탈 애니메이션 (완료 2026-10-27)
-- **불러오기** (`asset/ModelCache.cpp`, `asset/Animation.h`): glTF 첫 스킨 하나. 관절을 부모가 앞에 오게 다시 늘어놓고(깊이 순 안정 정렬), 쉬는 자세 TRS·역바인드·뿌리 위 노드 변환은 glTF 공간 그대로. 관절 64개(`kMaxJoints`)를 넘으면 스킨을 버리고 바인드 자세로(경고). 애니메이션마다 30 Hz로 구운 클립(관절 자세 × 프레임, 선형·계단·큐빅은 값만, 회전 nlerp). 스킨 메시는 LOD 없음, 정적 프리미티브는 가장 가까운 조상 관절에 붙는다. `Model::bones`가 예산(characters 64)에 들어간다.
-- **정점**: `render::SkinWeights`(관절 u8 ×4, 가중치 unorm8 ×4, 합 255), GPU에는 36바이트 정점 뒤에 붙여 44바이트. meshoptimizer 정리는 정점 형식 템플릿. RHI `VertexFormat::Uint8x4`.
-- **포즈** (`asset/Animation.cpp`, 헤드리스에도 있음): `samplePose`(초, 반복·멈춤), `blendPoses`, `restPose`, `jointMatrices`, `skinPalette`(관절 월드 × 역바인드를 S·M·S로 왼손 좌표, 관절마다 행 셋 48바이트 `render::BoneMatrix`). 시뮬레이션용 `samplePoseTick`(틱 × 30 / 틱레이트의 정수 프레임 + 나머지/틱레이트: 30·60 Hz에서 0과 0.5라 float로 정확, 사칙연산 lerp·nlerp만) — 결과를 `detmath-bits`에 넣어 CI가 빌드·플랫폼 사이를 비교한다.
-- **렌더러**: `DrawList::addSkinned(mesh, instance, palette)`, `Renderer::drawSkinned`(팔레트를 링에, 푸시 상수 `paletteOffset`, 캐릭터마다 드로우 콜 1회), 스킨 파이프라인(조명 모델 셋·외곽선·그림자·보기 모드 둘, 같은 셰이더 `SKINNED=1`, 핫 리로드 포함). 그림자 패스·점광원 고르기·컬링은 바인드 자세 경계 × 1.5. 팔레트 없이 `add`한 스킨 메시는 단위 팔레트(바인드 자세).
-- **쓰기**: `asset::addModel(out, model, mesh, instance, anim, seconds)`(정적은 add, 스킨은 클립 재생). 씬 필드 `anim`("<클립> [초 어긋남]", 어느 종류에나, 콘텐츠 해시 제외) — 에디터 인스펙터 [애니메이션]의 클립 고르기, 편집 화면과 게임 `drawScene`이 반복 재생(그래픽 회귀 테스트는 시계 0). sandbox Pawn은 `view.tuning` `pawn.model`(rig_figure)로 idle/run을 속도로 고르고 0.15초 크로스페이드(`WorldView::anims`), 비우면 예전 상자.
-- **도구**: `make_sample_models.py` `make_rig`(`models/characters/rig_figure.glb`: 관절 8개, 머티리얼 3개, 클립 idle·run·wave, 몸통은 두 관절 섞기). Blender 애드온 스키마 `skinning`·`animation` 켬 + `maxJoints`, 검사가 뼈 수를 예산·한도와 비교. `assets/scenes/anim.scene`, 골든 `anim_figures`·`anim_side`(기존 15장 그대로, DX12 = Vulkan, 검증 레이어 오류 없음).
-- **시험**: `asset/skeletal_animation`(인형 불러오기, 부모 순서, 쉬는 자세 팔레트 = 단위, 틱 샘플 = 같은 프레임의 초 샘플, 다리 흔들림 팔레트가 z 반전·다리 길이를 지킴), `core/det_math`에 틱 샘플링 비트.
-- **남은 것**: 모프 타깃, 스킨 여럿, 루트 모션, 애니메이션 이벤트(발소리), 클립 블렌드 트리. 인스펙터 미리보기는 클립 고르기뿐(재생 막대 없음). 캐릭터가 수십 개를 넘으면 인스턴싱 팔레트(드로우 콜 묶기).
-
-### [x] 그림자 (완료 2026-10-27)
-- **방식**: 태양만, 단계식 그림자 맵(CSM) 1~2단계. 카메라 앞 그림자 거리까지를 [0, 거리/4], [거리/4, 거리]로 나누고, 조각의 꼭짓점 8개를 감싸는 구 → 빛 방향 정사영(reversed-Z). 구 반지름(1/16 m)과 빛 공간 중심(텍셀)을 맞춰 카메라가 움직여도 가장자리가 떨리지 않는다. 해 쪽으로 100 m를 더 잡는다.
-- **RHI**: `Device::createDepthTarget`(깊이만: DX12 `R32_TYPELESS` + D32 DSV + R32 SRV, Vulkan D32 `DEPTH_ATTACHMENT | SAMPLED`, 둘 다 처음 상태는 셰이더 읽기), `Target::Shadow` 파이프라인(색 없음, 깊이 GREATER). `beginTarget`·`endTarget`이 깊이만 대상을 다룬다.
-- **렌더러**: 그림자 맵은 단계를 가로로 붙인 아틀라스 하나(`size × 단계 수` × `size`). 본 화면 대상은 처음 그릴 때 묶는다(`ensureScene`: `drawInstances`·`drawToTarget`·`beginOverlay`·`drawUi`·`endFrame`). `DrawList::submit`이 먼저 `drawShadows`(목록의 모든 인스턴스를 단계마다 빛 상자로 거르고, 단계마다 viewProj만 바꾼 프레임 상수로 `VSShadow`/`PSShadow`, 양면, 외곽선 없음, GPU 패스 `shadow`). 프레임 상수 496 → 672바이트(단계 행렬 2, 카메라 앞 방향, 나눈 거리·텍셀 크기, 그림자 맵 번호·단계 수·크기). 보기 모드와 오프스크린(룩데브·프로브 굽기)은 그림자 없이.
-- **셰이더**: `sunShadow`: 카메라 앞 거리로 단계, 법선 쪽으로 텍셀 1.5개 밀기, 깊이 치우침 0.0002, `GatherRed` 넷(4×4 텍셀) 쌍선형 PCF, 마지막 10% 옅어짐. 해를 등지는 면(기하 법선·태양 내적 < 0.25)에서는 그림자를 빼 둥근 면의 텍셀 계단을 숨긴다. PBR은 태양 확산·정반사에 곱하고, 툰은 램프 위치를 반으로(그늘 단계로) 하고 하이라이트를 끈다. 알파 마스크·디졸브는 그림자에도 구멍.
-- **설정**: 프로젝트 설정 `shadows`(켬)·`shadowCascades`(2)·`shadowMapSize`(1024, 512~4096)·`shadowDistance`(40 m) → `game::applyRenderStyle` → `Renderer::setShadows`.
-- **측정**: `sandbox --benchmark 10`(arena, Core Ultra 5 125U): GPU 프레임 1.66 ms 중 shadow 0.36 ms(예산 1.5), opaque 1.30 ms.
-- **기준 그림**: 그림자가 생겨 14장을 다시 만들었다(조명 없음 장면은 그대로). DX12와 Vulkan 차이는 문턱 안, 검증 레이어 오류 없음.
-- **남은 것**: 최소 사양(11세대) 실기 측정. 반사 프로브 굽기에 그림자 넣기(지금 구운 방 안 반사는 그늘이 없다). 툰에서 머리 그림자처럼 둥근 면에 떨어지는 그림자 경계의 텍셀 계단. 플레이어 그래픽 설정(품질 단계)은 설정 화면 항목에서.
-
-### [x] 점광원 (완료 2026-10-27)
-- **왜**: 태양 하나뿐이라 횃불·폭발 빛·실내 조명을 쓸 수 없었다.
-- **씬**: 엔진 기본 종류 `point_light`("점광원", `kObjectMarker | kObjectCosmetic`). 기본 종류지만 필드가 있다: `scene::PointLightFields`(`MEALKIT_STRUCT`, 색 `#FFD6A0`·세기 3·거리 6 m)의 설명을 이름만 바꿔 `builtinTypes`에 넣어 인스펙터 [필드]와 `field` 줄을 게임 종류와 같이 쓴다. 에디터는 빛 색의 0.2 m 상자로 그린다.
-- **렌더러**: `PointLight`(위치, 거리, 선형 색 × 세기), `FrameParams::lights`·`lightCount`(프레임당 `kMaxPointLights` 255). `render/SceneLights.h` `addSceneLights(scene, out)`(월드 위치, sRGB → 선형). 프레임 상수 480 → 496바이트(빛 표 위치·개수), 표는 빛마다 32바이트. `drawInstances`가 인스턴스마다 메시 바운딩 구에 닿는 빛을 밝기 × 가까움 점수로 최대 `lightsPerObject`개(`setLightsPerObject`, 프로젝트 설정 `pointLightsPerObject` 4, 1~8) 골라 8바이트(번호 8개, 0xFF = 끝)를 링에 쓰고, 푸시 상수 `lightOffset`(16 → 32바이트)으로 넘긴다. 빛이 없는 프레임은 고르지 않는다.
-- **셰이더**: 정점 셰이더가 번호 8개를 `nointerpolation`으로 넘기고, `pointLights()`가 거리 감쇠(창 함수² / (d² + 1), 거리에서 0) × (PBR: Lambert 확산 + 해와 같은 GGX 정반사, 툰: 램프 확산만). 조명 없음은 받지 않는다. 그림자 없음. 빛이 없는 장면은 기준 그림이 그대로다(13장).
-- **샘플**: sandbox `applyLights`가 씬 빛 + 밀치기 순간의 잠깐 빛(0.25초, 화면 쪽 효과, `WorldView::flashes`)을 넘긴다. `assets/scenes/lights.scene`(밤, 횃불·파랑·빨강), 골든 `lights_view`·`lights_toon`. 반사 프로브 굽기도 씬 빛을 받는다.
-- **남은 것**: 빛 그림자(보류), 광원 수백 개는 보류 표의 Forward+. 인스턴스마다 고르는 CPU 비용은 인스턴스 × 프레임 빛 수라 빛이 수십 개를 넘으면 공간 나누기가 필요하다.
-
-### [x] 반사 프로브 (완료 2026-10-27)
-- **왜**: 실내·그늘에서도 유광·금속 표면에 하늘 HDRI가 비쳐 어색했다.
-- **씬**: 엔진 기본 종류 `reflection_probe`("반사 프로브", `kObjectArea | kObjectCosmetic`: 에디터는 상자 모서리로 그리고 게임은 그리지 않으며 콘텐츠 해시에서 빠진다). 위치 = 찍는 자리 = 영향 상자 중심, 크기 = 영향 상자(축 정렬). 구운 파일은 필드 줄 `field bake probes/<씬>_<id>.mkprobe`(`scene::probeFile`·`probeFileFor`). 씬 형식은 그대로.
-- **RHI**: `Capture::source`(오프스크린 대상을 백버퍼 대신 `endFrame`에서 읽는다, DX12 복사 원본 상태 전환, Vulkan 대상 이미지에 `TRANSFER_SRC`).
-- **굽기**: 에디터가 프레임마다 면 하나를 90° 카메라(`lookAtLH` 앞·위가 `cubeDirection` 배치와 같다, 단위 테스트)로 `drawToTarget` → `Renderer::captureTarget` → 다음 프레임에 sRGB → 선형. 면 여섯이면 `asset::bakeProbe`(면 큐브 밉 피라미드 `CubeSource` + 하늘 HDRI와 같은 `prefilterReflect`: 밉 0 거울, 나머지 GGX 64표본, RGB9E5, 128 → 6밉) → `saveProbe`(`MKPR` 머리 + 텍셀). 찍을 때는 게임에 보이는 물체만, 선택 강조·보기 모드·다른 프로브 없이. 하늘 HDRI 굽기는 같은 함수로 옮겨 결과가 비트 단위로 같다(기준 그림 11장 그대로). DX12와 Vulkan으로 구운 파일의 텍셀 차이 최대 0.006.
-- **렌더러**: `createProbe(size, mips, texels)` → 번호, `FrameParams::probes`·`probeCount`(`ReflectionProbe`: 위치, 반 크기, 번호, 최대 `kMaxReflectionProbes` 64). 프레임 상수 464 → 480바이트(프로브 표 링 위치·개수), 표는 프로브당 32바이트. 정점 셰이더 `nearestProbe`가 인스턴스 위치를 담은 상자 중 중심이 가장 가까운 것을 고르고(섞지 않음), PBR·툰의 환경 반사가 하늘 대신 그 큐브를 읽는다(HDRI 회전·세기 없이). HDRI가 없어도 프로브가 있으면 반사를 쓴다.
-- **에셋**: `ModelCache::probe(path)`·`probes(scene, out)`(월드 좌표, `setProbeLimit` = 프로젝트 설정 `probeMaxCount`), `reloadChanged`가 다시 구운 파일을 다시 올린다. 폴더 규칙에 종류 폴더 `probes/`(`.mkprobe`, `tools/check_layout.ps1`, `docs/CODING_MODEL.md`). Export는 assets를 통째로 복사하므로 그대로 들어간다.
-- **에디터·설정**: 인스펙터 [반사 프로브] 굽기·프로브 모두 굽기, 한도를 넘으면 경고. `--bake-probes`(굽는 동안 `--frames`를 세지 않는다). 프로젝트 설정 `probeMaxCount`(8)·`probeSize`(128, 2의 거듭제곱으로 내린다).
-- **샘플**: `assets/scenes/probes.scene`(색 벽 방 + 거울 구슬 `models/props/probe_ball.glb`, `make_sample_models.py`의 `make_probe_ball`), 구운 `assets/probes/probes_9.mkprobe`, 골든 `probes_inside`·`probes_outside`(방 안 구슬은 방, 밖 구슬은 하늘). sandbox `applyProbes`.
-- **남은 것**: 8비트 sRGB로 찍어 1보다 밝은 빛(창밖 해)이 잘린다 — 포스트 프로세싱의 HDR 대상이 생기면 그것으로 찍는다. 템플릿 문서(`templates/project/CLAUDE.md`·`README.md`)의 종류 폴더 목록에 `probes/`는 다음 템플릿 변경(버전 올림) 때 더한다. 상자 투영(parallax) 보정은 하지 않는다.
-
-### 허브 앱 MealKit Manager 1부 (2026-10-27, 로드맵 밖)
-- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-27): 프로젝트 관리자를 별도 저장소 `D:\MealKit-Engine\MealKit-Manager`(MIT, v0.1.0)로. 엔진을 링크하지 않는 SDL3 + SDL_Renderer + Dear ImGui exe(약 3.3 MB, MealKit-Audio와 같은 SDL·ImGui 버전).
-- **Manager 0.1.0**: [프로젝트](최근·즐겨찾기 목록은 에디터와 같은 파일, 검색, 새 프로젝트 = 엔진 `new_project.ps1`, 가져오기, 에디터에서 열기 = 그 프로젝트 `engine` 줄의 `build\Editor\bin\MealKitEditor.exe --project`, 엔진 버전이 다르면 업그레이드 = `upgrade_project.ps1`, 폴더 보기, 목록에서 빼기) · [엔진](프로젝트가 가리키는 엔진 + `engines.txt` + `--engine`, 에디터가 없으면 `build.bat Editor`) · [도구](`mealkit-tool.txt`, 고른 프로젝트로 연다). 스크립트는 콘솔 창 없이 배경 스레드에서 돌고 실패하면 출력을 보여 준다. 글자는 에디터 설정의 `language`(한국어 기본). 창 없는 명령 `--list`·`--new <이름> --path <위치>`·`--open <폴더>`, 화면 시험 `--frames N --capture`.
-- **에디터**: `--project` 없이 열면 `%LOCALAPPDATA%\MealKit\manager\MealKitManager.exe --engine <이 엔진>`을 띄우고 끝난다(`startManager`). 설치하지 않았거나 `--frames`(자동 시험)·`--builtin-manager`면 예전처럼 에디터 안 관리자.
-- **시험**: Manager 저장소 `mkmanager_tests`(가짜 사용자 폴더·엔진·프로젝트·도구, BOM, 즐겨찾기 순서, 업그레이드 판단, 목록 고치기, App.cpp의 tr 글자가 모두 한국어 표에 있는지), `--new`로 새 프로젝트를 만들고 `--list`에 나오는지, `--open`이 엔진 에디터를 `--project`로 띄우는지, 에디터를 프로젝트 없이 열면 Manager가 뜨는지.
-- **남은 것**: 이름 바꾸기·폴더 옮기기·아이콘을 Manager로 옮긴 뒤 `editor/ProjectManager.cpp` 지우기, 엔진 버전 내려받기·설치(지금은 폴더 더하기만), 도구 설치·업데이트, GitHub 저장소와 CI(사용자가 만든다).
-
-### 개발 도구: 고친 것에 맞는 검사만 (2026-10-26, 로드맵 밖)
-- **왜**: 검사가 전체·`-Quick` 둘뿐이라 오디오·문서만 고쳐도 멀티플레이 결정론 테스트(창 4개 900틱, 그림자·되감기)까지 돌았다.
-- **check.ps1 묶음**: 항목마다 묶음(static·unit·det·game·tools·render·editor·project·export)을 붙이고, 고른 묶음에 필요한 빌드(Release·Editor)만 한다. `-Only <묶음,...>`, `-Changed`(git 작업 트리 + `-Base <커밋>`, 위쪽 `$pathRules`·`$folderGroups` 표로 경로 → 묶음, 규칙에 없는 경로는 전체), `-DryRun`.
-- **결정론 키**: Release 빌드의 시뮬레이션 버전(`mealkit_build_info.h`) + `mealkit.project`·`game.tuning`·씬·모델·표·리플레이 해시. 전체 검증·`-Only det`·"det!" 경로(`samples/*/sim`, 리플레이, `game/`, mp_test 스크립트)가 아니면 마지막 통과 키(`build\check-state\det.key`)와 같을 때 결정론 묶음을 건너뛰고, 다르면 고르지 않았어도 돌린다. 결정론 묶음이 모두 통과하면 키를 남긴다.
-- **단위 테스트 영역**: `TEST_CASE(영역, 이름)`(영역 = 엔진 폴더), `mealkit_tests --only net,physics`(끝에 `ran N of M`). `-Changed`는 고친 폴더 중 시험이 있는 영역만, core·platform·`engine/tests`는 전부. `detmath-bits` 비교는 두 빌드 모두 찍었을 때만.
-- **CLAUDE.md**: 루트는 작업 방식·빌드·"고친 것 → 돌릴 검사" 표·절대 규칙만 남기고, 구조 메모는 폴더별 CLAUDE.md(`engine/src/mealkit/`, `game/`, `editor/`, `net/`, `render/`, `ui/`, `audio/`, `samples/sandbox/`)로 옮겼다(정점 36바이트, 게임 폴더 경로 고침).
-- **시험**: `-Changed`(이 변경: static·unit, 처음엔 키가 없어 결정론 묶음 추가 → 통과 후 키 저장, 108초), 이어서 `-Quick`이 결정론 묶음을 건너뜀(26초), `-Only static`. 문서 저장소 `engine_dev/testing` 영어·한국어.
-
-### [x] 하늘 HDRI와 환경광 (완료 2026-10-26)
-- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 하늘 HDRI): 큐브맵, CPU 굽기 + 캐시, RGB9E5, Poly Haven CC0 1k 예제.
-- **RHI**: `Format::Rgb9e5`(DX12 `R9G9B9E5_SHAREDEXP`, Vulkan `E5B9G9R9_UFLOAT_PACK32`), `TextureInit::cube`(면 여섯 × 밉, DX12 하위 자원·`TEXTURECUBE` SRV, Vulkan `CUBE_COMPATIBLE` + 큐브 뷰), `TextureCube g_cubes[]`(DX12 루트 서명에 space3 표 = 텍스처와 같은 힙 칸, Vulkan 바인딩 4 = 텍스처와 같은 번호, 풀 크기 2배).
-- **굽기** (`asset/Environment.h`·`.cpp`): `.hdr`를 stb_image로 읽고(개발 빌드만 `STBI_ONLY_HDR`) 정거리원통 밉 피라미드 → 하늘 큐브(면 = 가로/4, 최대 512), 반사 큐브 128² 6밉(0 = 거울, 나머지 GGX 중요도 표본 64 + 걸러 읽기, 밝기 16에서 자름), 환경광 SH9(가로 128 단계 적분 × Lambert A_l/π). 캐시 `build/cache/environments/<내용 해시>.mkenv`(텍스처 캐시처럼 출시 exe는 exe 옆 `cache/environments`만 읽고 Export가 복사). 1k HDRI 굽기 약 0.5초.
-- **렌더러**: `Renderer::createEnvironment(EnvironmentData)` → 번호, `FrameParams::environment`·`environmentIntensity`·`environmentRotation`. 프레임 상수 224 → 464바이트(역 viewProj, 큐브 번호·밉 수, 세기·회전, SH 9). 환경이 있으면 3D 전에 스카이박스(`VSSky`/`PSSky`, 화면 가득 삼각형, 깊이 없음, 안개 없음, 화면 번쩍임은 받음)를 그리고(본 화면과 오프스크린 대상), 환경광은 SH, PBR 반사는 큐브 밉 = 거칠기 × Karis 근사 BRDF(표 텍스처 없이), 툰도 같은 환경광·반사. 환경이 없으면 예전 그라디언트·어림 그대로(기준 그림 9장 같음).
-- **에셋**: `ModelCache::environment(path)`(경로마다 한 번, 실패는 한 번 경고하고 0, `reloadChanged`가 파일이 바뀌면 다음 요청에 다시 굽는다), `asset::listHdris`(assets/textures 아래 .hdr).
-- **씬**: `Environment::hdri`·`hdriIntensity`·`hdriRotation`(도), 줄 `hdri`·`hdriIntensity`·`hdriRotation`(HDRI가 있을 때만 쓴다), 형식 `@format scene 3`(예전 1·2 그대로 읽음). 콘텐츠 해시와 무관.
-- **에디터**: [환경] 창에 하늘 HDRI 고르기(없음 = 색 그라디언트)·세기·회전, 룩데브 조명 목록에 HDRI. sandbox `applyEnvironment(env, models, frame)`.
-- **예제**: `assets/textures/hdri/kloofendal_partly_cloudy_1k.hdr`(Poly Haven "Kloofendal 48d Partly Cloudy (Pure Sky)", CC0, 1024×512), `assets/scenes/hdri.scene`(재질 예제 + 금속 구슬 + 인형).
-- **시험**: 단위 테스트 `environment_bake`(RGB9E5 왕복, 큐브 방향, 고른 하늘 → 환경광·반사·하늘 1), 기준 그림 `hdri_view`·`hdri_up`(DX12, Vulkan 비교 같음). check.ps1 전체.
-- **남은 것**: 톤 매핑·노출(포스트 프로세싱 항목), HDRI의 해 방향을 씬 태양에 맞추는 단추, 큐브 지우기(바꾼 HDRI의 옛 텍스처가 남는다), 땅이 없는 하늘 HDRI의 아래쪽 색.
-
-### [x] 텍스처와 머티리얼 3부 — 룩데브 미리보기 (완료 2026-10-26)
-- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 룩데브): HDRI 전에 조명 프리셋으로, 별도 창 + 오프스크린 대상.
-- **RHI 오프스크린 대상** (`rhi::RenderTarget`, `Device::createRenderTarget`·`renderTargetTexture`, `CommandList::beginTarget`·`endTarget`): 색 + 깊이(D32), 형식이 장면과 같아 장면 파이프라인을 그대로 쓴다. DX12는 TYPELESS 자원에 sRGB RTV + UNORM SRV(bindless 칸), 대상마다 RTV·DSV 힙. Vulkan은 형식을 바꿀 수 있는 이미지(스왑체인 UNORM + 장면 sRGB 뷰), dynamic rendering, 끝나면 SHADER_READ. 지우는 색이 그때마다 달라 DX12 최적 지우기 값은 주지 않고 그 성능 안내 메시지는 디버그 로그에서 거른다. `rhi::imguiTextureId`(DX12 GPU 서술자, Vulkan `ImGui_ImplVulkan_AddTexture` 세트를 텍스처마다 한 번)로 `ImGui::Image`에 띄운다.
-- **렌더러** `Renderer::createRenderTarget`·`renderTargetTexture`·`drawToTarget(target, params, drawList, lightingModel)`: 본 화면 3D 다음 UI 전에, 프레임 상수(`Impl::writeFrameConstants`로 나눔, 머티리얼 표는 프레임에 한 번)·프러스텀·조명 모델을 잠시 바꿔 그리고 되돌린다. 보기 모드는 쓰지 않는다.
-- **에디터 [룩데브] 창** (`editor/LookdevPanel`, [보기] > [룩데브], `--lookdev`): 고른 물체의 모델(LOD 0)을 경계 상자에 맞춘 카메라로 회전 받침대 위에 그린다. 조명 프리셋 넷(중립 스튜디오·낮·노을·밤: 태양 방향·색, 하늘·땅 환경광, 배경), 조명 모델(프로젝트 설정·Pbr·Toon·Unlit), 돌리기·확대, 번쩍임·디졸브 미리보기 값, 그림을 끌어 돌리고 높이각, 휠로 확대. 바람은 에디터 시간으로 흔들린다. 한국어 글자 14개.
-- **시험**: check.ps1 "Editor look dev (offscreen, DX12 debug layer)"(디버그 레이어 메시지 없음), "Vulkan validation layer (look dev)"(검증 메시지 없음). 받침대가 시간에 따라 돌아 기준 그림 비교는 하지 않는다.
-- **남은 것**: HDRI 프리셋(다음 항목), 모델을 고르는 상자(지금은 씬에서 고른 물체), 받침대 위 그림자(그림자 항목), 머티리얼별 보기(기능 보기 모드처럼).
-
-### [x] 텍스처와 머티리얼 2부 — 스타일 프리셋 셰이더 (완료 2026-10-26)
-- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 스타일 프리셋 구현): 조명 모델만 셰이더 변형(셋) + 머티리얼 기능은 머티리얼 표 비트로 셰이더 안 분기 + 외곽선은 파이프라인 하나 더 / 인스턴스 값은 flags 위 16비트(48바이트 그대로) / 바람 세기는 정점 색 알파 / 툰은 램프 PNG + 엔진 기본 3단계.
-- **조명 모델** (`render::LightingModel`, 프로젝트 설정 `lightingModel` = `game::LightingModelSetting` Pbr·Toon·Unlit, 해시 밖): `Forward.hlsl`을 `LIGHTING_MODEL=0/1/2`로 세 번 컴파일(`g_ForwardPbrPS`·`g_ForwardToonPS`·`g_ForwardUnlitPS`, CMake `mealkit_shader`가 나머지 인자를 `-D` 정의로 받는다). `Renderer::init`이 셋 + 외곽선 + 보기 모드 파이프라인을 모두 만들고 `setLightingModel`은 고르기만 한다(플레이 중 PSO를 만들지 않는다). PBR은 1부 그대로(기준 그림 5장이 같다). 툰은 하프 램버트로 램프 텍스처(256×1, `setToonRamp`: 프로젝트 `toonRamp` 그림의 첫 줄을 가장 가까운 픽셀로, 없으면 3단계 0.35·0.72·1.0)를 읽고 하이라이트는 끊어진 점 하나. 조명 없음은 albedo + 발광(안개·번쩍임·림은 받는다).
-- **적용** `game::applyRenderStyle`(`game/RenderStyle.h`, 바뀐 것만, 램프 파일 시각까지 본다): 출시 exe는 매치 데이터를 읽은 뒤, 에디터는 `setProject`와 0.5초 핫 리로드(프로젝트 설정 창에서 바꾸거나 램프 그림을 밖에서 고치면 바로 보인다).
-- **머티리얼 기능** (`render::kMaterialOutline·Wind·Rim·Dissolve`, 머티리얼 표 64 → 128바이트): glTF 머티리얼 `extras`의 `mealkit_outline`·`outlineColor`·`wind`·`rim`·`rimColor`·`dissolve`·`dissolveColor`를 `asset::applyMaterialExtras`가 읽는다(작은 JSON 읽기, 큰 키만 기능을 켜고 색 키는 값만, 모르는 `mealkit_` 키·틀린 값은 모델·머티리얼 이름과 함께 경고). 스키마 `materialFeatures`(라벨·기능·색 여부·엔진 기본값)를 같은 표에서 만든다.
-  - 외곽선: `VSOutline`/`PSOutline`, `PipelineDesc::cullFront`(DX12·Vulkan) 뒤집은 껍질, 법선 방향으로 월드 미터만큼 부풀림, 외곽선 없는 머티리얼의 정점은 넓이 0으로 접는다. `createMesh`가 외곽선 머티리얼이 있는 메시를 표시하고 `drawInstances`가 같은 인스턴스를 한 번 더 그린다(드로우 콜 +1, 보기 모드에서는 그리지 않는다). 나뉜 법선(각진 모서리)에서는 선이 끊긴다.
-  - 바람: 정점 셰이더, 정점 알파 × 머티리얼 세기 × `FrameParams::windStrength`, 방향 `windDirection`, 위상은 월드 위치, 시간 `FrameParams::time`(출시 exe·에디터가 `fmod(now, 4096)`, 기준 그림은 0).
-  - 림: (1 − n·v)³ × 세기 × 색. 디졸브: 물체 공간 위치의 정수 해시 값 무늬 두 옥타브, 진행도보다 낮으면 버리고 경계 폭은 발광, 두 패스 모두.
-- **인스턴스 값** (flags 비트 16~23 번쩍임, 24~31 디졸브 진행도, `render::instanceFlash`·`instanceDissolve`): 번쩍임은 안개 전에 흰색으로 섞는다(모든 머티리얼). 프레임 상수 192 → 224바이트(바람, 툰 램프 번호). 텍스처 올리기 큐를 UI 아틀라스와 같이 쓰고 `beginFrame`에서도 비운다.
-- **셰이더 핫 리로드**: `ShaderReloader::add`가 진입점·정의를 받아 변형 넷(조명 셋 + 외곽선)을 따로 다시 만든다.
-- **에디터**: [보기] > 보기 모드 > 머티리얼 기능(외곽선 빨강·바람 초록·림 파랑·디졸브 노랑, 더한 색), 프로젝트 설정 창의 조명 모델·툰 램프(한국어 글자).
-- **Blender 애드온**: 머티리얼 패널이 스키마로 기능 단추를 만들고, 색 키는 그 기능이 켜졌을 때만 보이며 색 고르기 상자(COLOR), 값은 실수로 저장(정수 배열 속성이 되지 않게), 바람이 있으면 정점 알파 안내. 애드온 시험에 기능 추가 → extras·정점 색 VEC4 내보내기를 더했다.
-- **예제**: `tools/make_sample_models.py`의 `props/style_figure`(외곽선 + 림, 매끈한 법선)·`style_grass`(바람, 알파 뿌리 0 → 끝 1)·`style_orb`(디졸브 + 림), `assets/scenes/styles.scene`(씬 물체 flags로 번쩍임·디졸브 진행도). sandbox: 밀치기 범위 안의 다른 Pawn이 번쩍인다(`view/Draw.cpp` `onWorldEvent`, 화면 시계라 화면 정지 동안 멈춤, 화면용 튜닝 `pawn.hitFlash`·`hitFlashSeconds`).
-- **시험**: 단위 테스트 `material_extras`(키·값·문제·인스턴스 비트), `asset_schema`(스키마 다시 씀). 그래픽 회귀 테스트 `shots.txt`에 조명 모델 열(선택)을 더하고 `styles_pbr`·`styles_toon`·`styles_unlit`·`materials_toon`(DX12 기준 그림, Vulkan 비교).
-- **검증**: check.ps1 전체(기준 그림 5장 그대로, 새 4장 DX12·Vulkan, Vulkan 검증 레이어, Blender 애드온). 출시 exe 3,713,536 → 3,763,200바이트(셰이더 변형 + 외곽선). Vulkan은 진입점 이름으로 파이프라인을 만들어 SPIR-V 진입점을 `-fspv-entrypoint-name`으로 VSMain·PSMain으로 바꾼다(핫 리로드도).
-- **남은 것**: 외곽선 굵기를 화면 픽셀로 두는 옵션, 툰 그림자 경계 색(그늘 색조), 바람 방향·세기를 씬 환경에 두는 것은 쓸 게임이 생길 때. 3부 룩데브에서 조명 모델을 바꿔 보기. 최소 사양 실기에서 외곽선·디졸브 비용 측정.
-
-## v0.5.2 — 오디오 저작 도구
-
-### [x] 오디오 3: 저작 도구 (완료 2026-10-26)
-- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 오디오 저작 도구): MealKit-Audio 저장소 안 `tool/`, Dear ImGui + SDL3, 런타임이 읽는 텍스트 하나 `assets/sounds.events`, 첫 버전부터 도구 안 미리 듣기 + 저장 즉시 반영 + 게임에서 재생.
-- **런타임 0.2.0** (MealKit-Audio 커밋 0914bba, 태그 `v0.2.0`): 이벤트 파일 `mkaudio/Events.h`(`parseEvents`·`writeEvents`·`loadEventFile`·`saveEventFile`·`resolveClips`, `@format audio-events 1`, `event <이름>`·`mixbus <이름>` 블록, 키는 `EventDef`·`BusDef` 필드 이름, 기본값은 쓰지 않는다, 틀린 줄은 줄 번호가 있는 메시지). 버스 정의 `BusDef`(부모·믹스 볼륨) + `Mixer::setBuses`(부모가 돌고 돌면 master), 버스 볼륨 = 믹스 × 플레이어. 시험에 파일 왕복·버스를 더했다.
-- **저작 도구 `MealKitAudio`** (`tool/`, SDL 3.4.18 + Dear ImGui v1.92.9b-docking, `third_party/`에 넣었다): 도킹 창 Events(찾기·추가·복제·지우기, 클립이 없으면 빨갛게, 두 번 누르면 재생) · Event(이름 바꾸기, 컨테이너, `assets/`의 .wav·.ogg에서 클립 고르기·순서, 볼륨·피치·무작위, 파라미터와 볼륨·피치·로우패스 곡선(끝점을 끌어 고친다, 미리 듣기 위치 표시), 3D 거리와 감쇠 그림, 버스, 루프·스트림·우선순위·상한·넘칠 때·쿨다운, 자막) · Buses(부모·믹스 볼륨·레벨) · Preview(런타임으로 재생, 파라미터·거리 슬라이더, 목소리, 끊긴 소리) · Live(프로젝트 `build/live/`의 게임·에디터, "Play in game", 게임의 목소리·버스). 되돌리기(Ctrl+Z·Y), 저장(Ctrl+S, 저장하면 실행 중인 게임에 `audio/reload`), 밖에서 바뀐 파일 다시 읽기, 저장 안 한 채 닫기 확인, [File] > `sounds.table` 불러오기. `--project`·`--select`·`--frames N --capture <png>`(문서·시험). 빌드하면 `build/bin/`에 실행 파일과 매니페스트 `mealkit-tool.txt`가 같이 놓이고, 에디터 `--tool-path`나 `%LOCALAPPDATA%\MealKit\tools\audio\`에서 [도구] 메뉴에 나온다. CI에 Linux SDL 패키지와 ninja를 더했다.
-- **엔진** (`mealkit/audio`): `assets/sounds.events`를 런타임으로 읽고(클립은 `findAsset`), 없고 `sounds.table`이 있으면 `row`→`event`로 바꿔 읽으며 경고한다. `SoundEvent` 행 타입과 엔진 표 등록을 지웠다([표] 패널에서 빠짐), `Engine::event()`는 `mkaudio::EventDef`, `listener()`를 더했다. 라이브 연결 서비스 `audio::addLiveService`(`POST audio/play` 본문 `event=<이름>&p.<파라미터>=<값>` → 리스너 자리에서, `POST audio/reload`, `GET audio/state`)를 개발 빌드 게임과 에디터가 연다. [소리] 패널은 미리 듣기·값 확인만, "MealKit Audio에서 고친다" 안내. 에디터 글자에서 소리 표 필드 설명을 지웠다.
-- **옮기기**: 예제 `assets/sounds.table` → `assets/sounds.events`. `tools\upgrade_project.ps1`이 프로젝트마다 같은 일을 하고(표는 백업에 남긴다), `check_layout.ps1`의 정해진 단일 파일이 `sounds.events`로 바뀌었다. 엔진 버전 0.5.2.
-- **검증**: 런타임 시험(Windows), 게임·에디터가 이벤트 10개를 경고 없이 읽음, 예전 표 대체 읽기, 게임·에디터의 `audio/play`·`reload`·`state`, 도구 화면 캡처(편집 화면, 실행 중인 게임을 찾아 상태 보기), 에디터 `--list-tools`가 도구를 찾음. check.ps1 전체.
-- **남은 것**: MealKit-Audio를 push하고 CI(Linux·macOS 빌드는 아직 돌지 않았다). 도구 설치 묶음(릴리스 zip), 공간 음향·인터랙티브 음악(4단계), 에셋 브라우저의 "이 도구로 열기"(`opens`).
-
-## v0.5.1 — 도구 제품군 시작
-
-### [x] 오디오 2: 런타임을 별도 저장소로 (완료 2026-10-26)
-- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 오디오 런타임 저장소): 저장소 `MealKit-Audio`(로컬 `D:\MealKit-Audio`, 주소 `github.com/MealKit-Engine/MealKit-Audio`, MIT), 코드 이름 `mkaudio` 그대로. 이 PC에 gh가 없어 GitHub 저장소 만들기와 push는 사용자가 한다.
-- **새 저장소** (커밋 8982b8a, 태그 `v0.1.0`): `engine/libs/mkaudio`의 `include/`·`src/`를 옮기고, 혼자 빌드되게 `CMakeLists.txt`(`project(mkaudio VERSION 0.1.0)`, `MKAUDIO_MINIAUDIO_DIR`·`MKAUDIO_STB_DIR`가 없으면 자기 `third_party/`, `MKAUDIO_BUILD_TESTS`는 혼자 빌드할 때만, Linux·macOS 링크 라이브러리), `third_party/miniaudio`(0.11.25)·`third_party/stb`(stb_vorbis), `README.md`, `LICENSE`, CI `.github/workflows/ci.yml`(Windows MSVC, Linux Clang, macOS ARM64 Clang: 빌드 + ctest).
-- **장치 없는 섞기**: `Desc::noDevice`·`Desc::sampleRate` + `Mixer::render(out, frames)`(`ma_engine_read_pcm_frames`). 시험·오프라인 렌더용, 엔진은 쓰지 않는다.
-- **시험** `tests/MixerTests.cpp`(25개, 시험이 사인파 WAV를 만든다): 재생·멈춤 소리 크기, 없는 이벤트·클립, 쿨다운, 같은 프레임 묶기, 상한(끊지 않음), 먼 루프의 가상 목소리와 돌아오기, 페이드, 음소거와 자막, 버스 볼륨, 정의를 바꿀 때 이름으로 잇기. Windows에서 통과(Linux·macOS는 CI가 처음 돌 때 확인).
-- **엔진**: `engine/libs/mkaudio`를 지우고 `third_party/mkaudio/`(CMakeLists·include·src·LICENSE·`mealkit.txt`, `version v0.1.0 (8982b8a)`)로 바꿨다. 가져오기 `tools\update_mkaudio.ps1 -From <체크아웃> [-Ref <태그>]`(git archive라 고치는 중인 파일은 들어오지 않는다, 버전 줄을 바꾸고 `gen_notices.ps1`을 돌린다). 같이 고칠 때는 CMake `-DMEALKIT_MKAUDIO_DIR=<체크아웃>`(그 체크아웃으로 엔진 전체를 빌드해 확인했다). miniaudio·stb는 엔진의 것을 넘긴다. `VERSIONS.txt`·`THIRD_PARTY_NOTICES.txt`에 mkaudio가 올랐다. 출시 exe 크기는 오디오 1과 같다(3,662,848바이트).
-- **경계 검사** `tools\check_libs.ps1`: 대상이 `engine/libs/*`에서 "`third_party/` 중 `mealkit.txt`의 source가 MealKit-Engine 저장소인 것"으로 바뀌었고, `-Path <체크아웃>`으로 로컬 체크아웃도 검사한다.
-- **남은 것**: GitHub에 저장소를 만들고 `main`과 `v0.1.0`을 push한 뒤 CI 결과 확인(Linux·macOS 빌드는 아직 아무도 돌려 보지 않았다). 오디오 3(저작 도구).
-
-### [x] 오디오 1: 엔진 안에서 런타임 층 나누기 (완료 2026-10-26)
-- **결정** (사용자와 정함, `docs/DECISIONS.md` 2026-10-26 오디오 런타임): 런타임은 엔진 밖 라이브러리 폴더 `engine/libs/mkaudio/`(자체 `CMakeLists.txt`·`include/mkaudio/`·`src/`), 임시 이름 `mkaudio`(저장소 이름을 정하는 오디오 2에서 바꾼다), C++20.
-- **런타임** `mkaudio::Mixer`(`include/mkaudio/Mixer.h`): 예전 `audio::Engine::Impl`의 섞기·버스·버스 미터·클립 풀기·컨테이너(무작위·스위치·블렌드)·파라미터 곡선·로우패스·쿨다운·동시 재생 상한과 끊기·같은 프레임 묶기·가상 목소리·자막을 그대로 옮겼다. 엔진 기능 대신: 자체 `Vec3`, 이벤트 정의 `EventDef`(Reflect 없는 일반 구조체, 클립은 `ClipRef{name, file}`로 쓰는 쪽이 찾은 파일), 로그는 `Desc::log` 함수, 화면용 무작위는 자체 PCG32, 시간 재기는 `std::chrono`. 정의는 `setEvents(vector<EventDef>)`로 받고(쿨다운·직전 클립·재생 중인 소리를 이름으로 잇는다), `sampleRate`·`channels`·`maxVoices`를 더했다. `MiniaudioConfig.h`·`MiniaudioImpl.cpp`는 런타임으로 옮겼다.
-- **접착층** `mealkit/audio/Audio.cpp`(770줄 → 180줄): `sounds.table` 읽기와 0.25초마다 다시 읽기, `SoundEvent`(`MEALKIT_STRUCT`, 에디터 [표] 패널) → `EventDef` 바꾸기(컨테이너·끊기 낱말, 없는 클립은 한 번만 경고), `findAsset`으로 클립 파일 찾기, 로그를 `MEALKIT_INFO/WARN`으로, `MEALKIT_ZONE("Audio")`. `Handle`·`Param`·`VoiceInfo`·`CullInfo`·`BusInfo`·`Subtitle`·`Stats`는 런타임 타입의 별칭이라 게임·에디터·`FrameStats` 코드는 그대로다(`ctx.audio` API, `sounds.table` 형식 변경 없음).
-- **빌드**: `engine/CMakeLists.txt`가 `MKAUDIO_MINIAUDIO_DIR`·`MKAUDIO_STB_DIR`를 정해 `add_subdirectory(libs/mkaudio)`, `mealkit`이 PRIVATE으로 링크하고 include 경로만 PUBLIC(게임은 런타임 헤더의 값 타입만 본다, mealkit.dll이 내보내는 기호는 그대로). 출시 exe는 9 KB 커졌다(3,653,632 → 3,662,848바이트: `std::function` 로그, 정의 복사).
-- **경계 검사** `tools\check_libs.ps1`(check.ps1 "Engine libs (no engine headers)"): `engine/libs/*`가 `mealkit/` 헤더·`engine/src` 경로·`MEALKIT_` 매크로·라이브러리 밖 상대 include를 쓰거나, CMake가 엔진 변수(`MEALKIT_`·`mealkit_`)를 쓰면 실패한다.
-- **남은 것**: 오디오 2(새 저장소, 자체 CI, `third_party/`로 버전 고정, 로컬 체크아웃 CMake 변수, 이름 정하기). 런타임만의 단위 테스트(장치 없이 섞기)는 그 저장소에서 miniaudio의 null 장치로.
-
-### [x] 도구 사이 약속 (완료 2026-10-26)
-- **왜**: MealKit을 엔진 + 담당별 작은 도구(별도 저장소, MIT)로 나누기 전에, 도구와 엔진이 이어지는 면을 하나로 정한다(`docs/DECISIONS.md` 2026-10-26 두 행). 세 가지는 사용자와 정했다: 모든 형식에 형식 줄, 새 `live/` 층, 매니페스트로 도구 찾기.
-- **형식 줄** (`core/TextFormat.h`: `text::Format`, `formatLine`, `readFormatLine`, 종류별 상수 `kProject`·`kTuning`·`kSettings`·`kTable`·`kScene`·`kUi`·`kStrings`·`kTool`): 주석 머리 다음 첫 줄 `@format <종류> <N>`. 없으면 버전 1, 다른 종류·더 새 버전·틀린 모양은 경고. `version N`이 아니라 `@format`인 것은 `mealkit.project`(게임 `version` 필드)·튜닝처럼 필드 이름이 키인 파일과 겹치지 않게. 쓰는 곳: `reflect::saveTextFile/loadTextFile`(형식 인자를 받는다: 튜닝·화면용 튜닝·플레이어 설정), 표(`data/Tables`), `mealkit.project`(형식 줄은 머리말에 넣지 않는다), 씬(`version 2` → `@format scene 2`, 예전 줄도 읽는다), `.ui`·`theme.ui`(Penpot 플러그인 `convert.ts`가 쓰고 dist 다시 빌드, 가져오기의 테마 합치기가 새 파일의 머리말·형식 줄을 그대로), 문자열 표(`loc/Strings`, `mealkit_stringcheck`). 저장소의 예제 데이터 27개와 템플릿 `mealkit.project`에 줄을 넣었다(콘텐츠 해시는 읽은 값으로 계산해 바뀌지 않는다, 리플레이 그대로). 세이브는 게임 데이터 버전이 따로 있어 그대로. 플레이어 설정 머리말의 `# #` 겹침도 고쳤다.
-- **라이브 연결** (`live/Server.h`, 새 엔진 층 `data` 다음 `live`, `tools\check_layers.ps1`): 127.0.0.1 HTTP 서버. 접속 정보 `<프로젝트>/build/live/<종류>-<pid>.json`(`protocol`·`kind`·`pid`·`port`·`token`·`project`·`engine`·`url`, 닫을 때 지우고, 열 때 죽은 pid의 파일을 지운다: `platform::processRunning`). 경로 `/<토큰>/api/hello`(약속 버전 `live::kProtocol` 1, 서비스·주제 목록), `/<토큰>/api/events?topics=a,b`(SSE, 못 읽어 가는 연결은 4 MB에서 닫는다), `/<토큰>/<서비스>/...`(`addService`, 서비스마다 브라우저 Origin 허용 함수. 기본은 Origin이 있으면 이 서버 자신만). 요청은 메인 스레드 `update()`. 주제 `stats` = `game::FrameStats::json()`(보고 주기마다, 듣는 연결이 있을 때만 만든다).
-  게임 exe(`game::runGame`)는 `MEALKIT_LIVE`(CMake 옵션, Export는 `-DMEALKIT_LIVE=OFF`)일 때 아무 포트로, 에디터는 프로젝트를 열면 27220부터 10개 포트로 연다.
-- **Penpot 가져오기를 라이브 연결로**: `editor::ImportServer`는 소켓을 버리고 서버의 `penpot/` 서비스가 됐다. 플러그인 주소 `http://127.0.0.1:27220/<토큰>/penpot/manifest.json`(토큰은 원래 실행마다 바뀌었다), Penpot 출처 규칙·패널만 쓰기 규칙은 그대로. `--penpot-token`은 라이브 서버 토큰을 정한다.
-- **[도구] 메뉴** (`editor/Tools.h`): 매니페스트 `mealkit-tool.txt`(`@format tool 1`, `name`·`exe`·`version`·`protocol`·`opens`)를 `--tool-path` 폴더 → `%LOCALAPPDATA%\MealKit\tools\*` → 에디터 설정 `toolPath` 줄 순으로 찾는다(폴더 자체 또는 한 단계 아래). 약속 버전이 다르거나 실행 파일이 없으면 흐리게 + 이유 툴팁, 고르면 `"<exe>" --project "<프로젝트>"`. [도구 폴더 열기]·[도구 다시 찾기]. `MealKitEditor --list-tools [--tool-path <폴더>]`는 창 없이 찾은 것을 출력한다. 에디터 설정 파일은 언어를 바꿔도 다른 줄을 지우지 않는다.
-- **예시 클라이언트** `tools\live_probe.ps1 [-Project] [-Kind game|editor] [-Wait 초] [-Events N] [-Topics stats]`: 접속 정보 → hello → 이벤트 N개. 다른 언어의 도구도 같은 순서로 붙는다.
-- **검증**: 단위 테스트 `text_format`, `live_server`(토큰·Origin·서비스 경로·접속 정보 파일·죽은 pid 정리), `frame_stats`(JSON). check.ps1 "Live connection (game)"(실제 소켓: 게임을 띄워 hello + stats 2개, 끝나면 접속 정보 파일 없음), "Editor tool discovery (manifest)", "Export build"가 출시 exe에 라이브 서버가 없는지. 에디터의 Penpot 경로(매니페스트 주소 바꾸기, `api/project`, 다른 출처 403)는 손으로 확인.
-- **남은 것**: 도구의 런타임 조각을 로컬 체크아웃으로 가리키는 CMake 변수는 처음 떼는 오디오 2에서. 라이브 연결의 값 바꾸기 서비스(튜닝·표·소리)는 그것을 쓰는 도구 항목에서 서비스로 더한다. [도구] 메뉴는 화면 캡처로 확인하지 않았다(메뉴를 여는 자동화가 없다), `opens` 확장자는 에셋 브라우저(4단계)가 생기면 "이 도구로 열기"에 쓴다.
-
-## v0.5.0 이후 — 2단계 진행 중 (엔진 버전 그대로, 템플릿 변경 없음)
-
-### [x] 텍스처와 머티리얼 1부 — 텍스처 캐시, glTF PBR 머티리얼 (완료 2026-10-21)
-- **범위** (사용자와 정함): 항목을 3부로 나눴다 — 1부 텍스처·glTF PBR(이것), 2부 스타일 프리셋 셰이더, 3부 룩데브 미리보기 (`docs/DECISIONS.md` 2026-10-21).
-- **RHI**: `Format`에 `Rgba8Srgb`·`Bc7Unorm`·`Bc7Srgb`·`Bc5Unorm`, `textureMipBytes`, `Device::createTexture(TextureInit)`(밉 전체를 한 번에 올리고 기다린다: DX12 `GetCopyableFootprints` + 업로드 버퍼, Vulkan 스테이징 + `vkCmdCopyBufferToImage`). 두 번째 고정 샘플러 `g_linearWrap`(s1 / 바인딩 3, 반복, 이방성 8). `VertexFormat`에 `Half2`·`Uint16x2`. Vulkan은 `textureCompressionBC`·`shaderSampledImageArrayNonUniformIndexing`(최소 사양에 더함)·`samplerAnisotropy`(있으면)를 켠다.
-- **텍스처 캐시** (`asset/TextureCache.h`, 화면 쪽): glTF 이미지(PNG·JPEG, stb_image에 JPEG를 켰다)를 디코드 → 2×2 상자 필터 밉맵(색은 선형 공간, 법선은 다시 길이 1) → 4×4 블록마다 BC7(bc7enc, 색은 sRGB·지각 가중) 또는 BC5(rgbcx `encode_bc5_hq`) → `<프로젝트>/build/cache/textures/<인코딩된 이미지·쓰임·버전 해시>.mktex`. 읽을 때는 그 폴더, 다음 exe 옆 `cache/textures`. 압축은 디버그 UI 빌드만(`MEALKIT_DEBUG_UI`), 출시 빌드는 캐시에 없으면 로그와 흰색. Export(`MealKitExport.cmake`)가 캐시 폴더를 복사한다. 256² 텍스처 하나 압축 약 10 ms.
-- **외부 라이브러리**: bc7enc_rdo b943862(MIT/퍼블릭 도메인, `third_party/bc7enc`: bc7enc.cpp·rgbcx.cpp만, 개발 빌드만 링크).
-- **모델** (`ModelCache`): `TEXCOORD_0`, 프리미티브의 머티리얼 → 렌더러 머티리얼(기본 색·발광·금속·거칠기 계수와 텍스처, 법선 세기, 알파 마스크 → 클립, `KHR_materials_emissive_strength`). 같은 이미지는 한 번만 올린다. 지원 범위 밖(스펙큘러-글로시니스, 클리어코트, 투과·볼륨, 쉰, 무지개, 이방성, 스펙큘러·IOR, unlit, 알파 블렌드, 양면, 오클루전, 두 번째 UV·텍스처 변환, data URI)은 경고. 예전에 정점 색에 곱하던 baseColorFactor는 머티리얼 표로. `Model::textures`·`textureSize`(예산 검사에 들어간다). 헤드리스는 머티리얼·텍스처를 읽지 않는다(올리는 함수가 없다).
-- **정점 36바이트** (`render/Mesh.h`, `docs/DECISIONS.md` 2026-10-21): + `uv`(half2, `packHalf2`) + `material`(u16, 렌더러 머티리얼 번호). 껍질 점·경계·파일 해시는 그대로라 시뮬레이션·콘텐츠 해시·고정 기록이 바뀌지 않는다.
-- **렌더러·셰이더**: 머티리얼 표(64바이트 기록, 0번 흰색)를 프레임마다 업로드 링에 쓰고 `FrameConstants.materials`(192바이트)로 위치를 넘긴다. `Forward.hlsl`: 기본 색 텍스처 × 계수 × 정점 색 × 인스턴스 색, 알파 클립, BC5 법선 맵(화면 미분 접선 공간), 금속/거칠기(G·B), 발광, 태양 GGX 정반사(Smith·Schlick, F0 0.04/알베도) + 환경 정반사 어림. 확산은 예전의 감싼 하프 램버트(기존 장면 그림 차이 최대 5/255).
-- **예제·시험**: `tools/make_sample_models.py`가 `models/props/crate.glb`(나무 판자 + 금속 테두리: 기본 색·법선·금속/거칠기 텍스처)와 `fence.glb`(철망, 알파 마스크)를 만든다(tree·rock·ring 파일은 바이트 그대로). `scenes/materials.scene`, 기준 그림 `materials_crate`·`materials_close`. Vulkan(검증 레이어)과 DX12 그림 차이 최대 1/255. 단위 테스트 `texture_mips`(sRGB 평균, 법선 다시 길이 1, half 변환).
-- **Blender 애드온·스키마**: `textures true`, `TEXCOORD_0`, `textureInputs`(Base Color·Normal·Metallic·Roughness·Emission Color), `alphaClip`. 내보내기에 텍스처 좌표와 이미지(AUTO)를 켜고, 엔진이 읽지 않는 BSDF 입력의 텍스처만 경고한다. 애드온 시험이 텍스처 이미지가 .glb에 들어가는지 본다.
-- **남은 것**: 2부 스타일 프리셋(조명 모델 PBR/툰/없음, 외곽선·바람·림·디졸브, PSO 미리 만들기), 3부 룩데브. 오클루전 텍스처, 양면 머티리얼, 알파 블렌드(반투명 패스와 같이). 하늘 HDRI가 오면 환경 반사. 텍스처 핫 리로드는 모델 핫 리로드가 같이 한다(캐시 키가 내용 해시).
-
-### [x] GPU 캡처 버튼과 에디터 보기 모드 (완료 2026-10-21)
-- **GPU 캡처** (`rhi/GpuCapture.h`, 그래픽 프로그래머용): 디버그 UI가 있는 빌드(에디터·개발 exe)에서 `--gpu-capture`로 시작하면, 장치를 만들기 전에(`DeviceDesc::gpuCapture`, 두 도구 모두 장치 생성 때 API를 가로챈다) `%ProgramFiles%\RenderDoc
-enderdoc.dll`(DX12·Vulkan) 또는 `%ProgramFiles%\Microsoft PIX\<가장 새 버전>\WinPixGpuCapturer.dll`(DX12)을 불러온다. 에디터 [보기] > GPU 캡처(도구가 없으면 숨김)·F11, 게임 exe F11이 다음 프레임을 캡처하고 RenderDoc 창을 연다. 캡처는 `%LOCALAPPDATA%\MealKit\gpu-captures`. 자동 시험용 `--gpu-capture-at <프레임>`(창 없이). 항상 불러오지 않고 시작 옵션으로 둔 것은 도구가 API를 가로채 성능·검증 레이어에 끼어들기 때문. 출시 빌드에는 코드가 없다(빈 함수).
-- **외부 라이브러리**: RenderDoc in-application API 헤더 `third_party/renderdoc/renderdoc_app.h`(1.46, MIT, 헤더만. DLL은 사용자의 RenderDoc 설치에서). PIX는 `PIXGpuCaptureNextFrames`를 DLL에서 찾는다(WinPixEventRuntime 없이).
-- **플랫폼 계층**: `environmentVariable`(Windows `GetEnvironmentVariableW`, POSIX `getenv`), `listDirectories`.
-- **보기 모드** (`render::DebugView`, 에디터 [보기] > 보기 모드, `--view-mode <n>`): 와이어프레임, 법선, LOD 단계(초록·노랑·빨강), 오버드로(깊이 없이 더하기, 검정 바탕), 예산 초과(빨강/회색). 셰이더는 푸시 상수의 빈칸이던 `debugView`로 고르고, 에디터는 보기 모드일 때만 인스턴스 플래그(LOD 비트 8~9, `kInstanceOverBudget`)를 채운다. RHI `PipelineDesc`에 `wireframe`·`additiveBlend`·`depthTest`(DX12 FillMode·블렌드·깊이, Vulkan polygonMode LINE — `fillModeNonSolid`가 있으면 켠다 — ·블렌드·깊이). 보기 모드 파이프라인은 디버그 UI 빌드만 만들고 셰이더 핫 리로드도 같이 바꾼다. `Renderer::supportsDebugView`.
-- **검증**: RenderDoc 1.46(winget으로 설치)으로 DX12·Vulkan 게임 exe에서 `capture_frame61.rdc` 생성, `renderdoccmd thumb`로 캡처 그림 확인. check.ps1 "GPU capture (RenderDoc)"(없으면 SKIP). 보기 모드 다섯 개 에디터 캡처(와이어프레임, LOD에서 링이 1단계 노랑, 예산 초과에서 링 빨강, 오버드로). check.ps1.
-- **남은 것**: PIX 경로는 PIX 설치 후 확인. 머티리얼 기능 보기 모드는 머티리얼 기능(스타일 프리셋)이 생길 때. 오버드로는 지금 불투명뿐이라 의미가 작다(파티클·반투명이 생기면 쓸모).
-
-### [x] 그래픽 회귀 테스트 (완료 2026-10-21)
-- **왜**: 셰이더·포스트를 고치다 그림이 깨져도 사람이 보기 전에는 모른다. 기존 캡처 비교는 DX12 = Vulkan(백엔드 사이)뿐이라 두 쪽이 같이 깨지면 못 잡았다.
-- **장면** (`engine/tests/golden/shots.txt`): `이름 씬 x y z yaw pitch`(도) 줄. 지금 셋 — 전경(에디터 기본 카메라), 모델 가까이(링), 낮은 각도(물체·안개·영역 모서리). 기준 그림은 같은 폴더의 `<이름>.png`(DX12, 1600×900).
-- **그리기** (`MealKitEditor --render-golden <shots.txt> <폴더>`, `EditorMain.cpp`): 에디터를 평소처럼 열고(게임 DLL의 씬 종류가 필요) 메인 루프에서 UI 없이 `Editor::buildShot`(카메라·창 전체 뷰포트·선택 없음 → `buildSceneView`)으로 장면마다 4프레임 그리고 마지막을 저장. 편집 화면 그대로라 시간·보간에 따라 바뀌는 것이 없다.
-- **비교** (check.ps1 "Graphics regression (golden images)", "(Vulkan)"): `compare_images.ps1` 채널 차이 8 초과 픽셀 0.5% 이하(GPU·드라이버 차이 허용). 다르면 `-DiffOut`(새 옵션)으로 `build\check\golden[-vulkan]\<이름>-diff.png`(어둡게 한 기준 + 다른 픽셀 빨강). `check.ps1 -UpdateGolden`은 DX12 그림으로 기준을 바꾸고 그 단계를 SKIP. "Vulkan = DX12" 단계도 이제 `backend-diff.png`를 남긴다(가끔 흔들리는 원인을 보려고).
-- **검증**: 정점 색을 10% 어둡게 한 셰이더로 `arena_low`가 DIFFERENT(2.5% 픽셀), 되돌리면 SAME. check.ps1 32개 통과. 같은 날 `-UpdateGolden` 실행에서 "Vulkan = DX12"가 한 번 더 흔들렸다(최대 차이 90, 0.74%) — 다음에 `backend-diff.png`로 본다.
-- **남은 것**: 다른 PC·GPU에서는 문턱을 넘을 수 있다(그때 문턱 또는 PC별 기준을 정한다). 조명 모델·포스트 프로세싱 장면.
-
-### [x] 에셋 예산 경고 (완료 2026-10-21)
-- **왜**: 아티스트가 내장 그래픽에서 얼마나 무거운 모델을 써도 되는지 알 수 없다.
-- **종류** (`asset/Budget.h`, `docs/CODING_MODEL.md` "모델 예산 종류", 사용자와 정함): `assets/models/` 아래 첫 폴더 — `characters/` 캐릭터, `environment/` 배경, 그 밖은 소품. `asset::modelKind`(역슬래시도).
-- **한도**: `mealkit.project`의 `budget{Characters,Props,Environment}{Triangles,TextureSize,Bones,Materials}`(`MEALKIT_VIEW_FIELD`, 해시 밖, [프로젝트 설정] 창). 기본값 `asset::kDefaultBudgets`(사용자와 정함): 캐릭터 15,000 삼각형·2048 px·뼈 64·머티리얼 4, 소품 3,000·1024·0·2, 배경 20,000·2048·0·4. 템플릿 파일에는 줄을 넣지 않았다(없는 줄 = 기본값, 템플릿 버전을 올리지 않는다).
-- **엔진**: `Model`에 `kind`·`materials`(메시가 쓰는 서로 다른 glTF 재질 수)·`bones`·`textureSize`(아직 0: 스킨·텍스처를 읽지 않는다)·`budgetProblems`. `ModelCache::setBudgets`(불러온 모델도 다시 검사)를 `loadMatchData`와 에디터 시작이 부르고, 에디터는 프로젝트 설정 값이 바뀌면 다시 넘긴다. 넘으면 `Model ... is over the props budget: 3072 triangles (budget 3000)` 경고.
-- **에디터 인스펙터**: 모델 줄 아래 "예산: 소품", 삼각형·머티리얼 사용량/한도(넘으면 빨강).
-- **Blender 애드온**: 이름에 폴더를 쓸 수 있다(`props/crate` → `assets/models/props/crate.glb`). 패널에 종류와 한도, 검사가 `mealkit.project` 값(없으면 스키마 `budgets`의 엔진 기본값)으로 삼각형·머티리얼을 넘으면 경고. 스키마에 `budgets`(폴더, 키 접두사, 기본값)를 더했다.
-- **예제**: `models/ring.glb`(3,072 삼각형)가 소품 예산을 조금 넘어 경고가 하나 나온다. 일부러 두었다(경고 예시). 옮기면 씬 경로·콘텐츠 해시·고정 기록이 바뀐다.
-- **검증**: 단위 테스트 `asset_budget`(종류, 넘은 항목 문장), `asset_schema`, 애드온 시험(폴더 종류, `budgetPropsTriangles 500`으로 낮춘 경고, `models/props/` 내보내기), 에디터 캡처(Ring 선택: 삼각형 3072 / 3000 빨강). check.ps1.
-- **남은 것**: 텍스처 크기·뼈 수는 텍스처와 머티리얼·스켈레탈 애니메이션 항목에서 세기 시작한다. 에셋 브라우저(4단계)의 예산 열.
-
-### [x] Blender 내보내기 애드온 (완료 2026-10-21)
-- **왜**: 그래픽 콘텐츠를 Blender에서 만들기로 했으므로, 아티스트가 엔진 규칙(지원 범위, 내보내기 설정, 나중의 머티리얼 extras 키)을 Blender 안에서 알고 버튼 하나로 프로젝트에 넣어야 한다. Penpot 플러그인과 같은 역할.
-- **애드온** (`tools/blender-addon/mealkit`, Blender 확장 형식 `blender_manifest.toml`, Blender 5.2 LTS, `docs/DECISIONS.md` 2026-10-21): 3D 뷰 사이드바 [MealKit] 패널 — 프로젝트(`.blend` 폴더에서 위로 `mealkit.project`를 찾는다, 보통 `art/`에 둔다. 직접 고를 수도 있다), 이름(기본 `.blend` 이름), 선택한 것만, [Check]·[Export to MealKit], 검사 결과 목록. 내보내기는 검사에 오류가 없을 때 `assets/models/<이름>.glb`로 엔진이 읽는 것만(GLB, +Y 위, 모디파이어 적용, 법선, 활성 정점 색, 재질, extras. 텍스처 좌표·이미지·애니메이션·스킨·모프·카메라·빛 끔). 에디터의 에셋 핫 리로드가 받아 바로 보인다.
-- **검사** (`checks.py`): 내보낼 메시가 없음(오류), 이미지 텍스처(아직 안 읽음), Principled BSDF 없음, 기본 색이 정점 색·값이 아닌 노드에서 옴, 아마추어·애니메이션·셰이프 키(경고), 색 속성 여러 개·합쳐지는 물체 수와 삼각형 수(참고).
-- **엔진 스키마** (`asset::modelSchemaJson`, `ModelCache.h`): 불러오기가 읽는 범위(형식, 폴더, 속성, 메시 합치기, LOD 수, 재질, 스킨·애니메이션 여부, 머티리얼 기능 목록)를 JSON으로. 애드온은 자기 폴더의 `schema.json`을 읽고, 단위 테스트 `asset_schema`가 그 파일이 엔진 것과 같은지 본다(`mealkit_tests --write-asset-schema`로 다시 쓴다). 로드맵의 "엔진이 내보낸 스키마"를 애드온이 실행 중 에디터에 묻는 대신 파일로 들고 다니게 했다: 에디터 없이 Blender만 켜도 되고, 어긋나면 엔진 테스트가 실패한다.
-- **머티리얼 패널**: 스키마의 `materialFeatures`마다 커스텀 속성 `mealkit_<키>`를 더하고 지우는 줄(glTF extras로 나간다). 지금 목록은 비어 있다(엔진 머티리얼 기능이 아직 없다).
-- **검증**: `tools/blender-addon/test/test_export.py`를 check.ps1 "Blender add-on export"가 Blender를 창 없이 돌린다(`MEALKIT_BLENDER`, 기본 `Program Files\Blender Foundation\Blender 5.2`, 없으면 SKIP): 임시 프로젝트의 `art/props.blend`에서 프로젝트 찾기, 텍스처 경고, 정점 색 재질 통과, GLB·`COLOR_0`·텍스처 좌표·이미지 없음, 빈 장면 거절. 내보낸 파일을 에디터가 읽는 것(972 삼각형) 확인. check.ps1 30개 통과(한 번은 "Vulkan = DX12" 캡처 비교가 0.37% 차이로 실패했고 다시 돌리면 통과 — 이번 변경과 무관한 흔들림, 지켜볼 것).
-- **남은 것**: 머티리얼 기능(스타일 프리셋)과 에셋 예산 검사가 같은 스키마에 들어온다. 애드온 설치 파일(zip)은 `blender --command extension build`로 만든다(문서).
-
-### [x] 에셋 핫 리로드 — 모델·씬 (완료 2026-10-21)
-- **왜**: 그래픽 콘텐츠를 외부 도구(Blender)에서 만들기로 했으므로, 내보내면 에디터에 바로 보여야 아티스트가 혼자 작업할 수 있다.
-- **모델** (`asset::ModelCache::reloadChanged`): 불러올 때 파일 시각을 남기고, 다시 볼 때 바뀐 것(없던 파일이 생긴 것 포함)을 다시 읽는다. `Model` 주소는 그대로 두고 내용(LOD 메시, 경계, 껍질 점, 파일 해시)만 바꿔 씬·게임이 가진 포인터가 계속 맞다. 읽기에 실패하면 이전 내용을 지킨다. 옛 GPU 메시는 지우지 않는다(렌더러에 메시 지우기가 없다. 개발 중에만 쌓이고, 에디터를 다시 열면 없어진다).
-- **씬** (`Editor::updateHotReload`): 열거나 저장할 때 씬 파일 시각을 남기고, 밖에서 바뀌면 저장하지 않은 변경이 없을 때 다시 열고 선택을 지킨다(같은 id). 변경이 있으면 상태 표시줄에 한 번 경고하고 덮어쓰지 않는다.
-- **로드맵과 다른 점**: 변경 감지는 `ReadDirectoryChangesW` 대신 요청된 파일의 시각을 0.5초마다 본다(플랫폼 계층의 `fileWriteTime` 그대로, 파일 수십 개라 비용이 없고 다른 OS에서도 같다). 플레이 중에는 화면용 데이터만 바꾸는 대신 **아무것도 바꾸지 않고** 멈춘 뒤에 읽는다: `Model` 하나에 화면용 메시와 시뮬레이션용 껍질 점이 같이 있어, 매치 중에 생기는 바디가 새 껍질을 읽으면 여러 명 플레이에서 피어가 갈린다. 바뀐 모델은 다음 플레이의 콘텐츠 해시에 들어간다.
-- **검증**: 에디터를 연 채로 `tree.glb`를 바위 모델로 덮어쓰기 → `Hot reload: model models/tree.glb`, 캡처에서 나무 5개가 바위로. 씬 파일에 줄 하나 더하기 → `Hot reload: scene ...`. check.ps1.
-- **남은 것**: 텍스처·LUT·효과 파일은 그 기능 항목에서 같은 장치에 더한다. 지원 범위 밖 불러오기 경고(인스펙터)는 머티리얼·애니메이션 항목에서.
-
-### [x] 프러스텀 컬링 (완료 2026-10-21)
-- **왜**: 화면 밖 물체도 모두 업로드 링에 복사하고 그렸다. 맵이 커지면 바로 CPU 복사·GPU 정점 비용이 된다.
-- **방식** (`render/Culling.h`): `createMesh`가 메시 로컬 바운딩 구(정점 상자 가운데 + 가장 먼 정점)를 남기고, `beginFrame`이 `viewProj`에서 평면 6개(`Frustum::fromViewProj`, 행 벡터·클립 z 0..w라 reversed-Z도 같다, 법선이 없는 평면은 건너뜀)를 뽑는다. `DrawList::submit`이 인스턴스마다 구를 위치·회전·가장 큰 배율 축으로 옮겨 평면과 비교하고 보이는 것만 `drawInstances`에 넘긴다. 로드맵의 "`add` 전에"는 `submit` 때로 바꿨다: 게임이 `viewProj`를 정하기 전에 `add`할 수 있고, 게임·에디터 코드를 고칠 필요가 없다(같은 CPU 일). 그림자 등 다른 시점의 패스는 그 항목에서 자기 프러스텀으로.
-- **통계**: `RenderStats::culled`, `FrameSample::culled`, 창 제목·`perf:` 로그 `... inst (N culled)`.
-- **검증**: 단위 테스트 `frustum_culling`(옆·뒤·먼 면 너머는 빠지고 걸친 구는 남음, 바운딩 구). 예제 매치(상자 2,000개)에서 인스턴스 약 55~65%가 빠지고 캡처 가장자리에 빠진 물체 없음. check.ps1.
-- **남은 것**: 물체가 수만 개가 되면 메시별 묶음(공간 덩어리) 단위로 먼저 거르기. GPU 컬링·가림 컬링은 계획 없음.
-
-### [x] 셰이더 핫 리로드 (완료 2026-10-21)
-- **왜**: 셰이더는 빌드 때 바이트 배열 헤더로 exe에 들어가, 그래픽 기능을 넣는 동안 셰이더를 고칠 때마다 엔진을 다시 빌드해야 했다.
-- **`render::ShaderReloader`** (`render/ShaderReload.h`): 렌더러가 프로그램(`Forward.hlsl`, `Ui.hlsl`의 VSMain + PSMain)마다 "바이트코드 → 파이프라인 다시 만들기" 함수를 등록하고, `beginFrame` 앞(프레임 밖)에서 `update()`. 0.5초마다 파일 시각을 보고(`Bindless.hlsli`가 바뀌면 모두), 바뀐 것을 `ChildProcess`로 DXC에 넘겨 기다리지 않는다. VS·PS가 모두 되면 `rhi::Device::recreatePipeline`(GPU를 기다리고 같은 핸들 자리의 PSO·VkPipeline을 바꾼다)으로 끼우고 `Shader reloaded: ...` 로그. 컴파일 오류는 DXC 출력을 `ERROR` 로그로 남기고 이전 셰이더를 계속 쓴다.
-- **같은 컴파일**: DXC 경로·이 백엔드의 옵션(DXIL `-O3 -Qstrip_debug -Qstrip_reflect`, SPIR-V `-O3 -spirv -fspv-target-env=vulkan1.3`, Debug 빌드는 그 옵션)·엔진 셰이더 폴더·출력 폴더(`build/<설정>/engine/shaders/hot`)를 CMake가 `ShaderReload.cpp` 하나에만 정의로 넘긴다. 디버그 UI가 있는 빌드(Release·Debug·Profile·Editor·Vulkan)만 켜지고, 출시 빌드(`build.bat Export`)에는 코드가 없다. 엔진 폴더나 DXC가 없는 PC에서 돌리면 조용히 꺼진다.
-- **검증**: 게임을 돌리는 중 `Forward.hlsl`에 문법 오류 → `ERROR` 로그 + 그림 그대로, 픽셀 셰이더를 빨강으로 → `Shader reloaded` + 캡처가 빨강. DX12와 Vulkan(검증 레이어 켬, 메시지 없음) 모두. check.ps1.
-- **남은 것**: 셰이더 파일을 새로 더하면 지금처럼 CMake `mealkit_shader`와 렌더러 등록을 같이 쓴다. 게임·머티리얼 셰이더가 생기면(텍스처와 머티리얼 항목) 같은 장치에 등록한다.
-
-### [x] 벤치마크 모드 + GPU 예산 나누기 + 메모리 숫자 (완료 2026-10-21)
-- **왜**: 그래픽 기능을 넣을 때마다 같은 조건으로 비교할 기준이 필요하고, 성능 예산의 "현재" 값을 최소 사양 실기에서 다시 재야 한다. 공유 메모리 내장 그래픽이라 메모리도 프레임 시간만큼 본다.
-- **`--benchmark [초]`** (`game/Benchmark.h`, `GameMain.cpp`): 혼자, 고정 시드(주지 않으면 1), 봇 입력, 수직동기 끔(`--vsync`를 주면 그것), 소리 끔, 자동 실행(플레이어 설정 안 읽음). 매치가 시작된 뒤 3초 데우기를 버리고 기본 30초 재서 `benchmark.txt`(`--benchmark-out`)를 쓰고 끝난다. 콘솔에 `BENCHMARK frames= avg= p99= worst= sim= gpu=` 한 줄. 보고서: 게임 버전·커밋·시뮬레이션 버전·결정론 그룹, CPU, GPU·드라이버·UMA, 화면, 씬·시드, 평균·1% 최악(99번째 백분위, 실행 전체 프레임)·최악 프레임, 틱당 시뮬레이션, 드로우 콜·인스턴스 평균, 프로세스·GPU 메모리 최대와 GPU 예산, 패스별 GPU 시간과 예산(넘으면 `OVER`). `FrameStats` 묶음을 주기 길이로 가중해 쌓는다(`takeSimMsPerTick`을 읽는 곳은 계속 하나).
-- **"고정 카메라 경로"**: 카메라는 게임 `view/`가 갖고 있어 엔진이 따로 경로를 두지 않았다. 고정 시드 + 봇이면 같은 빌드·데이터에서 봇 캐릭터를 따라가는 카메라가 같은 길을 간다(프레임 시간에 따른 보간 차이는 남는다). 게임이 정하는 카메라 경로가 필요해지면 4단계 가상 카메라에서.
-- **RHI GPU 시간** (`rhi/Rhi.h`): `CommandList::beginTimer`/`endTimer`(구간 8개) + 명령 목록 전체, `Device::gpuTimes()`(2프레임 전, 기다리지 않음). DX12는 타임스탬프 쿼리 힙 + 계속 매핑한 readback 버퍼, 쓴 쿼리만 resolve. Vulkan은 쿼리 풀(프레임 처음에 `vkCmdResetQueryPool`), `timestampValidBits`·`timestampPeriod`, 쓴 쿼리만 읽는다. 타임스탬프가 없으면 `valid = false`.
-- **GPU 메모리** (`Device::gpuMemory()`): DX12 `IDXGIAdapter3::QueryVideoMemoryInfo`(로컬 세그먼트), Vulkan은 `VK_EXT_memory_budget`이 있으면 켜고 VMA `vmaGetHeapBudgets`를 장치 로컬 힙만 더한다(없으면 VMA 어림). **프로세스 메모리**는 플랫폼 계층 `processMemory()`(Windows 작업 집합 `K32GetProcessMemoryInfo`, Linux `/proc/self/statm` + `getrusage`, macOS `task_info`).
-- **렌더러 패스** (`render::GpuPass`: opaque, shadow, post, vfx, ui): 3D는 `beginFrame` → `beginOverlay`, UI(게임 UI + 디버그 UI)는 그 뒤. 그림자·포스트·VFX는 그 기능이 들어올 때 재기 시작한다(지금 0). `RenderStats`에 `gpuValid`·`gpuFrameMs`·`gpuPassMs`, `Renderer::gpuMemory()`.
-- **GPU 예산**: `mealkit.project` `gpuBudgetOpaqueMs` 3 / `gpuBudgetShadowMs` 1.5 / `gpuBudgetPostMs` 1 / `gpuBudgetVfxMs` 1 / `gpuBudgetUiMs` 0.5 / `gpuBudgetSpareMs` 1(패스 밖 `other`와 비교) — `MEALKIT_VIEW_FIELD`라 콘텐츠 해시 밖, [프로젝트 설정] 창에 나온다. 템플릿 파일은 바꾸지 않았다(없는 줄은 기본값).
-- **FrameStats**: `FrameSample`에 `p99FrameMs`, `hasGpuTime`·`gpuMs`·`gpuPassMs`, `gpuMemoryUsed`·`gpuMemoryBudget`, `processMemory`·`processMemoryPeak`(렌더러가 출처일 때). 창 제목·F1·`perf:` 로그에 `gpu ... ms`, `mem ... MB`, `vram .../... MB`. 단위 테스트 `frame_stats`에 백분위.
-- **검증**: Core Ultra 5 125U(Xe-LPG)에서 DX12 8초: 평균 0.35 ms, 1% 최악 1.57 ms, GPU 0.24 ms(opaque 0.20), 시뮬레이션 1.13 ms/틱, 프로세스 230 MB, GPU 59 MB / 8,318 MB. Vulkan 5초: GPU 0.51 ms(opaque 0.46), GPU 97 MB. `--debug`로 D3D12 디버그 레이어·Vulkan 검증 레이어 메시지 없음. check.ps1.
-- **남은 것**: 최소 사양(11세대 Xe-LP) 실기에서 재고 ROADMAP 성능 예산 표와 GPU 예산 기본값을 고친다. 에디터 성능 패널(4단계)에서 같은 표.
-
-### [x] 게임 화면 UI 2부 — Penpot 플러그인, 가져오기 서버, Grid, 배치·픽셀 비교 (완료 2026-10-20)
-- **왜**: 프로그래머가 아닌 사람이 Penpot에서 화면을 그리고 그대로 게임에 넣는다(`docs/DECISIONS.md` 2026-10-15). 1부(`.ui` 런타임 + [UI] 미리보기)는 v0.4.16.
-- **런타임 Grid** (`ui/Ui.cpp`, `Document`): `layout grid [row|column]`, `columns`·`rows`(고정·`fr`·`auto`·`%`), `cell <행> <열> [합치기]`, 자동 배치, `justifyItems`·`justifySelf`, `justify stretch`(auto 트랙이 남는 자리). 열 먼저 정하고 그 너비로 행 높이(글자 줄바꿈). 노드 `id`(Penpot 도형 id, 배치 비교가 찾는다), `NodeBox::id`·`text`. 글자 셰이핑은 1부 뒤 `ui/Text.cpp`(코드 정리 6).
-- **플러그인** (`tools/penpot-plugin`, TypeScript, esbuild로 `dist/`): `snapshot.ts`(Penpot API → JSON, 'mixed' 풀기, 글자 스타일 구간을 반씩 나눠 찾기, variants의 `State` 속성), `convert.ts`(→ `.ui`, Penpot API를 모르는 순수 함수), `ui.ts`(패널: 레이어 바인딩·위젯을 플러그인 데이터에, 화면 내보내기, 에디터 또는 zip), `example.ts`(예제 화면 만들기). 엔진이 못 그리는 것(패스, 불리언, 마스크, 이미지 채우기, 여러 채우기, 3색 이상 그라디언트, 점선, 안쪽 그림자, 블렌드)은 두 배 PNG로 굽고(배경만이면 `skipChildren`), 블러·capitalize·양쪽 정렬은 경고. 효과 없는 그룹은 펼친다. 글자 레이어 이름이 키 모양이면 키(없는 키는 기본 언어 표에 더하고, 있는 키는 표가 이긴다). 글꼴은 `<family>-<weight>` 파일 이름(없으면 오류). 토큰(켜진 세트의 색·숫자) → `theme.ui`(이름별로 합친다). 시험: `node --test test/convert.test.ts`(고정 데이터 → 기대 `.ui`), 엔진 단위 테스트 `penpot_expected`가 기대 파일을 실제 파서로 다시 읽는다.
-- **가져오기 서버** (`editor/ImportServer`, 새 `net::TcpListener`·`TcpStream` win32/posix): 프로젝트를 열면 127.0.0.1:27220에 연다. `GET manifest.json/plugin.js/ui.html/icon.png`(주소 자리 `__MEALKIT_BASE__`를 자기 주소로), `GET api/project`(글꼴, 뷰 모델 필드, `.ui`에 쓰인 액션), `POST api/export`(항목 목록 본문: `ui`, `png`, `clean`, `theme`, `strings`, `penpot`, `boxes`, `preview`). [UI] 패널에 주소와 [복사]. 자동 시험은 `--penpot-token`.
-- **실제 Penpot(design.penpot.app 2.18.4-RC4)에서 찾아 고친 것**: 플러그인 샌드박스에 `TextEncoder`가 없다(패널만 쓴다). Flex·Grid는 레이어 목록의 위 레이어부터 배치한다(레이아웃 부모는 자식을 거꾸로 쓴다). 레이아웃 안 글자의 `layoutChild`는 `fix`로 와서 grow type을 따른다. 글자 정렬은 문단 범위에서 읽는다. 아이콘 주소는 플러그인 출처 기준. `File.export('penpot')`는 Penpot 쪽 오류라 경고로. 내장 브라우저는 localhost를 막아 Claude in Chrome(Brave)로 시험했다. 글꼴은 Penpot 팀 글꼴에 Pretendard(woff2)를 올려야 했다.
-- **검증**: `MealKitEditor --ui-check [--lang]`(배치 상자, 예제 화면 14개 노드: 틀 0.5픽셀 안, 글자 최대 2.4픽셀), `--ui-render`(반 크기 그림) + `tools\compare_images.ps1`(차이 48 넘는 픽셀 0.22%). 기준 샘플 `assets/ui/penpot_example.ui`(Penpot에서 내보낸 일시정지 메뉴, `art/ui/boxes`·`art/ui/preview`)로 check.ps1 세 단계(변환기 시험, 배치, 픽셀).
-- **남은 것** (ROADMAP "게임 화면 UI 3부"): 기본 화면 템플릿의 Penpot 원본, 컴포넌트를 재사용 `.ui`(`use`)로, 상태 variants의 실제 Penpot 확인, 토큰 세트별 테마 변형.
-
-### [x] 코드 정리 3·6·7 — 참가 창을 `runGame`으로, 글자 셰이핑 분리, 참가 창 명령줄 공유 (완료 2026-10-20)
-- **3. 참가 창을 `runGame`으로**: `game::runGame`을 명령줄 읽기(`runGame(argc, argv, spec)`)와 실행(`runGame(MatchOptions, WindowOptions, spec, GameRunOptions)`)으로 나눴다. 에디터 여러 명 플레이의 참가 창(`editor::runPlayer`)은 자기 루프(창·렌더러·접속·`Frontend`·프레임) 대신 참가 모드 출시 exe와 같은 함수를 부른다. 다른 점은 `game::GameRunOptions`로 받는다: 이미 읽은 프로젝트 설정, 창 제목·제목 표시줄 색, 화면용 튜닝 사본 경로, `playerFiles = false`(설정·바꾼 키·세이브를 읽고 쓰지 않음), `onlineService = false`, `exitWhenSessionEnds`(세션이 끝나거나 게임이 메뉴로 나가면 종료). 소리 끔은 `WindowOptions::mute`. 참가 창도 이제 F1 디버그 UI·V·F12·창 제목의 성능 숫자를 갖는다.
-- **6. `ui/Text.cpp`**: `ui/Ui.cpp`(1746 → 1517줄)에서 UTF-8 해석·스타일 구간 태그·커닝·줄 나누기·말줄임을 `ui/Text.h`·`Text.cpp`(`decodeUtf8`, `shapeGlyphs`, `breakLines`)로 옮겼다. 기능 변경 없음.
-- **7. 참가 창 명령줄**: 참가 창은 `--player-window` + 에디터 항목 셋(`--project`, `--player-index`, `--view-tuning`)만 직접 읽고 나머지는 출시 exe 파서 `game::parseGameArgs`로 읽는다(`--join`, `--scene`, `--tuning`, `--bot`, `--debug` 등). 에디터 `Options`에서 참가 창 전용 항목(`--player`, `--tuning`, `--view-tuning`, `--player-index`)을 지웠다. 에디터 본 창의 `--players`(플레이 인원)·`--bot`(에디터 창 봇)·`--scene`(편집할 씬)은 게임 옵션과 뜻이 달라 그대로 둔다.
-- **검증**: Editor 빌드 경고 없음, 에디터 `--play --players 3 --bot` 두 참가 창 접속·동기화, check.ps1.
-
-### [x] RHI 층 — DX12 + Vulkan 백엔드 (완료 2026-10-20)
-- **왜**: 2단계는 bindless 텍스처·그림자·포스트·GPU 타임스탬프로 그래픽 API 호출이 가장 많이 늘어나는 단계라, 그 전에 호출을 한 층으로 모았다. 구현이 하나뿐인 추상화는 DX12의 가정이 새어 나오므로 Vulkan 백엔드를 같은 항목에서 만들었다(`docs/DECISIONS.md` 2026-10-16). Vulkan 하나가 5단계의 Linux·Steam Deck·Android를 덮는다.
-- **RHI** (`mealkit/rhi/Rhi.h`): `Device`(장치·스왑체인, 정적 버퍼, 텍스처, 파이프라인, 프레임 업로드 링 `allocUpload`, 캡처, `gpu()`), `CommandList`(`beginScene`/`beginOverlay`, 뷰포트, 파이프라인, 푸시 상수, 정점·인덱스 버퍼, 그리기, 텍스처 배리어·복사), 디버그 UI 그리기(`imguiInit`/`imguiRender`). 모양은 DX12를 따르고 백엔드는 빌드 때 하나(`MEALKIT_RHI`, 가상 함수 없이 `rhi/dx12/`·`rhi/vulkan/`의 `.cpp`). 렌더 그래프는 없다. 백버퍼 배치 전환은 `beginScene`/`beginOverlay`/`endFrame` 안에서, 텍스처 배리어는 부르는 쪽이 명시한다. 복사·배리어는 묶인 그리기 대상을 푼다(Vulkan dynamic rendering 규칙).
-- **바인딩** (`shaders/Bindless.hlsli`, `docs/DECISIONS.md` 2026-10-19): 모든 파이프라인이 푸시 상수 64바이트 + `ByteAddressBuffer g_buffers[]` + `Texture2D g_textures[]` + 고정 샘플러 하나. 프레임 데이터(상수·인스턴스·UI 사각형)는 업로드 링에 쓰고 셰이더가 링 번호·오프셋으로 필드마다 `Load`한다(C++ 배치만 맞추면 된다). 루트 CBV·SRV와 `ResourceDescriptorHeap[]` 계획은 버렸다. 셰이더 모델 6.6.
-- **렌더러** (`render/Renderer.cpp`): 그래픽 API를 부르지 않는다. `NativeHandles`·`native()` 대신 `device()`. 캡처는 RHI가 RGBA를 돌려주고 플랫폼 계층 `savePng`로 쓴다. GPU 조사(`GpuInfo`, `queryGpu`, `gpuMinimumError`)는 `rhi`로 옮기고 `render`에 별칭을 둔다. `GpuInfo`에 `api`, `unsupported`(백엔드가 확인한 최소 사양 부족)를 더했고 `--system-info`가 API를 출력한다.
-- **DX12 백엔드** (`rhi/dx12/`): 예전 렌더러 코드. 셰이더가 보는 서술자 힙 하나(버퍼 16칸 + 텍스처 4,096칸, 디버그 UI 텍스처도 여기서 빌림), 공유 루트 시그니처 1.1(루트 상수 + 무한 범위 표 두 개 + 고정 샘플러). 어댑터 이름의 UTF-16 → UTF-8은 직접 변환(OS 문자열 함수를 쓰지 않는다).
-- **Vulkan 백엔드** (`rhi/vulkan/`): Vulkan 1.3 + descriptor indexing(partially bound, update after bind) + dynamic rendering + synchronization2 + `VK_KHR_swapchain_mutable_format`(스왑체인 이미지 하나에 sRGB 뷰 = 장면, UNORM 뷰 = 오버레이). volk가 `vulkan-1.dll`을 실행 중에 불러오고(SDK 없이 빌드), VMA가 메모리를 맡는다. 뷰포트 높이를 음수로 뒤집어 DX12와 같은 셰이더·같은 시계 방향 앞면으로 같은 그림. 수직동기 끔은 `IMMEDIATE`(없으면 `MAILBOX`), 프레젠트 방식이 바뀌면 스왑체인을 다시 만든다. `--debug`면 SDK가 있을 때 `VK_LAYER_KHRONOS_validation`을 켜고 경고·오류를 `[Vulkan]` 로그로. 장치는 최소 사양을 넘는 것 중 외장 > 내장 순서.
-- **디버그 UI**: ImGui Win32 쪽은 플랫폼 계층(`platform/ImGuiPlatform.h`), 그리기 쪽은 백엔드(`Dx12ImGui.cpp`, `VkImGui.cpp` + `imgui_impl_vulkan`)로 나눠 `debug/ImGuiLayer.cpp`가 OS·그래픽 API를 부르지 않는다. `tools\check_platform.ps1`의 예외 두 개(`Renderer.cpp`, `ImGuiLayer.cpp`)를 지우고, 그래픽 API 헤더는 `rhi/<api>/`에서만 허용한다.
-- **빌드**: `build.bat Vulkan`(`build\Vulkan`, Release 게임)과 `VulkanEditor`(`build\VulkanEditor`, 에디터 + 게임 DLL. 에디터는 자기 빌드 폴더 이름 `editorBuildName()`으로 게임 DLL·플레이 파일·[빌드] 명령을 고른다, 프로젝트의 VulkanEditor는 엔진 `build\VulkanEditor`를 쓴다). 셰이더는 고정 버전 DXC(v1.9.2609, `cmake/Dxc.cmake`가 SHA-256을 확인하고 `%LOCALAPPDATA%\MealKit\tools`에 한 번 받는다, `-DMEALKIT_SHADER_DXC`로 바꿀 수 있다)로 모든 빌드가 DXIL과 SPIR-V를 만든다. 다른 백엔드 것은 `shaders/other/`(검사용, exe에 없음). Windows SDK dxc는 SPIR-V를 못 만들어 쓰지 않는다.
-- **외부 라이브러리**: Vulkan-Headers·volk `vulkan-sdk-1.4.357.0`, Vulkan Memory Allocator v3.4.0, `imgui_impl_vulkan`(ImGui와 같은 커밋). 모두 MIT(Vulkan-Headers는 Apache-2.0 OR MIT 중 MIT).
-- **검증**: `check.ps1`에 세 단계 — `VulkanEditor` 빌드, DX12 = Vulkan 에디터 편집 화면 캡처 비교(`tools\compare_images.ps1`, 채널 차이 2 초과 픽셀 0.1 % 이하, 상태 표시줄 제외 — 실제로는 최대 차이 1/255, 0픽셀), 검증 레이어를 켠 플레이(메시지 0개, SDK가 없으면 `SKIP`). 동기화 검증(`VK_KHRONOS_VALIDATION_VALIDATE_SYNC`)으로 에디터 플레이·게임 매치·메뉴 흐름 메시지 0개. DX12 쪽은 옮기기 전 HEAD 빌드와 에디터 캡처 3D 영역이 1픽셀 1/255(SM 6.0 → 6.6) 차이. Vulkan exe `--shadow --rewind-test` 통과. check.ps1 26개 통과.
-- **남은 것**: Best Practices 검사가 알리는 두 가지 — 배리어 접근 마스크를 넓게 잡은 것(`imageBarrier`, 프레임에 몇 번뿐이라 일부러), 푸시 상수 64바이트 중 일부만 채우는 것. Vulkan의 Tracy GPU 시간 측정. 푸시 뒤 Windows CI에서 DXC 받기 확인. 타임스탬프 쿼리는 벤치마크 모드(GPU 예산)에서 더한다.
-- **다른 백엔드 (5단계)**: Metal은 argument buffer tier 2, WebGPU는 bindless가 없어 머티리얼 묶음별 드로우(웹 프리셋, 드로우 콜 예산 따로). 셰이더는 SPIR-V에서 변환(후보 SPIRV-Cross, Tint/Naga), 변환은 빌드 때만.
-
-### [x] 코드 정리 4·5 — 에디터 패널 나누기, 코어 include 검사 (완료 2026-10-19)
-- **4. `editor/Editor.cpp` 나누기** (1806 → 1500줄): 튜닝 문서·프로젝트 설정 창·프로젝트 빌드를 [표]·[연출]처럼 패널 클래스로 뺐다. `TuningPanel`(game.tuning·view.tuning 문서, 플레이 사본, 행 참조 풀기), `ProjectSettingsPanel`(고치는 중인 값만 갖고 저장할 때 에디터의 `ProjectInfo`를 바꾼다), `BuildPanel`(`build.bat`·`upgrade_project.ps1` 실행, 출력 모으기, [빌드 로그] 창, 상태 표시줄 "빌드 중"). 빌드 전 저장(출시본은 씬·프로젝트 설정)과 끝난 뒤 할 일(DLL 다시 읽기, 업그레이드 뒤 다시 빌드)은 에디터에 남았다. 패널 상태 문구는 `takeStatus()`로 에디터 상태 표시줄에 간다. Ctrl+S와 [파일] > [저장]이 같은 `Editor::saveAll()`을 쓴다. `BuildKind`는 `BuildPanel.h`로 옮겼다(`editor::BuildKind` 이름 그대로). 동작 변경 없음.
-- **5. 코어 → 화면 쪽 include 검사** (`tools\check_layers.ps1`): `engine/CMakeLists.txt`의 `MEALKIT_CORE_SOURCES` 파일이 같은 목록의 헤더만 include하는지 본다. 폴더 순서 검사로는 같은 `game/` 안의 코어 → `Frontend.h`·`GameMain.h`·`FrameStats.h` include를 못 잡아 Linux·macOS CI 링크에서야 드러났다. 이때 헤더만 있는 `game/BuildInfo.h`·`platform/Input.h`·`platform/Gamepad.h`(코어 입력 액션이 쓴다)를 코어 목록으로 옮겼다(빌드 결과는 같다). `docs/CODING_MODEL.md` 검사 7.
-- **검증**: check.ps1 23개 통과, 일부러 코어 파일에 `Frontend.h`를 넣으면 검사가 실패하는 것 확인, 에디터 캡처(프로젝트 설정 창·튜닝 패널).
-
-## v0.5.0 — 1단계 완료 (2026-10-19)
-
-1단계("게임이 되게 하는 최소 기능")의 마지막 항목을 끝내 v0.5로 올린다(ROADMAP "버전": v0.n = n단계를 끝낸 엔진).
-
-### [x] 기준 샘플 (완료 2026-10-19)
-- **v0.5 조건**: sandbox(물리 파티 대전)가 타이틀 → 메뉴 → 로비(LAN 방·주소·Steam, 이름·몸·준비·채팅) → 로딩 → 매치(카운트다운·2분·HUD·일시정지) → 결과 → 로비를 끝까지 돈다. 1단계 기능(소리, UI, 입력·게임패드, 설정, 세이브, 로드아웃, 화면 흐름, 네트워크 표시, 접근성, 버전)이 모두 이 샘플에서 쓰인다.
-- **검증**: check.ps1 "Game screen flow (title to match)"(`--ui-press`로 타이틀 → 혼자 하기 → 시작), 두 프로세스 LAN 참가·준비·시작, 결과 → 로비 → 두 번째 매치, `mp_test` 1+3(창·헤드리스, 네트워크 흉내 포함), clang-cl 클라이언트 비교, 60 Hz.
-- **v0.5를 막지 않아 넘긴 것**: 게임 화면 UI 2부(Penpot 플러그인, 디자이너가 생기면), 코드 정리 3~7, 게임 코드용 시나리오 테스트. ROADMAP 1단계 절에 남아 있다.
-- **영향**: 엔진 버전 0.5.0. 기존 프로젝트는 `tools\upgrade_project.ps1`로 템플릿을 올리고, 화면 흐름을 쓰려면 `-Source`(게임 코드를 예제로, 백업) 또는 sandbox의 `app/Flow.*`·`Screens.h`·화면 `.ui`를 가져간다. 문서 저장소 `ENGINE_VERSION` 0.5(0.4 문서는 `0.4` 브랜치).
-
-## v0.4.31 — 1단계 진행 중 (2026-10-19)
-
-### [x] 버전 표시와 접속 거부 이유 (완료 2026-10-19)
-- **왜**: 실행 파일·데이터가 다르면 접속이 거부됐지만 이유를 알 수 없었고, 실행 파일 id(컴파일 시각) 비교는 화면 코드만 다른 빌드끼리도 막았다.
-- **빌드 정보** (`cmake/BuildInfo.cmake` → `<게임>_build_info/mealkit_build_info.h`, 빌드마다, 바뀔 때만 다시 쓴다): 게임 버전(`mealkit.project` `version`, 기본 0.1.0), 프로젝트 폴더의 git 커밋(고친 파일이 있으면 `+`), **시뮬레이션 버전** = 게임 버전 + 시뮬레이션에 닿는 소스(게임 `sim/`·헤드리스 파일·엔진 `core`·`net`·`physics`·`sim`·`data`·`scene`·`asset`·`game`의 시뮬레이션 파일·Jolt `mealkit.txt`)의 SHA-1(줄바꿈 LF, 상대 경로). 같은 소스면 OS·컴파일러가 달라도 같다. `game::BuildInfo`와 `MEALKIT_THIS_BUILD`(게임 타깃에서만 헤더를 본다) → `GameMainSpec::build`, `GameModule::build`(`kApiVersion` 21), 헤드리스.
-- **보이기**: 창 제목 `게임 v0.1.0 | …`, 시작 로그 `Build: version …, commit …, simulation …, msvc-x64`, sandbox 타이틀(`v0.1.0 (커밋) · MealKit 0.4.31`)과 로비 구석.
-- **접속 비교** (`net/Lockstep.*`): 실행 파일 id 대신 결정론 그룹(`determinismGroup()`: `msvc-x64`·`clang-x64`·`clang-arm64` …, 실기기 결정론 확인 전까지 다르면 거부) → 시뮬레이션 버전(`setBuild`, 없으면 `buildId`) → 콘텐츠 해시(`setContentParts`로 씬·모델·튜닝·프로젝트·표 다섯 구성도 보낸다). 거부 패킷에 이유·다른 구성·방장의 게임 버전·그룹을 실어 클라이언트가 `rejectInfo()`로 안다. `--any-build`는 앞의 둘을 건너뛴다. `game::MatchData::contentParts`.
-- **LAN 방**: 알림에 시뮬레이션 버전·게임 버전·그룹(형식 버전 2), 참가 목록이 "버전이 다름 (1.3)"·"데이터가 다름"으로 표시.
-- **sandbox**: 알림 화면이 거부 이유를 문자열 표로("게임 버전이 방장과 다릅니다 (내 1.2 / 방장 1.3)", "게임 데이터가 방장과 다릅니다: 튜닝", 제목 "방에 들어갈 수 없습니다").
-- **출시 폴더**: `mealkit.project` `exportVersionFolder`(기본 끔)가 켜지면 `export\<이름>-<version>\`.
-- **검증**: 단위 테스트 `join_reject_reasons`(시뮬레이션 버전이 다르면 Version + 방장 버전, 튜닝·표가 다르면 Content + 그 구성). 두 창에서 다른 튜닝으로 참가 → "게임 데이터가 방장과 다릅니다: 튜닝" 캡처. check.ps1.
-- **영향**: 기존 프로젝트도 빌드 정보 헤더가 생긴다(`mealkit_add_game`). 엔진 코어 폴더를 고치면 시뮬레이션 버전이 바뀐다(보수적). `docs/DECISIONS.md` 2026-10-19.
-
-## v0.4.30 — 1단계 진행 중 (2026-10-19)
-
-### [x] 틱레이트를 프로젝트 설정으로 (완료 2026-10-19)
-- **왜**: 30 Hz 고정이었다. 물체가 적은 액션 게임은 60 Hz가 반응·충돌에 낫다.
-- **설정**: `mealkit.project` `tickRate`(30 기본, 60 선택, 10~120). 콘텐츠 해시에 들어간다(모두 같아야 한다). `game::applyTickRate`가 프로세스 틱레이트(`reflect::setTickRate`)로 정한다: `loadMatchData`(출시 exe·헤드리스·에디터 플레이·참가 창)가 시간 필드(튜닝·씬·표의 초)를 읽기 전에, 에디터는 프로젝트를 열 때와 프로젝트 설정을 저장할 때(다음 플레이부터).
-- **엔진**: `game::tickDt()`·`msToTicks()`(`mealkit/game/ProjectSettings.h`). 헤드리스 루프가 `Game::kTickDt` 대신 `tickDt()`를 쓰므로 헤드리스 클래스의 `kTickDt`는 더 필요 없다. `--delay`는 이제 **밀리초**(기본 100, 틱은 프로젝트를 읽은 뒤 계산), 에디터 플레이도 100 ms. 입력 지연 자동 조절은 이미 틱 길이로 계산한다.
-- **sandbox** (템플릿): `sim/World.h`의 `kTickRate`·`kTickDt` 상수를 없애고 `World::tickRate`·`tickDt`(매치 시작 때 `reset`이 받는다, `Headless::startWorld`가 `reflect::tickRate()`를 넘긴다). 이동 가속·물리 단계·카운트다운 초가 이것을 쓴다. 30 Hz 결과는 그대로(고정 기록 해시 그대로).
-- **영향**: 기존 프로젝트는 그대로 빌드된다(헤드리스 클래스의 `kTickDt`는 쓰이지 않는다). `tickRate`를 바꾸려면 게임 `sim/`의 틱 상수를 sandbox처럼 `World`로 옮긴다.
-- **검증**: `tickRate 60`으로 헤드리스 1+3 1800틱 PASS, 그림자 시뮬레이션 일치, HUD 남은 시간이 초 단위로 맞다(690틱 = 11.5초에서 1:51). 30 Hz check.ps1.
-
-## v0.4.29 — 1단계 진행 중 (2026-10-19)
-
-### [x] 접근성 기본 묶음 (완료 2026-10-19)
-- **흔들림·번쩍임·화면 정지 줄이기**: 플레이어 설정 `gameplay.shakeScale`·`flashScale`(0~100 %, 설정 화면 [게임] 탭 슬라이더)·`hitStop`(토글). 설정 서비스가 `feedback::Player::setAccessibility`로 넘기고, 연출 표는 그대로 두고 결과(카메라 흔들림 값, 화면 색 양)에 곱한다. 화면 정지를 끄면 `hitStop()`이 늘 false. `settings::Service::Targets::feedback`.
-- **자막**: 소리 이벤트 표(`audio::SoundEvent`)에 `subtitle`(게임 문자열 키)·`subtitleSeconds`(2.5) 열. 재생하면 `audio::Engine::subtitles()`에 줄이 쌓이고(같은 키는 한 줄, 시간만 늘린다, 볼륨·음소거와 무관), `game::Frontend`가 플레이어 설정 `gameplay.subtitles`가 켜져 있고 프로젝트에 `assets/ui/subtitles.ui`가 있으면 표준 자막 화면(층 5, 뷰 모델 `SubtitlesVm` 최근 4줄)을 연다.
-- **sandbox**: 밀치기·점프대·나타나기·떨어지기 소리에 자막(`sub.*` 문자열), 템플릿에 `assets/ui/subtitles.ui`.
-- **남은 것**: 색맹 보정 LUT 세 개는 2단계 포스트 프로세싱 항목에서(로드맵대로).
-- **결정론**: 영향 없음(화면 쪽만).
-- **검증**: 봇 매치 캡처에서 "[밀치는 소리]" 자막, check.ps1.
-
-## v0.4.28 — 1단계 진행 중 (2026-10-19)
-
-### [x] 내 캐릭터 겉모습만 예측 (완료 2026-10-19)
-- **왜**: 입력 지연(60~270 ms) 때문에 내 조작이 늦게 느껴진다. 롤백 넷코드는 보류 표대로 하지 않는다.
-- **엔진** (`game::Simulation`): 보냈지만 아직 실행되지 않은 내 입력을 목표 틱 순으로 갖고 `forEachPendingInput(f(틱, 입력))`으로 준다(입력 지연 n틱이면 n개, 지연이 줄어 겹친 틱은 넣지 않는다).
-- **sandbox** (`view/Prediction.*`, 템플릿): 아직 실행 안 된 이동 입력마다 한 틱 동안 갈 거리(시뮬레이션 `movePawn`과 같은 속도, 몸 종류 배율)를 더해 내 캐릭터·카메라 초점·이름표를 앞서 그리고, 그 차이로 부드럽게 따라간다(`view.tuning` `prediction`: 켜기, 최대 1.5 m, 따라가기 14/s). 경기 중이고 내 캐릭터가 있을 때만. 확정 상태가 따라오면 차이가 저절로 줄어든다.
-- **한계**: 수평 이동만 미리 보인다. 점프·밀치기·다른 캐릭터·상자와의 충돌, 효과(밀치기 고리)는 확정 위치에 보인다.
-- **결정론**: 영향 없음(`view/`만, 시뮬레이션 상태를 읽기만 한다).
-- **검증**: `--delay 8` 두 창 매치에서 내 캐릭터가 확정 위치보다 앞서 그려지는지 캡처로 확인, check.ps1.
-
-## v0.4.27 — 1단계 진행 중 (2026-10-19)
-
-### [x] 입력 지연 자동 조절 (완료 2026-10-19)
-- **왜**: 입력 지연이 `--delay 3`(100 ms) 고정이라 LAN에서는 길고, 먼 상대와는 짧아 매치가 입력을 기다리며 멈칫거렸다(왕복 240 ms에서 초당 12틱).
-- **시작 값**: `LockstepSession::setAutoDelay(AutoDelay{enabled, tickMs, minTicks, maxTicks})`. 호스트가 `startMatch` 때 로비에서 잰 가장 큰 왕복 시간으로 `delayForRtt`(왕복 × 1.25 + 한 틱, 틱으로 올림, 최소·최대 사이)를 정해 시작 패킷으로 보낸다.
-- **매치 중**: 호스트가 1초마다 다시 보고, 더 필요하면 그 값으로 바로, 2틱 넘게 남으면 1틱 줄이는 **엔진 확정 명령**(타입 `mealkit.net.InputDelay`, 게임 명령과 같은 길이라 입력 기록에도 남는다, 게임의 `forEachCommand`는 모르는 타입이라 건너뛴다)을 보낸다(변경 사이 3초). 모든 피어가 그 명령이 든 틱을 실행한 직후 바꾸므로 같은 틱부터 적용된다. 늘 때 생기는 빈 틱은 각자 마지막 입력으로 채우고, 줄 때 겹치는 틱의 입력은 건너뛴다(호스트는 확정된 틱을 바꾸지 않는다). `requestInputDelay(ticks)`로 직접 바꿀 수도 있다.
-- **설정**: `mealkit.project`의 `inputDelayAuto`(기본 켬)·`inputDelayMinMs`(60)·`inputDelayMaxMs`(270), 해시 밖(호스트가 정한다). 출시 exe·헤드리스가 켜고(`autoDelayOf`), `--delay <ticks>`를 주면 고정. 에디터 플레이는 지금처럼 3틱 고정. `MatchService::slowPlayers()`로 로비가 상한보다 먼 사람을 경고한다(sandbox `lobby.slow`).
-- **결정론**: 지연은 전달 시점만 바꾼다. 바꾸는 틱은 확정 명령으로 모두 같다.
-- **검증**: 단위 테스트 `input_delay_change`(매치 중 3 → 7 → 2틱, 두 피어가 같은 틱에 바꾸고 입력 합이 같다, `delayForRtt` 값). `mp_test` 창 1+2 `-Lag 80 -Jitter 20 -Loss 3`: 2 → 8틱으로 올라 600틱이 약 25초(전에는 48초), 헤드리스 1+3 `-Lag 120 -Jitter 40 -Loss 5` PASS.
-- **남은 것**: 플랫폼 종류(PC 유선/콘솔/모바일/웹)별 기본값·상한은 그 플랫폼을 시작할 때(5단계) 실측으로. 상한을 넘는 피어를 게임 설정으로 막는 것은 필요해질 때.
-
-## v0.4.26 — 1단계 진행 중 (2026-10-19)
-
-### [x] 플레이어용 네트워크 표시 (완료 2026-10-19)
-- **왜**: 락스텝은 한 명이 느리면 모두 멈추는데, 숫자는 개발용 창 제목·F1에만 있었고 플레이어는 누구 때문에 멈췄는지 몰랐다.
-- **세션**: 호스트가 로비·매치 동안 클라이언트마다 왕복 시간을 잰다(로비·묶음 패킷의 호스트 시각을 클라이언트가 접속 요청·입력 패킷에 되돌려 준다, 지수 평균). 모두의 값을 로비 명단(`LobbyMember::pingMs`)과 묶음에 실어 `pingMs(player)`가 모든 피어에서 같다. 확정 틱이 0.15초 넘게 멈추면 그 틱의 입력이 없는 플레이어를 묶음에 실어 `waitingFor()`(비트), 클라이언트는 묶음이 0.3초 넘게 없으면 호스트(비트 0). 매치 중에도 0.5초마다 명단(`Roster` 패킷: 이름·핑, 로비로 보내지 않는다)을 보내, 자동 시작으로 로비 신호를 받기 전에 시작한 클라이언트도 이름을 안다.
-- **표시** (sandbox 템플릿): HUD 점수판의 플레이어별 핑(초록, `view.tuning` `badPingMs` 150 이상이면 빨강, 이름은 줄임표), 멈추면 위쪽에 "P3 기다리는 중..."(문자열 `hud.waiting`), 로비 줄의 핑. 플레이어 설정 `gameplay.showNetwork`(설정 화면 [게임] 탭)로 끈다. 혼자 하기에는 보이지 않는다.
-- **결정론**: 영향 없음(틱 밖 숫자).
-- **검증**: `net_conditions` 테스트에 호스트가 잰 핑, 클라이언트가 입력을 멈추면 양쪽이 플레이어 1을 기다린다는 검사. `--net-lag 400`으로 두 창 매치를 돌려 HUD 확인.
-
-## v0.4.25 — 1단계 진행 중 (2026-10-19)
-
-### [x] 네트워크 상태 흉내 내기 (완료 2026-10-19)
-- **왜**: 같은 PC 시험은 지연이 0에 가까워, 입력 지연 자동 조절·끊김 처리를 실제 친구 없이 시험할 수 없었다.
-- **방식** (`mealkit/net/Conditions.h`): `withConditions(전송, {지연, 흔들림, 손실})` 래퍼가 보내는 패킷과 받는 패킷을 각각 손실 확률로 버리고, 나머지는 지연의 반 + 0..흔들림만큼 큐에 두었다 내보낸다(순서가 바뀔 수 있다). UDP·Steam 어느 전송에도 씌운다. `LockstepSession::setConditions`(host/join 전, `reset`해도 남는다), 매치 옵션 `--net-lag <ms>`(왕복 시간)·`--net-jitter <ms>`·`--net-loss <%>`(출시 exe·헤드리스, `MatchServiceConfig::conditions`), `mp_test.ps1 -Lag -Jitter -Loss`(모든 피어, 시간 제한도 늘린다).
-- **결정론**: 영향 없음(전달 시점만). 난수는 시뮬레이션 밖 `Pcg32`.
-- **검증**: 단위 테스트 `net_conditions`(60 ms·흔들림 30·손실 15%에서 90틱, 양쪽 입력 합이 같고 클라이언트 rtt가 지연을 보인다). `mp_test -Headless -Clients 3 -Lag 120 -Jitter 40 -Loss 5` PASS, 창 1+2 `-Lag 80 -Jitter 20 -Loss 3` PASS. 왕복이 입력 지연(100 ms)보다 길면 매치가 입력을 기다리며 느려진다(약 240 ms에서 초당 12틱) — 다음 항목 "입력 지연 자동 조절"이 고친다.
-
-## v0.4.24 — 1단계 진행 중 (2026-10-19)
-
-### [x] 기본 화면 흐름 템플릿 + LAN 방 찾기 + 텍스트 채팅 (완료 2026-10-19)
-- **왜**: 호스트·참가를 명령줄로만 고를 수 있었고, 세션은 매치 한 번이면 끝이라 결과 뒤 로비로 돌아갈 수 없었다. v0.5 목표("기준 샘플이 타이틀 → 로비 → 매치 → 결과 → 로비를 끝까지 돈다")의 중심 항목.
-- **세션** (`net/Lockstep.*`): 세션 하나로 매치 여러 번 — `returnToLobby()`(호스트, 클라이언트는 로비 신호를 받고 돌아온다, 준비가 풀린다), `matchIndex()`(시작·로비 신호에 실려 지난 매치의 늦은 시작·입력·묶음 패킷을 버린다), `openOffline()`(혼자 하기도 로비부터), `reset()`(Idle로, 이름·콘텐츠 해시는 남는다). 로비 정보: `setLocalName`·`setLocalReady`, 호스트가 모은 `lobbyMembers()`(번호·이름·준비·방장·로드아웃, 로비 신호가 못 담으면 다음 신호가 이어서). 나간 사람의 번호를 다시 쓰고, 시작할 때 빈 번호 없이 다시 매긴다. `net::buildId()`·`clampUtf8` 공개.
-- **채팅**: `sendChat(줄)`/`chatLog()`(최근 50줄). 클라이언트 → 호스트(확인받을 때까지 0.1초마다 다시), 호스트가 번호를 붙여 모두에게 같은 순서로 중계(확인받을 때까지 다시). 120바이트, 0.5초에 한 줄. 틱 밖이라 입력 기록·리플레이에 들어가지 않는다.
-- **LAN 방 찾기** (`net/Rooms.h`): 호스트가 로비 동안 1초마다 방 알림(게임 이름, 빌드·콘텐츠 해시, 인원, 포트, 방장 이름)을 브로드캐스트와 127.0.0.1로(`--local`이면 127.0.0.1만), 참가 메뉴가 UDP 27199를 여럿이 같이 듣는다(`SO_REUSEADDR`). 같은 게임만, 버전·데이터가 다르면 회색. 플랫폼 계층에 `UdpSocket::openShared`·`enableBroadcast`, `userName()`.
-- **엔진 `game::MatchService`** (`mealkit/game/MatchService.h`, `GameContext::match`): 세션을 갖고 메뉴가 부르는 함수 `playOffline`·`host`·`hostOnline`(Steam)·`join`·`joinOnline`·`start`·`returnToLobby`·`leave`·`setBrowsing`/`rooms`, 단계 `phase()`. 출시 exe·에디터 플레이·참가 창이 하나씩 갖는다(명령줄도 같은 함수). Steam 로그인은 빌드에 들어 있으면 시작할 때(메뉴의 Steam 버튼, 친구 초대 수락 → 바로 참가). 기본 이름은 온라인 계정 → 컴퓨터 사용자 이름.
-- **`GameInstance`** (`kApiVersion` 20): `menus()`(true면 명령줄 없이 실행할 때 메뉴부터, 엔진이 Esc·Enter를 쓰지 않는다. false인 예전 게임은 동작 그대로), `stop(ctx)`(Running이 끝나면 한 번 — 로비로, 나감, 끊김). 엔진은 Running이 되면 한 프레임(로딩 화면) 뒤 `start`. 매치 전에도 `stateHash`·`activeBodies`·`stateView`가 불린다(0·빈 값). `GameContext::scene`(메뉴 뒤 배경). `Window::close()`.
-- **게임 UI**: 글자 입력 위젯 `textInput <필드> [액션]`(글자 노드, `placeholder`, `maxLength`): 키보드 글자(`Input::text`, `WM_CHAR` UTF-16 → UTF-8, 한글 입력기 조합 결과)·지우기, Enter면 액션(기본 `submit`), Esc면 그만, 치는 동안 게임은 키보드를 받지 않는다. `System::focusText`·`editingText`·`pressAny`.
-- **시험 옵션**: `--frames <n>`(그리고 끝, `--capture <png>`에 틱이 없으면 마지막 프레임), `--ui-press <프레임:노드,...>`(위젯을 이름으로 누른다). check.ps1 "Game screen flow (title to match)".
-- **sandbox** (템플릿): `app/Flow.*`(화면 고르기·버튼), `app/Screens.h`(뷰 모델), 화면 `assets/ui/{title,menu,join,lobby,loading,pause,results,message}.ui`, HUD에 카운트다운·"시작!"·남은 시간·채팅. 시뮬레이션 매치 단계 `MatchPhase`(카운트다운 3초 → 경기 120초 → 끝, 튜닝 `countdown`·`matchLength`, 그동안 입력·AI·점수 없음, 이벤트 Countdown·MatchStart·MatchEnd → 연출 표). 결과는 적게 떨어진 순, 방장은 버튼이나 20초 뒤 모두 로비로(`view.tuning` `resultsSeconds`). 로비: 이름(세이브 `playerName`), 몸 선택(로드아웃), 준비, 채팅, 방장 시작(모두 준비하면). 일시정지(Esc/Start): 혼자 하기는 매치가 멈추고 여러 명이면 메뉴만. 입력 액션 `menu.pause`(Esc, Start)·`chat.open`(Enter), `menu.settings`의 패드 Start를 뺐다.
-  상태 필드가 늘어 고정 기록을 다시 만들었다(`arena_4p_seed7.rec`, 최종 해시 `6f09aeef2d0059f3`).
-- **검증**: 단위 테스트 `lobby_chat_rematch`(UDP 루프백: 로비 목록·로드아웃, 채팅 순서, 매치 → 로비 → 두 번째 매치, 나간 사람, LAN 방 알림). 두 프로세스로 LAN 방 찾기 → 참가 → 준비 → 시작, 혼자 하기 결과 → 로비 → 두 번째 매치를 `--ui-press`로 확인. check.ps1 전체.
-- **남은 것**: Steam 로비 흐름은 컴파일만 확인했다(실접속은 2026-10-18 결정대로 가정). 채팅에 금칙어·신고 없음(로드맵대로). 게임패드로 글자 입력은 없다(화면 키보드는 콘솔 항목에서). 끊긴 이유는 아직 영어 로그 문장이다("버전 표시와 접속 거부 이유" 항목에서 문자열 키로).
-- **영향**: 기존 프로젝트는 그대로 빌드·동작한다(`menus()` 기본 false). 흐름을 쓰려면 sandbox의 `app/Flow.*`·`Screens.h`·화면 `.ui`·문자열·바인딩 줄을 가져간다(`tools\upgrade_project.ps1 -Source`).
-- **빌드 주의**: 에이전트 셸처럼 콘솔이 UTF-8이면 MSVC의 `/showIncludes` 줄이 ninja의 접두어(CP949)와 달라 헤더 의존이 기록되지 않는다. `cmd /c "chcp 949 >nul & build.bat"`로 빌드한다(그렇지 않으면 헤더만 바뀐 경우 오래된 오브젝트가 남는다).
-
-## v0.4.23 — 1단계 진행 중 (2026-10-19)
-
-### [x] 코드 정리 1·2 — 매치 데이터 한 곳, 매치 옵션 하나 (완료 2026-10-19)
-- **왜**: 출시 exe(`GameMain.cpp`), 헤드리스(`loadHeadlessData`), 에디터 플레이·참가 창(`playContentHash`)이 각자 씬·튜닝·게임 프로젝트 설정을 읽고 `contentHash`에 같은 일곱 가지를 넘겼다. 한 곳만 빠뜨려도 피어 해시나 기록 재생이 갈린다. 명령줄도 `parseArgs`와 `parseHeadlessArgs`, `--help` 두 벌이었다. 기본 화면 흐름이 메뉴에서 같은 값을 채우기 전에 하나로 모았다.
-- **매치 데이터** (`mealkit/game/GameData.h`): `game::loadMatchData(GameTypes, MatchDataOptions, models, MatchData&)` 하나가 프로젝트 설정(실행 파일 옆에서 찾거나 에디터가 넘긴 것) + 게임 `game.*` 값, 씬(넘긴 씬 / 파일 / 시작 씬, 없으면 기본 아레나), 튜닝, 콘텐츠 해시를 만든다. 게임 타입은 `GameTypes`(오브젝트 종류·튜닝·게임 프로젝트 설정·표): 출시 exe·에디터는 `gameTypes(module)`, 헤드리스는 게임 클래스에서. `contentHash`를 부르는 곳은 이제 이 함수뿐이다. `HeadlessData`·`loadHeadlessData`는 없어졌다.
-- **매치 옵션** (`mealkit/game/GameOptions.h`, 엔진 코어): `MatchOptions`(방 만들기·참가·Steam·인원·시드·자동 시험 출력, 예전 `HeadlessOptions`는 같은 타입의 다른 이름으로 남았다)와 `WindowOptions`(창·렌더러·화면 시험), 파서 `parseGameArgs(argc, argv, match, window)` 하나와 `printGameUsage`(매치·시험·창 묶음). 헤드리스는 `window`를 넘기지 않아 창 옵션을 받고 무시하고, Steam·`--replay-inputs`는 한쪽에서만 받는다. 게임 헤드리스 클래스의 `defaults`는 이제 `game::MatchOptions&`를 받는다(sandbox).
-- **영향**: `kApiVersion`은 그대로. 기존 프로젝트의 `defaults(game::HeadlessOptions&, …)`는 그대로 빌드된다. 출시 exe에서 잘못된 씬 파일은 창을 만들기 전이 아니라 렌더러를 만든 뒤에 실패한다.
-- **검증**: check.ps1 -Quick(결정론 1+3, 헤드리스 기록·재생, 고정 기록 해시 그대로).
-
-## v0.4.22 — 1단계 진행 중 (2026-10-19)
-
-### [x] 프레임 루프 합치기 — `game::Frontend` + 엔진의 출시 exe main (완료 2026-10-19, 로드맵 밖)
-- **왜**: 창 있는 게임의 화면 쪽 루프가 세 곳에 복사되어 있었다. 출시 exe(sandbox `app/main.cpp` 558줄, 게임 코드라 프로젝트마다 사본), 에디터 플레이(`PlaySession::update`), 참가 창(`runPlayer`)이다. 서비스 하나(소리·연출·입력 액션·패드·문자열·UI·설정·성능 숫자)를 더할 때마다 세 곳과 모든 프로젝트의 `main.cpp`를 고쳐야 했고, 갱신 순서도 조금씩 달랐다. 다음 항목인 기본 화면 흐름이 네 번째 사본이 될 참이었다.
-- **서비스 묶음** (`mealkit/game/Frontend.h`, `docs/CODING_MODEL.md` "창 있는 게임을 돌리는 프레임 루프"): `game::Frontend`가 입력 액션·게임패드·문자열 표·게임 UI·플레이어 설정·화면용 튜닝(`LiveTuning`)을 갖는다. `init(FrontendConfig)`(바인딩·문자열·UI·설정 읽기, 화면 항목을 적용할 창, 설정 파일, 화면용 튜닝 타입), `context()`(`GameContext`), 매 프레임 `update(now, dt, input, padAllowed, ctx)`(문자열 → 화면용 튜닝 → 패드 → UI가 마우스·키보드를 먼저 → 설정 화면 → 액션), `afterBuildFrame(frame)`(월드 위 UI 카메라, 듣는 위치, 연출 화면 색), `renderUi`. 소리·연출은 주인이 만들어 빌려 준다(에디터는 [소리]·[연출] 미리보기와 같이 쓴다).
-  출시 exe·에디터 플레이·참가 창이 모두 이것을 쓴다. 에디터 플레이는 렌더러를 받는 첫 `update`에서 `init`하고(플레이마다 다시 읽는다), 패드는 UI가 키보드를 가져가도 넘긴다(전에는 막혀서 게임 UI를 패드로 조작할 수 없었다).
-- **엔진의 main** (`mealkit/game/GameMain.h`): `game::runGame(argc, argv, GameMainSpec)`이 sandbox `main.cpp`가 하던 일을 그대로 한다. 명령줄과 `--help`(이름은 exe 이름), `--system-info`, 프로젝트·씬·튜닝·콘텐츠 해시, 세션(혼자·호스트·참가·Steam 로비), `Frontend`, 디버그 UI(F1), 자동 시험 출력(`FINAL`, `SHADOW`, `REWIND`, `perf:`), 창 제목(`game.title`, `title.*` 문자열 키)이다. 게임 타입은 `GameModule`(에디터 DLL과 같은 정보, `gameModuleOf<GameClass>`로 두 매크로가 같이 만든다)로, 기본 포트·인원은 헤드리스 클래스의 `defaults()`로 받는다.
-  게임의 `app/main.cpp`는 `MEALKIT_GAME_MAIN(sandbox::GameSession, sandbox::Headless)` 한 줄이다(`--headless`도 이 매크로가 나눈다). 출시 exe도 `GameInstance` 가상 호출을 쓴다(프레임당 몇 번).
-- **바뀐 동작**: 디버그 UI 도움말 줄에서 sandbox 전용 `F8: shockwave`가 빠졌다(sandbox 디버그 UI의 버튼에 있다). `--bodies`는 `--match-data`의 다른 이름으로 남았다.
-- **영향**: `kApiVersion`은 그대로(`GameModule` 모양은 같다). 기존 프로젝트의 `main.cpp`는 그대로 빌드되지만, 엔진 기능을 따라가려면 sandbox처럼 한 줄로 바꾼다(`tools\upgrade_project.ps1 -Source`는 게임 코드 전체를 예제로 바꾼다). 템플릿 설명(CLAUDE.md, README, CMakeLists 주석)을 고쳐 버전을 올렸다.
-- **검증**: check.ps1(출시 exe의 결정론·그림자·되감기·캡처, 에디터 플레이 혼자·3명, 새 프로젝트 + 업그레이드).
-
-## v0.4.21 — 1단계 진행 중 (2026-10-19)
-
-### [x] 성능 숫자 하나로 모으기 — `game::FrameStats` (완료 2026-10-19, 로드맵 밖)
-- **왜**: 성능 숫자를 모으고 보여 주는 코드가 세 곳에 따로 있었다. 게임 exe(sandbox `app/main.cpp`: 0.25초 평균, 직접 만든 `snprintf` 한 줄, F1 오버레이는 그 글자를 `" | "`로 잘라 씀), 에디터 상태 표시줄(fps 지수 평균), 에디터 플레이 상태 줄(`takeSimMsPerTick` 직접 호출)이다. 같은 fps가 화면마다 다르게 계산되고, 읽으면 비워지는 `takeSimMsPerTick`을 두 곳이 부르면 값을 나눠 가진다. 벤치마크 보고서(2단계)·성능 패널(4단계)이 네 번째·다섯 번째 사본이 될 참이었다.
-- **방식** (`docs/CODING_MODEL.md` "성능 숫자 모으기와 보여 주기"): 측정은 그대로 각 하위 시스템의 `stats()`(`RenderStats`, `net::SessionStats`, `audio::Stats`, `GameInstance::takeSimMsPerTick`). `mealkit/game/FrameStats.h`의 `game::FrameStats`가 모은다. 엔진 루프가 매 프레임 `update(dt, FrameSources{renderer, session, audio, game})`를 부르고, 보고 주기(기본 0.25초)가 끝난 프레임에 `true`를 돌려준다. 그때 `sample()`(`FrameSample`: 평균·**최악** 프레임, fps, 틱·시뮬레이션 시간, 플레이어·rtt·대역폭·디싱크, 드로우 콜·인스턴스·vsync, 목소리·소리 시간), `line()`(" | " 구분), `lines()`(항목마다 한 줄)를 읽는다. `nullptr` 출처의 항목은 빠진다.
-  전역 등록소(`profiler::record`)는 읽어 가는 전역 상태라 쓰지 않았고(아래 계층이 위를 부르지 않음), 화면 쪽 모으기라 `game/`(front 소스, 헤드리스 코어 밖)에 둔다. 함수 안 시간 재기는 지금처럼 Tracy `MEALKIT_ZONE`.
-- **쓰는 곳**: sandbox 창 제목·F1 오버레이·자동 실행 `perf:` 로그(형식은 같고 `(worst N)`이 붙었다), 에디터 상태 표시줄 fps, 에디터 플레이 상태 줄의 틱·시뮬레이션 시간.
-- **검증**: 단위 테스트 `frame_stats`(주기, 평균·최악, 출처 없는 글자, 주기 사이 초기화). check.ps1.
-- **영향**: `kApiVersion`은 그대로(경계 함수는 바뀌지 않음). 기존 프로젝트의 `app/main.cpp`는 그대로 빌드되고, 같은 숫자를 쓰려면 sandbox처럼 `FrameStats`로 바꾼다.
-
-## v0.4.20 — 1단계 진행 중 (2026-10-19)
-
-### [x] 엔진 폴더 계층 정리 + 검사 (완료 2026-10-19, 로드맵 밖)
-- **왜**: "핵심만 두고 나머지는 모듈화"를 검토했다. 하위 시스템(소리·UI·설정·연출·온라인)을 켜고 끄는 빌드 모듈은 얻는 것이 작아(출시 exe 2.4 MB / 예산 5 MB, 범용 에디터는 `mealkit.dll` 하나, `GameContext`가 서비스를 참조로 들고 있음) 만들지 않고, 대신 폴더 사이 include 방향을 한쪽으로 정하고 검사로 고정했다 (`docs/DECISIONS.md` 2026-10-19). 게임 기능 모듈화는 계획대로 4단계 소스 모듈.
-- **순서** (`docs/CODING_MODEL.md` "엔진 폴더 사이 의존"): `core`·`platform` → `net` → `physics` → `sim` → `data` → `loc` → `scene` → `rhi`(2단계) → `render` → `asset` → `online` → `debug` → `input` → `audio` → `ui` → `feedback` → `settings` → `game` → `editor`. 폴더는 앞의 폴더만 include한다. `platform/<os>/` 구현 파일은 빼고 `check_platform.ps1`이 본다.
-- **거꾸로였던 곳 고침**:
-  - 표 파일 읽기 `mealkit/game/Tables.h` → 새 폴더 **`mealkit/data/Tables.h`**, 이름공간 `game::` → **`data::`**(`data::loadTable`, `data::resolveRows`, `data::TableText` …). 입력 바인딩·소리 이벤트·연출 표가 게임 경계(`game/`) 위로 올라가던 의존이 없어졌다. 게임 코드는 `mealkit::game::loadTable` 대신 `mealkit::data::loadTable`(sandbox `app/Headless.cpp`, 템플릿 CLAUDE.md, 문서 저장소 "Assets").
-  - 게임패드 상태 `input::PadState`·`input::pad::A …` → `platform/Gamepad.h`의 **`PadState`·`pad::A …`**(이름공간 `mealkit`, 키보드 `key::`와 같은 자리). 플랫폼 계층이 입력 액션 헤더를 include하던 순환이 없어졌다.
-- **검사**: `tools\check_layers.ps1` — 순서보다 뒤의 폴더를 include하거나 순서에 없는 폴더가 생기면 실패(check.ps1 "Engine layers", CI Windows 검사 단계). 지금 110개 파일, 폴더 사이 include 240개가 통과.
-- **영향**: 게임 DLL 경계(`kApiVersion`)는 그대로. 기존 프로젝트의 게임 코드는 `game::loadTable` → `data::loadTable`, `#include "mealkit/game/Tables.h"` → `"mealkit/data/Tables.h"`로 고친다.
-
-## v0.4.19 — 1단계 진행 중 (2026-10-19)
-
-### [x] 매치 시작 데이터 — 플레이어별 로드아웃 (완료 2026-10-19)
-- **왜**: 매치 시작 때 모두에게 보내는 값이 `seed`와 `matchData`(u32 하나)뿐이라, 각자 고른 캐릭터·장비를 매치에 가져갈 곳이 없었다.
-- **네트워크** (`net/Lockstep.*`): `setLocalLoadout(바이트)`(매치 전, `kMaxLoadoutBytes` 128 — 8명이 시작 패킷 하나에 들어가게, 로드맵의 256에서 줄였다). 클라이언트는 로비 신호(접속 요청, 1초마다·바뀌면 바로)에 실어 보내고, 호스트가 `startMatch` 때 자기 것과 모두의 것을 확정해 시작 패킷에 싣는다. 혼자 플레이도 같은 길. `loadout(플레이어)`.
-  시작 직전에 바꾼 값은 호스트가 받기 전이면 빠질 수 있다(로비 화면이 시작 전에 확정하게 한다 — 화면 흐름 항목).
-- **게임 쪽** (`mealkit/game/Loadout.h`): `game::setLoadout(session, 값)` / `game::readLoadout(match, 플레이어, 값)` — 값은 `MEALKIT_STRUCT`(memcpy, 문자열 없음, 앞 4바이트 타입 해시). `game::MatchInfo`에 `loadouts`, `game::matchInfo(session)`.
-  `GameInstance::lobby(session, options, userFolder)`(`kApiVersion` 19): 엔진(출시 exe, 에디터 플레이·참가 창)이 매치가 시작되기 전 매 프레임(혼자 플레이는 세션을 열기 직전) 부른다. 헤드리스 계약에 선택 함수 `botLoadout(player, session)`.
-- **입력 기록 버전 3**: 머리에 플레이어마다 로드아웃 → 재생·CI가 같은 매치를 다시 만든다. 버전 1·2도 읽는다.
-- **sandbox**: 정의 데이터 표 `tables/bodies.table`(`BodyKind`: normal·light·heavy, 이동 속도·질량 배율, 시뮬레이션 표라 콘텐츠 해시), 로드아웃 `Loadout{body}`(`app/Loadout.h`), 매치 시작이 `PlayerSlot::body`(상태 필드)에 복사하고 이동·Pawn 질량이 읽는다(AI는 첫 행). 사람은 세이브의 `body`, 봇은 플레이어마다 다른 몸.
-  상태 필드가 늘고 봇 몸이 달라져 고정 기록을 다시 만들었다(`arena_4p_seed7.rec`, 최종 해시 `ccfe93aa4c49525b`).
-- **결정론**: 로드아웃은 상태 필드로 복사되어 상태 해시·스냅샷에 들어간다. 잘못된 값(가지지 않은 아이템)은 막지 못한다(서버 검증은 보류 표). 없는 행 번호는 첫 행으로.
-- **검증**: `command_channel` 테스트에 UDP 루프백 로드아웃(양쪽이 같은 값, 다른 타입은 읽지 않음)과 기록 머리 왕복. `mp_test` 헤드리스 1+3 PASS.
-
-## v0.4.18 — 1단계 진행 중 (2026-10-19)
-
-### [x] 세이브 — 진행 데이터 (완료 2026-10-19)
-- **왜**: 해금·통계·인벤토리처럼 매치 밖에 남는 데이터를 게임마다 다른 방식으로 저장하면 형식 변경·클라우드를 매번 다시 만든다.
-- **방식** (`mealkit/game/Save.h`, 엔진 코어): 게임의 `MEALKIT_STRUCT` 하나를 `game::writeSave(data, ctx.userFolder, "이름", 버전)` / `readSave(...)`로. 파일은 사용자 폴더의 `saves/<이름>.save`, 첫 줄 `# MealKit save (타입)`, `version N`, 그다음 필드 텍스트("경로 값").
-  읽을 때 모르는 필드는 버리고 없는 필드는 기본값. 파일 버전이 낮으면 `migrate(파일 버전, 줄)`이 줄을 고칠 기회를 받는다(이름이 바뀐 필드 옮기기). 높으면 경고. 쓰기는 임시 파일 후 바꿔 넣기(`writeTextFile`), 직전 파일은 `.bak`.
-- **`GameContext::userFolder`** (`kApiVersion` 18): 출시 exe·에디터 플레이는 `game::userFolder(설정)`, 자동 실행(`--exit-tick`)·참가 창은 빈 문자열 → 저장하지 않는다(시험이 PC 상태에 기대지 않게).
-- **sandbox**: `app/SaveData.h`(`SaveData`: 시작한 매치 수, 내가 떨어진 횟수, 내 밀치기 수, 플레이 시간), 매치 시작·내가 떨어질 때·30초마다 저장, HUD에 "기록: N번 떨어짐 · M분 플레이".
-- **넣지 않은 것 (로드맵대로)**: 계정 서버·DB(보류 표). 매치 안 상태의 중간 저장(`WorldSnapshot` 파일)은 3단계 중간 참가와 같은 데이터라 그때. 클라우드는 Steam Auto-Cloud(Steamworks에서 `saves/` 지정, 코드 없음), 다른 플랫폼은 3단계 EOS Player Data Storage.
-- **검증**: 단위 테스트 `save_files`(쓰기·`.bak`·버전 1 → 2 migrate로 필드 이름 옮기기·새 필드 기본값·없는 파일·빈 폴더면 저장 안 함).
-
-## v0.4.17 — 1단계 진행 중 (2026-10-19)
-
-### [x] 설정 시스템 + 표준 설정 화면 (완료 2026-10-19)
-- **왜**: 거의 모든 게임이 화면·소리·키 설정을 같은 모양으로 다시 만든다. 엔진이 기본 화면을 주고 게임은 모양만 바꾸게 한다.
-- **스키마** (`mealkit/settings/Settings.h`, 필드 선언): 화면(창 모드 창·테두리 없는 창·전체 화면, 창 크기, 수직 동기, 프레임 제한, 렌더 배율, 그래픽 품질, 시야각, 밝기), 소리(전체·배경음·효과음·인터페이스·음성 볼륨, 창이 뒤에 있으면 소리 끄기), 조작(마우스·게임패드 감도, Y축 반전), 게임(언어, 인터페이스 크기, 자막).
-  파일은 사용자 폴더의 `settings.ini`(`game::userFolder`, "경로 값" 줄, 콘텐츠 해시와 무관).
-- **`settings::Service`** (`GameContext::settings`, `kApiVersion` 17): 엔진(출시 exe, 에디터 플레이, 참가 창)이 하나 만들어 읽고 적용한다 — 창 모드·크기(`Window::setMode`, 새 플랫폼 기능, 모니터 해상도 목록 `displaySizes`), 수직 동기, 프레임 제한, 오디오 버스 볼륨, 포커스 음소거, 언어(`Strings::load`), UI 배율, 감도·반전(`Actions::setLookSettings`: `Delta2` 액션의 마우스·패드 몫, 양자화 전 화면 쪽).
-  게임은 `values()`로 읽는다(sandbox: 시야각). `open()`/`close()`, 어느 `.ui`든 버튼 액션 `settings.open`이 표준 화면을 연다.
-  전체 화면은 모니터 크기의 테두리 없는 창이다(플립 모델 스왑 체인이라 독점 전체 화면 없이 지연이 같다). 렌더 배율·그래픽 품질·밝기는 지금 저장만 한다 — 2단계 동적 해상도·포스트 프로세싱에서 쓴다.
-- **표준 설정 화면** (`assets/ui/settings.ui`, 엔진 뷰 모델 `SettingsVm`): 탭 목록과 줄 목록을 스키마에서 채운다(토글·슬라이더·선택 `<` `>`·키). 게임은 디자인만 바꾸고 바인딩·`settings.*` 액션은 그대로 둔다. 키보드·게임패드로 조작(`navigation`), Esc·B는 닫기.
-  해상도·창 모드를 바꾸면 "유지할까요? N초 뒤 되돌림" 창을 띄우고 15초 안에 [유지]를 누르지 않으면 되돌린다. [이 탭 기본값].
-  키 탭: 버튼 액션(`ui.*` 제외)마다 줄, 누르면 다음 키로 바꾸고(Esc 취소) 사용자 폴더의 `input.bindings`에 저장, 다른 동작과 같은 키면 경고, [이 탭 기본값]이 모든 키를 되돌린다. 글자는 문자열 표의 `settings.*`·`action.<id>`·`language.<코드>`.
-- **자동 실행**(`--exit-tick`)은 기본값으로 돌고 저장하지 않는다(이 PC의 설정이 시험 결과를 바꾸지 않게). `--size`·`--vsync`·`--fps`를 주면 그 실행은 화면 항목보다 명령줄. 에디터 플레이는 에디터 창의 모드를 바꾸지 않고, 참가 창은 저장하지 않는다. `--settings`는 설정 화면을 연 채로 시작.
-- **SimCheck**: `sim/`에서 `mealkit/input/`, `mealkit/loc/`, `mealkit/feedback/` include도 막는다(`mealkit/settings/`는 원래 막혀 있었다).
-- **sandbox**: HUD [설정 (F10)] 버튼(`settings.open`), 입력 액션 `menu.settings`(F10, 패드 Start), 시야각은 플레이어 설정, 설정 화면이 열려 있으면 Esc가 게임을 끄지 않는다.
-- **검증**: 단위 테스트 `settings_service`(화면을 열고 토글을 누르면 값이 바뀌어 파일에 저장, 다시 읽으면 그 값, 닫기). `sandbox.exe --settings` 캡처.
-- **남은 것**: 게임이 더하는 설정 항목(`GameClass::SettingsType`, `game.` 접두사), 축 액션(이동 4키)의 키 바꾸기, 버튼 안내 아이콘, 게임패드 스틱으로 메뉴 이동.
-
-## v0.4.16 — 1단계 진행 중 (2026-10-19)
-
-### [x] 게임 화면 UI 1부: `.ui` 런타임 + 미리보기 패널 (완료 2026-10-19)
-- **왜**: 점수·로비 상태를 창 제목으로만 보여 줬다. 샘플의 HUD·메뉴·설정·화면 흐름을 만들 UI 런타임이 필요하다. 로드맵의 순서대로 Penpot 플러그인(2부)보다 런타임을 먼저 만들었고, 지금 화면은 `.ui`를 손으로 쓴다.
-- **`.ui` 형식** (`mealkit/ui/Document.*`, `assets/ui/*.ui`): 한 줄에 속성 하나, `board 이름 1920 1080`(뿌리, 기준 해상도의 논리 단위) / `frame` / `text` / `image` / `use 이름 컴포넌트.ui`(재사용, `set 자식 속성 값`으로 덮기)로 열고 `end`로 닫는다.
-  배치: `pos`, `size 숫자|hug|fill`, `min`/`max`, `margin`, `absolute`, `constraints left|right|leftright|center|scale top|...`, `rotation`, `opacity`, `hidden`, `clip`. Flex: `layout row|column [reverse] [wrap]`, `gap`, `padding`, `justify start|center|end|space-between|space-around|space-evenly`, `align`, `alignContent`, `alignSelf`.
-  그리기: `fill #RRGGBB[AA]|$토큰|linear …|radial …`, `stroke`, `radius`(모서리별), `shadow dx dy blur spread 색`(여러 개), 이미지 `src`·`slice`(9-slice)·`tint`. 글자: `key 문자열키` 또는 `content 글자`, `font`, `fontSize`, `color`, `letterSpacing`, `lineHeight`, `textAlign`, `verticalAlign`, `underline`, `strike`, `transform`, `wrap word|syllable|none`, `overflow ellipsis`, `maxLines`, `span 번호 속성…`(번호 태그 `<1>…</1>`의 스타일).
-  바인딩: 글자 안 `{필드}`·`{필드:n0|f1|time|pct}`, `visible [!]필드`, `disabled`, `widthRatio`(체력 막대), `colorField`. 위젯: `button 액션`, `toggle 필드`, `slider 필드 최소 최대 간격`, `select 필드 키1,키2`(글자 안 `{option}`), `scroll [horizontal]`, `list 필드`(첫 자식이 반복 템플릿, 나머지 자식은 예시). 상태: `on hover|pressed|focus|disabled|checked 속성…`, `transition 초`. 보드 줄: `navigation`(키보드·게임패드 포커스), `firstFocus`, `back 액션`, `focusUp/Down/Left/Right 이름`.
-  테마 `assets/ui/theme.ui`(`color 이름 #…`, `number 이름 값`, 색 토큰은 그릴 때·숫자 토큰은 읽을 때). 첫 줄이 `# MealKit UI exported from Penpot`이면 플러그인이 낸 파일로 표시한다(2부). 오류는 `파일(줄): …`.
-- **런타임** (`ui::System`, `mealkit/ui/Ui.*`, `GameContext::ui`, `kApiVersion` 16): `open`·`openWorld`(월드 위 템플릿)·`close`·`bind(화면, 뷰 모델)`·`actions()`·`drawAt(템플릿, 3D 위치, 뷰 모델)`. 엔진(출시 exe, 에디터 플레이, 참가 창)이 매 프레임 `update`(게임 update 전: 마우스·포커스, UI 위의 마우스·포커스된 위젯은 게임이 받지 않는다)와 `render`(3D 다음, 디버그 UI 전)를 부른다.
-  `.ui`를 읽으면 깊이 우선 노드 배열이 되고, 목록은 뷰 모델 개수만큼 펼친다(개수가 바뀌면 다시). 배율 = `min(가로/보드 가로, 세로/보드 세로) × UI 배율`, 뿌리는 화면 전체로 늘고 자식은 제약으로 붙는다. Flex는 CSS 규칙(채우기 = 남는 자리 나누기, 교차축 늘리기, 줄바꿈, 여러 줄 배분).
-  글자: 구간 경계를 넘어 한 번에 줄을 나눈다(한글·한자·가나는 음절 단위, `word`는 공백에서만), 커닝, 줄 높이·기준선은 CSS의 반 행간, 말줄임(줄 수 제한·고정 높이), 밑줄·취소선. 글꼴은 `assets/fonts`에서 파일 이름으로, 글꼴에 없는 글자는 다른 글꼴에서 찾는다.
-  조작: 마우스(올림·눌림·클릭, 슬라이더 끌기, 휠 스크롤), 입력 액션 `ui.up/down/left/right/confirm/back`(`navigation`이 있는 가장 위 화면만 — HUD가 이동 키를 가져가지 않게): 방향의 가장 가까운 위젯으로 포커스, 슬라이더·선택 상자는 좌우로 값, 마우스를 움직이면 포커스 표시를 숨긴다. 입력 위젯만 자기 뷰 모델 필드에 값을 쓰고 액션(지정 이름 또는 `changed`, 바뀐 필드)을 낸다.
-  파일(.ui·테마·글꼴·이미지)이 바뀌면 0.25초 안에 다시 읽는다. 진단: `info`(노드 수, 파일·바인딩 오류), `boxes`(노드별 상자 — 2부 배치 비교가 쓴다), `layout`(그리지 않고 배치만), `press`(시험용).
-- **그리기** (`shaders/Ui.hlsl`, `Renderer::drawUi`·`updateUiAtlas`): 사각형 인스턴스 112바이트 하나가 모서리별 둥근 사각형·단색·선형·원형 그라디언트·안쪽 테두리·흐린 그림자·회전·이미지·SDF 글자를 픽셀 셰이더 SDF로 그린다. 정점 버퍼 없이 화면 전체 UI가 드로우 콜 1회, 미리 곱한 알파, 감마 변환 없는 오버레이 뷰(색은 sRGB 그대로), 백버퍼 원래 해상도.
-  아틀라스 두 장(글자 R8, 이미지 RGBA8, 2048²)은 바뀐 영역만 프레임 업로드 링으로 올린다. 아틀라스는 SRV 표 두 칸(SM 6.0) — SM 6.6 bindless는 2단계 RHI에서.
-- **글꼴·이미지** (`ui::Atlas`): 쓰는 글자만 실행 중에 SDF로 굽는다(40 em픽셀, 여백 6). **SDF는 엔진이 직접 계산**: `stbtt_GetGlyphSDF`가 3차 곡선(CFF `.otf`, Pretendard)을 빼먹어 둥근 획(ㅇ, 0)이 사라져서, stb_truetype의 윤곽선을 선분으로 펴 거리·감김 수로 계산한다(`docs/DECISIONS.md` 2026-10-19). 이미지는 stb_image(PNG만). 아틀라스가 차면 비우고 다시 굽는다.
-- **뷰 모델** (`core/Reflect.h`): `MEALKIT_VIEWMODEL(이름)`(모듈 목록 `reflect::moduleViewModels()`, `GameModule::viewModels`), `MEALKIT_LIST(행 타입, 이름, 최대, 설명)` = 배열 + `이름Count`.
-- **에디터 [UI] 패널** (`editor/UiPanel.*`, [보기] > [UI], `--ui <파일>`): `assets/ui`의 화면 목록, 고른 화면을 편집 모드의 씬 뷰 위에 그린다. 해상도(16:9 1080p·720p, 21:9, 4:3, 세로) 비율로 맞춘 테두리, UI 배율, 언어 전환(글자 넘침), 포커스 표시, 게임 뷰 모델을 골라 가짜 값을 필드 위젯으로, 노드 수(예산 500), 파일·바인딩 오류 목록.
-- **sandbox**: HUD(`assets/ui/hud.ui`: 플레이어 목록 — 색·이름·"나"·떨어진 횟수, 경기 시간, 밀치기 준비 막대, [충격파] 버튼 → `debug.shockwave` 액션 → 확정 명령, 리스폰 안내)와 캐릭터 위 이름표(`nametag.ui`, 월드 위 UI), 테마, 문자열, 입력 바인딩 `ui.*`. 뷰 모델 `HudVm`·`NameTagVm`·`PlayerRowVm`(`view/Hud.*`), 화면용 튜닝 `nameTagHeight`.
-- **고친 것**: 에디터 여러 명 플레이에서 참가 창이 가끔 못 들어오던 문제 — 에디터 프로세스마다 시작할 때 `build\Editor\bin\hot\`을 비워, 동시에 뜬 참가 창이 서로 막 복사한 게임 DLL을 지웠다(`LoadLibrary failed (2)`). 이제 자기 복사본과 1분 넘게 된 남의 복사본만 지운다(`GameModuleHost::load`).
-- **엔진**: `Input::mouseX/mouseY/mouseMoved`(커서 위치), 단위 테스트가 창 있는 빌드에서 UI 모듈을 링크한다(`MEALKIT_TEST_UI`).
-- **검증**: 단위 테스트 `ui_layout`(Flex 여백·간격·정렬·채우기, 제약 오른쪽·가운데·양쪽, 목록 개수·예시 자식 빼기, 보이기 바인딩, 토글이 필드에 쓰고 `changed`, 오류 줄 번호). 게임 캡처(1080p·720p)와 에디터 플레이·미리보기 캡처. 상태 해시 그대로.
-- **남은 것 (1부 안)**: Grid 레이아웃(`layout grid`는 아직 읽기 오류 — 2부 지원 범위와 같이), 글자 입력 위젯(IME), 회전은 노드 자신의 사각형만(자식·글자는 돌지 않음), 지금은 매 프레임 다시 배치한다(화면당 수십 µs — "바뀐 노드만"은 화면이 커지면), 게임패드 스틱으로 메뉴 이동(지금은 십자키), 버튼 안내 아이콘(마지막 기기). 2부는 ROADMAP의 다음 항목.
-
-## v0.4.15 — 1단계 진행 중 (2026-10-18)
-
-### [x] 로컬라이제이션 문자열 표 (완료 2026-10-18)
-- **왜**: UI를 만들면서 글자를 코드에 바로 쓰면 나중에 다른 언어를 넣을 때 모든 글자를 찾아 바꿔야 한다. 게임 화면 UI보다 먼저 둔다.
-- **형식**: `assets/strings/<언어>.txt`, 한 줄에 `키 = 문자열`(키는 영문자·숫자·`._-`, 첫 글자 영문자), `#` 주석, `\n` 줄바꿈, `{이름}` 자리, 여러 스타일 구간은 번호 태그 `<1>…</1>`(UI가 해석하고 표는 그대로 돌려준다). UTF-8 BOM도 읽는다.
-- **`loc::Strings`** (`mealkit/loc/Strings.h`, 엔진 코어): `GameContext::strings`(`kApiVersion` 15). `get(키)`, `format(키, {{"이름", 값}})`, `has`, `languages()`(설정 화면의 언어 목록).
-  고른 언어에 없는 키는 기본 언어 표에서, 거기에도 없으면 키 이름을 보여 주고 키마다 경고 한 번. 파일은 0.25초마다 시각을 보고 다시 읽는다.
-  기본 언어는 프로젝트 설정 `language`(기본 `ko`), 출시 exe는 `--lang <코드>`로 바꾼다(설정 화면이 생기면 플레이어가 고른 언어). 에디터 플레이·참가 창은 기본 언어.
-- **빌드 때 글자 검사** (`engine/tools/StringCheck.cpp` → `mealkit_stringcheck`, stb_truetype): `mealkit_add_game`이 게임 exe·게임 DLL 전에 `assets/strings/*.txt`의 모든 글자가 `assets/fonts`(하위 폴더 포함 `.ttf`·`.otf`·`.ttc`)의 글꼴 중 하나에 있는지 본다.
-  없으면 `파일(줄): error STR001: U+XXXX ...`로 빌드가 멈춘다. 글꼴이 하나도 없으면 검사하지 않는다(아직 게임 UI가 없는 프로젝트). 에디터 빌드의 게임 프로젝트에도 내보낸다(`MealKitTargets.cmake`).
-- **글꼴**: `assets/fonts/Pretendard-Medium.otf`(Pretendard 1.3.9, SIL OFL 1.1, 1.5 MB)와 라이선스 `Pretendard-OFL.txt`(출시 고지문에 저절로 들어간다, v0.4.6 규칙). `.otf`·`.ttf`·`.ttc`는 `.gitattributes`에서 바이너리.
-- **sandbox**: 플레이어에게 보이는 창 제목(게임 이름, 로비·연결·대기·끝남 문구)을 `ko.txt`·`en.txt`로 옮겼다. 성능 숫자는 개발용이라 영어 그대로. 끝남 이유는 아직 엔진 영어 글자 — "버전 표시와 접속 거부 이유" 항목에서 이유 코드로 바꾼다.
-- **엔진**: `listFiles(폴더, 확장자)`(`platform/Paths.h`).
-- **검증**: 단위 테스트 `strings_table`(읽기·오류 줄·기본 언어 대체·없는 키·`format`·언어 목록·키 규칙). 글꼴에 없는 글자(☃, 한자)를 넣으면 빌드가 `STR001`로 멈춘다. `--lang fr`은 경고 후 기본 언어.
-- **남은 것**: Penpot 플러그인의 키 붙이기·태그 내보내기는 게임 화면 UI 항목, 언어 고르기는 설정 화면 항목.
-
-## v0.4.14 — 1단계 진행 중 (2026-10-18)
-
-### [x] 디버그 UI (Dear ImGui) (완료 2026-10-18)
-- **왜**: 성능·치트·시뮬레이션 상태 같은 개발용 화면은 프로그래머가 코드로 빨리 만든다. 게임 UI(Penpot)와 섞지 않는다.
-- **게임 쪽**: `GameInstance::debugUi(GameContext&)`(기본은 빈 함수, `kApiVersion` 14). 엔진이 ImGui 프레임 안에서 부르고, 게임은 몸을 `#if MEALKIT_DEBUG_UI`로 감싸 `<imgui.h>`를 바로 쓴다.
-  시뮬레이션을 바꾸는 버튼은 상태를 고치지 않고 확정 명령을 보낸다(sandbox [Shockwave] 버튼 = `DebugShockwave` 명령).
-- **개발용 게임 exe** (`build\Release`·`Debug`·`Profile`): **F1**로 켜고 끄는 오버레이(처음 켤 때 ImGui를 만든다 — 글꼴 읽기). 엔진 창 "MealKit"(창 제목의 성능 숫자, 왼쪽 아래)과 게임의 창들.
-  디버그 창 위에서는 게임이 키·마우스를 받지 않는다(`WantCaptureKeyboard/Mouse` → `keyboardAllowed/mouseAllowed`). `--debug-ui`로 켠 채로 시작(캡처·자동 시험).
-- **에디터**: 플레이 중 매 프레임 `debugUi`를 에디터의 ImGui 프레임 안에서 부른다. ImGui를 `mealkit.dll` 안에 넣어(내보내기 def에도) 에디터와 게임 DLL이 ImGui 하나·컨텍스트 하나를 쓴다 — 로드맵에 적었던 `SetCurrentContext` 넘기기가 필요 없다. 참가 창에는 아직 없다.
-- **출시 빌드**: `build.bat Export`가 **`build\Export`**에서 `-DMEALKIT_DEBUG_UI=OFF`로 따로 빌드한다(`docs/DECISIONS.md` 2026-10-18). ImGui 코드·글자가 출시 exe에 없다(개발 exe 2583 KB, 출시 exe 2093 KB). 처음 Export는 엔진을 한 번 더 빌드한다.
-- **엔진**: ImGui 연결 층을 `editor/`에서 `mealkit/debug/ImGuiLayer.*`로 옮겼다(에디터·오버레이가 같이, 빈 ini 경로는 창 위치를 저장하지 않음). ImGui는 OBJECT 라이브러리로 따로 컴파일해(경고·UNICODE 옵션 분리) 엔진 타깃에 넣고, `MEALKIT_DEBUG_UI=1`·imgui 경로를 게임에 넘긴다. ImGuizmo는 에디터만.
-- **sandbox**: "Sandbox" 창(틱, 플레이어, Pawn·상자·움직이는 물체 수, 플레이어별 떨어진 횟수, [Shockwave]). 충격파 키는 에디터의 F6(일시정지)과 겹쳐 **F8**로 옮겼다.
-- **검증**: 에디터 플레이 캡처와 `sandbox.exe --debug-ui` 캡처에서 창이 보인다. 출시 exe에 `ImGui` 글자가 없다. 상태 해시 그대로.
-- **남은 것**: 참가 창의 오버레이, 4단계 "디버그 그리기 API"·"성능 패널과 예산 경고"가 이 위에 놓인다.
-
-## v0.4.13 — 1단계 진행 중 (2026-10-18)
-
-### [x] 확정 명령 채널 (완료 2026-10-18)
-- **왜**: 락스텝으로 보내는 것은 틱당 플레이어 입력 8바이트뿐이라, 치트·입력 지연 변경·일시정지 투표·매치 중 설정 변경처럼 가끔 있고 크기가 제각각인 명령을 보낼 길이 없었다.
-- **네트워크** (`net/Lockstep.*`): `submitCommand(data, size)`(1..`kMaxCommandBytes` 200바이트). 호스트는 받은 명령을 기다리게 두었다가 **확정하는 틱**(모든 입력이 모인 순간)에 싣는다:
-  플레이어 번호 → 받은 순서, 틱당 `kCommandBytesPerTick` 256바이트(명령마다 머리 2바이트)까지, 넘치면 그 플레이어의 나머지는 다음 틱(순서 유지).
-  명령은 `net::TickInputs`(`commandBytes` + `commands`)에 들어가 입력 묶음과 같이 배포된다(입력과 같은 중복 전송). 클라이언트 → 호스트는 번호를 붙여 호스트가 확인(묶음 머리의 `commandAck`)할 때까지 매 입력 패킷에 다시 싣고, 호스트는 번호로 중복을 버린다.
-  묶음은 명령이 있는 틱만큼 패킷(1200바이트)에 들어가는 틱 수를 줄인다. 혼자 플레이도 같은 길(다음 틱에 실린다).
-- **게임 쪽** (`mealkit/sim/Commands.h`): 명령 타입은 게임 `sim/`의 `MEALKIT_STRUCT`(memcpy로 보내므로 문자열·컨테이너 없음, `static_assert`), 타입 이름의 해시 4바이트로 구분.
-  화면 쪽은 `sim::sendCommand(ctx.session, 명령)`, `World::step()` 맨 앞에서 `sim::forEachCommand(tickInputs, ...)` + `c.read(out)`/`c.is<T>()`, `c.player`는 보낸 플레이어.
-- **기록**: 명령이 틱 입력 안에 있으므로 되감기·그림자 시뮬레이션·`--record-inputs`에 저절로 들어간다. 입력 기록 파일은 **버전 2**(틱마다 u16 명령 바이트 수 + 바이트), 버전 1도 읽는다.
-  헤드리스 계약에 선택 함수 `botCommands(tick, player, session)`(봇의 명령, `GameSession`의 `--bot`도 같은 함수).
-- **sandbox**: 디버그 명령 `DebugShockwave`(`sim/Commands.*`: 보낸 플레이어 캐릭터 주변 상자를 밀치기 힘으로 밀어냄, `Push` 이벤트), 액션 `debug.shockwave`(F6), 봇이 300틱마다 하나씩 보낸다.
-  봇 결과가 바뀌어 고정 기록 `samples/sandbox/replays/arena_4p_seed7.rec`를 다시 만들었다(이제 명령 12개가 들어 있어 CI가 모든 OS에서 명령 처리도 비교한다. 최종 해시 `d5e47a38258e973e`).
-- **검증**: 단위 테스트 `command_channel`(혼자: 다음 틱, 순서, 틱당 크기 넘침, 기록 왕복 / UDP 루프백 호스트 + 클라이언트: 양쪽이 같은 틱에 같은 명령). `mp_test` 1+3 PASS, 예전 버전 1 기록도 그대로 `REPLAY ok`.
-- **남은 것**: 엔진 예약 명령(입력 지연 변경)은 "입력 지연 자동 조절" 항목에서. 대기열이 차면 `false`(호스트 256개, 클라이언트 64개).
-
-## v0.4.12 — 1단계 진행 중 (2026-10-18)
-
-### [x] 게임패드 (완료 2026-10-18)
-- **방식**: 플랫폼 계층 `mealkit::Gamepads`(`platform/Gamepad.h`, Windows는 `win32/Gamepad.cpp`의 XInput 1.4, `xinput` 링크): Xbox·XInput 호환 패드 4슬롯. 연결된 슬롯은 매 프레임, 연결되지 않은 슬롯은 1초에 한 번만 `XInputGetState`(빈 슬롯은 약 14 µs, `docs/DECISIONS.md` 2026-10-18). 연결·해제는 로그에.
-  스틱은 -1..1(y는 위가 +), 트리거 0..1, 버튼은 `input::pad::*` 비트로 `input::PadState`에 담는다. 데드존은 입력 액션 쪽(행마다 `deadzone`, 스틱은 원형).
-- **입력 액션의 바인딩 소스**: 엔진(출시 exe, 에디터 플레이, 참가 창)이 매 프레임 `first()`(연결된 첫 패드)를 `Actions::update`에 넘긴다. 창에 포커스가 없을 때(에디터는 게임 뷰가 키보드를 받지 않을 때)는 넘기지 않는다.
-  `pad` 열에 `-이름`은 음수 쪽: `pad DPadUp -DPadDown`처럼 버튼 둘로 축 하나. 트리거를 버튼으로 쓰면 0.5 이상이 눌림.
-- **sandbox**: `move` 왼쪽 스틱, `jump` A, `push` 오른쪽 트리거·X, 새 액션 `turn`(`Delta2`, 오른쪽 스틱, `rate 500` — 마우스 픽셀과 같은 단위라 `orbitSensitivity`를 같이 쓴다)은 누르지 않고 바로 카메라를 돌리고, 마우스 `look`은 오른쪽 버튼을 누르는 동안만. `zoom`에 십자 위아래.
-- **검증**: 단위 테스트 `input_actions`에 패드 데드존·`-이름`. 출시 exe 크기 변화 없음(시스템 DLL). **실제 패드로는 시험하지 않았다**(이 PC에 패드 없음) — 패드를 꽂으면 로그에 `Gamepad 0 connected`가 나온다.
-- **남은 것**: PlayStation·Switch 패드(Windows.Gaming.Input/RawInput), 진동, 여러 로컬 플레이어(지금은 첫 패드만). 다른 플랫폼은 5단계.
-
-## v0.4.11 — 1단계 진행 중 (2026-10-18)
-
-### [x] 입력 액션 매핑 (완료 2026-10-18)
-- **왜**: 게임 코드가 `'W'`, `Space`, 마우스 버튼을 직접 확인해, 키 바꾸기·게임패드를 따로 처리해야 했다.
-- **액션과 바인딩은 데이터**: 엔진 표 `assets/input.bindings`(엔진 행 타입 `input::Action`, 화면 전용 표 — 에디터 [표] 패널, CSV). 행 id = 액션 이름.
-  열: 종류(`MEALKIT_ENUM ActionKind`: `Button`, `Axis` -1..1, `Axis2` 길이 1 이하, `Delta`·`Delta2` 이번 프레임 변화량), 플레이어에게 보이는 이름, 키(`Axis`는 "음수 양수" 짝, `Axis2`는 "위 아래 왼쪽 오른쪽" 넷씩, `-`는 빈 자리),
-  마우스(`Left Right Middle WheelUp WheelDown`, 값은 `Wheel Move MoveX MoveY` — 픽셀·휠 칸 그대로), 게임패드(`A B X Y ... LeftStick RightStick DPad LeftTrigger`), `rate`(변화량 액션에서 키·스틱의 초당 양), 데드존.
-  모르는 이름은 읽을 때 경고. 파일은 0.25초마다 시각을 보고 다시 읽는다(플레이 중에 [표] 패널에서 고치면 바로).
-- **`input::Actions`** (`mealkit/input/Actions.h`, 엔진 코어 — 헤드리스 단위 테스트도 쓴다): 엔진(출시 exe, 에디터 플레이, 참가 창)이 창마다 하나 만들어 `GameContext::actions`로 넘기고(`kApiVersion` 13), 매 프레임 게임 `update` 전에 갱신한다.
-  게임은 `down/pressed/released/axis/axis2("이름")`만 읽는다. 키보드·마우스를 받지 않는 동안(에디터 게임 뷰 밖, 창 포커스 없음)은 놓은 상태. 여러 바인딩은 더한다(버튼은 OR, `Axis2`는 길이 1로 자른다). 없는 액션은 0과 이름마다 한 번 경고. `lastDevice()`(버튼 표시용).
-  게임패드 상태(`input::PadState`)를 받는 자리와 데드존(스틱은 원형, 밖을 0..1로 다시 편다)까지 이 항목에서 만들었다. 실제 패드 읽기는 다음 항목(XInput).
-- **플레이어가 바꾼 키**: `setBinding`/`resetBinding`/`saveUser`가 사용자 폴더(`game::userFolder(설정)` = 사용자 앱 데이터 폴더/<게임 이름>)의 `input.bindings`에 프로젝트와 다른 행의 바인딩 필드만 저장하고, 읽을 때 프로젝트 값 위에 덮는다(종류·이름은 게임 것). 콘텐츠 해시와 무관. 바꾸는 화면은 "설정 시스템 + 표준 설정 화면" 항목.
-- **sandbox**: 액션 `move`(WASD·화살표, 왼쪽 스틱), `jump`, `push`, `orbit`(오른쪽 버튼을 누르는 동안 카메라 돌리기), `look`(`Delta2`, 마우스 이동), `zoom`(`Delta`, 휠). `view/LocalInput`과 `OrbitCamera::control`이 액션만 읽고, 이동은 `axis2("move")` 길이만큼(스틱은 기울인 만큼) 카메라 기준 방향으로 양자화한다.
-  `Vec2`(`core/Math.h`)를 더했다. 엔진·디버그 키(Esc, V, F12, 로비의 Enter·I)는 `app/main.cpp`에 남겨 두었다 — 화면 흐름 템플릿 항목에서 UI 액션으로 옮긴다.
-- **검증**: 단위 테스트 `input_actions`(대각선 길이, 허용 안 됨, 눌림·뗌, 변화량, 데드존, 사용자 파일 덮기·되돌리기·이름 표). 상태 해시 그대로(입력 바이트 형식 그대로, 고정 기록 `REPLAY ok`).
-- **기존 프로젝트**: `assets/input.bindings`가 없으면 액션이 없다는 경고가 나고 조작이 안 된다. 예제에서 그 파일을 복사하고 `upgrade_project.ps1 -Source`(또는 게임 코드를 액션으로)로 올린다.
-
-## v0.4.10 — 1단계 진행 중 (2026-10-18)
-
-### [x] 이벤트 → 연출 표 (타격감을 데이터로) (완료 2026-10-18)
-- **왜**: 틱 이벤트에 소리·흔들림을 붙이려면 `view/` 코드를 써야 했다(오디오 항목의 `view/Sounds.cpp`도 그랬다). 사운드·VFX 담당이 프로그래머 없이 타격감을 만지게 한다.
-- **`MEALKIT_ENUM(Name, Underlying, A, B, C)`** (`core/Reflect.h`): 값 이름이 있는 enum(0부터 차례로). 파일·에디터에는 이름(예전 숫자도 읽는다), 메모리·해시는 정수 그대로. `ValueInfo::enumNames`, `reflect::enumName(v)`, 에디터는 이름 고르기. 연출 표가 이벤트 종류를 이름으로 고르는 데 쓴다.
-- **연출 표** `assets/feedback.table` (엔진 행 타입 `feedback::Reaction`): 행 id = 이벤트 종류 이름(게임 이벤트 타입의 첫 `MEALKIT_ENUM` 필드), 같은 종류에 여러 줄은 `종류.이름`(예: `Fall`, `Fall.local`).
-  열: 누구의 이벤트(`any`/`local`/`others`, 이벤트의 `player` 필드와 이 창의 플레이어), 세기를 읽을 필드와 최대 세기 값, 위치를 읽을 필드(비우면 위치 없음), 소리 이벤트와 세기를 넣을 소리 파라미터,
-  카메라 흔들림(크기·시간·빠르기·사라지는 거리), 화면 번쩍임(세기·시간·색), 화면 정지(초).
-- **`feedback::Player`** (`mealkit/feedback/Feedback.h`, `GameContext::feedback`, `kApiVersion` 12): 게임은 틱 이벤트마다 `ctx.feedback.trigger(event, localPlayer)`만 부른다(이벤트 타입은 `MEALKIT_STRUCT`, 필드는 경로로 읽는다).
-  `cameraShake(focus)`(축마다 다른 주파수의 사인 합, 시간·거리 감쇠) — 게임 카메라가 초점에 더한다. `screenTint`(엔진이 `FrameParams::tintColor/tintAmount`로: 셰이더와 배경 지우기 색이 그 색으로 섞인다). `hitStop()`.
-  표는 0.25초마다 파일 시각을 보고 다시 읽는다 — 플레이 중에 고치면 바로 보인다. 출시 exe·에디터·참가 창이 하나씩 만든다(에디터는 소리 엔진과 같이).
-- **화면 정지는 화면만**: 시뮬레이션은 계속 돈다(락스텝). sandbox는 정지가 시작된 순간의 두 틱 상태(`WorldState` 사본)와 보간 비율을 붙잡아 그 그림을 그리고, 화면 시계(효과)를 멈춘다. 끝나면 지금 상태로 바로 돌아온다.
-- **에디터 [연출] 패널** (`editor/FeedbackPanel.*`, [보기] > [연출], `--feedback`): 왼쪽은 게임의 `EventType`(`GameModule::eventType`) 종류 이름과 행 수, 오른쪽은 고른 종류의 행들(필드 위젯, 삭제, 추가 — 둘째 줄부터 접미사), 이벤트 필드 목록(세기·위치에 고를 수 있는 것).
-  고치면 0.3초에 한 번까지 저장하고 게임이 다시 읽는다. [미리보기]는 그 종류의 행을 지금 한 번 낸다(편집 중에도 소리와 번쩍임이 보인다). 이 표는 [표] 패널에는 나오지 않는다(둘이 같은 파일을 덮어쓰지 않게).
-- **sandbox**: `GameEvent`를 `MEALKIT_STRUCT`(종류 `MEALKIT_ENUM(EventKind, ...)`, player, position, value), 만들기는 `makeEvent()`(기반 클래스가 있어 중괄호 초기화가 안 된다). `using EventType = GameEvent`.
-  `view/Sounds.*`를 지우고 연출 표로: 밀치기(소리 + 흔들림, 내 밀치기는 번쩍임 + 화면 정지 0.05초), 점프대(소리 + 흔들림), 스폰·점프(소리), 낙사(소리, 내가 떨어지면 붉은 번쩍임), 충돌(세기 = 속도/15로 소리 파라미터와 흔들림).
-  충격파 고리는 아직 코드(`view/Effects.cpp`) — 2단계 파티클에서 연출 표의 효과로 옮긴다.
-- **검증**: 단위 테스트 `reflect_enum`. 상태 해시 그대로(이벤트는 해시 밖, 고정 기록 `REPLAY ok`). 에디터 캡처에서 [연출] 패널(종류 목록, 행, 이벤트 필드).
-- **남은 것**: 효과(파티클) 열은 2단계 파티클과 같이. 4단계 가상 카메라가 같은 흔들림 코드를 이어 쓴다.
-
-## v0.4.9 — 1단계 진행 중 (2026-10-18)
-
-### [x] 오디오 (완료 2026-10-18)
-- **SDL3 평가 먼저** (플랫폼 계층에서 옮긴 일): 출시 exe와 같은 조건(정적 CRT, /O2, LTO)의 작은 exe로 쟀다. 기준 exe 140 KB.
-  SDL3 3.4.18 정적, 영상·렌더·GPU·카메라·센서 끔, 조이스틱·게임패드·햅틱·HIDAPI·오디오만: **2006 KB(+1866 KB)**, HIDAPI까지 꺼도 1728 KB(+1588 KB). 초기화 약 50 ms, 프레임당 폴링 약 3 µs.
-  miniaudio 0.11.25 엔진(WASAPI만, MP3·FLAC 끔): **437 KB(+297 KB)**. XInput 직접: +0 KB, 다만 빈 슬롯의 `XInputGetState`가 슬롯당 약 14 µs.
-  → SDL3는 exe 예산(5 MB)의 3분의 1을 패드 지원에 쓴다: **쓰지 않는다.** 소리는 miniaudio 자체 백엔드(플랫폼마다 그 플랫폼 백엔드), 게임패드는 플랫폼 계층의 XInput(`docs/DECISIONS.md` 2026-10-18).
-- **외부 라이브러리**: `third_party/miniaudio`(0.11.25, MIT-0, `miniaudio.h`), `third_party/stb`(2c980bb: `stb_vorbis.c` v1.22, `stb_truetype.h` v1.26, `stb_image.h` v2.30, MIT). 둘 다 `mealkit.txt` + `gen_notices.ps1`.
-  구현은 `audio/MiniaudioImpl.cpp` 하나(경고 끔), 설정은 `audio/MiniaudioConfig.h`(WAV + Ogg Vorbis 디코더, MP3·FLAC·인코딩·생성기 없음, 백엔드는 플랫폼마다 하나). 이름을 `Miniaudio.h`로 했더니 Windows에서 `miniaudio.h`와 같은 파일로 잡혀 이름을 바꿨다.
-- **`audio::Engine`** (`mealkit/audio/Audio.h`, 화면 쪽 라이브러리, 헤드리스에는 없다, `GameContext::audio`, `kApiVersion` 11):
-  `play(이벤트, 위치, {{"speed", 6}})`·`play2D` → `Handle`, `setParam`, `setPosition`, `stop(handle, 페이드)`, `stopAll`, `setGlobalParam`, `setListener`(엔진이 프레임마다 `FrameParams::cameraPos`·`cameraForward`로), `setBusVolume`, `setMuted`, `update(dt)`.
-  장치가 없으면 `init`이 false이고 모든 호출이 아무 일도 하지 않는다(게임은 소리 없이 돈다).
-- **소리 이벤트 표** `assets/sounds.table`(엔진 행 타입 `audio::SoundEvent`, 엔진이 등록하는 화면 전용 표 `audio::engineTables()`): 클립(공백으로 나눈 assets 경로), 컨테이너(`random` 직전 클립 반복 안 함 / `switch` 파라미터 값의 정수 / `blend` 파라미터로 이웃한 두 클립 크로스페이드, 최대 4),
-  무작위 볼륨·피치(±비율), 파라미터 곡선(파라미터 범위 → 볼륨·피치·로우패스 시작·끝 값, 선형), 3D 여부·감쇠(최소·최대 거리, 선형), 버스, 루프, 스트리밍, 우선순위, 동시 재생 상한과 넘칠 때(`oldest`/`quietest`/`none`), 쿨다운(초).
-  0.25초마다 파일 시각을 보고 바뀌면 다시 읽는다(재생 중인 소리는 이름으로 새 행을 찾는다) — **플레이 중에 고치면 바로 들린다.** 에디터 [표] 패널에서 화면 전용 표를 고치면 0.3초에 한 번까지 저장한다.
-- **목소리 관리** (엔진이 맡는다): 실제로 섞는 수 상한 = 프로젝트 설정 `audioVoices`(기본 32). 매 프레임 우선순위 × 들리는 크기(볼륨 × 거리 감쇠)로 고르고, 넘치거나 들리지 않는 루프는 **가상 목소리**(믹싱하지 않고 재생 위치만 센다, 다시 들리면 그 위치에서 이어 낸다), 짧은 소리는 끊는다.
-  **같은 프레임 묶기**: 시작은 `update()`에서 한 번에 — 같은 이벤트가 여러 번이면 세기(곡선 파라미터, 없으면 볼륨) 큰 순으로 상한만큼. 끊긴 소리는 이유와 함께 64개까지 기록한다.
-  효과음은 표를 읽을 때 메모리에 풀어 두고(원본 `ma_sound`를 복사해 재생), 스트리밍 클립은 재생할 때 연다. 엔진은 스테레오로 섞는다(장치가 7.1이어도).
-- **버스**: master → music / sfx / ui / voice(표에 다른 이름이 오면 프로젝트 버스로 만든다). 버스마다 레벨 미터 노드(오디오 스레드가 최댓값을 원자 변수에 적는다). 출시 exe는 창이 포커스를 잃으면 음소거(설정 화면에서 끌 수 있게 된다), `--mute`로 끈 채 시작(자동 시험).
-- **에디터 [소리] 패널** (`editor/SoundPanel.*`, [보기] > [소리], `--sounds`): 이벤트 미리듣기와 파라미터 슬라이더, 버스 볼륨·레벨, 실제·가상 목소리 목록(들리는 크기·거리), 끊긴 소리와 이유. 에디터가 오디오 엔진 하나를 만들어 플레이와 미리듣기가 같이 쓴다. 플레이를 멈추면 모든 소리를 끈다. 참가 창은 같은 PC라 소리를 끈 채로 연다.
-- **물리 충돌 이벤트** (`PhysicsWorld::setContactEvents(minSpeed, maxPerStep)`, `contacts()`): Jolt 접촉 리스너가 새로 닿은 쌍의 접근 속도를 모으고, `step()` 끝에서 세기 → 바디 번호 → 위치로 정렬해 상한만 남긴다 — **물리 스레드 수가 달라도 같다**(단위 테스트 `physics_contact_events`: 1스레드·4스레드 60틱 384개가 같고 상태 해시도 같다). 해시·스냅샷에는 들어가지 않는다.
-- **sandbox**: `sim/`이 충돌(`Impact`, 세기 = 다가오던 속도, 틱당 센 것 8개 — 튜닝 `impactSpeed`·`impactsPerTick`)과 점프(`Jump`) 이벤트를 더 남긴다. `GameEvent::radius`는 `value`(밀치기 범위 / 충돌 속도).
-  `view/Sounds.cpp`가 틱 이벤트를 소리 이벤트로(다음 항목 "이벤트 → 연출 표"에서 데이터로 옮긴다), `GameSession::start`가 배경음을 튼다. 소리는 `tools/make_sample_sounds.py`가 합성한다(충돌 3, 밀치기, 점프, 점프대, 스폰, 낙사, UI 셋, 16초 배경음 루프. CC0, 시드 고정).
-- **측정**: 상자 2000개가 떨어지는 처음 8초 동안 메인 스레드 오디오 시간 프레임당 0.06~0.15 ms, 동시 목소리 최대 7. 출시 exe 1611 KB → 2035 KB(+424 KB). 상태 해시는 그대로(고정 입력 기록 `REPLAY ok`).
-- **바꾼 것**: 배경음은 Ogg 인코더가 이 PC에 없어(ffmpeg·oggenc 없음) **WAV 스트리밍**으로 시작했다. Ogg Vorbis 디코딩(stb_vorbis)은 빌드에 들어 있지만 `.ogg` 파일로 아직 시험하지 않았다 — 첫 `.ogg` 에셋이 생기면 확인한다.
-  레벨 미터는 버스마다(엔진 미터 노드), 같은 이벤트의 "스위치"는 문자열이 아니라 파라미터의 정수 값으로 고른다.
-- **남은 것**: 가림·잔향·더킹·인터랙티브 음악(4단계), 설정 화면의 버스 볼륨(설정 항목), UI 소리(게임 UI 항목). 다른 플랫폼 백엔드는 5단계.
-
-## v0.4.8 — 1단계 진행 중 (2026-10-18)
-
-### [x] 정의 데이터 표 (`.table`) (완료 2026-10-18)
-- **왜**: 무기·아이템·적 종류처럼 같은 모양의 행이 여러 개인 데이터를 둘 곳이 없었다(튜닝은 구조체 하나). 4단계 모듈(인벤토리·스킬)·로드아웃·소리 이벤트가 이 위에 놓인다.
-- **선언** (`core/Reflect.h`, `kApiVersion` 10): 행 타입은 `MEALKIT_STRUCT`, `MEALKIT_TABLE(PropKind, "tables/props.table", flags)`로 등록한다(`reflect::moduleTables()`, `MEALKIT_OBJECT`와 같은 방식, 게임 DLL은 `GameModule::tables`로 넘긴다).
-  `flags`의 `reflect::kTableView`는 화면 전용 표(콘텐츠 해시 밖, 플레이 중 바로 적용 — 쓰는 곳은 오디오·연출 항목).
-- **행 참조** `RowRef<Row>` (필드 종류 `Kind::RowRef`): 파일·에디터에는 행 이름 id, 불러온 뒤 행 번호. 해시·비교는 id로, 스냅샷은 id와 번호를 같이. 문자열이 들어 있어 `hasStringField`가 참이다 — 시뮬레이션 상태에는 넣지 않고 번호(u32)를 둔다.
-- **파일** (`game/Tables.h`·`.cpp`, 엔진 코어): `row <id>` 다음 줄들이 그 행의 "경로 값"(튜닝과 같은 경로 규칙, 중첩·배열 포함). 행 순서 = 파일 순서 = 행 번호. id는 영문자·숫자·`_ - .`, 표 안에서 겹치면 뒤 행을 버리고 경고.
-  - 형식을 아는 쪽: `sim::Table<Row>`(`mealkit/sim/Table.h`: ids + rows, `operator[]`, `get(RowRef)`, `find(id)`)과 `game::loadTable(table)`(등록한 경로).
-  - 형식을 모르는 쪽(에디터·해시): `game::TableData`(행마다 `reflect::Instance`), `readTableText`/`writeTableText`, `loadTableData`/`saveTableData`.
-  - 참조 풀기: `game::resolveRows(data, {game::tableIndex(table), ...}, &missing)` — 구조체·배열 안의 모든 `RowRef`, 없는 id는 "경로 -> id (행 타입)" 줄. 행 타입은 포인터와 이름으로 찾는다(DLL을 바꿔 끼운 뒤에도).
-  - CSV(`exportTableCsv`/`importTableCsv`): 첫 줄 `id` + 필드 경로, RFC 4180(따옴표 안 쉼표·줄바꿈, `""`), Excel의 BOM, 열 순서 무관·모르는 열 무시. 가져오기는 표를 CSV 내용으로 바꾸는 한쪽 방향(저장해야 파일에 쓴다).
-  - 콘텐츠 해시: `contentHash(..., tables)`가 시뮬레이션 표의 id와 행 값(`MEALKIT_VIEW_FIELD` 제외)을 넣는다(`game::hashTables`). 출시 exe·헤드리스는 `reflect::moduleTables()`, 에디터는 `GameModule::tables`.
-- **에디터 [표] 패널** (`editor/TablesPanel.*`, [보기] > [표], `Ctrl+T`, `--tables`): 표 고르기, 저장·다시 읽기, 행 추가·복제·삭제·위아래, id 칸(Enter·다른 곳을 누르면 적용, 규칙 검사), 칸마다 필드 위젯(머리글은 필드 설명),
-  CSV 가져오기·내보내기(파일 대화상자). 아래에 **없는 행 참조** 목록: 표끼리, 그리고 에디터가 0.5초마다 튜닝과 씬 물체 필드도 검사해 넣는다. 인스펙터·튜닝의 `RowRef` 필드는 드롭다운(없는 id는 빨간색 `(?)`).
-  플레이를 누르면 고친 표를 저장한다(게임은 매치를 시작할 때 파일을 읽는다). 표 값은 DLL 타입이라 DLL을 내릴 때 텍스트로 보존했다가 새 타입으로 다시 만든다.
-- **sandbox**: `sim/Tables.h`의 `PropKind`(크기·늘림 범위, 밀도, 최소 질량, 마찰, 반발) + `assets/tables/props.table`(`crate`, `heavy`, `bouncy`). 튜닝의 상자 값 8개는 표로 옮겼다.
-  `PropSpawnArea.kind`(`RowRef<PropKind>`, 기본 `crate`)가 종류를 고르고, `World::loadScene`이 `propKinds.find(id)`로 번호를 정한다(없으면 첫 행과 경고). `Headless::startWorld`가 매치마다 `game::loadTable`로 읽어 `World::reset`에 넘긴다.
-  `crate`가 예전 튜닝 값과 비트까지 같아 **상태 해시가 그대로**다(고정 입력 기록 901틱 `REPLAY ok`). 콘텐츠 해시가 바뀌어 기록을 다시 만들었다.
-- **검증**: 단위 테스트 `tables`(파일 왕복, 겹친·잘못된 id, CSV 왕복과 따옴표·줄바꿈·BOM·열 순서, 참조 풀기와 없는 id, 해시는 id로, 스냅샷), 에디터 캡처에서 [표] 패널과 인스펙터 드롭다운.
-- **남은 것**: 화면 전용 표를 플레이 중 다시 읽는 `LiveTable`은 첫 화면 전용 표(소리 이벤트, 오디오 항목)와 같이. 표 사이의 행 참조를 에디터에서 따라가기(누르면 그 행으로)는 나중에.
-
-## v0.4.7 — 1단계 진행 중 (2026-10-18)
-
-### [x] 예제(sandbox) 데이터 분리 정리 (완료 2026-10-18)
-- **왜**: 데이터 장치(튜닝·씬 필드·화면용 튜닝)는 갖췄지만 예제 코드에 숫자가 남아 있었다. 새 프로젝트는 이 코드를 복사해 시작한다.
-- **`Tuning`으로** (`sim/Tuning.h`, `assets/game.tuning`): 캐릭터 반 높이·반지름·질량, 발밑 감지 여유, 점프 가능 상승 속도, 스폰 줄 간격 / AI 목표 거리 범위, 점프·밀치기 확률(1/N 정수, 난수열이 같도록) /
-  상자 크기·늘림 범위, 마찰, 반발, 최소 질량 / 씬 충돌 물체 마찰 / 점프대 감지 높이. 맵과 무관한 게임 규칙 값이다.
-- **씬 물체로** (`sim/Objects.h`): 맵마다 다른 값은 에디터에서 눈으로 놓는 **영역 물체**로 옮겼다.
-  - `MatchArea`(경기 영역, 씬에 하나): 상자 자체가 규칙이다 — 가로·세로 = AI가 다니는 범위·떨어진 상자를 다시 떨어뜨리는 범위, 바닥 = 낙사 높이(-30), 위 = 다시 떨어뜨리는 높이(30). 필드가 없다.
-    없는 씬(엔진 기본 아레나)은 경고 후 예전 값(±40, -30..30)으로 돈다(`// const-ok`).
-  - `PropSpawnArea`(상자 생성 영역, 여러 개 가능): 영역 안에 `count`개를 흩어 놓는다(씬 순서, 같은 난수열). 상자 Pool 용량 = 합계. `matchData`(`--bodies`·`--match-data`)는 이제 "0 = 씬, 아니면 그 수로"(영역 비율대로 나누고 나머지는 마지막 영역, 정수 계산).
-  - 기본 스폰 지점 표(`kDefaultSpawns`)는 지웠다: 스폰 지점이 없는 씬은 원점에서 `spawnSpacing` 간격으로 줄 선다.
-  - `arena.scene`에 `Match Area`(0,0,0 / 80×60×80)와 `Box Spawn Area`(0,13,0 / 80×24×80, 2000개)를 더했다 — 예전 상수와 경계가 비트까지 같다.
-- **엔진: 영역 물체 종류** `reflect::kObjectArea`(`kObjectFlags`): 크기만 쓰는 보이지 않는 상자. 에디터는 모서리 12개만 그리고(두께는 카메라 거리 비율, 안이 가려지지 않는다) 모서리를 눌러야 고른다(안을 누르면 안의 물체).
-  [추가] 메뉴로 만들면 10×4×10. 게임은 `scene::visibleInGame()`(표시·영역은 그리지 않음)과 `scene::areaBounds()`(축 정렬 상자)로 쓴다.
-- **화면 쪽**: 충격파 발밑 높이는 `world.tuning.pawnHalfHeight`를 인자로 받는다. 로그 "World ready"·"Play mode"는 상자 수 대신 인원·움직이는 바디를 보인다(check.ps1의 정규식도).
-- **SimCheck 경고 SIM012** (ROADMAP의 "도입 때 정한다"를 정함): `sim/`의 실수 리터럴 중 0·1·2·0.5가 아닌 것을 **경고**한다(빌드는 계속). `MEALKIT_*( ... )` 필드 선언 안(기본값은 데이터 자체)과 `// const-ok: <이유>` 줄은 뺀다.
-  sandbox에서 남은 것은 셋이었다: 입력 양자화 127, 부피 공식의 8, 0으로 나누지 않는 문턱 1e-4 — 모두 `const-ok`. `kTickRate`도 틱레이트 항목까지 `const-ok`.
-- **결정론**: 계산 순서까지 그대로 옮겨 **상태 해시가 한 비트도 바뀌지 않았다** — 저장소의 고정 입력 기록 901틱이 그대로 `REPLAY ok`(5114b2f8798f3f1d). 콘텐츠 해시는 바뀌어 기록을 다시 만들었다.
-- **템플릿** (엔진 버전 0.4.7): 예제 코드가 템플릿이라 버전을 올린다. 템플릿 CLAUDE.md에 "숫자는 어디에 두나" 규칙과 SIM012를 적었다.
-- **남은 것**: 행이 여러 개인 데이터(무기·소리 이벤트)는 다음 항목 `.table`.
-
-## v0.4.6 — 1단계 진행 중 (2026-10-18)
-
-### [x] 프로젝트 폴더 구조 강제 (완료 2026-10-18)
-- **왜**: 원본 파일이 출시 폴더에 섞이고, 외부 라이브러리 정보는 세 곳(`VERSIONS.txt`, `THIRD_PARTY_NOTICES.txt`, 코드)을 손으로 맞춰 왔다. 폴더 구조를 고민하는 시간을 없앤다.
-- **규칙 한 곳** `tools\check_layout.ps1 [-Project <폴더>]`: check.ps1("Project layout + notices"), Export(`game_export`가 맨 먼저 부르고 오류면 실패), 에디터(프로젝트를 열 때 `ChildProcess`로 돌려 오류는 알림 창, 경고는 상태 표시줄·로그)가 모두 이 스크립트를 쓴다. C++에 규칙을 따로 두지 않았다.
-  - `assets/` 바로 밑: 종류 폴더(`scenes models textures sounds effects ui fonts tables strings lut`)와 정해진 파일(`game.tuning view.tuning input.bindings feedback.table sounds.table`)만.
-  - 종류 폴더 안: 그 종류의 확장자만(하위 폴더는 자유). `fonts/`는 글꼴 라이선스 `.txt`도, `ui/`·`effects/`는 `.png`도 받는다.
-  - 외부 도구 원본(`.blend .psd .kra .penpot .fbx .aup3 ...`)은 `assets/` 어디에도 두지 않는다(→ `art/`). `.autosave`·`.gitkeep`은 본다.
-  - `third_party/<lib>/`: `mealkit.txt`(version·license·source 필수)와 라이선스 파일, 허용 라이선스(MIT, MIT-0, BSD-2/3, Zlib, Unlicense, PublicDomain, CC0-1.0, OFL-1.1, BSL-1.0, ISC), 게임 프로젝트는 엔진에 이미 있는 라이브러리 이름 금지.
-  - 정해진 폴더(`source assets art modules third_party`, 종류 폴더)가 없으면 경고.
-- **외부 라이브러리 메타데이터**: 엔진 `third_party/<lib>/mealkit.txt`(name, version, license, licenseFile, source, usedIn, inGame, note, kept, why) 6개를 썼다.
-  `tools\gen_notices.ps1`이 `third_party/VERSIONS.txt`(표 + 이유 + SDK 행)와 `THIRD_PARTY_NOTICES.txt`를 만든다(라이브러리 이름순, 원본 LICENSE 그대로). `-Check`는 check.ps1이 부른다(손으로 고치면 실패).
-  `-Project <폴더> -Out <파일>`은 출시 폴더용: MealKit 자신의 MIT 고지 + 게임 exe에 들어가는 엔진 라이브러리(`inGame yes`: Jolt, cgltf, meshoptimizer) + 프로젝트 `third_party/` + `assets/fonts/*.txt`.
-  Steamworks처럼 저장소에 넣지 않는 SDK는 스크립트의 SDK 목록에서 표에만 들어간다.
-- **게임 라이브러리** (`mealkit_add_game`): 프로젝트 `third_party/*/mealkit.txt`를 찾아, `CMakeLists.txt`가 있으면 `add_subdirectory` + `cmakeTarget` 링크, 없으면 헤더 전용(`include` 키, 기본 그 폴더)으로 게임 exe·DLL에만 붙인다(헤드리스 타깃에는 붙이지 않는다).
-  SimCheck가 `--third-party <폴더>`를 받아, 그 폴더에서 찾아지는 헤더나 경로에 `third_party/`가 있는 include를 `sim/`에서 **SIM011**로 막는다.
-- **Export**: 레이아웃 검사 → 고지문 합치기 → `MealKitExport.cmake`(exe가 5 MB를 넘으면 실패, 크기를 출력, `.gitkeep`은 복사하지 않음).
-- **템플릿** (엔진 버전 0.4.6): `templates/project`에 `art/ modules/ third_party/`와 `assets/<종류>/`의 `.gitkeep`. 새 프로젝트는 모든 폴더를 갖고, `upgrade_project`는 없는 `.gitkeep`을 "added"로 만든다(파일은 옮기지 않는다 — 검사가 위치를 알려 준다).
-  템플릿·엔진 `.gitignore`의 `*.png`를 캡처 파일(`/screenshot*.png /capture*.png /out*.png`)로 좁혔다(텍스처·`icon.png`가 올라간다). README 폴더 표를 새 구조로.
-- **정한 것**: 소리 이벤트 표는 `assets/audio/sounds.table`이 아니라 정해진 단일 파일 `assets/sounds.table`(`feedback.table`과 같은 자리, `assets/` 밑에 `audio/` 종류 폴더가 없다). Penpot 원본 백업은 `design/`이 아니라 `art/ui/`(CODING_MODEL의 `art/` 답과 맞춘다).
-- **검증**: 엔진 저장소 `check_layout` OK(0 경고), 잘못 놓은 파일 셋(`assets/foo.txt`, `models/x.blend`, `scenes/y.png`)이 오류 3개. 새 프로젝트(`new_project`)가 0 경고로 통과.
-  새 프로젝트에 헤더 전용 라이브러리를 넣어 `view/`에서 쓰고 `build.bat Export`: 레이아웃 OK → 고지문 5개(MealKit, cgltf, Jolt, meshoptimizer, 그 라이브러리) → exe 1611 KB → Export OK. 같은 헤더를 `sim/` 파일에서 include하면 SIM011.
-- **남은 것**: `patches/*.patch` 적용 도구는 고칠 원본이 생길 때. 에디터 에셋 브라우저(4단계)가 가져오기를 종류 폴더로 보내는 것.
-
-## v0.4.5 — 1단계 진행 중 (2026-10-18)
-
-### [x] 화면용 튜닝 (`ViewTuning`) + 시간 값은 초로 (완료 2026-10-18)
-- **왜**: 튜닝(`Tuning`)은 시뮬레이션 값이라 콘텐츠 해시에 들어가고 여러 명 플레이 중에는 바꿀 수 없다. 카메라·색·효과처럼 보이기만 하는 값은 둘 곳이 없어 `view/` 코드 상수로 남아 있었다.
-  시간 값을 틱으로 적으면 틱레이트(1단계 마지막 항목)를 바꿀 때 데이터를 모두 고쳐야 한다.
-- **필드 타입 둘** (`core/Reflect.h`, `kApiVersion` 9):
-  - `mealkit::Ticks { u32 value; }`: 메모리·해시·`sim/`은 정수 틱, 파일·에디터는 초. 파일을 읽을 때 `Ticks::seconds()`가 프로세스 틱레이트로 한 번 반올림한다(배정밀도 곱셈 + `lround`, 음수는 0).
-    기본값도 초로 쓴다: `MEALKIT_FIELD(Ticks, respawn, Ticks::seconds(1.5f), ...)`. `u32`로 저절로 바뀌어 `TickTimer::start(tick, world.tuning.respawn)`처럼 그대로 쓴다. 텍스트는 `%.6g`초(다시 읽으면 같은 틱).
-  - `mealkit::Color { u32 value; }`: rgba8 sRGB(`render::rgba`와 같은 배치), 파일에는 `#RRGGBB`/`#RRGGBBAA`. 에디터는 색 고르기 위젯.
-  - 틱레이트: `reflect::setTickRate()`/`tickRate()`(기본 30). `setProjectRoot()`처럼 프로젝트를 열 때 한 번 정하는 프로세스 설정이다(CODING_MODEL "엔진 기능에 어떻게 접근하나" 예외에 더함). 지금은 아무도 바꾸지 않고, "틱레이트를 프로젝트 설정으로" 항목에서 프로젝트 설정이 정한다.
-- **화면용 튜닝**: 게임이 `using ViewTuningType = ViewTuning;`(GameSession)을 선언하면 `MEALKIT_GAME_MODULE`이 `GameModule::viewTuningType`으로 넘긴다(없어도 된다).
-  - 값은 `assets/view.tuning`. 엔진 `game::LiveTuning`(`game/GameData.h`)이 읽고 0.25초마다 파일 시각을 봐서 바뀌면 다시 읽는다(지운 줄은 기본값). 파일이 아직 없으면 `game.tuning` 옆에 생길 때 읽는다.
-  - 게임은 `ctx.viewTuning<ViewTuning>()`(`GameContext::viewTuningData`)로 매 프레임 읽고 보관하지 않는다. 엔진이 넘기지 않으면 선언의 기본값.
-  - 출시 exe(sandbox `main.cpp`)·에디터·참가 창이 하나씩 갖는다. 에디터 [튜닝] 패널은 탭 두 개("게임", "화면")이고, 화면 탭 값은 고치는 즉시 에디터 안 게임에 보인다.
-    여러 명 플레이에서는 에디터가 `build\Editor\play\play.view.tuning` 사본을 0.2초에 한 번까지 다시 쓰고, 참가 창(`--view-tuning`)이 그 파일을 다시 읽는다 — 그래서 **여러 명 플레이 중에도 바로 바뀐다**. 게임 탭은 지금처럼 혼자 플레이에서만 바로 적용.
-  - 에디터 튜닝 코드를 파일 하나 단위(`TuningDoc`: 값, DLL을 바꿔 끼울 때 보존할 텍스트, 저장 여부)로 묶어 두 탭이 같이 쓴다.
-- **sandbox**: `view/ViewTuning.h`에 카메라(시야각·감도·줌·거리·높이 각 범위·시작 값·자르기 면), 캐릭터 겉모습(몸·얼굴 크기와 색, AI 색, 내 캐릭터 표시), 충격파(시간·조각 수·두께·색·고리 크기), 플레이어 색 8개, 상자 색 6개를 옮겼다.
-  `Camera`·`Draw`·`Effects`가 값을 인자로 받는다(코드 상수 없음). 스폰·점프대 이벤트의 효과 크기(1.2, 2.0)는 시뮬레이션에서 빼고 화면용 튜닝으로.
-  `Tuning`의 `pushCooldownTicks`·`respawnTicks`·`aiThinkTicks`는 `pushCooldown`·`respawn`·`aiThink`(`Ticks`, 0.5·1.5·1.33333초), 점프대 `cooldownTicks`는 `cooldown`(0.666667초). `game.tuning`·`arena.scene`의 키도 바꿨다.
-- **결정론**: 틱 값이 같아(15·45·40·20틱) 상태 해시가 그대로다 — 저장소의 고정 입력 기록이 바꾸기 전 해시와 901틱 모두 같았다(`REPLAY ok`). 씬 필드 텍스트가 바뀌어 콘텐츠 해시는 달라졌으므로 기록을 다시 만들었다(해시 줄은 같다).
-  화면용 튜닝은 `sim/`에서 읽을 수 없다(`view/` 헤더는 SimCheck SIM009).
-- **검증**: Release·Editor 빌드, 헤드리스 `mp_test` 1+3 PASS, 에디터 혼자 플레이 캡처에서 [튜닝] 패널 탭과 `Ticks` 위젯(0.500 s, 툴팁에 틱 수).
-- **남은 것**: 틱레이트를 실제로 바꾸는 것은 마지막 항목. `.table`의 시간 열도 `Ticks`를 쓴다(다음 항목들).
-
-## v0.4.4 — 1단계 진행 중 (2026-10-18)
-
-### [x] 저장소 공개 범위 (결정 2026-10-18)
-- 공개 시점은 날짜·단계로 정하지 않고 사용자가 요청할 때. 외부 기여는 DCO(`git commit -s`, CLA 없음), 기준 샘플 에셋은 CC0. 이유는 `docs/DECISIONS.md` 2026-10-18.
-- 공개할 때 할 일: `CONTRIBUTING.md`(DCO), 에셋 폴더의 CC0 고지, Windows on ARM CI 러너, 문서 Read the Docs.
-
-### [x] 문서 저장소 (완료 2026-10-18)
-- **왜**: 사용 설명이 `docs/GUIDE.md` 한 파일(한국어)에 쌓이고 있었다. 엔진 코드와 따로 고칠 설명을 나누고, 영어·한국어와 엔진 버전별로 보여 준다.
-- **저장소** `D:\MealKit-docs`(git, 아직 원격 없음): Sphinx 8.2.3 + MyST 4.0.1 + sphinx-rtd-theme, 버전은 `requirements.txt`에 고정. 목차는 ROADMAP대로
-  소개(소개·요구사항·라이선스) / 시작하기(엔진 빌드·첫 프로젝트·작업 흐름·에디터 빠른 시작) / 매뉴얼(엔진 폴더와 프로젝트·에디터·에셋·멀티플레이와 결정론·빌드와 출시·성능) / 쿡북 / 엔진 개발(소스 구조·테스트·기여) / 레퍼런스(명령줄) / 용어집.
-  GUIDE.md의 모든 절이 자리를 받았다(현재 상태·측정값·보이스 챗 → 소개, 빌드 → 시작하기, 게임 실행·헤드리스·Steamworks → 멀티플레이, 테스트·CI·구조·프레임 흐름 → 엔진 개발).
-  명령줄 레퍼런스는 게임·헤드리스·에디터의 `--help`와 `tools\` 스크립트를 표로 새로 썼다.
-- **번역**: 영어 원문, 한국어는 `locale/ko/LC_MESSAGES/<문서>.po`(문서마다 하나, 줄 위치 없음 → diff가 작다). 538문장. 처음 번역은 GUIDE.md 한국어 문장을 영어 원문과 같은 구조로 나눈 사본에서 순서대로 짝지어 만들었다.
-  코드 블록 안의 주석도 번역한다: Sphinx 자체의 코드 블록 번역은 번역문을 reST(`::`)로 다시 읽어 MyST에서는 내용이 사라지므로, `conf.py`의 작은 변환(`LiteralBlockTranslator`)이 카탈로그에서 바로 바꾼다(gettext 빌더만 코드 블록을 뽑는다).
-- **검사** `tools/build.py`(로컬·CI 공통): `html`(영어 `_build/html/en`, 한국어 `_build/html/ko`, 경고 = 오류), `update`(sphinx-intl: 새 문장은 빈 칸, 바뀐 문장은 fuzzy), `check`(두 언어 빌드 + 미번역·fuzzy·원문 없는 번역 0 + `ENGINE_VERSION`과 엔진 `VERSION` MINOR 비교), `linkcheck`.
-  영어 문장 하나를 바꾸면 `check`가 실패하고 `update` 뒤 그 문장이 fuzzy가 되는 것을 확인했다. CI는 `.github/workflows/docs.yml`(ubuntu, 엔진 저장소가 비공개인 동안은 `ENGINE_REPO_TOKEN` 비밀 값이 있을 때만 버전을 비교).
-  엔진 저장소 파일 링크는 `{engine}` 역할(GitHub `master`)이고, 비공개인 동안 링크 검사에서 뺀다.
-- **엔진 쪽 정본**: GUIDE "결정론 규칙"을 `docs/CODING_MODEL.md` "결정론 규칙 (시뮬레이션 코드)" 절로, 외부 라이브러리 표의 "이유" 열을 `third_party/VERSIONS.txt`로 옮겼다. 문서 저장소는 이것들을 복사하지 않고 링크한다.
-- **참조 바꾸기**: CLAUDE.md, ROADMAP, DECISIONS 보류 표, SimCheck 주석·메시지(→ CODING_MODEL), `.gitignore`·CMake·`check.ps1`·`record_replay.ps1`·CI 주석, README, 템플릿 README. `docs/GUIDE.md`는 지웠다(지난 결정·변경 기록의 언급은 기록이라 그대로 둔다).
-- **버전 붙은 문서 주소**: CMake가 `VERSION`에서 `MEALKIT_DOCS_URL`(`https://mealkit.readthedocs.io/en/<MAJOR.MINOR>/`)을 만들어 넘기고(`core/Version.h`의 `kDocsUrl`), "없음" 온라인 백엔드와 sandbox의 Steam 오류 메시지가 `manual/multiplayer.html#steamworks`를 가리킨다.
-  Read the Docs 프로젝트 이름 `mealkit`은 가정이다 — 공개할 때 다르면 CMake 한 줄을 고친다. 그때까지 이 주소는 열리지 않는다.
-- **에디터 `--lang ko|en`**: 이번 실행만 에디터 언어를 바꾼다(사용자 설정은 그대로). 문서 스크린샷을 언어별로 `--capture`하기 위한 것.
-- **템플릿**: 템플릿 README의 결정론 규칙 링크와 sandbox 메시지가 바뀌어 엔진 버전 0.4.3 → 0.4.4.
-- **ROADMAP 방식과 다른 점·남은 것**: 문서 브랜치는 `master`만 만들었다(0.5부터 MINOR 브랜치). 스크린샷은 아직 없다(옵션만 넣음). `--dump-reference`로 레퍼런스 생성, Weblate는 나중에.
-  영어 문서의 CODING_MODEL 절 이름은 영어로 옮겨 적었다(CODING_MODEL 자체는 한국어). 기존 GUIDE 내용 다시 쓰기는 페이지마다 조금씩.
-
-## v0.4.3 — 1단계 진행 중 (2026-10-16)
-
-### [x] CI 빌드 매트릭스 (완료 2026-10-18)
-- **왜**: 플랫폼·컴파일러가 늘면 사람이 모든 조합을 빌드해 해시를 비교할 수 없다. 5단계 크로스플레이의 바탕(OS·CPU·컴파일러 사이 같은 틱 해시)을 첫날부터 매 커밋 확인한다.
-- **워크플로** (`.github/workflows/ci.yml`, 푸시·PR·수동): Windows(windows-2022) 3개 — `windows-msvc`(Release, 기준), `windows-clang-cl`(`build.bat ClangCL`), `windows-msvc-editor`(`build.bat Editor`, 단위 테스트만) — 는 로컬과 같은 `build.bat`을 그대로 부른다.
-  헤드리스 2개 — `linux-x64-clang`(ubuntu-24.04, apt clang + ninja), `macos-arm64-clang`(macos-15 Apple Silicon, Apple clang) — 는 `cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++` 후 `sandbox_headless`·`mealkit_tests`만 빌드한다(`MEALKIT_HEADLESS_ONLY`, SimCheck도 빌드 때 돈다).
-  `windows-msvc`는 `check_strings`·`check_platform`도 돈다. 빌드마다 결과 폴더를 아티팩트로 올리고, 마지막 `compare` 작업이 모아 비교한다. 같은 브랜치의 새 커밋은 이전 실행을 취소한다.
-- **빌드마다** `tools/ci_test.ps1`(Windows PowerShell 5.1·pwsh 7 둘 다): 단위 테스트와 `detmath-bits` 줄, 저장소의 고정 입력 기록(`samples/*/replays/*.rec`)을 `<샘플>_headless --replay-inputs --hash-log`로 재생(`REPLAY ok` = 기록에 든 MSVC 해시와 틱마다 같음),
-  헤드리스 `mp_test`(1+3, 900틱, 클라이언트마다 물리 스레드 수 다름). mp_test가 실패하면 피어별 출력도 아티팩트에 넣는다.
-- **비교** `tools/ci_compare.ps1`: 모든 빌드의 `detmath-bits`와 틱별 해시 로그를 `windows-msvc`와 비교해 Markdown 표를 작업 요약(`$GITHUB_STEP_SUMMARY`)에 쓰고, 다르면 처음 갈라진 줄(틱)을 보여 주며 실패한다.
-- **고정 입력 기록** `samples/sandbox/replays/arena_4p_seed7.rec`(36 KB): 헤드리스 호스트 1 + 클라이언트 3, seed 7, 상자 2000개, 901틱(0~900)의 확정 입력과 해시. 혼자보다 네 명이 서로 밀치는 쪽이 물리 접촉을 더 많이 거친다.
-  `tools/record_replay.ps1`이 만든다(다시 만들면 바이트까지 같은 파일이 나온다). 시뮬레이션 결과를 일부러 바꾸면 이것으로 다시 만들어 같이 커밋한다 — 로컬 `check.ps1`에 "Committed replays" 단계를 더해 푸시 전에 알 수 있게 했다.
-  `.gitattributes`에서 `.rec`(와 `.glb`·`.png`·`.ico`)를 바이너리로 두어 Windows 러너의 `core.autocrlf`가 바꾸지 않게 했다.
-- **로컬 검증**: Release·ClangCL·Editor 빌드에서 `ci_test.ps1`가 모두 PASS(`detmath-bits f67a477cb2496808`, 기록 재생 901틱 같음), `ci_compare.ps1`가 PASS, 해시 한 줄을 일부러 바꾸면 FAIL. `check.ps1 -Quick` 9개 통과.
-- **CI 결과** (실행 #4, 커밋 6b548bc, 약 4분): 5개 빌드 모두 통과. `detmath-bits f67a477cb2496808`이 모든 빌드에서 같고, 고정 기록 901틱의 해시가
-  **Windows MSVC·clang-cl(x64), Linux x64 Clang(apt clang), macOS ARM64 Apple clang에서 모두 같다** — OS·CPU 아키텍처·컴파일러 사이 결정론을 처음 확인했다. 각 러너 안의 헤드리스 mp_test도 PASS.
-- **첫 실행들에서 고친 것**:
-  `.gitignore`의 `build/`가 Windows에서 대소문자를 가리지 않아 `third_party/JoltPhysics/Build/CMakeLists.txt`와 `engine/res/MealKitEditor.png`(에디터 리소스)가 저장소에 없었다 → 출력 폴더를 `/build/` 등 최상위로 고정.
-  `Reflect.cpp`의 MSVC 전용 `sscanf_s` → `strtoul`. Jolt 자체 LTO가 Clang에서 LLVM 비트코드 라이브러리를 만들어 Linux GNU ld가 못 읽었다 → 비MSVC에서는 Jolt LTO 끔(엔진과 같게).
-  헤드리스 네트워크 루프가 `FrameLimiter`(1000fps, 남은 시간 1ms 이하라 자지 않음)로 바쁜 대기를 해, vCPU 4개 Windows 러너에서 피어 4개가 물리 작업 스레드를 굶겨 60초 안에 끝나지 않았다
-  → 틱이 나아가지 않은 반복에서만 1ms 자도록(`core/Clock.h`의 새 `sleepSeconds`, Windows 고해상도 대기 타이머 / POSIX nanosleep). 로컬 1+3 900틱은 그대로 약 5초.
-  `ci_compare.ps1`은 빌드 결과가 빠지면 실패하도록(`-Expect`), `ci_test.ps1`은 mp_test 실패 때 피어 로그를 출력하도록, 헤드리스 빌드는 `ninja -k 0`으로 오류를 한 번에 보이도록 했다.
-  `platform/posix/`는 고칠 것 없이 Linux·macOS에서 컴파일·동작했다.
-- **ROADMAP 방식과 다른 점·남은 것**: 액션(checkout·upload/download-artifact v4)이 Node.js 20 경고를 낸다(버전 올리기는 따로). Windows on ARM은 넣지 않았다(ARM Windows 러너는 공개 저장소용이라 저장소 공개 범위 결정 뒤). ROADMAP의 `check_layout`은 아직 없는 검사라 빠졌고(배치 검사는 디자이너 항목), SimCheck는 각 빌드 안에서 돈다.
-  기록은 sandbox 하나뿐이다 — 샘플이 늘면(기준 샘플 규칙 항목) `samples/<샘플>/replays/`에 두면 `ci_test.ps1`이 자동으로 재생한다. 3단계 디싱크 진단 도구가 생기면 비교 실패 때 그것을 부른다.
-
-### [x] 헤드리스 시뮬레이션 (완료 2026-10-18)
-- **왜**: CI가 GPU·창 없는 러너에서 컴파일러·OS·CPU 사이 틱별 해시를 매 커밋 비교하려면(5단계 크로스플레이의 바탕) 시뮬레이션만 도는 실행 파일이 먼저 있어야 한다.
-- **엔진 라이브러리 나누기** (`engine/CMakeLists.txt`): 코어(`mealkit_core`: core, game, sim, physics, scene, asset, net, `render/Mesh`, 플랫폼의 시간·파일·소켓·시스템)와 화면 쪽(창·입력·렌더러·온라인 서비스·에디터용 플랫폼 기능).
-  Game 빌드는 `mealkit_core` + `mealkit`(코어를 PUBLIC으로 링크) 두 정적 라이브러리, Editor 빌드는 예전처럼 둘을 합친 `mealkit.dll`. 단위 테스트는 코어만 링크한다.
-  `ModelCache`는 렌더러를 직접 부르지 않고 업로드 함수 포인터를 갖는다(`setRenderer`는 헤더 인라인이라, 부르지 않는 헤드리스는 렌더러 없이 링크된다). 에셋 폴더 경로 구분자를 `/`로.
-- **비Windows CMake** (`cmake/MealKit.cmake`): Windows는 그대로 MSVC·clang-cl. Linux·macOS의 Clang·GCC는 `MEALKIT_HEADLESS_ONLY`로 코어 + 헤드리스 타깃 + 단위 테스트 + SimCheck만 만든다.
-  컴파일 옵션 `-Wall -Wextra -fno-rtti -ffp-contract=off -fno-fast-math`, 스레드 라이브러리. Jolt는 `CROSS_PLATFORM_DETERMINISTIC`로 스스로 `-ffp-contract=off`를 붙인다. LTO는 MSVC만.
-  **이 PC에 Linux·macOS 도구(WSL 배포판 포함)가 없어 비Windows 구성은 한 번도 돌려 보지 않았다** — CI 빌드 매트릭스 항목에서 처음 빌드하며 고친다(POSIX 플랫폼 구현도 마찬가지).
-- **게임 쪽 경계** (`docs/CODING_MODEL.md` "창 없이 게임을 돌리는 방법", 사용자와 정함): 게임은 `app/Headless.cpp`에 클래스 하나와 `MEALKIT_HEADLESS_GAME(클래스)`.
-  클래스는 `World`·`TuningType`·`ProjectSettingsType` 타입, `kTickDt`, `startWorld(World&, MatchInfo, 튜닝, 평평한 씬, 모델, 물리 스레드)`, `botInput(틱, 플레이어)`, 선택 `defaults(옵션, 게임 프로젝트 설정)`을 내놓는다.
-  엔진(`mealkit/game/Headless.h/.cpp`)이 옵션 해석, 프로젝트·씬·튜닝 읽기, 콘텐츠 해시(출시 exe와 같은 값이라 창 있는 피어와도 접속된다), 세션(혼자·방장·참가), `game::Simulation` 실행, 출력(`FINAL`, `SHADOW`, `REPLAY`)을 맡는다.
-  `mealkit_add_game()`은 Game 빌드에서 `<이름>_headless`(sim/ + `Headless.cpp`, `MEALKIT_HEADLESS_TARGET`이면 매크로가 `main`도 만든다)를 만든다(`HEADLESS` 인자, 파일이 없으면 만들지 않는다).
-  출시 exe는 `--headless`가 있으면 `mealkitHeadlessMain`을 부른다. sandbox `GameSession`도 매치 시작과 봇 입력에 같은 함수를 쓴다(`botInput`은 `view/LocalInput`에서 옮겼다. CRT 삼각함수를 써서 `sim/`에는 둘 수 없다).
-- **실행 방식**: 입력은 항상 봇. 혼자면 쉬지 않고 돌고(900틱 약 2초, 그림자 시뮬레이션 포함), 네트워크면 한 번에 최대 8틱씩 따라잡고 대기 중에는 1ms씩 잔다. 호스트는 `--auto-start`(기본 `--players`) 인원이 모이면 시작.
-  창 옵션(`--bot`, `--vsync`, `--fps`, `--size`, `--debug`)은 받아서 버린다(mp_test가 같은 인자를 넘긴다). 매치 값 옵션 이름은 엔진 쪽 `--match-data`(sandbox 창 모드는 `--bodies`와 같다).
-- **해시 로그·입력 기록** (`mealkit/game/InputRecord.h/.cpp`): `PlayOptions::hashLogPath`(틱마다 `<틱> <해시16진>`)와 `recordInputsPath`(확정된 틱 입력 + 해시, 리틀 엔디언, 헤더에 시드·인원·매치 데이터·콘텐츠 해시)를 `game::Simulation`이 쓴다.
-  그래서 창 있는 게임(`--hash-log`, `--record-inputs`)과 헤드리스가 같은 파일을 만든다. `--replay-inputs`는 네트워크 없이 `World`를 처음부터 다시 돌리고 틱마다 기록된 해시와 비교한다(`REPLAY ok` / `REPLAY DESYNC tick=N`, 콘텐츠 해시가 다르면 경고).
-  `PlayOptions`가 바뀌어 `kApiVersion` 8. `LockstepSession::contentHash()` 추가.
-- **도구**: `mp_test.ps1 -Headless`(모든 피어에 `--headless`, 1+3 900틱 약 5초, 창 모드 약 30초). `check.ps1`에 "Headless (mp_test, record + replay)"(헤드리스 mp_test + `sandbox_headless`로 기록 → `sandbox.exe --headless`로 재생, 해시 로그 비교)와
-  "Headless = window"(창 있는 게임의 그림자·되감기 실행의 해시 로그가 헤드리스와 같은지)를 더했다. 단위 테스트 `input_record`(기록 왕복).
-- **검증**: Release·Editor 빌드, `check.ps1` 19개 통과. seed 7 900틱에서 헤드리스·재생·창 있는 게임의 해시 로그 901줄이 모두 같다. 실행 파일 크기: `sandbox.exe` 1.6 MB, `sandbox_headless.exe` 1.5 MB.
-  컴파일러 비교: `build.bat ClangCL`의 `sandbox_headless.exe`로 MSVC 빌드가 만든 기록 파일을 재생해 `REPLAY ok`, 해시 로그가 MSVC와 같다.
-  첫 `check.ps1`에서 "Editor play (3 players)"가 한 번 실패했다(참가 창들이 400프레임 안에 접속하지 않음). 같은 시험을 따로 세 번, `check.ps1` 전체를 한 번 더 돌려 모두 통과했고 원인은 찾지 못했다(이번 변경과 관련된 증거는 없음). 다시 나오면 참가 창 로그(`build\Editor\play\player*.log`)부터 본다.
-- **남은 것**: Linux·macOS 실제 빌드와 CI(다음 항목), 플레이하지 않는 전용 중계 프로세스(락스텝 세션의 방장이 지금은 플레이어 0이라 세션 쪽 변경이 필요하다. 3단계 "호스트 이전"과 같이 본다).
-
-### 고침: 에디터가 멀쩡한 게임 DLL을 "엔진보다 오래됨"으로 보던 문제 (2026-10-18)
-- **현상**: `GameModuleHost::olderThanEngine`이 게임 DLL과 `mealkit.dll`의 수정 시각을 비교했다. 엔진 `.cpp`만 바뀌면 `mealkit.dll`은 다시 링크되지만 내보내기가 같아 import lib이 그대로라 Ninja가 게임 DLL을 다시 링크하지 않는다.
-  그래서 에디터가 시작할 때마다 게임 코드 빌드를 했고, 그 빌드가 실패하면 이전 DLL로 돌아가지 못했다(check.ps1 "Editor keeps the old DLL on failure" 실패).
-- **판정**: 엔진 시각 = 엔진 import lib(`build\Editor\engine\mealkit.lib`, 링커가 내보내기가 바뀔 때만 다시 쓴다)과 엔진 헤더(`engine/src/mealkit/**/*.h`, 게임 코드가 쓰지 않는 `editor/` 제외) 중 가장 새것.
-  헤더를 넣은 것은 구조체 배치·인라인 함수처럼 내보내기 없이 바뀌는 경우 때문이다. import lib이 없으면 예전처럼 `mealkit.dll` 시각을 쓴다. 게임 프로젝트도 같은 엔진 빌드의 lib(`MealKitTargets.cmake`의 `IMPORTED_IMPLIB`)과 `MEALKIT_ENGINE_DIR` 헤더를 본다.
-  게임 모듈 경계(`GameModule`, `kApiVersion`)는 바꾸지 않았다. 헤더를 내용 변화 없이 저장만 해도 다시 빌드를 요구한다(보수적).
-- **검증**: 엔진 `.cpp`에 주석만 더해 `mealkit.dll`만 다시 링크(lib은 그대로)한 상태에서 `check.ps1` 17개 통과, 에디터가 빌드 없이 게임 DLL을 불러옴.
-  `core/Types.h` 시각을 새로 하면 에디터가 시작 때 게임 코드 빌드를 시작했고, 엔진을 다시 빌드하자 게임 DLL도 다시 링크되어 바로 불러왔다.
-
-### [x] 플랫폼 계층 (`mealkit/platform/`) (완료 2026-10-18)
-SDL3 평가(창·입력·게임패드·오디오 장치)는 하지 않고 1단계 "오디오" 항목의 첫 일로 옮겼다(`docs/DECISIONS.md` 2026-10-18). 창·입력은 Win32 그대로다.
-- **규칙**: 헤더는 기능 자리에 그대로 두고(게임 코드의 include가 바뀌지 않는다), OS API를 부르는 구현 `.cpp`만 `platform/win32/`·`platform/posix/`로 옮겼다. CMake가 `WIN32`로 하나를 고른다.
-  **옮긴 것**: `core/Clock.cpp` → `win32/Clock.cpp`, `net/Socket.cpp`의 소켓 부분 → `win32/Socket.cpp`(주소 표시는 `net/Socket.cpp`에 남김),
-  `platform/Paths.cpp`는 std::filesystem 부분(`platform/Paths.cpp`)과 OS 부분(`win32/Paths.cpp`)으로 나눔, `Process.cpp`·`Window.cpp` → `win32/`, `editor/Image.*` → `platform/Image.h` + `win32/Image.cpp`(WIC, `namespace mealkit`).
-- **새 인터페이스**: `Paths.h`에 `openFile`(UTF-8 경로 fopen), `fileCreationTime`, `formatFileTime`, `userDataDirectory`(%LOCALAPPDATA% / XDG / Application Support), `documentsDirectory`.
-  `System.h`에 `debugOutput`, `debuggerAttached`, `debugBreak`, `showErrorDialog`, `exitProcess`, `processId`. 새 헤더 `DynamicLibrary.h`(게임 DLL), `FileDialog.h`(`openFileDialog`·`saveFileDialog`·`pickFolderDialog`).
-  에디터 전용(DLL·대화상자·그림)은 Windows 구현만 있다.
-- **바뀐 호출처**: `Log.cpp`(SRWLOCK → `std::mutex`, 대화상자·종료는 `System.h`), `Scene.cpp`·`ModelCache.cpp`(`openFile`), `GameModuleHost.cpp`(`DynamicLibrary`, `processId`, `fileWriteTime`),
-  `Project.cpp`(`userDataDirectory`), `ProjectManager.cpp`·`Editor.cpp`(파일 대화상자·파일 시각·문서 폴더를 platform으로, 각자 갖던 UTF-8↔UTF-16 변환 삭제). 프로젝트 아이콘 고르기는 공용 대화상자(`GetOpenFileName`)로 바뀌었다.
-- **POSIX 최소 구현** (`platform/posix/`): `Clock`(clock_gettime + nanosleep), `Socket`(BSD 소켓, 논블로킹), `Paths`(/proc/self/exe·_NSGetExecutablePath, fsync + rename 원자적 쓰기, 나노초 파일 시각),
-  `System`(대화상자 없음, `_Exit`). **이 PC에 Linux 도구가 없어 한 번도 컴파일하지 않았다** — 헤드리스·CI 항목에서 처음 빌드하며 고친다. 창·입력·DLL·대화상자·그림은 5단계.
-- **검사** `tools\check_platform.ps1`(check.ps1 "Platform layer" 단계): `engine/src/mealkit`(`platform/win32|posix` 밖)과 `samples/`에서 OS 헤더 include와 대표 Win32·POSIX 함수 호출을 찾는다(대소문자 구분).
-  예외는 RHI 전의 `render/Renderer.cpp`, `editor/ImGuiLayer.cpp` 두 개. 일부러 `<windows.h>`를 넣은 파일로 실패하는 것을 확인했다.
-- **검증**: Release·Editor·ClangCL 빌드, `check.ps1` 17개 통과. 에디터의 파일·폴더 대화상자는 직접 눌러 보지 않았다.
-  검증 중 "Editor keeps the old DLL on failure"가 두 번 실패했다: 이번 작업 중 `mealkit.dll`이 내보내기 변화 없이 다시 링크돼 게임 DLL보다 새것이 됐고, `olderThanEngine`(파일 시각 비교)이 멀쩡한 게임 DLL을 "엔진보다 오래됨"으로 봤다.
-  게임 DLL을 다시 링크한 뒤 통과. 판정 방식은 바로 위 "고침" 항목에서 고쳤다.
-
-### [x] Steam 실검증 (완료 처리 2026-10-18, 미검증)
-**실제 Steam 접속 시험은 하지 않았고, 사용자 결정으로 문제없이 통과한 것으로 가정하고 항목을 닫았다.** Steam 백엔드는 여전히 컴파일·링크만 확인된 상태다. 측정값은 없다.
-- **가정하고 넘긴 것 (실제로 하면 결과를 여기에 적는다)**: 두 계정으로 `--steam` → 초대 → `+connect_lobby` 참가 → 900틱 이상 디싱크 없음, 끊김·재시도·NAT 로그, 릴레이 RTT(입력 지연 100 ms 가정과 맞는지),
-  Steam 오버레이가 DX12 스왑체인 위에 뜨는지, Steam Deck·Proton에서 그림·입력·결정론.
-- **가정이 틀리면**: 릴레이 RTT가 크면 입력 지연 자동 조절(1단계)을 당긴다. 접속 자체가 안 되면 `online/OnlineSteam.cpp`의 세션 수락·전송 옵션부터 본다.
-
-### [x] 온라인 서비스 계층 (`mealkit/online/`, Steam·없음 백엔드) (완료 2026-10-18)
-- **왜**: 로비·초대·릴레이가 `mealkit/platform/Steam.h`(`steam::`)에 직접 묶여 있었다. 크로스플레이(EOS)와 Steam이 없는 플랫폼을 더할 자리를 먼저 만든다.
-- **`online::Service`** (`mealkit/online/Online.h`): 계정(`localUserId`, `displayName`), 친구 전용 로비(`createLobby`/`joinLobby`/`leaveLobby`/`lobbyState`/`isLobbyOwner`/`lobbyMemberCount`),
-  초대(`inviteFriends`, `takeJoinRequest`), 방장 주소(`lobbyOwnerAddress()` → `net::Address`), 플랫폼 릴레이 전송(`createTransport()` → `net::Transport`).
-  전역 함수였던 `steam::init()` 등을 객체 하나로 모았다(main이 만들어 인자로 넘긴다, CODING_MODEL "엔진 기능에 어떻게 접근하나"). SDK가 프로세스 전역이라 프로세스당 하나.
-- **백엔드는 빌드 때 하나** (CODING_MODEL "그래픽 API와 OS 기능"과 같은 방식, 가상 함수 계층 없음): `OnlineSteam.cpp`(SDK가 있는 게임 빌드, `MEALKIT_STEAM=1`), `OnlineNone.cpp`(SDK가 없거나 Editor 빌드).
-  `Service::backend()`/`backendName()`으로 이 빌드의 백엔드를 안다. "없음"은 로비가 없고 접속은 지금처럼 `UdpTransport`(IP 직접)다.
-- **sandbox**: `--steam`·`--steam-join`·`+connect_lobby` 경로가 `online::Service`만 쓴다(옵션 이름은 그대로). Steam 코드는 옮기기만 했고 동작은 같다.
-- **지운 것**: `mealkit/platform/Steam.h`, `Steam.cpp`, `SteamStub.cpp`. 이것을 직접 쓰던 게임 코드는 `online::Service`로 바꿔야 한다(템플릿은 그대로라 엔진 버전은 0.4.3 그대로. 예제 코드를 쓰는 프로젝트는 `upgrade_project -Source`).
-- **이번에 넣지 않은 것**: 업적·통계·리더보드(4단계 "업적·리더보드·통계"), 클라우드 세이브(1단계 "세이브"), 백엔드 여럿 같이 켜기(Steam 친구 초대 + EOS 로비, 3단계 EOS). 계획한 기능 표:
-
-  | 기능 | Steam | EOS (3단계) | 콘솔 플랫폼 서비스 (5단계) |
+# MealKit changelog
+
+Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
+When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
+
+## After v0.5.4 — stage 3 in progress (same engine version, no template changes)
+
+### Float output cleanup in text files (2026-10-29)
+- Floats in field text (`.table`/`.tuning`/`mealkit.project`/scene object fields, `reflect::toText`) and `.scene` lines are written in the shortest representation that reads back to the same float (`0.4`, `std::to_chars`) instead of `%.9g` (`0.400000006`): `text::writeFloats` (`core/TextFormat.h`). -0 is written as 0.
+- The reading side and format versions are unchanged, so old files still read and values are bit-identical. Saving shortens the lines, so there will be one large diff. Test `core/text_floats` (2000 random bit patterns round-tripped).
+
+### [ ] Stage 3: EOS backend — part 1 (2026-10-28, item in progress)
+- **Backend** (`online/OnlineEOS.cpp`, `Backend::EOS`): `EOS_Initialize` + `EOS_Platform_Create` (overlay off) → EOS Connect **device ID** login (creates the device ID and user the first time; `init` waits up to 15 seconds). The display name is the OS user name. Only EOS log messages at warning and above go to the engine log.
+- **Addresses**: `net::Address::steamId` became `userId` (online backend user id). For EOS it's the FNV-1a 64-bit hash of the Product User ID string, and the backend fills a hash → id table from lobby members, received packets, and connection requests. The succession list packet format is unchanged (u64).
+- **Lobbies**: `createLobby` makes a publicly advertised lobby (bucket `mealkit`, presence off) + a six-digit random code in attribute `MKCODE`. `lobbyId()` is that code, and `joinLobby(code)`/`--steam-join <code>` join via attribute search. Without an Epic account there's no friend list, so `inviteFriends` writes the code to the log. Owner/member count are read from the SDK's local copy on every `update`, and `setLobbyOwner` is `EOS_Lobby_PromoteMember`.
+- **Transport**: EOS P2P (socket `mealkit`, channel 0, unreliable unordered, delayed delivery allowed while connecting); all connection requests are accepted. The EOS P2P limit is 1170 bytes, so lockstep `kMaxPacket` went from 1200 → 1170 (snapshot chunks of 1100 + header fit inside).
+- **Build**: CMake `MEALKIT_ONLINE` (Auto/Steam/EOS/None, Auto prefers Steam). EOS uses `third_party/eos/sdk` + `third_party/eos/credentials.txt` (five portal values, "name: value") → `generated/EosCredentials.h` in the build folder. `build.bat EOS` = `build\EOS`. DLLs go next to the exe and into the shipping folder (`MEALKIT_EOS_DLL`). `third_party/eos/` is in `.gitignore`, and the layout check/notice tools treat it as an out-of-repo SDK like Steamworks.
+- **Steam account login** (`MEALKIT_EOS_STEAM=1` when the Steam SDK is also present): `SteamAPI_Init` → `GetAuthTicketForWebApi("epiconlineservices")` → login with `EOS_ECT_STEAM_SESSION_TICKET` as a hex string, named with the Steam name. Without Steam or on failure (no Steam provider in the portal = `EOS_Connect_ExternalServiceConfigurationFailure`), a warning and then device ID. Invites use `ActivateGameOverlayInviteDialogConnectString("+connect_lobby <code>")`, rich presence `connect` while in a lobby, and accepting while running goes `GameRichPresenceJoinRequested_t` → `takeJoinRequest`. `steam_api64.dll`/`steam_appid.txt` are placed in EOS builds too. Match transport is EOS only.
+- **GameMain**: logs in if the backend isn't None, and with `--steam`/`--steam-join` logs in even in automated runs (`--frames`).
+- **Verified**: `build\EOS\bin\sandbox.exe --steam --frames 900` → logged in with real portal values, through creating a lobby and setting the code. With Steam running: got a ticket and sent it to EOS; with no Steam provider in the portal Epic rejected it with `steam configuration not found` → continued with device ID through to the lobby (Steam login success itself to be verified after portal setup). Full `check.ps1`: the three failures (golden images, Vulkan = DX12 capture, keeping the old DLL on failure) also fail on HEAD before this change.
+- **Left (this item)**: joining from another PC (one OS user = one device ID, so two processes on the same PC are the same user), measuring relay RTT/4-player bandwidth, lobby owner on host migration, actually verifying Steam login/invites (Steam in the portal's Identity Providers, needs my own Steam app), an EOS `mp_test` scenario.
+
+### [x] Stage 3: Host migration (done 2026-10-28)
+- **Succession list** (`net::LockstepSession`, packet `Succession`): the host sends every second (immediately at match start) the index/connected/token/name/address of itself, clients, and players disconnected mid-match. The next host is the first connected one on the list excluding the current host. Everyone reaches the same answer without voting.
+- **Noticing**: when the host closes the session (`shutdown`, leaving/closing the window), it sends the final list + `Handoff` instead of `Disconnect`. On a crash, 3 seconds of host silence (`kHostLost`) while the match is flowing (after ticks arrived in this match's bundles), and 10 seconds as before in the lobby and match start loading (so it doesn't migrate when the host stalls a few seconds loading). If I couldn't update for over 0.5 seconds (my own loading), that time isn't counted as silence. If a packet arrives from the successor having already become host (I missed the Handoff), switch over immediately. `Disconnect` from `end()` still ends the session.
+- **Migrating** (`migrate`): clients reconnect to the successor's address and resend their inputs from those the old host acknowledged but didn't confirm. The successor runs `becomeHost`: makes peers from the connected ones on the list (disconnected players and the old host are `departed`, so they get their slot when rejoining with the same token), and attaches a disconnect `Presence` to the slots of the old host and of connections not on the list.
+- **Stitching ticks**: for 1 second (`kMigrateHold`) the new host doesn't confirm on its own and waits for every peer's first input packet (that peer's confirmed end). It sends `TickRequest` to peers further ahead and receives `TickFill` (8 players' inputs + commands per tick), confirming them as is. They're ticks the old host decided, so they're the same for every peer. Then confirming continues, and each peer gets bundles from its own confirmed end. Hash comparison, late join, and automatic input delay use the same code.
+- **Host index**: a successor host may not be index 0, so the lobby list, pings, empty indices, and the clients' "waiting for host" indicator were fixed to use `localPlayer`/`hostPlayer`. In the next match (`startMatch`) the host is index 0 again.
+- **Steam lobby owner** (`online::Service::setLobbyOwner`): when the host leaves it hands lobby ownership to the successor, and if Steam picks someone else, that person hands it to the lockstep host (`MatchService::update`). The Steam backend was only compile-checked.
+- **API**: `hostMigrations()`, `hostAddress()`, `successorAddress()`. Test option for headless `--abort-host-at <tick>` (the first successor host ends without closing the session).
+- **Verified**: `mp_test.ps1 -Headless -Clients 3 -Ticks 3000 -HostLeave` — the host leaves at tick 750 (Handoff), the successor crashes at tick 1500, and the remaining two clients have the same hash at tick 3000 and both migrated twice. Also passes with `-Lag 80 -Jitter 20 -Loss 3` (the Handoff in the simulated delay queue vanished with the process, so it migrated via the 3-second timeout). `check.ps1` det group "Host migration".
+- **Left**: direct UDP is guaranteed only on LAN (clients don't punch NAT to each other). The new host doesn't reopen LAN room announcements (`net/Rooms.h`) (there are no announcements during a match, so after returning to the lobby newcomers can't find it in the room list, though they can join by address). Confirmed commands the old host received and acknowledged but didn't put in a bundle are lost. If the host stalls for over 3 seconds and comes back (dragging the window etc.), it ends up alone. A late joiner still catching up can't migrate and ends. Not run separately with windowed games/editor multiplayer play (same session code).
+
+### [x] Stage 3: Bug report bundles (done 2026-10-28)
+- **Creating** (`game/BugReport.h`): F9 in the game exe → in dev builds an ImGui window for a one-line note (Enter saves, Esc cancels), in shipping builds (no ImGui) no note → requests a screenshot and on the next frame writes `bugreports/YYYY-MM-DD_HH-MM[-n].zip` in the user folder. Inside: `replay.rec` (the mid-match replay recording `current.rec` as is, absent outside a match), `info.txt` (engine/game version, commit, simulation version, determinism group, content hash, scene/tuning, tick, player count, CPU, note), `log.txt` (`log::recentLines`, last 2000 lines), `screenshot.png`.
+  Turned off with project setting `bugReports` (on by default). For tests, `--bug-report-at <frame>`.
+- **zip** (`core/Zip.h`): wrote uncompressed zip writing/reading + CRC32 by hand (the screenshot PNG and recording are already small or compressed, so no deflate library was brought in). Opens in Explorer/7-Zip. Reading supports only uncompressed entries.
+- **Reading the recording**: `InputRecordWriter` does `fflush` every tick, and Windows `openFile` opens in shared mode (`_wfsopen` `_SH_DENYNO`, same as POSIX). So a recording being written can be bundled, and on a crash it remains up to that tick.
+- **Viewing**: the editor's [File] > [Open Replay] (`.zip` in the filter) and `--replay <zip>` extract `replay.rec` into `build/<Editor>/play/`, replay it as solo play, and pause at the tick where the recording ends (when F9 was pressed). The note is shown as a notification, info goes to the log. If the data differs, the same warning as for replays.
+- **Verified**: `sandbox.exe --bot --frames 200 --bug-report-at 150 --record-inputs x.rec` → zip (39 ticks) → a capture of the editor's `--replay <zip>` stopped at tick 38. Unit tests `core zip_files`, `game bug_report`.
+- **Left**: F9 is an engine key (via `window.input()` like F12), so it's not in the input binding table. No note writing in shipping builds (a game UI `.ui` window), and no report sending (upload). No F9 during editor solo play (the editor already keeps replays).
+
+## v0.5.4 — stage 3: Late join and reconnect (2026-10-28)
+
+- **Disconnects**: when someone leaves mid-match (disconnect packet) or is silent for 10 seconds, only that person is removed without ending the match. The host stops waiting for that slot's input (`requiredFrom`) and confirms it with empty input, and sends the engine confirmed command `mealkit.net.Presence` (disconnect) so all peers know on the same tick. If the host disconnects, it ends as before (host migration is the next item).
+- **Joining** (`net::LockstepSession`): a join request mid-match gets the slot of a disconnected player (same session token, otherwise same name), otherwise an empty slot (up to `maxPlayers`). If the name matches and the old connection has been quiet for over 1 second, the old connection is treated as disconnected (it shut down without notice and restarted).
+  The host sends a Presence (connect + loadout) command and asks the game for a snapshot (`snapshotWanted` → `provideSnapshot(tick, bytes)`, `game::Simulation` provides it between ticks). It's compressed with LZ4 (`third_party/lz4` v1.10.0, `core/Compress.h`) and sent in 1100-byte chunks (up to 32 unacknowledged chunks, kept even out of order, and resent from the acknowledged point if acknowledgement doesn't advance for 0.25 seconds).
+  Others don't pause. Confirmed ticks to send to the joiner are kept in `joinLog` even after being pushed out of the ring buffer (256 ticks). Bundle packets carry the player count (`width`) (it can grow midway).
+- **Catching up**: the client stays Connecting until the whole snapshot arrives, then Running from `joinTick()`. `Simulation` replaces the World with `takeJoinSnapshot` on its first update (all physics bodies are deleted and replaced with the snapshot's: the same id may have a different body), and runs up to 240 ticks per frame during `catchingUp()`. My input is sent only after catching up, and the host waits from that input's first tick. If the hash differs, the following hash reports produce a desync.
+- **Snapshot bytes**: `physics::PhysicsSnapshot::write/read` (body id, `BodyDesc`, Jolt shape `SaveWithChildren` (identical shapes once), id allocation, `SaveState`), `PhysicsWorld::clearBodies`, `game::writeSnapshotBytes/readSnapshotBytes`.
+- **Game side**: `sim::readPresence(command, p)` (`sim/Commands.h`, `p.readLoadout(T&)`), `sim::Pool::grow` (grows capacity mid-match, goes into snapshots), `LockstepSession::connectedMask()`. sandbox: for a new slot creates a controller (Pawn on the next tick), deletes a disconnected player's Pawn and doesn't respawn until they rejoin. The loadout `Loadout` moved from `app/` to `sim/Loadout.h` (the simulation reads the loadout from Presence). Template code changed, so the version is bumped.
+- **Options**: `--name <name>` (lobby name for game/headless, reconnect tests).
+- **Verified**: `mp_test.ps1 -Headless -Clients 2 -Ticks 3000 -LateJoin` — client 1 (`--name c1`) leaves at tick 750 and rejoins with the same name 1.5 seconds later, and 1.5 seconds after start a new client joins an empty slot; all have the same hash at tick 3000. Also passes with `-Lag 80 -Jitter 20 -Loss 3` (snapshot about 0.5 MB compressed, about 6 seconds to receive). `check.ps1` det group "Late join + rejoin". Unit test `physics physics_snapshot_bytes`.
+- **Left**: the sandbox snapshot is large (physics state about 0.7 MB → 0.5 MB compressed, a few seconds for distant peers). A joining screen (loading progress), a project setting to turn off joining mid-match, giving a disconnected player's slot to someone new, recordings (`replays/`) are kept only by those who watched from tick 0 (joiners don't keep them), and late joining in a windowed game is the same code as headless but wasn't run separately.
+
+## v0.5.3 — template CLAUDE.md fix (2026-10-28)
+
+- Fixed "DirectX 12 only" in the template `CLAUDE.md` to "Windows + DirectX 12 (reference)/Vulkan" (wording left over after the Vulkan backend arrived). The template changed, so the version is bumped. `upgrade_project.ps1` replaces only project `CLAUDE.md` files that weren't edited.
+- Docs rules cleanup: added "when MINOR changes, the docs `ENGINE_VERSION` too" to the engine `CLAUDE.md`, added a `CLAUDE.md` to MealKit-docs, and replaced the copy of engine rules in the contributing guide (which had drifted) with a link to the engine `CLAUDE.md`.
+
+## After v0.5.3 — stage 3 in progress (same engine version, no template changes)
+
+### [x] Stage 3: Desync diagnostic tools (done 2026-10-28)
+- **Keeping history**: in multiplayer matches (`!session.isOffline()`) with `PlayOptions::desyncDumpDir`, `game::Simulation` keeps inputs/hashes/snapshots with the same code as the rewind recording. Snapshots every 150 ticks, `kKeepDesyncSnapshots` = 3 (rewind keeps 40), which covers the host's detection delay (within the 256-tick window).
+- **Dump** (`game/DesyncDump.h`, format `@format desync 1`): when the session reports `desynced()`, once, it loads the snapshot before that tick, reruns to that tick, writes the state (right after running that tick), and restores the current state. Header (player/tick/seed/content hash, `note` if there's a problem), `[hashes]` remaining tick hashes, `[state]` state fields (`reflect::toText`), `[bodies]` position/rotation/velocity per body (`physics::PhysicsWorld::writeState`, `%.9g`). If the rerun hash differs from this peer's record, note says "undeclared state".
+  Files are `desync_<seed>_t<tick>_p<player>.txt`; the folder is the project's `build/desync/` during development and `desync/` in the user folder for shipping builds (`desyncDumpFolder`). Used by the game exe, headless, and editor multiplayer play (including join windows). The match continues as is.
+- **Comparison** `tools\desync_diff.ps1 -A <dump> -B <dump>` (or `-Folder build\desync`: the first file against others of the same match/tick): the first tick with a differing hash, state fields with differing values, differing bodies (which of position/rotation/velocity). Exit codes 0 same, 1 different, 2 read failure.
+- **Tests**: `--desync-test <tick>` (game/headless) changes the velocity of the first created moving body by 0.001 m/s before that tick (`PhysicsWorld::nudgeForTest`, applied the same in the dump rerun). `mp_test.ps1 -Headless -Clients 1 -DesyncTest 200` → both desync, two dumps, PASS if the comparison pinpoints tick 200 and that body. `check.ps1` det group "Desync dumps + desync_diff".
+- **Left**: viewing two dumps side by side in the editor, showing body names (scene objects), automatic dumps when hashes differ between OSes in CI (currently only headless hash comparison).
+
+### [x] Stage 3: Saving replays (done 2026-10-28)
+- **Recording**: every match appends the input recording to `<user folder>/replays/current.rec` (`game/InputRecord.h`, the same `MKINPUT1` version 3 format as `--record-inputs`: seed/match data/loadouts/content hash + per-tick inputs/confirmed commands/hashes), and when the match ends (to lobby/leave/window close) `keepReplay` moves it to `YYYY-MM-DD_HH-MM[-n].rec` and keeps only the most recent `keepReplays` (project setting, default 20, 0 = off). A `current.rec` left by a crash is kept the same way on the next run (as many ticks as were read to the end). Recordings without ticks are deleted.
+  Kept by the game exe (`GameMain`) and editor solo play (`PlaySession`, except `--bot`). Automated runs, join windows (no user folder), and runs given `--record-inputs` don't keep them. Editor solo play now computes the content hash and puts it in the recording.
+- **Playback**: `net::LockstepSession::startReplay(seed, match data, loadouts, inputs, hashes)` — Running immediately without a network, `canExecute` up to the recorded ticks, `inputs` from the recording, my inputs/commands discarded. `tickExecuted` compares with the recorded hashes and reports the first differing tick via `desynced()`/`desyncTick()`. `game::MatchService::playReplay` calls this, and `returnToLobby` during a replay is `leave` (to the menu). The simulation, `startWorld`, and view code are unchanged.
+  - Game exe `--replay <file>`: warns and plays if the content hash differs, and pauses at that tick with `SimDebug::setPaused` when it diverges.
+  - Editor [File] > [Open Replay] (command table, default folder is `replays/` in the user folder), `--replay <file>`: plays as solo play, so pause/single tick/rewind/the [State] panel all work as is. Notifies if the data differs, pauses and reports the tick when it diverges.
+- **Verified**: a 300-tick bot recording → windowed `--replay` has the same final hash (`dcdc7fffa20df597`); changing tuning warns and then reports divergence at tick 90; editor `--replay` capture. Unit tests `net replay_session`, `game replay_files`.
+- **Left**: a replay list on game screens (results screen/menu; `listReplays` exists) and playback speed/seek UI belong to the game flow side. Editing tuning during editor play makes that match's recording diverge from that tick (it doesn't restart like the rewind recording). Editor recordings for multiplayer play. A 30-minute replay loads all inputs into memory (about 320 bytes per tick, about 17 MB).
+
+## After v0.5.2 — stage 2 in progress (same engine version, no template changes)
+
+### [x] Editor polish: editor asset browser (done 2026-10-28)
+- **[Assets] window** (`editor/EditorAssets.cpp`, [Build] > [Assets], a tab in the bottom row): the `assets/` folder tree on the left, that folder's files on the right (kind icons, excluding `.autosave`). Double-clicking a model puts it in front of the camera; dragging it onto the scene view adds a model object where the mouse points (on a hit object, or y = 0 if none) (`handleAssetDrop`, `addModelEntity(path, at)`). Double-clicking a scene opens it.
+- **Rename/move** (right click, `renameAsset`): moves the file to a new assets-relative path (folders are created) (`platform` `moveFile`), and changes the path in `.scene .tuning .ui .table .fx .events .bindings .txt` under `assets` and in `mealkit.project` (only where not surrounded by path characters). The open scene is fixed in memory (unsaved scene files aren't touched and are written on save).
+- **Broken references**: model paths in the current scene whose files are missing are shown in red at the top of the window (when renamed in Explorer).
+- **Verified**: the window and folder tree were checked by capture. Rename and drag-and-drop weren't tested automatically (to avoid moving the engine repo's assets).
+- **Left**: model preview thumbnails, a budget column (as mentioned in the ROADMAP asset budget item), broken reference checks across all subfolders.
+
+### [x] Editor polish: Play from here (done 2026-10-28)
+- **Command** "Play From Here" (`Shift+F5`, [Build] > [Play From Here]): solo play only. `Editor::setMode(Play)` remembers the world transforms of all spawn points (`m_spawnBackup`) and moves them to one place, and `setMode(Edit)` restores them. The scene file, undo, and saved indicator don't change.
+- **Position**: the selected object's spot if it's a spawn point, otherwise 10 cm above where a ray cast down from the camera hits (y = 0 if nothing). The direction is where the camera looks. The game reads the scene's spawns when starting (`PlaySession` starts the match after `setMode`), so it's used as is.
+- **Left**: starting from a camera bookmark is done by moving the camera to the bookmark and then `Shift+F5`.
+
+### [x] Editor polish: handling multiple scenes (done 2026-10-28)
+- **[Scenes] window** ([File] > [Scenes], `Editor::drawSceneList`): `.scene` files in `<project>\assets\scenes`. ★ = start scene (`scene` in `mealkit.project`), "(open)" = current scene. Opens with a double-click or [Open] (unsaved changes are kept as an autosave, `openSceneFile`); [Set as Start Scene] has `ProjectSettingsPanel::setStartScene` change only that value and save immediately (other values being edited in the window aren't saved).
+- **Recent scenes** ([File] > [Recent Scenes]): per project `build\editor\recent_scenes.txt`, up to 8 opened or saved scenes (missing files are removed). Opening scenes from the command palette uses the same `openSceneFile`.
+- **Left**: scenes in subfolders aren't listed (only directly under `assets/scenes`).
+
+### [x] Editor polish: debug drawing API (done 2026-10-28)
+- **API** (`debug/DebugDraw.h`): `debug::line(a, b, color, seconds)`, `debug::box(center, half size, rotation, color, seconds)` (12 edges), `debug::text(position, text, color, seconds)`. Seconds 0 = the next drawn frame. Colors are sRGB RGBA8 (`kYellow`/`kRed`/`kGreen`/`kBlue`).
+- **Determinism**: it only queues requests in a locked list, and the simulation reads no values. So it's fine to call from game `sim/` (`mealkit/debug/`, which SimCheck doesn't block). When rewind/shadow simulation reruns the same tick, drawings may overlap. Up to 20,000 items.
+- **Build**: `DebugDraw.cpp` is only in `MEALKIT_DEBUG_UI` builds (editor, dev game exe). In shipping (Export)/headless they're empty inlines in the header, so calls drop out.
+- **Drawing** (`debug/DebugDrawRender.h` `flushDebugDraw`): called by the game exe (`GameMain`) and editor play (`PlaySession::buildFrame`) after the game's `buildFrame`. Lines are 3 cm thick box instances (with depth), text uses ImGui's foreground draw list (in the game exe only when the F1 debug UI is on).
+- **Verified**: temporarily added boxes/lines/text to the sandbox, checked an editor play capture, and reverted. No usage was left in the sample code.
+
+### [x] Editor polish: jumping from errors/objects to code (done 2026-10-28)
+- **`editor/CodeLink`**: `parseFileLine` (MSVC `a.cpp(27):`, clang/generic `a.cpp:27:` shapes, source extensions only), `openInCodeEditor` (preferences "Code editor", default `code`, `-g file:line`; called via `cmd /c` if not an `.exe`), `findInHeaders` (searches text in `.h` under folders, excluding `build` and dot folders).
+- **Build log**: now drawn line by line (`ImGuiListClipper`). Lines with a file/line are blue and open on click (relative paths are relative to the project folder). The **[Log] window** also opens the same lines on click.
+- **Inspector [Open Code]**: a button under the kind for game kinds (not engine built-in kinds). Finds and opens `MEALKIT_OBJECT(<name>)` in the project's `source\`, or `samples\` in the engine repo. Shows a failure notice if not found.
+- **Verified**: build only. Actually launching an editor wasn't tested.
+
+### [x] Editor polish: performance panel and budget warnings (done 2026-10-28)
+- **[Performance] window** (`editor/PerfPanel`, [Build] > [Performance], or clicking the status bar fps): accumulates 120 `FrameSample`s (30 seconds) every `game::FrameStats` report period (0.25 s) and shows the current value/budget/graph (red budget line) per item. Over budget is red, and the status bar fps is red too.
+- **Items and budgets** (`PerfPanel::k*`, ROADMAP "Performance budget"): frame CPU 16.7 ms, GPU 8 ms (when timestamps exist), simulation tick 4 ms (during play), draw calls 200, network send 10 KB/s (when there's a session).
+- **Number sources**: the editor's `FrameStats` now takes the renderer as a source (draw calls/GPU/memory). During play, `PlaySession` passes simulation/network numbers via `Editor::setPlaySample` to combine.
+
+### [x] Editor polish: inspector conveniences (done 2026-10-28)
+- **Collapsing sections**: fields/animation/reflection probe/model/transform/shape have collapsible headers (`CollapsingHeader`, expanded at first).
+- **Field right click** (`drawFields`, shared by inspector/tuning/tables): reset to default (when `FieldContext::defaults` exists) / copy value (between fields of the same shape, also "path value" lines on the clipboard) / paste. Fields differing from the default get a blue dot on the left (value hash comparison). The three transform rows have the same menu and dot too (position/rotation 0, scale 1, paste takes "x y z" text).
+- **Scale ratio lock**: a lock before the scale row; changing one axis changes the others by the same ratio.
+- **Field descriptions**: writing a `MEALKIT_FIELD` display name as `"name|description"` shows the description as a mouse tooltip (`splitFieldLabel`, macros/format unchanged). Not yet added to fields of engine built-in kinds.
+- **History** ([Edit] > [History], `Ctrl+H`): undo entries get names (the same frame's status message "Duplicate: …", otherwise "<object> changed"), clicking reverts to that point. The redo side is dimmed.
+- **Left**: fine adjustment in number fields uses ImGui defaults as is (`Alt` slower, `Shift` faster) (`Ctrl` is text input in ImGui, so it wasn't changed). Changing values by dragging the name wasn't done.
+
+### [x] Editor polish: camera control improvements (done 2026-10-28)
+- **Orbit**: `Alt` + left drag = orbit around the selected object (or 10 m ahead if none). Click selection/box selection are off meanwhile.
+- **Wheel**: moves toward the mouse ray (`Editor::mouseRay`). By 15% of the distance if it hits an object, otherwise 3 m.
+- **Perspective/orthographic** (toolbar button, keypad 5): Reversed-Z orthographic (`Editor::projection`), wheel = view size, middle-drag pan amount also scales to the view size. Click selection/gizmos use orthographic rays too.
+- **Camera bookmarks**: `Ctrl+1`~`9` save, `1`~`9` go. Per scene as `camera N x y z yaw pitch` lines in `build\editor\<scene>.view` ("Play from here" can use them).
+
+### [x] Editor polish: snap/alignment settings (done 2026-10-28)
+- **Snap units** (`Preferences::snapMove/snapRotate/snapScale`, defaults 0.5 m/15°/0.1): edited in the preferences window and the arrow next to the toolbar [Snap] (`drawSnapSettings`). The floor grid spacing follows the move snap too (grouped by doubling when denser than 0.25 m).
+- **Drop to floor** ([Edit], `End`): for each selected object (top level), casts a ray down from the lowest point of its rotated bounding box and places it on the first object hit, or at y = 0 if none. The ray check was split out into `Editor::raycast`, the same as viewport clicks (excluding hidden/locked/own children).
+- **Align** ([Edit] > [Align], with multiple selected): Align X/Y/Z = move the rest to the primary selection's position on that axis, Distribute evenly = even spacing between both ends along the most spread-out axis (3 or more).
+- **Automated runs**: `--command "<English name>"` (runs a command from the command table right after start, can be repeated).
+
+### [x] Editor polish: viewport toolbar and axis gizmo (done 2026-10-28)
+- **Toolbar** (`Editor::drawViewportToolbar`, a window overlaid at the viewport's top left): move/rotate/scale, local/world axes, snap (when on, snaps without Ctrl; Ctrl temporarily turns it off), grid, view mode, camera speed. Only play/player count/shadow check remain in the menu bar ([View] > [View Mode] still exists too).
+- **Axis gizmo** (top right of the viewport, ImGuizmo `ViewManipulate`): clicking a face/axis rotates to view from that side around the point 10 m ahead, and the resulting view matrix is converted back to camera position/angles (up/down limited to ±89°). Orthographic is in the "camera control improvements" item.
+- **Floor grid** (`addGrid`): 80 cells around the camera at y = 0, 1 m spacing (darker every 10 cells), drawn as thin box instances so it has depth. Edit screen only, not drawn in automated captures (`--frames`/golden). The spacing is decided by the next item (snap settings).
+
+### [x] Editor polish: multi-select (done 2026-10-28)
+- **Shape** (`Editor::m_multi`): `m_selected` stays the primary selection (inspector/gizmo), and the others selected with it are `m_multi`. If other code changes `m_selected`, `m_multi` is cleared next frame (`m_multiOwner`), so the old selection code wasn't changed.
+- **Selecting**: Shift click in the scene tree/viewport = add/remove (removing the primary makes the next one primary), left drag on empty viewport space = objects in the box (object center inside the screen box) (Shift adds, excluding hidden/locked), `Ctrl+A` [Edit] > [Select All]. Viewport click selection is now decided on release, not on press.
+- **Editing together**: moving the primary selection with the gizmo moves the top-level ones (`selectionRoots`) of the other selected objects by the same amount (rotation around the primary's position, scale by ratio). Duplicate/delete apply to all selected (including children), undone in one step.
+- **Inspector**: with multiple selected, an "N objects selected" note at the top; values edit only the primary selection.
+- **Automated runs**: `--select 3,4,5`.
+
+### [x] Editor polish: scene tree search and organization (done 2026-10-28)
+- **Search** (field above the scene tree, `Ctrl+F` = command "Find in Scene Tree"): by name/kind name/kind display name (Korean); with text, only matching objects are shown, flat.
+- **Kind icons** (`Editor::entityIcon`, `icon::` Segoe icon glyphs): box/model/spawn-marker/area/point light/reflection probe/other game kinds. Icons are drawn in the object color instead of a color swatch.
+- **Visibility/lock** (right of the row, shown on hover or when on): hidden objects (including children) aren't drawn on the edit screen, and locked objects (including children) aren't selectable by viewport click. Stored not in the scene file but in `<project>\build\editor\<scene file>.view` ("hidden id…", "locked id…"). No effect on the play screen.
+- **Following the selection**: objects newly selected in the viewport etc. expand their ancestors in the tree and scroll to their row.
+
+### [x] Editor polish: preferences window and shortcut help (done 2026-10-28)
+- **Preferences** (`editor/Preferences.h`, [File] > [Preferences...]): the `cameraSpeed`/`uiScale`/`autosaveSeconds`/`externalEditor`/`projectLayout` lines of the per-user `%LOCALAPPDATA%\MealKit\editor_settings.txt`. The `language`/`toolPath` lines in the same file are left as is. Saved immediately on change.
+  Camera speed is the value at startup (values changed with the wheel aren't saved), text size is `style.FontScaleMain`, autosave interval 0 = off (formerly a fixed 90 seconds), and the code editor is used by the "jump to code" item (default `code`).
+- **Per-project window layout** (`ImGuiLayer::setIniPath`): opening a project uses `<project>\build\editor\layout.ini`. A project opened for the first time gets the default layout, which also fixes [Log] showing as a floating window from the old shared `mealkit_editor.ini`. When off, the shared file as before.
+- **F1 shortcuts** ([View] > [Shortcuts]): shortcuts from the command table + a few lines of mouse controls.
+- **Left**: no shortcut rebinding yet (it can be done by overriding the command table's `chord` from settings).
+
+### [x] Editor polish: command palette (done 2026-10-28)
+- **Command table** (`editor/EditorCommands.cpp`, `Editor::Command`): name (English source = `tr` key), up to two shortcuts (`ImGuiKeyChord`), enabled condition, action. `runShortcuts()` replaces the old `handleShortcuts()`, and menus take name/shortcut text/enabled state from the table via `commandMenuItem(name)` (fixed items of File/Edit/View/Build). [Add], view modes, layout presets, and [Tools] are menus whose lists change, so they stay as they were.
+- **Palette** (`Ctrl+P`, [View] > [Command Palette]): searches currently enabled commands, scene objects (name/kind; choosing one selects it and moves the camera), scenes in `assets/scenes`, and installed tools by Korean/English name (case-insensitive). Up/down arrows, Enter, Esc. During play, commands only.
+- **Automated runs**: `--palette <text>`.
+- **Left**: F1 shortcut help and shortcut rebinding are built on this table in the next item (preferences).
+
+### [x] Editor polish: notifications and in-play indicators (done 2026-10-28)
+- **Notifications** (`Editor::setStatus(text, failed, open)`, `drawNotices`): status bar messages also stack at the viewport's bottom right (up to 5). Successes disappear after 4 seconds; failures (save/open/write/model load/build failures) stay until closed with x, and clicking opens [Build Log] or [Log]. Game DLL hot reload shows as a notification too. While building, elapsed time and a progress bar.
+- **In-play indicators**: brown menu bar background, an orange border on the viewport, "Scene values revert when you stop" above the inspector.
+- **Empty screen hint** (`drawEmptyViewport`): if the project's game DLL doesn't exist yet, [Build Game Code]/[Build Log] buttons in the middle of the viewport.
+- **Left**: hints for empty table/sound panels and a progress bar for probe baking, when those panels get attention.
+
+### [x] Editor polish: log console window (done 2026-10-28)
+- **Log sink** (`core/Log.h` `log::setSink`): passes level/time/message for each log line (inside the log lock, from any thread). stdout/debugger output unchanged.
+- **[Log] window** (`editor/LogPanel`): collects engine/game DLL logs up to the last 5000 lines. Info/warning/error checkboxes (with counts), search (case-insensitive), clear, follows new lines when at the bottom. First tab of the bottom row (`kBottomWindows`) in the default layout, opened with [Build] > [Log].
+- **Left**: with an old `mealkit_editor.ini` it first appears as a floating window ([Reset Layout] docks it in the bottom row). Clicking `file:line` is the "jump to code" item.
+
+### [x] Editor polish: redividing the default layout (done 2026-10-28)
+- **Layout** (`Editor::setupDefaultLayout(dockId, LayoutPreset)`): scene tree on the left (17%), one column on the right (inspector + [State]/[Tuning] tabs), a bottom row under the scene view (`kBottomWindows`: build log/tables, the place for the log console). The bottom row collapses when no window is open in it. [View] > [Layout] picks and re-places one of edit/play (bottom row 18%, [State] to front)/lookdev (right 42%, [Lookdev] window at the top).
+- **Scene environment** (`docs/DECISIONS.md` 2026-10-28): removed the [Environment] window. Selecting the fixed top row "Scene: <file>" in the scene tree (`m_sceneRow`, cleared when an object is selected) makes the inspector draw `drawEnvironment()` (sun/sky/fog/HDRI/post-processing). With nothing selected, still "No object selected". The scene file format is unchanged.
+- **Window names**: moved `TablesPanel::kWindow`/`LookdevPanel::kWindow` out into headers (the layout decides docking places). [Tuning] docks as an inspector tab on first open.
+- **Automated runs**: `--select scene` (start with the scene row selected).
+- **Left**: people using an old `mealkit_editor.ini` need to press [Reset Layout] to get the new arrangement (splitting layout files per project is the preferences item).
+
+### Fix: shader hot reload table, dynamic resolution in editor automated runs (2026-10-27)
+- **Shader hot reload** (`Renderer::Impl::addShaderReloads`): merged nine per-pipeline lambdas into one table row each (file, pipeline, desc, entry points, defines). Fixed skinned view modes (`wireSkin`/`overdrawSkin`) staying on the old shader after editing `Forward.hlsl`: when a PBR variant (normal/skinned) changes, `recreateViewModePipelines` rebuilds all four view modes together.
+- **Editor automated runs** (`Editor::setAutomated`): `--frames`/`--render-golden` turn off dynamic resolution (same as the game's automated runs). Previously it stayed on, so golden/Vulkan = DX12 comparisons varied 1~3% at the edges with GPU time and failed intermittently.
+- **Performance table** (ROADMAP "Performance budget"): replaced the first-commit numbers (GPU 0.3 ms, 4 draws) with `--benchmark 20` arena values (GPU 2.21 ms, 26 draws).
+
+### [x] Dynamic resolution (done 2026-10-27)
+- **Approach**: the main view 3D is drawn into the top-left `viewport × scale` area of the HDR scene target (kept at window size, not recreated). The uber pass reads at output pixel × scale / size (`sceneSize.zw`) and upscales bilinearly, and only when reduced applies contrast adaptive sharpening (`Post.hlsl` `sharpen`, CAS/FSR 1 RCAS-style 5 taps, HDR in compress space) after FXAA. Bloom/vignette/chromatic aberration share the same uv space, so they're unchanged. UI/debug UI are always at native back buffer resolution. Offscreen (lookdev/probe baking) and view modes use scale 1.
+- **Controller** (`Renderer::Impl::updateResolution`): when the exponential average of GPU frame time exceeds 95% of the budget, scale × √(85% of budget / time) in one step; below 75%, raise by +0.02. In 1/64 steps, waiting 8 frames after a change (timestamps lag 2 frames). `RenderStats::resolutionScale`.
+- **Settings**: project `dynamicResolution` (on by default), `dynamicResolutionMinScale` (0.5), `upscaleSharpness` (0.5), budget is the sum of `gpuBudget*` (`game::applyRenderStyle`). The player setting render scale (a value that was only saved before) is the upper limit (`Renderer::setRenderScale`). Automated runs (`--exit-tick`/`--frames`/`--benchmark`) turn off the controller (so images don't change with GPU speed). `--render-scale <s>` fixes the scale.
+- **Verified**: `sandbox --render-scale 0.5` capture (3D at half, UI sharp), `check.ps1 -Changed` golden DX12/Vulkan/validation layer passed (scale 1 leaves images as is).
+- **Left**: FSR 1 EASU (edge-directed 12-tap upscaling) wasn't added — bilinear + sharpening first, and if quality falls short on min spec only the uber pass's reads change (`docs/DECISIONS.md` 2026-10-27). The bloom chain is based on window size, so bloom cost stays the same when reduced. Controller response on min-spec hardware.
+
+### [x] Post-processing (done 2026-10-27)
+- **Approach** (`docs/DECISIONS.md` 2026-10-27): the scene is drawn to an HDR target (R11G11B10F + D32, 4 bytes per pixel), only bloom uses a half-res dual filter chain (5 levels, halving going down → additive blend coming up), and everything else is one uber pass (`shaders/Post.hlsl` `PSUber`) writing sRGB values to the back buffer: FXAA (finding/blending edges with neighbor HDR values compressed by brightness) → chromatic aberration → exposure × brightness setting + bloom → AgX (Wrensch polynomial approximation, MIT) → color grading LUT → vignette → grain/dither. Turning an effect off makes the shader skip that step.
+- **RHI**: `Target::Scene` became the HDR scene target instead of the back buffer (`Target::Hdr` bloom, `Target::Overlay` = back buffer/`TargetKind::Ldr`). `createRenderTarget(w, h, TargetKind)`/`destroyRenderTarget` (window-size targets), `clearColor` nullptr in `beginTarget` = keep contents (bloom additive). Removed the back buffer's sRGB view/depth and `beginScene`; Vulkan no longer needs `VK_KHR_swapchain_mutable_format` (instead B10G11R11 render/blend/linear sampling were added to the min-spec check).
+- **Renderer**: `FrameParams::post` (`PostParams`: tone mapping, exposure EV, LUT index, bloom strength/threshold/color, vignette, grain, chromatic aberration), `setPostOptions` (`PostOptions`: player settings for disabling effects/brightness/color blindness correction), `createLut`. The main view goes through post at whichever of `drawToTarget`/`beginOverlay`/`drawUi`/`endFrame` comes first (`resolveScene`, GPU pass `post`). Offscreen (`createRenderTarget`) has a paired HDR target of the same size. View modes and `toneMapping = false` (reflection probe baking) just clamp linear values to sRGB — the same as the old image (the `post_off` reference = the old `styles_pbr`).
+- **LUT**: `.cube` (3D, any size, `DOMAIN_MIN/MAX`) → trilinear resampling to 32³ (`asset::parseCubeLut`) → a 1024 × 32 RGBA8 strip; the shader blends two blue slices. Kind folder `assets/lut/` (already in the layout rules), `ModelCache::lut`/`postParams` (hot reload). Color blindness correction (protanopia/deuteranopia/tritanopia, Machado 2009 + daltonize) is layered by the CPU on top of the LUT into one LUT (no shader cost; changing the setting re-uploads the LUT).
+- **Scene/editor**: `scene::PostFields` (`MEALKIT_STRUCT`, scene file `post <field> <value>` lines, `@format scene 4`, excluded from the content hash). The [Post-processing] section of the [Environment] panel: tone mapping, exposure, LUT picker, bloom strength/threshold/color, vignette, grain, chromatic aberration, [Capture for Grading] (the scene view without the LUT to `art/grading/<scene>.png` + `neutral.cube` → grade in Resolve/Photoshop and export to `assets/lut/`).
+- **Settings**: `display.bloom`/`antiAliasing`/`filmGrain`/`chromaticAberration` (off switches), `display.brightness` (now multiplies exposure), `gameplay.colorBlind` (off/protanopia/deuteranopia/tritanopia). Game strings in en/ko.
+- **Samples/tests**: `assets/lut/warm.cube` (8 cells, the engine resamples to 32), `scenes/post.scene` (exposure/LUT/bloom/vignette/grain/chromatic aberration) and `post_off.scene` (tone mapping off); added reference images `post_graded`/`post_off` and regenerated the existing 17 since tone mapping arrived (DX12 = Vulkan within threshold). Unit tests `asset/cube_lut` (size-2 table interpolation, neutral LUT round trip, rejecting 1D/short tables), post value save/load in `scene/scene_hierarchy`.
+- **Measurements**: `sandbox --benchmark 10` (arena 720p, Core Ultra 5 125U): of a 2.30 ms GPU frame, post 0.46 ms (budget 1.0, bloom + FXAA on), opaque 1.40, shadow 0.41. Shipping exe (Export) 3.14 → 3.19 MiB.
+- **Left**: AgX's default is low in saturation (Blender's "AgX" as is; looks like "Punchy" via LUT). FSR 1 upscaling is the dynamic resolution item. Baking reflection probes in HDR (still clamping linear values). The back buffer outside the editor scene view (outside the viewport) isn't cleared (ImGui covers it). Post GPU time on min-spec hardware.
+
+### [x] Particles (done 2026-10-27)
+- **Checked first**: linking the Effekseer 1.80.1 core under the same conditions as the shipping exe (static CRT, size optimization) adds about 400 KB, and with the renderer an expected +0.8~1 MB. The official renderer calls D3D12/LLGI directly, violating the RHI rule, so we chose our own runtime (`docs/DECISIONS.md` 2026-10-27).
+- **Data**: `assets/effects/<name>.fx` = `feedback::Effect` (`@format effect 1`): particle count, lifetime (+random), start sphere radius, main direction/spread, speed (+random), gravity, air drag, size start→end, color start→end (including alpha), edge softness, rotation, additive. An `effect` column in the feedback table `Reaction` (spawned only for rows with a position, particle count scaled by strength).
+- **Runtime** (`feedback/Feedback.cpp`): `Player` reads an effect file on first use and checks the file time every 0.25 seconds (hot reload). View-side CPU update (cosmetic `Pcg32`, outside determinism), paused during hitstop, up to 16384 particles. `playEffect` (view code/preview), `addParticles(drawList)` (engine loop/editor, after buildFrame), and `clear` clears them.
+- **Renderer**: `render::Particle` (32 bytes) → `DrawList::addParticles`, and at the end of `submit` `Renderer::drawParticles`: written to the upload ring and drawn with `shaders/Particle.hlsl` as a 6-vertex camera quad per instance, one draw call. Depth test only (new RHI `PipelineDesc::depthWrite`, DX12/Vulkan), one premultiplied alpha blend covering both normal (color/alpha) and additive (alpha 0), faded by fog. GPU time is `GpuPass::Vfx`. Shader hot reload.
+- **Editor**: an [Effects] section under the [Feedback] panel: pick/create effects, edit fields (autosaved after 0.3 s), [Preview Effect] (at the camera focus). Row previews spawn effects too.
+- **sandbox**: `spark.fx` (push, additive sparks), `dust.fx` (bounce, translucent dust). Shipping exe 3.92 → 3.95 MB.
+- **Left**: continuous emission (footsteps/fire), texture sheets, size/color curves, sorting (currently creation order, so overlapping translucent particles can be wrong), GPU time for thousands of particles on min-spec hardware. The reference image scenes have no particles.
+
+### [x] Skeletal animation (done 2026-10-27)
+- **Loading** (`asset/ModelCache.cpp`, `asset/Animation.h`): only the first glTF skin. Joints are reordered so parents come first (stable sort by depth), and rest pose TRS/inverse binds/the node transform above the root stay in glTF space. Over 64 joints (`kMaxJoints`) the skin is dropped and it's drawn in bind pose (warning). Each animation becomes a clip baked at 30 Hz (joint poses × frames; linear/step/cubic take values only, rotations nlerp). Skinned meshes have no LODs, and static primitives attach to the nearest ancestor joint. `Model::bones` counts toward the budget (characters 64).
+- **Vertices**: `render::SkinWeights` (joints u8 ×4, weights unorm8 ×4, sum 255), appended after the 36-byte vertex on the GPU for 44 bytes. meshoptimizer cleanup is templated on the vertex format. RHI `VertexFormat::Uint8x4`.
+- **Poses** (`asset/Animation.cpp`, also in headless): `samplePose` (seconds, loop/clamp), `blendPoses`, `restPose`, `jointMatrices`, `skinPalette` (joint world × inverse bind into left-handed coordinates via S·M·S, three rows of 48 bytes per joint `render::BoneMatrix`). For the simulation, `samplePoseTick` (integer frame of tick × 30 / tick rate + remainder/tick rate: only 0 and 0.5 at 30/60 Hz, so exact in float, arithmetic-only lerp/nlerp) — the result goes into `detmath-bits` so CI compares across builds/platforms.
+- **Renderer**: `DrawList::addSkinned(mesh, instance, palette)`, `Renderer::drawSkinned` (palette on the ring, push constant `paletteOffset`, one draw call per character), skin pipelines (three lighting models/outline/shadow/two view modes, same shader with `SKINNED=1`, including hot reload). The shadow pass, point light selection, and culling use bind pose bounds × 1.5. A skinned mesh `add`ed without a palette gets an identity palette (bind pose).
+- **Usage**: `asset::addModel(out, model, mesh, instance, anim, seconds)` (add for static, clip playback for skinned). Scene field `anim` ("<clip> [seconds offset]", on any kind, excluded from the content hash) — a clip picker in the editor inspector [Animation]; the edit screen and the game's `drawScene` loop it (graphics regression tests use clock 0). The sandbox Pawn uses `view.tuning` `pawn.model` (rig_figure) to pick idle/run by speed with a 0.15 s crossfade (`WorldView::anims`); empty gives the old boxes.
+- **Tools**: `make_rig` in `make_sample_models.py` (`models/characters/rig_figure.glb`: 8 joints, 3 materials, clips idle/run/wave, torso blends two joints). Blender add-on schema turns on `skinning`/`animation` + `maxJoints`, and the checks compare bone count with the budget/limit. `assets/scenes/anim.scene`, golden `anim_figures`/`anim_side` (existing 15 unchanged, DX12 = Vulkan, no validation layer errors).
+- **Tests**: `asset/skeletal_animation` (loading the figure, parent order, rest pose palette = identity, tick sample = seconds sample of the same frame, the leg swing palette preserves z flip/leg length), tick sampling bits in `core/det_math`.
+- **Left**: morph targets, multiple skins, root motion, animation events (footsteps), clip blend trees. The inspector preview is only a clip picker (no playback bar). Beyond dozens of characters, instanced palettes (batching draw calls).
+
+### [x] Shadows (done 2026-10-27)
+- **Approach**: sun only, cascaded shadow maps (CSM) with 1~2 cascades. Up to the shadow distance in front of the camera is split into [0, distance/4] and [distance/4, distance], and a sphere enclosing the slice's 8 corners → orthographic along the light (reversed-Z). The sphere radius (1/16 m) and light-space center (texels) are snapped so edges don't shimmer as the camera moves. 100 m more toward the sun.
+- **RHI**: `Device::createDepthTarget` (depth only: DX12 `R32_TYPELESS` + D32 DSV + R32 SRV, Vulkan D32 `DEPTH_ATTACHMENT | SAMPLED`, both starting in the shader-read state), `Target::Shadow` pipelines (no color, depth GREATER). `beginTarget`/`endTarget` handle depth-only targets.
+- **Renderer**: the shadow map is one atlas with cascades side by side (`size × cascade count` × `size`). The main view target is bound on first draw (`ensureScene`: `drawInstances`/`drawToTarget`/`beginOverlay`/`drawUi`/`endFrame`). `DrawList::submit` first calls `drawShadows` (filters every instance in the list by the light box per cascade, `VSShadow`/`PSShadow` with frame constants where only viewProj changes per cascade, double-sided, no outline, GPU pass `shadow`). Frame constants 496 → 672 bytes (2 cascade matrices, camera forward, split distances/texel sizes, shadow map index/cascade count/size). View modes and offscreen (lookdev/probe baking) have no shadows.
+- **Shader**: `sunShadow`: cascade by distance in front of the camera, 1.5 texel push along the normal, depth bias 0.0002, bilinear PCF with four `GatherRed`s (4×4 texels), fading over the last 10%. On faces away from the sun (geometric normal · sun < 0.25) shadows are removed to hide texel stairs on round surfaces. PBR multiplies sun diffuse/specular; toon halves the ramp position (to the shade step) and turns off the highlight. Alpha masks/dissolve punch holes in shadows too.
+- **Settings**: project settings `shadows` (on)/`shadowCascades` (2)/`shadowMapSize` (1024, 512~4096)/`shadowDistance` (40 m) → `game::applyRenderStyle` → `Renderer::setShadows`.
+- **Measurements**: `sandbox --benchmark 10` (arena, Core Ultra 5 125U): of a 1.66 ms GPU frame, shadow 0.36 ms (budget 1.5), opaque 1.30 ms.
+- **Reference images**: regenerated 14 since shadows appeared (unlit scenes unchanged). DX12/Vulkan differences within threshold, no validation layer errors.
+- **Left**: measurement on min-spec (11th gen) hardware. Shadows in reflection probe baking (currently the baked in-room reflection has no shade). Texel stairs at shadow edges falling on round surfaces in toon, like head shadows. Player graphics settings (quality levels) in the settings screen item.
+
+### [x] Point lights (done 2026-10-27)
+- **Why**: with only one sun, torches/explosion lights/indoor lighting weren't possible.
+- **Scene**: engine built-in kind `point_light` ("Point light", `kObjectMarker | kObjectCosmetic`). A built-in kind but with fields: the description of `scene::PointLightFields` (`MEALKIT_STRUCT`, color `#FFD6A0`/intensity 3/range 6 m) is put into `builtinTypes` with only the name changed, so the inspector [Fields] and `field` lines work the same as game kinds. The editor draws it as a 0.2 m box in the light color.
+- **Renderer**: `PointLight` (position, range, linear color × intensity), `FrameParams::lights`/`lightCount` (`kMaxPointLights` 255 per frame). `render/SceneLights.h` `addSceneLights(scene, out)` (world position, sRGB → linear). Frame constants 480 → 496 bytes (light table offset/count), the table is 32 bytes per light. `drawInstances` picks per instance up to `lightsPerObject` lights (`setLightsPerObject`, project setting `pointLightsPerObject` 4, 1~8) touching the mesh bounding sphere by brightness × closeness score, writes 8 bytes (8 indices, 0xFF = end) to the ring, and passes them via push constant `lightOffset` (16 → 32 bytes). Frames without lights don't pick.
+- **Shader**: the vertex shader passes the 8 indices as `nointerpolation`, and `pointLights()` computes distance attenuation (window function² / (d² + 1), 0 at range) × (PBR: Lambert diffuse + GGX specular like the sun, toon: ramp diffuse only). Unlit doesn't receive them. No shadows. Scenes without lights keep their reference images (13).
+- **Sample**: sandbox `applyLights` passes scene lights + brief lights at the moment of a push (0.25 s, view-side effect, `WorldView::flashes`). `assets/scenes/lights.scene` (night, torch/blue/red), golden `lights_view`/`lights_toon`. Reflection probe baking receives scene lights too.
+- **Left**: light shadows (deferred), hundreds of lights are Forward+ in the deferred table. The CPU cost of picking per instance is instances × frame lights, so beyond dozens of lights spatial partitioning is needed.
+
+### [x] Reflection probes (done 2026-10-27)
+- **Why**: glossy/metal surfaces reflected the sky HDRI even indoors/in shade, which looked wrong.
+- **Scene**: engine built-in kind `reflection_probe` ("Reflection probe", `kObjectArea | kObjectCosmetic`: the editor draws box edges, the game doesn't draw it, and it's excluded from the content hash). Position = capture point = influence box center, size = influence box (axis-aligned). The baked file is the field line `field bake probes/<scene>_<id>.mkprobe` (`scene::probeFile`/`probeFileFor`). Scene format unchanged.
+- **RHI**: `Capture::source` (reads an offscreen target instead of the back buffer at `endFrame`; DX12 transitions to copy source, Vulkan target images get `TRANSFER_SRC`).
+- **Baking**: the editor draws one face per frame with a 90° camera (`lookAtLH` forward/up match the `cubeDirection` layout, unit tested) via `drawToTarget` → `Renderer::captureTarget` → sRGB → linear on the next frame. With six faces, `asset::bakeProbe` (face cube mip pyramid `CubeSource` + the same `prefilterReflect` as the sky HDRI: mip 0 mirror, the rest GGX 64 samples, RGB9E5, 128 → 6 mips) → `saveProbe` (`MKPR` header + texels). Captures include only objects visible in the game, without selection highlight/view modes/other probes. Sky HDRI baking was moved to the same function, with bit-identical results (11 reference images unchanged). Texel differences between files baked with DX12 and Vulkan at most 0.006.
+- **Renderer**: `createProbe(size, mips, texels)` → index, `FrameParams::probes`/`probeCount` (`ReflectionProbe`: position, half size, index, up to `kMaxReflectionProbes` 64). Frame constants 464 → 480 bytes (probe table ring offset/count), the table is 32 bytes per probe. The vertex shader's `nearestProbe` picks, among boxes containing the instance position, the one with the closest center (no blending), and PBR/toon environment reflections read that cube instead of the sky (without HDRI rotation/intensity). Reflections are used with probes even without an HDRI.
+- **Assets**: `ModelCache::probe(path)`/`probes(scene, out)` (world coordinates, `setProbeLimit` = project setting `probeMaxCount`), `reloadChanged` re-uploads rebaked files. The folder rules got a kind folder `probes/` (`.mkprobe`, `tools/check_layout.ps1`, `docs/CODING_MODEL.md`). Export copies assets wholesale, so they're included as is.
+- **Editor/settings**: inspector [Reflection Probe] Bake/Bake All Probes, a warning when over the limit. `--bake-probes` (`--frames` isn't counted while baking). Project settings `probeMaxCount` (8)/`probeSize` (128, rounded down to a power of two).
+- **Sample**: `assets/scenes/probes.scene` (a room with colored walls + a mirror bead `models/props/probe_ball.glb`, `make_probe_ball` in `make_sample_models.py`), the baked `assets/probes/probes_9.mkprobe`, golden `probes_inside`/`probes_outside` (the bead inside reflects the room, the one outside the sky). sandbox `applyProbes`.
+- **Left**: captured in 8-bit sRGB, so light brighter than 1 (the sun outside the window) is clipped — once post-processing's HDR target exists, capture with that. `probes/` will be added to the kind folder list in the template docs (`templates/project/CLAUDE.md`/`README.md`) at the next template change (version bump). No box projection (parallax) correction.
+
+### Hub app MealKit Manager part 1 (2026-10-27, outside the roadmap)
+- **Decision** (made with the user, `docs/DECISIONS.md` 2026-10-27): the project manager moves to a separate repo `D:\MealKit-Engine\MealKit-Manager` (MIT, v0.1.0). An SDL3 + SDL_Renderer + Dear ImGui exe that doesn't link the engine (about 3.3 MB, same SDL/ImGui versions as MealKit-Audio).
+- **Manager 0.1.0**: [Projects] (recent/favorites lists are the same files as the editor's, search, new project = engine `new_project.ps1`, import, open in editor = `build\Editor\bin\MealKitEditor.exe --project` from that project's `engine` line, upgrade when the engine version differs = `upgrade_project.ps1`, show folder, remove from list) · [Engines] (engines projects point to + `engines.txt` + `--engine`, `build.bat Editor` if there's no editor) · [Tools] (`mealkit-tool.txt`, opened with the selected project). Scripts run on a background thread without a console window and show their output on failure. Text follows the editor settings' `language` (Korean by default). Windowless commands `--list`/`--new <name> --path <location>`/`--open <folder>`, screen tests `--frames N --capture`.
+- **Editor**: opened without `--project`, it launches `%LOCALAPPDATA%\MealKit\manager\MealKitManager.exe --engine <this engine>` and exits (`startManager`). If not installed, or with `--frames` (automated tests)/`--builtin-manager`, the in-editor manager as before.
+- **Tests**: Manager repo `mkmanager_tests` (fake user folder/engine/projects/tools, BOM, favorites order, upgrade decision, list editing, whether all tr text in App.cpp is in the Korean table), creating a new project with `--new` and seeing it in `--list`, `--open` launching the engine editor with `--project`, opening the editor without a project launching Manager.
+- **Left**: delete `editor/ProjectManager.cpp` after moving rename/move folder/icon to Manager, downloading/installing engine versions (currently only adding folders), installing/updating tools, a GitHub repo and CI (the user creates them).
+
+### Dev tools: only the checks matching what changed (2026-10-26, outside the roadmap)
+- **Why**: checks were only full or `-Quick`, so even changing only audio/docs ran the multiplayer determinism tests (4 windows × 900 ticks, shadow/rewind).
+- **check.ps1 groups**: each item gets a group (static/unit/det/game/tools/render/editor/project/export), and only builds needed by the chosen groups (Release/Editor) are done. `-Only <group,...>`, `-Changed` (git working tree + `-Base <commit>`, path → group via the `$pathRules`/`$folderGroups` tables at the top, paths not in the rules run everything), `-DryRun`.
+- **Determinism key**: the Release build's simulation version (`mealkit_build_info.h`) + hashes of `mealkit.project`/`game.tuning`/scenes/models/tables/replays. Unless it's a full check, `-Only det`, or a "det!" path (`samples/*/sim`, replays, `game/`, mp_test scripts), the determinism group is skipped when it matches the last passing key (`build\check-state\det.key`), and runs even if not chosen when it differs. When the whole determinism group passes, the key is recorded.
+- **Unit test areas**: `TEST_CASE(area, name)` (area = engine folder), `mealkit_tests --only net,physics` (`ran N of M` at the end). `-Changed` runs only areas with tests among the modified folders; core/platform/`engine/tests` run everything. The `detmath-bits` comparison happens only when both builds printed it.
+- **CLAUDE.md**: the root keeps only how to work/build/the "changed → checks to run" table/absolute rules, and structure notes moved to per-folder CLAUDE.md files (`engine/src/mealkit/`, `game/`, `editor/`, `net/`, `render/`, `ui/`, `audio/`, `samples/sandbox/`) (fixed vertex 36 bytes and the game folder path).
+- **Tests**: `-Changed` (this change: static/unit, and since there was no key at first the determinism group was added → key saved after passing, 108 seconds), then `-Quick` skipped the determinism group (26 seconds), `-Only static`. Docs repo `engine_dev/testing` in English/Korean.
+
+### [x] Sky HDRI and ambient (done 2026-10-26)
+- **Decision** (made with the user, `docs/DECISIONS.md` 2026-10-26 sky HDRI): cubemaps, CPU baking + cache, RGB9E5, a Poly Haven CC0 1k sample.
+- **RHI**: `Format::Rgb9e5` (DX12 `R9G9B9E5_SHAREDEXP`, Vulkan `E5B9G9R9_UFLOAT_PACK32`), `TextureInit::cube` (six faces × mips, DX12 subresources/`TEXTURECUBE` SRV, Vulkan `CUBE_COMPATIBLE` + cube view), `TextureCube g_cubes[]` (DX12 root signature space3 table = same heap slots as textures, Vulkan binding 4 = same indices as textures, pool size doubled).
+- **Baking** (`asset/Environment.h`/`.cpp`): reads `.hdr` with stb_image (`STBI_ONLY_HDR` in dev builds only) and an equirectangular mip pyramid → sky cube (face = width/4, max 512), reflection cube 128² with 6 mips (0 = mirror, the rest 64 GGX importance samples + filtered reads, clamped at brightness 16), ambient SH9 (integrated at the width-128 level × Lambert A_l/π). Cache `build/cache/environments/<content hash>.mkenv` (like the texture cache, the shipping exe only reads `cache/environments` next to the exe, copied by Export). Baking a 1k HDRI takes about 0.5 seconds.
+- **Renderer**: `Renderer::createEnvironment(EnvironmentData)` → index, `FrameParams::environment`/`environmentIntensity`/`environmentRotation`. Frame constants 224 → 464 bytes (inverse viewProj, cube indices/mip count, intensity/rotation, SH 9). With an environment, a skybox (`VSSky`/`PSSky`, fullscreen triangle, no depth, no fog, receives screen flash) is drawn before 3D (main view and offscreen targets), ambient comes from SH, PBR reflections from cube mip = roughness × a Karis-approximation BRDF (no lookup texture), and toon uses the same ambient/reflections. Without an environment, the old gradient/approximation as is (9 reference images unchanged).
+- **Assets**: `ModelCache::environment(path)` (once per path, failures warn once and give 0, `reloadChanged` rebakes on the next request when the file changes), `asset::listHdris` (.hdr under assets/textures).
+- **Scene**: `Environment::hdri`/`hdriIntensity`/`hdriRotation` (degrees), lines `hdri`/`hdriIntensity`/`hdriRotation` (written only when there's an HDRI), format `@format scene 3` (old 1/2 still read). Unrelated to the content hash.
+- **Editor**: in the [Environment] window, sky HDRI picker (none = color gradient)/intensity/rotation, and HDRIs in the lookdev lighting list. sandbox `applyEnvironment(env, models, frame)`.
+- **Samples**: `assets/textures/hdri/kloofendal_partly_cloudy_1k.hdr` (Poly Haven "Kloofendal 48d Partly Cloudy (Pure Sky)", CC0, 1024×512), `assets/scenes/hdri.scene` (material samples + metal bead + figure).
+- **Tests**: unit test `environment_bake` (RGB9E5 round trip, cube directions, uniform sky → ambient/reflection/sky 1), reference images `hdri_view`/`hdri_up` (DX12, Vulkan comparison matches). Full check.ps1.
+- **Left**: tone mapping/exposure (post-processing item), a button to align the scene sun with the HDRI's sun direction, deleting cubes (old textures of a changed HDRI remain), the lower color of sky HDRIs without ground.
+
+### [x] Textures and materials part 3 — lookdev preview (done 2026-10-26)
+- **Decision** (made with the user, `docs/DECISIONS.md` 2026-10-26 lookdev): lighting presets before HDRI, a separate window + offscreen target.
+- **RHI offscreen targets** (`rhi::RenderTarget`, `Device::createRenderTarget`/`renderTargetTexture`, `CommandList::beginTarget`/`endTarget`): color + depth (D32), same format as the scene so scene pipelines are used as is. DX12 uses a TYPELESS resource with an sRGB RTV + UNORM SRV (bindless slot) and RTV/DSV heaps per target. Vulkan uses mutable-format images (swap chain UNORM + scene sRGB view), dynamic rendering, SHADER_READ when done. The clear color varies each time, so no DX12 optimized clear value is given and that performance notice is filtered from the debug log. Shown in `ImGui::Image` via `rhi::imguiTextureId` (DX12 GPU descriptor, Vulkan `ImGui_ImplVulkan_AddTexture` set once per texture).
+- **Renderer** `Renderer::createRenderTarget`/`renderTargetTexture`/`drawToTarget(target, params, drawList, lightingModel)`: after the main view 3D and before UI, temporarily swaps frame constants (split into `Impl::writeFrameConstants`, the material table once per frame)/frustum/lighting model, draws, and restores. View modes aren't used.
+- **Editor [Lookdev] window** (`editor/LookdevPanel`, [View] > [Lookdev], `--lookdev`): draws the selected object's model (LOD 0) on a rotating stand with a camera fitted to the bounding box. Four lighting presets (neutral studio/day/sunset/night: sun direction/color, sky/ground ambient, background), lighting model (project setting/Pbr/Toon/Unlit), spin/zoom, flash/dissolve preview values; drag the image to rotate and change elevation, wheel to zoom. Wind sways with editor time. 14 Korean strings.
+- **Tests**: check.ps1 "Editor look dev (offscreen, DX12 debug layer)" (no debug layer messages), "Vulkan validation layer (look dev)" (no validation messages). The stand rotates over time, so there's no reference image comparison.
+- **Left**: HDRI presets (next item), a model picker (currently the object selected in the scene), shadows on the stand (shadows item), per-material views (like the features view mode).
+
+### [x] Textures and materials part 2 — style preset shaders (done 2026-10-26)
+- **Decision** (made with the user, `docs/DECISIONS.md` 2026-10-26 style preset implementation): only the lighting model is a shader variant (three) + material features branch inside the shader by material table bits + outlines are one more pipeline / instance values in the upper 16 bits of flags (still 48 bytes) / wind strength in vertex color alpha / toon uses a ramp PNG + the engine default 3 steps.
+- **Lighting models** (`render::LightingModel`, project setting `lightingModel` = `game::LightingModelSetting` Pbr/Toon/Unlit, outside the hash): `Forward.hlsl` compiled three times with `LIGHTING_MODEL=0/1/2` (`g_ForwardPbrPS`/`g_ForwardToonPS`/`g_ForwardUnlitPS`; CMake `mealkit_shader` takes the remaining arguments as `-D` defines). `Renderer::init` builds all three + outline + view mode pipelines, and `setLightingModel` only selects (no PSOs are created during play). PBR is the same as part 1 (5 reference images unchanged). Toon reads a ramp texture (256×1, `setToonRamp`: the first row of the project's `toonRamp` image with nearest pixels, otherwise 3 steps 0.35/0.72/1.0) with half Lambert, and the highlight is a single hard-edged spot. Unlit is albedo + emission (still gets fog/flash/rim).
+- **Applying** `game::applyRenderStyle` (`game/RenderStyle.h`, only what changed, including the ramp file time): the shipping exe after reading match data, the editor on `setProject` and the 0.5 s hot reload (changing it in the project settings window or editing the ramp image outside shows immediately).
+- **Material features** (`render::kMaterialOutline/Wind/Rim/Dissolve`, material table 64 → 128 bytes): `asset::applyMaterialExtras` reads `mealkit_outline`/`outlineColor`/`wind`/`rim`/`rimColor`/`dissolve`/`dissolveColor` from glTF material `extras` (a small JSON reader; only main keys turn features on and color keys only set values; unknown `mealkit_` keys/bad values warn with the model and material name). The schema's `materialFeatures` (label/feature/whether color/engine default) is built from the same table.
+  - Outline: `VSOutline`/`PSOutline`, an inverted hull with `PipelineDesc::cullFront` (DX12/Vulkan), inflated along the normal by world meters, vertices of materials without an outline collapsed to zero area. `createMesh` marks meshes with outline materials and `drawInstances` draws the same instances once more (+1 draw call, not drawn in view modes). Lines break at split normals (hard edges).
+  - Wind: vertex shader, vertex alpha × material strength × `FrameParams::windStrength`, direction `windDirection`, phase from world position, time `FrameParams::time` (the shipping exe/editor use `fmod(now, 4096)`, reference images 0).
+  - Rim: (1 − n·v)³ × strength × color. Dissolve: two octaves of integer-hash value noise on object-space position, discarded below progress with an emissive edge width, in both passes.
+- **Instance values** (flags bits 16~23 flash, 24~31 dissolve progress, `render::instanceFlash`/`instanceDissolve`): flash blends toward white before fog (all materials). Frame constants 192 → 224 bytes (wind, toon ramp index). The texture upload queue is shared with the UI atlas and also flushed in `beginFrame`.
+- **Shader hot reload**: `ShaderReloader::add` takes entry points/defines and rebuilds the four variants (three lighting + outline) separately.
+- **Editor**: [View] > View Mode > Material Features (outline red/wind green/rim blue/dissolve yellow, summed colors), lighting model/toon ramp in the project settings window (Korean strings).
+- **Blender add-on**: the material panel builds feature buttons from the schema; color keys show only when their feature is on and use a color picker (COLOR); values are stored as floats (so they don't become integer array properties); with wind, a hint about vertex alpha. Added feature add → extras/vertex color VEC4 export to the add-on test.
+- **Samples**: `props/style_figure` (outline + rim, smooth normals)/`style_grass` (wind, alpha root 0 → tip 1)/`style_orb` (dissolve + rim) in `tools/make_sample_models.py`, `assets/scenes/styles.scene` (flash/dissolve progress via scene object flags). sandbox: other Pawns within push range flash (`view/Draw.cpp` `onWorldEvent`, on the view clock so it stops during hitstop, view tuning `pawn.hitFlash`/`hitFlashSeconds`).
+- **Tests**: unit tests `material_extras` (keys/values/problems/instance bits), `asset_schema` (schema rewritten). Added an optional lighting model column to the graphics regression test `shots.txt` and `styles_pbr`/`styles_toon`/`styles_unlit`/`materials_toon` (DX12 reference images, Vulkan comparison).
+- **Verified**: full check.ps1 (5 reference images unchanged, 4 new on DX12/Vulkan, Vulkan validation layer, Blender add-on). Shipping exe 3,713,536 → 3,763,200 bytes (shader variants + outline). Vulkan builds pipelines by entry point name, so SPIR-V entry points are renamed to VSMain/PSMain with `-fspv-entrypoint-name` (hot reload too).
+- **Left**: an option for outline width in screen pixels, toon shadow edge color (shade tint), putting wind direction/strength in the scene environment — when a game needs them. Switching lighting models in part 3's lookdev. Measuring outline/dissolve cost on min-spec hardware.
+
+## v0.5.2 — audio authoring tool
+
+### [x] Audio 3: authoring tool (done 2026-10-26)
+- **Decision** (made with the user, `docs/DECISIONS.md` 2026-10-26 audio authoring tool): `tool/` inside the MealKit-Audio repo, Dear ImGui + SDL3, a single text file read by the runtime `assets/sounds.events`, and from the first version in-tool preview + changes applied immediately on save + playback in the game.
+- **Runtime 0.2.0** (MealKit-Audio commit 0914bba, tag `v0.2.0`): event file `mkaudio/Events.h` (`parseEvents`/`writeEvents`/`loadEventFile`/`saveEventFile`/`resolveClips`, `@format audio-events 1`, `event <name>`/`mixbus <name>` blocks, keys are `EventDef`/`BusDef` field names, defaults aren't written, bad lines give messages with line numbers). Bus definitions `BusDef` (parent/mix volume) + `Mixer::setBuses` (cyclic parents go to master), bus volume = mix × player. Added file round trips/buses to the tests.
+- **Authoring tool `MealKitAudio`** (`tool/`, SDL 3.4.18 + Dear ImGui v1.92.9b-docking, added to `third_party/`): docked windows Events (search/add/duplicate/delete, red if clips are missing, double-click to play) · Event (rename, container, picking/ordering clips from .wav/.ogg in `assets/`, volume/pitch/random, parameters and volume/pitch/lowpass curves (drag endpoints to edit, preview position shown), 3D distance and attenuation graph, bus, loop/stream/priority/limit/on overflow/cooldown, subtitles) · Buses (parent/mix volume/levels) · Preview (playback with the runtime, parameter/distance sliders, voices, culled sounds) · Live (games/editors in the project's `build/live/`, "Play in game", the game's voices/buses). Undo (Ctrl+Z/Y), save (Ctrl+S; saving sends `audio/reload` to running games), rereading files changed outside, confirmation when closing unsaved, [File] > import `sounds.table`. `--project`/`--select`/`--frames N --capture <png>` (docs/tests). Building puts the executable and the manifest `mealkit-tool.txt` together in `build/bin/`, and it appears in the [Tools] menu via the editor's `--tool-path` or `%LOCALAPPDATA%\MealKit\tools\audio\`. Added Linux SDL packages and ninja to CI.
+- **Engine** (`mealkit/audio`): reads `assets/sounds.events` with the runtime (clips via `findAsset`), and if it's missing but `sounds.table` exists, reads it converting `row`→`event` with a warning. Removed the `SoundEvent` row type and engine table registration (gone from the [Tables] panel); `Engine::event()` is `mkaudio::EventDef`, and `listener()` was added. The live connection service `audio::addLiveService` (`POST audio/play` with body `event=<name>&p.<param>=<value>` → at the listener, `POST audio/reload`, `GET audio/state`) is opened by dev build games and the editor. The [Sound] panel only previews/inspects values, with a "edit in MealKit Audio" hint. Removed sound table field descriptions from the editor strings.
+- **Migration**: the sample `assets/sounds.table` → `assets/sounds.events`. `tools\upgrade_project.ps1` does the same per project (the table stays in the backup), and the designated single file in `check_layout.ps1` became `sounds.events`. Engine version 0.5.2.
+- **Verified**: runtime tests (Windows), the game/editor read 10 events without warnings, the fallback read of the old table, `audio/play`/`reload`/`state` in the game/editor, tool screen captures (edit screen, finding a running game and viewing its state), the editor's `--list-tools` finds the tool. Full check.ps1.
+- **Left**: push MealKit-Audio and CI (Linux/macOS builds haven't run yet). A tool install bundle (release zip), spatial audio/interactive music (stage 4), "Open with this tool" in the asset browser (`opens`).
+
+## v0.5.1 — start of the tool suite
+
+### [x] Audio 2: the runtime in a separate repo (done 2026-10-26)
+- **Decision** (made with the user, `docs/DECISIONS.md` 2026-10-26 audio runtime repo): repo `MealKit-Audio` (local `D:\MealKit-Audio`, URL `github.com/MealKit-Engine/MealKit-Audio`, MIT), code name stays `mkaudio`. This PC has no gh, so creating the GitHub repo and pushing is done by the user.
+- **New repo** (commit 8982b8a, tag `v0.1.0`): moved `include/`/`src/` from `engine/libs/mkaudio`, a `CMakeLists.txt` that builds standalone (`project(mkaudio VERSION 0.1.0)`, its own `third_party/` if `MKAUDIO_MINIAUDIO_DIR`/`MKAUDIO_STB_DIR` aren't given, `MKAUDIO_BUILD_TESTS` only when standalone, Linux/macOS link libraries), `third_party/miniaudio` (0.11.25)/`third_party/stb` (stb_vorbis), `README.md`, `LICENSE`, CI `.github/workflows/ci.yml` (Windows MSVC, Linux Clang, macOS ARM64 Clang: build + ctest).
+- **Deviceless mixing**: `Desc::noDevice`/`Desc::sampleRate` + `Mixer::render(out, frames)` (`ma_engine_read_pcm_frames`). For tests/offline rendering; the engine doesn't use it.
+- **Tests** `tests/MixerTests.cpp` (25, the test makes sine wave WAVs): playing/stopping loudness, missing events/clips, cooldown, same-frame grouping, limits (no cutting), virtual voices for distant loops and returning, fades, mute and subtitles, bus volumes, carrying over by name when definitions change. Passes on Windows (Linux/macOS to be checked when CI first runs).
+- **Engine**: deleted `engine/libs/mkaudio` and replaced it with `third_party/mkaudio/` (CMakeLists/include/src/LICENSE/`mealkit.txt`, `version v0.1.0 (8982b8a)`). Pulling with `tools\update_mkaudio.ps1 -From <checkout> [-Ref <tag>]` (git archive, so files being edited don't come in; it changes the version line and runs `gen_notices.ps1`). When editing together, CMake `-DMEALKIT_MKAUDIO_DIR=<checkout>` (verified by building the whole engine with that checkout). miniaudio/stb are passed from the engine. mkaudio was added to `VERSIONS.txt`/`THIRD_PARTY_NOTICES.txt`. Shipping exe size is the same as audio 1 (3,662,848 bytes).
+- **Boundary check** `tools\check_libs.ps1`: the target changed from `engine/libs/*` to "those in `third_party/` whose `mealkit.txt` source is a MealKit-Engine repo", and `-Path <checkout>` checks a local checkout too.
+- **Left**: create the repo on GitHub, push `main` and `v0.1.0`, and check CI results (nobody has run the Linux/macOS builds yet). Audio 3 (authoring tool).
+
+### [x] Audio 1: splitting out the runtime layer inside the engine (done 2026-10-26)
+- **Decision** (made with the user, `docs/DECISIONS.md` 2026-10-26 audio runtime): the runtime is a library folder outside the engine `engine/libs/mkaudio/` (own `CMakeLists.txt`/`include/mkaudio/`/`src/`), temporary name `mkaudio` (changed in audio 2 when the repo name is decided), C++20.
+- **Runtime** `mkaudio::Mixer` (`include/mkaudio/Mixer.h`): moved over as is the old `audio::Engine::Impl`'s mixing, buses, bus meters, clip decoding, containers (random/switch/blend), parameter curves, lowpass, cooldowns, concurrency limits and stealing, same-frame grouping, virtual voices, and subtitles. Instead of engine features: its own `Vec3`, event definitions `EventDef` (a plain struct without Reflect, clips as `ClipRef{name, file}` with the file found by the user), logging via a `Desc::log` function, its own PCG32 for cosmetic randomness, `std::chrono` for timing. Definitions are received with `setEvents(vector<EventDef>)` (cooldowns/last clips/playing sounds carry over by name), and `sampleRate`/`channels`/`maxVoices` were added. `MiniaudioConfig.h`/`MiniaudioImpl.cpp` moved into the runtime.
+- **Glue layer** `mealkit/audio/Audio.cpp` (770 lines → 180 lines): reading `sounds.table` and rereading every 0.25 seconds, converting `SoundEvent` (`MEALKIT_STRUCT`, editor [Tables] panel) → `EventDef` (container/steal words, missing clips warned only once), finding clip files with `findAsset`, logs to `MEALKIT_INFO/WARN`, `MEALKIT_ZONE("Audio")`. `Handle`/`Param`/`VoiceInfo`/`CullInfo`/`BusInfo`/`Subtitle`/`Stats` are aliases of runtime types, so game/editor/`FrameStats` code is unchanged (`ctx.audio` API, no `sounds.table` format change).
+- **Build**: `engine/CMakeLists.txt` sets `MKAUDIO_MINIAUDIO_DIR`/`MKAUDIO_STB_DIR` and calls `add_subdirectory(libs/mkaudio)`; `mealkit` links it PRIVATE with only the include path PUBLIC (games only see value types in the runtime headers; the symbols mealkit.dll exports are unchanged). The shipping exe grew by 9 KB (3,653,632 → 3,662,848 bytes: `std::function` logging, copying definitions).
+- **Boundary check** `tools\check_libs.ps1` (check.ps1 "Engine libs (no engine headers)"): fails if `engine/libs/*` uses `mealkit/` headers, `engine/src` paths, `MEALKIT_` macros, or relative includes outside the library, or if CMake uses engine variables (`MEALKIT_`/`mealkit_`).
+- **Left**: audio 2 (new repo, own CI, version pinned in `third_party/`, a CMake variable for a local checkout, deciding the name). Runtime-only unit tests (deviceless mixing) in that repo with miniaudio's null device.
+
+### [x] Contract between tools (done 2026-10-26)
+- **Why**: before splitting MealKit into the engine + small role-specific tools (separate repos, MIT), settle the single surface where tools and the engine connect (`docs/DECISIONS.md` 2026-10-26, two rows). Three things were decided with the user: a format line in every format, a new `live/` layer, finding tools by manifest.
+- **Format line** (`core/TextFormat.h`: `text::Format`, `formatLine`, `readFormatLine`, per-kind constants `kProject`/`kTuning`/`kSettings`/`kTable`/`kScene`/`kUi`/`kStrings`/`kTool`): the first line after the comment header is `@format <kind> <N>`. Absent means version 1; a different kind/newer version/wrong shape warns. It's `@format` rather than `version N` so it doesn't collide with files whose keys are field names, like `mealkit.project` (the game's `version` field) and tuning. Used by: `reflect::saveTextFile/loadTextFile` (takes a format argument: tuning/view tuning/player settings), tables (`data/Tables`), `mealkit.project` (the format line isn't put in the header), scenes (`version 2` → `@format scene 2`, old lines still read), `.ui`/`theme.ui` (written by the Penpot plugin's `convert.ts` with dist rebuilt; the import's theme merge keeps the new file's header/format line as is), string tables (`loc/Strings`, `mealkit_stringcheck`). Added the line to the repo's 27 sample data files and the template `mealkit.project` (the content hash is computed from read values, so it doesn't change; replays unchanged). Saves have their own game data version, so they're unchanged. Also fixed the doubled `# #` in the player settings header.
+- **Live connection** (`live/Server.h`, a new engine layer `live` after `data`, `tools\check_layers.ps1`): a 127.0.0.1 HTTP server. Connection info `<project>/build/live/<kind>-<pid>.json` (`protocol`/`kind`/`pid`/`port`/`token`/`project`/`engine`/`url`; deleted on close, and files of dead pids are deleted on open: `platform::processRunning`). Paths `/<token>/api/hello` (contract version `live::kProtocol` 1, services/topics list), `/<token>/api/events?topics=a,b` (SSE; connections that don't read are closed at 4 MB), `/<token>/<service>/...` (`addService`, a browser Origin allow function per service; by default, with an Origin only this server itself). Requests on the main thread's `update()`. Topic `stats` = `game::FrameStats::json()` (every report period, built only when there are listeners).
+  The game exe (`game::runGame`) opens it on any port when `MEALKIT_LIVE` (CMake option, `-DMEALKIT_LIVE=OFF` for Export), and the editor on one of 10 ports from 27220 when a project opens.
+- **Penpot import over the live connection**: `editor::ImportServer` dropped its socket and became the server's `penpot/` service. Plugin address `http://127.0.0.1:27220/<token>/penpot/manifest.json` (the token already changed every run); the Penpot origin rule and panel-only writes are unchanged. `--penpot-token` sets the live server token.
+- **[Tools] menu** (`editor/Tools.h`): finds manifests `mealkit-tool.txt` (`@format tool 1`, `name`/`exe`/`version`/`protocol`/`opens`) in order: `--tool-path` folders → `%LOCALAPPDATA%\MealKit\tools\*` → `toolPath` lines in editor settings (the folder itself or one level below). A different contract version or missing executable dims it with a reason tooltip; choosing it runs `"<exe>" --project "<project>"`. [Open Tools Folder]/[Rescan Tools]. `MealKitEditor --list-tools [--tool-path <folder>]` prints what was found without a window. Changing the language no longer deletes other lines in the editor settings file.
+- **Example client** `tools\live_probe.ps1 [-Project] [-Kind game|editor] [-Wait seconds] [-Events N] [-Topics stats]`: connection info → hello → N events. Tools in other languages attach in the same order.
+- **Verified**: unit tests `text_format`, `live_server` (token/Origin/service paths/connection info file/dead pid cleanup), `frame_stats` (JSON). check.ps1 "Live connection (game)" (real sockets: launches the game, hello + 2 stats, no connection info file after it ends), "Editor tool discovery (manifest)", and "Export build" checking the shipping exe has no live server. The editor's Penpot path (manifest address rewriting, `api/project`, 403 for other origins) was checked by hand.
+- **Left**: the CMake variable pointing a tool's runtime piece to a local checkout comes in audio 2, the first one split out. Value-changing services over the live connection (tuning/tables/sound) are added as services in the tool items that use them. The [Tools] menu wasn't checked by screen capture (no automation that opens menus); the `opens` extensions will be used for "Open with this tool" once the asset browser (stage 4) exists.
+
+## After v0.5.0 — stage 2 in progress (same engine version, no template changes)
+
+### [x] Textures and materials part 1 — texture cache, glTF PBR materials (done 2026-10-21)
+- **Scope** (decided with the user): the item was split into 3 parts — part 1 textures/glTF PBR (this), part 2 style preset shaders, part 3 lookdev preview (`docs/DECISIONS.md` 2026-10-21).
+- **RHI**: `Rgba8Srgb`/`Bc7Unorm`/`Bc7Srgb`/`Bc5Unorm` in `Format`, `textureMipBytes`, `Device::createTexture(TextureInit)` (uploads all mips at once and waits: DX12 `GetCopyableFootprints` + upload buffer, Vulkan staging + `vkCmdCopyBufferToImage`). A second static sampler `g_linearWrap` (s1 / binding 3, repeat, anisotropy 8). `Half2`/`Uint16x2` in `VertexFormat`. Vulkan enables `textureCompressionBC`/`shaderSampledImageArrayNonUniformIndexing` (added to min spec)/`samplerAnisotropy` (if available).
+- **Texture cache** (`asset/TextureCache.h`, front end): glTF images (PNG/JPEG; JPEG was enabled in stb_image) are decoded → 2×2 box filter mipmaps (colors in linear space, normals renormalized) → BC7 per 4×4 block (bc7enc, colors sRGB/perceptual weighting) or BC5 (rgbcx `encode_bc5_hq`) → `<project>/build/cache/textures/<hash of encoded image/usage/version>.mktex`. Reads from that folder, then `cache/textures` next to the exe. Compression only in debug UI builds (`MEALKIT_DEBUG_UI`); shipping builds log and use white if it's not in the cache. Export (`MealKitExport.cmake`) copies the cache folder. Compressing one 256² texture takes about 10 ms.
+- **External library**: bc7enc_rdo b943862 (MIT/public domain, `third_party/bc7enc`: only bc7enc.cpp/rgbcx.cpp, linked in dev builds only).
+- **Models** (`ModelCache`): `TEXCOORD_0`, primitive materials → renderer materials (base color/emissive/metallic/roughness factors and textures, normal scale, alpha mask → clip, `KHR_materials_emissive_strength`). The same image is uploaded only once. Outside the supported range (specular-glossiness, clearcoat, transmission/volume, sheen, iridescence, anisotropy, specular/IOR, unlit, alpha blend, double-sided, occlusion, second UV/texture transform, data URIs) warns. baseColorFactor, formerly multiplied into vertex colors, goes into the material table. `Model::textures`/`textureSize` (included in budget checks). Headless doesn't read materials/textures (there's no upload function).
+- **36-byte vertices** (`render/Mesh.h`, `docs/DECISIONS.md` 2026-10-21): + `uv` (half2, `packHalf2`) + `material` (u16, renderer material index). Hull points/bounds/file hashes are unchanged, so the simulation, content hash, and fixed recordings don't change.
+- **Renderer/shaders**: the material table (64-byte records, index 0 white) is written to the upload ring every frame and its offset passed via `FrameConstants.materials` (192 bytes). `Forward.hlsl`: base color texture × factor × vertex color × instance color, alpha clip, BC5 normal maps (tangent space from screen derivatives), metallic/roughness (G/B), emission, sun GGX specular (Smith/Schlick, F0 0.04/albedo) + an approximate environment specular. Diffuse is the old wrapped half Lambert (existing scene images differ by at most 5/255).
+- **Samples/tests**: `tools/make_sample_models.py` makes `models/props/crate.glb` (wooden planks + metal frame: base color/normal/metal-roughness textures) and `fence.glb` (wire mesh, alpha mask) (the tree/rock/ring files stay byte-identical). `scenes/materials.scene`, reference images `materials_crate`/`materials_close`. Vulkan (validation layer) and DX12 images differ by at most 1/255. Unit test `texture_mips` (sRGB averaging, renormalized normals, half conversion).
+- **Blender add-on/schema**: `textures true`, `TEXCOORD_0`, `textureInputs` (Base Color/Normal/Metallic/Roughness/Emission Color), `alphaClip`. Export turns on texture coordinates and images (AUTO), and warns only for textures on BSDF inputs the engine doesn't read. The add-on test checks that texture images go into the .glb.
+- **Left**: part 2 style presets (lighting models PBR/toon/unlit, outline/wind/rim/dissolve, prebuilding PSOs), part 3 lookdev. Occlusion textures, double-sided materials, alpha blending (together with a translucent pass). Environment reflections once sky HDRIs arrive. Texture hot reload comes with model hot reload (the cache key is a content hash).
+
+### [x] GPU capture button and editor view modes (done 2026-10-21)
+- **GPU capture** (`rhi/GpuCapture.h`, for graphics programmers): in builds with debug UI (editor/dev exe), starting with `--gpu-capture` loads, before creating the device (`DeviceDesc::gpuCapture`; both tools intercept the API at device creation), `%ProgramFiles%\RenderDoc\renderdoc.dll` (DX12/Vulkan) or `%ProgramFiles%\Microsoft PIX\<newest version>\WinPixGpuCapturer.dll` (DX12). The editor's [View] > GPU Capture (hidden without a tool)/F11 and F11 in the game exe capture the next frame and open the RenderDoc window. Captures go to `%LOCALAPPDATA%\MealKit\gpu-captures`. For automated tests, `--gpu-capture-at <frame>` (without a window). It's a startup option rather than always loaded because the tools intercept the API and interfere with performance/validation layers. Shipping builds contain no code (empty functions).
+- **External library**: the RenderDoc in-application API header `third_party/renderdoc/renderdoc_app.h` (1.46, MIT, header only. The DLL comes from the user's RenderDoc install). PIX's `PIXGpuCaptureNextFrames` is looked up in the DLL (without WinPixEventRuntime).
+- **Platform layer**: `environmentVariable` (Windows `GetEnvironmentVariableW`, POSIX `getenv`), `listDirectories`.
+- **View modes** (`render::DebugView`, editor [View] > View Mode, `--view-mode <n>`): wireframe, normals, LOD level (green/yellow/red), overdraw (additive without depth, black background), over budget (red/gray). The shader picks via `debugView`, a previously unused push constant slot, and the editor fills instance flags (LOD bits 8~9, `kInstanceOverBudget`) only in view modes. RHI `PipelineDesc` got `wireframe`/`additiveBlend`/`depthTest` (DX12 FillMode/blend/depth, Vulkan polygonMode LINE — enabled if `fillModeNonSolid` exists — /blend/depth). View mode pipelines are built only in debug UI builds and shader hot reload swaps them too. `Renderer::supportsDebugView`.
+- **Verified**: with RenderDoc 1.46 (installed via winget), `capture_frame61.rdc` was produced from DX12/Vulkan game exes, and the captured image was checked with `renderdoccmd thumb`. check.ps1 "GPU capture (RenderDoc)" (SKIP if absent). Editor captures of the five view modes (wireframe; in LOD the ring is level 1 yellow; in over budget the ring is red; overdraw). check.ps1.
+- **Left**: the PIX path to be checked after installing PIX. A material features view mode once material features (style presets) exist. Overdraw means little with only opaque geometry for now (useful once particles/translucency exist).
+
+### [x] Graphics regression tests (done 2026-10-21)
+- **Why**: if shader/post changes break images, nobody knows until a person looks. The existing capture comparison was only DX12 = Vulkan (between backends), so it couldn't catch both breaking together.
+- **Scenes** (`engine/tests/golden/shots.txt`): `name scene x y z yaw pitch` (degrees) lines. Three for now — overview (editor default camera), model close-up (ring), low angle (objects/fog/area edges). Reference images are `<name>.png` in the same folder (DX12, 1600×900).
+- **Drawing** (`MealKitEditor --render-golden <shots.txt> <folder>`, `EditorMain.cpp`): opens the editor normally (the game DLL's scene kinds are needed), and in the main loop draws 4 frames per scene without UI via `Editor::buildShot` (camera/full-window viewport/no selection → `buildSceneView`) and saves the last. It's the edit screen as is, so nothing varies with time/interpolation.
+- **Comparison** (check.ps1 "Graphics regression (golden images)", "(Vulkan)"): `compare_images.ps1` pixels with channel difference over 8 at most 0.5% (allowing GPU/driver differences). On difference, `-DiffOut` (new option) writes `build\check\golden[-vulkan]\<name>-diff.png` (darkened reference + differing pixels in red). `check.ps1 -UpdateGolden` replaces the references with DX12 images and SKIPs that step. The "Vulkan = DX12" step now also leaves `backend-diff.png` (to see the cause of occasional flakiness).
+- **Verified**: a shader darkening vertex colors by 10% made `arena_low` DIFFERENT (2.5% of pixels), and reverting gave SAME. 32 check.ps1 items passed. The same day, in an `-UpdateGolden` run, "Vulkan = DX12" flaked once more (max difference 90, 0.74%) — to be examined next time with `backend-diff.png`.
+- **Left**: on other PCs/GPUs it may exceed the threshold (decide a threshold or per-PC references then). Lighting model/post-processing scenes.
+
+### [x] Asset budget warnings (done 2026-10-21)
+- **Why**: artists can't tell how heavy a model they can use on integrated graphics.
+- **Kinds** (`asset/Budget.h`, `docs/CODING_MODEL.md` "Model budget kinds", decided with the user): the first folder under `assets/models/` — `characters/` character, `environment/` environment, anything else prop. `asset::modelKind` (backslashes too).
+- **Limits**: `budget{Characters,Props,Environment}{Triangles,TextureSize,Bones,Materials}` in `mealkit.project` (`MEALKIT_VIEW_FIELD`, outside the hash, [Project Settings] window). Defaults `asset::kDefaultBudgets` (decided with the user): characters 15,000 triangles/2048 px/64 bones/4 materials, props 3,000/1024/0/2, environment 20,000/2048/0/4. No lines were added to the template file (missing line = default, so the template version isn't bumped).
+- **Engine**: `Model` got `kind`/`materials` (number of distinct glTF materials the mesh uses)/`bones`/`textureSize` (0 for now: skins/textures aren't read)/`budgetProblems`. `ModelCache::setBudgets` (rechecks loaded models too) is called by `loadMatchData` and editor startup, and the editor passes them again when project setting values change. Over budget warns `Model ... is over the props budget: 3072 triangles (budget 3000)`.
+- **Editor inspector**: "Budget: props" under the model row, triangle/material usage/limit (red when over).
+- **Blender add-on**: names can include folders (`props/crate` → `assets/models/props/crate.glb`). The panel shows the kind and limits, and the checks warn when triangles/materials exceed the `mealkit.project` values (or the engine defaults in the schema's `budgets` if absent). Added `budgets` (folder, key prefix, defaults) to the schema.
+- **Sample**: `models/ring.glb` (3,072 triangles) slightly exceeds the props budget, producing one warning. Left on purpose (a warning example). Moving it would change scene paths/the content hash/fixed recordings.
+- **Verified**: unit tests `asset_budget` (kinds, sentences for exceeded items), `asset_schema`, add-on test (folder kinds, a warning with `budgetPropsTriangles 500` lowered, exporting to `models/props/`), editor capture (Ring selected: triangles 3072 / 3000 in red). check.ps1.
+- **Left**: texture size/bone count start being counted in the textures and materials/skeletal animation items. A budget column in the asset browser (stage 4).
+
+### [x] Blender export add-on (done 2026-10-21)
+- **Why**: since graphics content is made in Blender, artists need to know the engine's rules (supported range, export settings, later material extras keys) inside Blender and put things into the project with one button. Same role as the Penpot plugin.
+- **Add-on** (`tools/blender-addon/mealkit`, Blender extension format `blender_manifest.toml`, Blender 5.2 LTS, `docs/DECISIONS.md` 2026-10-21): a [MealKit] panel in the 3D view sidebar — project (looks for `mealkit.project` upward from the `.blend` folder, usually kept in `art/`; can also be picked directly), name (default the `.blend` name), selected only, [Check]/[Export to MealKit], a list of check results. Export, when the checks have no errors, writes only what the engine reads to `assets/models/<name>.glb` (GLB, +Y up, modifiers applied, normals, active vertex color, materials, extras. Texture coordinates/images/animation/skins/morphs/cameras/lights off). The editor's asset hot reload picks it up and shows it immediately.
+- **Checks** (`checks.py`): no meshes to export (error), image textures (not read yet), no Principled BSDF, base color coming from a node other than vertex color/value, armatures/animation/shape keys (warnings), multiple color attributes/the number of merged objects and triangles (info).
+- **Engine schema** (`asset::modelSchemaJson`, `ModelCache.h`): the range loading reads (format, folders, attributes, mesh merging, LOD count, materials, whether skins/animation, material feature list) as JSON. The add-on reads `schema.json` in its own folder, and unit test `asset_schema` checks that file matches the engine's (rewritten with `mealkit_tests --write-asset-schema`). The roadmap's "schema exported by the engine" was made a file the add-on carries instead of asking a running editor: Blender alone is enough without the editor, and if they drift the engine test fails.
+- **Material panel**: rows that add and remove the custom property `mealkit_<key>` for each of the schema's `materialFeatures` (exported as glTF extras). The list is empty for now (no engine material features yet).
+- **Verified**: check.ps1 "Blender add-on export" runs `tools/blender-addon/test/test_export.py` in Blender without a window (`MEALKIT_BLENDER`, default `Program Files\Blender Foundation\Blender 5.2`, SKIP if absent): finding the project from `art/props.blend` in a temp project, texture warning, vertex color material passes, GLB/`COLOR_0`/no texture coordinates or images, empty scene refused. Confirmed the editor reads the exported file (972 triangles). 30 check.ps1 items passed (once the "Vulkan = DX12" capture comparison failed with a 0.37% difference and passed on rerun — flakiness unrelated to this change, to be watched).
+- **Left**: material features (style presets) and asset budget checks come into the same schema. The add-on install file (zip) is made with `blender --command extension build` (docs).
+
+### [x] Asset hot reload — models/scenes (done 2026-10-21)
+- **Why**: since graphics content is made in an external tool (Blender), exports must show in the editor immediately so artists can work alone.
+- **Models** (`asset::ModelCache::reloadChanged`): records the file time on load, and when checking again rereads those that changed (including files that newly appeared). `Model` addresses stay and only contents (LOD meshes, bounds, hull points, file hash) change, so pointers held by scenes/games stay valid. On read failure, the previous contents are kept. Old GPU meshes aren't deleted (the renderer has no mesh deletion; they pile up only during development and go away when the editor is reopened).
+- **Scenes** (`Editor::updateHotReload`): records the scene file time on open/save, and when it changes outside, reopens it if there are no unsaved changes and keeps the selection (same id). With changes, warns once in the status bar and doesn't overwrite.
+- **Differences from the roadmap**: change detection checks the times of requested files every 0.5 seconds instead of `ReadDirectoryChangesW` (the platform layer's `fileWriteTime` as is; with dozens of files there's no cost, and it's the same on other OSes). During play, instead of changing only view data, **nothing changes** and files are read after stopping: one `Model` holds both the view mesh and the simulation hull points, so if bodies created mid-match read a new hull, peers would split in multiplayer play. Changed models go into the next play's content hash.
+- **Verified**: overwriting `tree.glb` with the rock model while the editor is open → `Hot reload: model models/tree.glb`, and in the capture 5 trees became rocks. Adding one line to the scene file → `Hot reload: scene ...`. check.ps1.
+- **Left**: textures/LUTs/effect files are added to the same mechanism in those feature items. Out-of-range load warnings (inspector) in the materials/animation items.
+
+### [x] Frustum culling (done 2026-10-21)
+- **Why**: even off-screen objects were all copied into the upload ring and drawn. As maps grow, that's direct CPU copy/GPU vertex cost.
+- **Approach** (`render/Culling.h`): `createMesh` records a mesh-local bounding sphere (center of the vertex box + the farthest vertex), and `beginFrame` extracts 6 planes from `viewProj` (`Frustum::fromViewProj`; row vectors with clip z 0..w, so reversed-Z is the same; planes without a normal are skipped). `DrawList::submit` moves each instance's sphere by position/rotation/the largest scale axis, compares it with the planes, and passes only visible ones to `drawInstances`. The roadmap's "before `add`" was changed to at `submit`: games may `add` before deciding `viewProj`, and no game/editor code needs changes (the same CPU work). Passes from other viewpoints like shadows use their own frustum in those items.
+- **Stats**: `RenderStats::culled`, `FrameSample::culled`, window title/`perf:` log `... inst (N culled)`.
+- **Verified**: unit test `frustum_culling` (beside/behind/beyond the far plane are dropped, straddling spheres remain, bounding spheres). In the sample match (2,000 boxes) about 55~65% of instances are dropped, and no dropped objects at the capture edges. check.ps1.
+- **Left**: with tens of thousands of objects, filter first by per-mesh groups (spatial clusters). No plans for GPU culling or occlusion culling.
+
+### [x] Shader hot reload (done 2026-10-21)
+- **Why**: shaders go into the exe as byte array headers at build time, so while adding graphics features the engine had to be rebuilt every time a shader changed.
+- **`render::ShaderReloader`** (`render/ShaderReload.h`): the renderer registers a "bytecode → rebuild pipeline" function per program (VSMain + PSMain of `Forward.hlsl`, `Ui.hlsl`), and `update()` runs before `beginFrame` (outside a frame). It checks file times every 0.5 seconds (all of them if `Bindless.hlsli` changes) and hands changed ones to DXC via `ChildProcess` without waiting. When both VS and PS succeed it swaps them in with `rhi::Device::recreatePipeline` (waits for the GPU and replaces the PSO/VkPipeline at the same handle slot) and logs `Shader reloaded: ...`. Compile errors leave the DXC output as an `ERROR` log and the previous shader keeps being used.
+- **Same compilation**: the DXC path, this backend's options (DXIL `-O3 -Qstrip_debug -Qstrip_reflect`, SPIR-V `-O3 -spirv -fspv-target-env=vulkan1.3`, Debug builds use their options), the engine shader folder, and the output folder (`build/<config>/engine/shaders/hot`) are passed by CMake as defines only to `ShaderReload.cpp`. Enabled only in builds with debug UI (Release/Debug/Profile/Editor/Vulkan); shipping builds (`build.bat Export`) contain no code. Run on a PC without the engine folder or DXC, it quietly turns off.
+- **Verified**: a syntax error in `Forward.hlsl` while the game runs → `ERROR` log + the image unchanged; making the pixel shader red → `Shader reloaded` + the capture is red. On both DX12 and Vulkan (validation layer on, no messages). check.ps1.
+- **Left**: adding a new shader file still needs CMake `mealkit_shader` and renderer registration together as now. When game/material shaders exist (textures and materials item), register them with the same mechanism.
+
+### [x] Benchmark mode + splitting the GPU budget + memory numbers (done 2026-10-21)
+- **Why**: every time graphics features are added we need a baseline to compare under the same conditions, and the "current" values of the performance budget must be remeasured on min-spec hardware. Integrated graphics share memory, so memory is watched as much as frame time.
+- **`--benchmark [seconds]`** (`game/Benchmark.h`, `GameMain.cpp`): solo, fixed seed (1 if not given), bot input, vsync off (or as `--vsync` says), sound off, automated run (player settings not read). After the match starts it discards 3 seconds of warmup, measures 30 seconds by default, writes `benchmark.txt` (`--benchmark-out`), and exits. One line on the console `BENCHMARK frames= avg= p99= worst= sim= gpu=`. Report: game version/commit/simulation version/determinism group, CPU, GPU/driver/UMA, display, scene/seed, average/1% worst (99th percentile over all frames of the run)/worst frame, simulation per tick, average draw calls/instances, peak process/GPU memory and GPU budget, per-pass GPU time and budget (`OVER` when exceeded). `FrameStats` batches are accumulated weighted by period length (there's still only one place reading `takeSimMsPerTick`).
+- **"Fixed camera path"**: the camera belongs to the game's `view/`, so the engine didn't add its own path. With a fixed seed + bots, the camera following the bot character takes the same path on the same build/data (interpolation differences from frame time remain). If game-defined camera paths are needed, that's the stage 4 virtual camera.
+- **RHI GPU time** (`rhi/Rhi.h`): `CommandList::beginTimer`/`endTimer` (8 sections) + the whole command list, `Device::gpuTimes()` (from 2 frames ago, no waiting). DX12 uses a timestamp query heap + a persistently mapped readback buffer, resolving only written queries. Vulkan uses a query pool (`vkCmdResetQueryPool` at frame start), `timestampValidBits`/`timestampPeriod`, reading only written queries. Without timestamps, `valid = false`.
+- **GPU memory** (`Device::gpuMemory()`): DX12 `IDXGIAdapter3::QueryVideoMemoryInfo` (local segment); Vulkan enables `VK_EXT_memory_budget` if available and sums VMA `vmaGetHeapBudgets` over device-local heaps only (VMA's estimate if absent). **Process memory** is the platform layer's `processMemory()` (Windows working set `K32GetProcessMemoryInfo`, Linux `/proc/self/statm` + `getrusage`, macOS `task_info`).
+- **Renderer passes** (`render::GpuPass`: opaque, shadow, post, vfx, ui): 3D is `beginFrame` → `beginOverlay`, UI (game UI + debug UI) after that. Shadow/post/VFX start being measured when those features arrive (0 for now). `RenderStats` got `gpuValid`/`gpuFrameMs`/`gpuPassMs`, `Renderer::gpuMemory()`.
+- **GPU budget**: `mealkit.project` `gpuBudgetOpaqueMs` 3 / `gpuBudgetShadowMs` 1.5 / `gpuBudgetPostMs` 1 / `gpuBudgetVfxMs` 1 / `gpuBudgetUiMs` 0.5 / `gpuBudgetSpareMs` 1 (compared with `other` outside passes) — `MEALKIT_VIEW_FIELD`, so outside the content hash, shown in the [Project Settings] window. The template file wasn't changed (missing lines are defaults).
+- **FrameStats**: `FrameSample` got `p99FrameMs`, `hasGpuTime`/`gpuMs`/`gpuPassMs`, `gpuMemoryUsed`/`gpuMemoryBudget`, `processMemory`/`processMemoryPeak` (when the renderer is a source). The window title/F1/`perf:` log show `gpu ... ms`, `mem ... MB`, `vram .../... MB`. Percentiles in unit test `frame_stats`.
+- **Verified**: 8 seconds on DX12 on a Core Ultra 5 125U (Xe-LPG): average 0.35 ms, 1% worst 1.57 ms, GPU 0.24 ms (opaque 0.20), simulation 1.13 ms/tick, process 230 MB, GPU 59 MB / 8,318 MB. 5 seconds on Vulkan: GPU 0.51 ms (opaque 0.46), GPU 97 MB. No D3D12 debug layer/Vulkan validation layer messages with `--debug`. check.ps1.
+- **Left**: measure on min-spec (11th gen Xe-LP) hardware and fix the ROADMAP performance budget table and GPU budget defaults. The same table in the editor performance panel (stage 4).
+
+### [x] Game screen UI part 2 — Penpot plugin, import server, Grid, layout/pixel comparison (done 2026-10-20)
+- **Why**: non-programmers draw screens in Penpot and put them into the game as is (`docs/DECISIONS.md` 2026-10-15). Part 1 (`.ui` runtime + [UI] preview) was v0.4.16.
+- **Runtime Grid** (`ui/Ui.cpp`, `Document`): `layout grid [row|column]`, `columns`/`rows` (fixed/`fr`/`auto`/`%`), `cell <row> <column> [spans]`, auto placement, `justifyItems`/`justifySelf`, `justify stretch` (auto tracks take the remaining space). Columns are decided first and row heights with those widths (text wrapping). Node `id` (Penpot shape id, used by layout comparison), `NodeBox::id`/`text`. Text shaping moved to `ui/Text.cpp` after part 1 (code cleanup 6).
+- **Plugin** (`tools/penpot-plugin`, TypeScript, esbuild to `dist/`): `snapshot.ts` (Penpot API → JSON, resolving 'mixed', finding text style spans by halving, the `State` property of variants), `convert.ts` (→ `.ui`, a pure function that doesn't know the Penpot API), `ui.ts` (panel: layer bindings/widgets in plugin data, screen export, editor or zip), `example.ts` (create example screen). What the engine can't draw (paths, booleans, masks, image fills, multiple fills, gradients with 3+ stops, dashed strokes, inner shadows, blends) is baked to a 2x PNG (`skipChildren` if only the background), and blur/capitalize/justified text warn. Groups without effects are flattened. A text layer whose name is key-shaped becomes a key (missing keys are added to the default language table, existing keys let the table win). Fonts are `<family>-<weight>` file names (error if missing). Tokens (colors/numbers of enabled sets) → `theme.ui` (merged by name). Tests: `node --test test/convert.test.ts` (fixed data → expected `.ui`), and engine unit test `penpot_expected` rereads the expected files with the real parser.
+- **Import server** (`editor/ImportServer`, new `net::TcpListener`/`TcpStream` win32/posix): opens on 127.0.0.1:27220 when a project opens. `GET manifest.json/plugin.js/ui.html/icon.png` (the address placeholder `__MEALKIT_BASE__` replaced with its own address), `GET api/project` (fonts, view model fields, actions used in `.ui`), `POST api/export` (body is a list of items: `ui`, `png`, `clean`, `theme`, `strings`, `penpot`, `boxes`, `preview`). The address and [Copy] in the [UI] panel. Automated tests use `--penpot-token`.
+- **Found and fixed in real Penpot (design.penpot.app 2.18.4-RC4)**: the plugin sandbox has no `TextEncoder` (only the panel uses it). Flex/Grid lay out from the top layer of the layer list (layout parents write children reversed). `layoutChild` of text inside layouts comes as `fix` and follows the grow type. Text alignment is read from the paragraph range. Icon addresses are relative to the plugin origin. `File.export('penpot')` errors on Penpot's side, so it's a warning. The built-in browser blocks localhost, so it was tested with Claude in Chrome (Brave). Fonts required uploading Pretendard (woff2) as a Penpot team font.
+- **Verified**: `MealKitEditor --ui-check [--lang]` (layout boxes, 14 nodes of the example screen: frames within 0.5 pixels, text at most 2.4 pixels), `--ui-render` (half-size image) + `tools\compare_images.ps1` (0.22% of pixels over a difference of 48). Three check.ps1 steps (converter tests, layout, pixels) with the reference sample `assets/ui/penpot_example.ui` (a pause menu exported from Penpot, `art/ui/boxes`/`art/ui/preview`).
+- **Left** (ROADMAP "Game screen UI part 3"): Penpot sources of the basic screen templates, components as reusable `.ui` (`use`), verifying state variants in real Penpot, theme variants per token set.
+
+### [x] Code cleanup 3/6/7 — join windows via `runGame`, splitting out text shaping, sharing the join window command line (done 2026-10-20)
+- **3. Join windows via `runGame`**: split `game::runGame` into command line reading (`runGame(argc, argv, spec)`) and running (`runGame(MatchOptions, WindowOptions, spec, GameRunOptions)`). Join windows of editor multiplayer play (`editor::runPlayer`) call the same function as the join-mode shipping exe instead of their own loop (window/renderer/connection/`Frontend`/frames). Differences come in through `game::GameRunOptions`: already read project settings, window title/title bar color, the view tuning copy path, `playerFiles = false` (settings/rebound keys/saves aren't read or written), `onlineService = false`, `exitWhenSessionEnds` (exit when the session ends or the game goes to the menu). Muting is `WindowOptions::mute`. Join windows now also get the F1 debug UI/V/F12/performance numbers in the window title.
+- **6. `ui/Text.cpp`**: moved UTF-8 decoding/style span tags/kerning/line breaking/ellipsis from `ui/Ui.cpp` (1746 → 1517 lines) into `ui/Text.h`/`Text.cpp` (`decodeUtf8`, `shapeGlyphs`, `breakLines`). No functional change.
+- **7. Join window command line**: join windows read only `--player-window` + three editor options (`--project`, `--player-index`, `--view-tuning`) directly and the rest with the shipping exe parser `game::parseGameArgs` (`--join`, `--scene`, `--tuning`, `--bot`, `--debug` etc.). Removed join-window-only options (`--player`, `--tuning`, `--view-tuning`, `--player-index`) from the editor `Options`. The editor main window's `--players` (player count)/`--bot` (bot for the editor window)/`--scene` (scene to edit) mean something different from the game options, so they stay.
+- **Verified**: no warnings in the Editor build, editor `--play --players 3 --bot` with two join windows connecting and syncing, check.ps1.
+
+### [x] RHI layer — DX12 + Vulkan backends (done 2026-10-20)
+- **Why**: stage 2 is where graphics API calls grow the most with bindless textures/shadows/post/GPU timestamps, so before that the calls were gathered into one layer. An abstraction with only one implementation leaks DX12 assumptions, so the Vulkan backend was built in the same item (`docs/DECISIONS.md` 2026-10-16). Vulkan alone covers stage 5's Linux/Steam Deck/Android.
+- **RHI** (`mealkit/rhi/Rhi.h`): `Device` (device/swap chain, static buffers, textures, pipelines, frame upload ring `allocUpload`, capture, `gpu()`), `CommandList` (`beginScene`/`beginOverlay`, viewport, pipeline, push constants, vertex/index buffers, draws, texture barriers/copies), debug UI drawing (`imguiInit`/`imguiRender`). Its shape follows DX12, with one backend per build (`MEALKIT_RHI`, `.cpp` files in `rhi/dx12/`/`rhi/vulkan/` without virtual functions). No render graph. Back buffer layout transitions happen inside `beginScene`/`beginOverlay`/`endFrame`, and texture barriers are explicit by the caller. Copies/barriers unbind the bound render target (Vulkan dynamic rendering rules).
+- **Bindings** (`shaders/Bindless.hlsli`, `docs/DECISIONS.md` 2026-10-19): every pipeline uses 64-byte push constants + `ByteAddressBuffer g_buffers[]` + `Texture2D g_textures[]` + one static sampler. Frame data (constants/instances/UI rects) is written to the upload ring and shaders `Load` each field by ring index/offset (only the C++ layout has to match). The plan for root CBV/SRV and `ResourceDescriptorHeap[]` was dropped. Shader model 6.6.
+- **Renderer** (`render/Renderer.cpp`): doesn't call graphics APIs. `device()` instead of `NativeHandles`/`native()`. For captures, the RHI returns RGBA and the platform layer's `savePng` writes it. GPU inspection (`GpuInfo`, `queryGpu`, `gpuMinimumError`) moved to `rhi` with aliases in `render`. `GpuInfo` got `api` and `unsupported` (min-spec shortfalls found by the backend), and `--system-info` prints the API.
+- **DX12 backend** (`rhi/dx12/`): the old renderer code. One shader-visible descriptor heap (16 buffer slots + 4,096 texture slots, debug UI textures also borrow from it), a shared root signature 1.1 (root constants + two unbounded tables + static sampler). Adapter names are converted UTF-16 → UTF-8 by hand (no OS string functions).
+- **Vulkan backend** (`rhi/vulkan/`): Vulkan 1.3 + descriptor indexing (partially bound, update after bind) + dynamic rendering + synchronization2 + `VK_KHR_swapchain_mutable_format` (one swap chain image with an sRGB view = scene, UNORM view = overlay). volk loads `vulkan-1.dll` at runtime (built without the SDK), and VMA handles memory. The viewport height is flipped negative, so the same shaders and the same clockwise front faces give the same image as DX12. Vsync off is `IMMEDIATE` (`MAILBOX` if absent), and the swap chain is recreated when the present mode changes. With `--debug`, enables `VK_LAYER_KHRONOS_validation` if the SDK exists and logs warnings/errors as `[Vulkan]`. Devices meeting the min spec are picked discrete > integrated.
+- **Debug UI**: the ImGui Win32 side is split into the platform layer (`platform/ImGuiPlatform.h`) and the drawing side into backends (`Dx12ImGui.cpp`, `VkImGui.cpp` + `imgui_impl_vulkan`), so `debug/ImGuiLayer.cpp` doesn't call OS/graphics APIs. Removed the two exceptions (`Renderer.cpp`, `ImGuiLayer.cpp`) from `tools\check_platform.ps1`, and graphics API headers are allowed only in `rhi/<api>/`.
+- **Build**: `build.bat Vulkan` (`build\Vulkan`, Release game) and `VulkanEditor` (`build\VulkanEditor`, editor + game DLL. The editor picks the game DLL/play files/[Build] commands by its own build folder name `editorBuildName()`; a project's VulkanEditor uses the engine's `build\VulkanEditor`). Shaders are compiled by a pinned DXC (v1.9.2609; `cmake/Dxc.cmake` checks the SHA-256 and downloads it once to `%LOCALAPPDATA%\MealKit\tools`, overridable with `-DMEALKIT_SHADER_DXC`), and every build produces both DXIL and SPIR-V. The other backend's output goes to `shaders/other/` (for checks, not in the exe). The Windows SDK dxc can't produce SPIR-V, so it isn't used.
+- **External libraries**: Vulkan-Headers/volk `vulkan-sdk-1.4.357.0`, Vulkan Memory Allocator v3.4.0, `imgui_impl_vulkan` (same commit as ImGui). All MIT (Vulkan-Headers is Apache-2.0 OR MIT, taken as MIT).
+- **Verified**: three steps in `check.ps1` — the `VulkanEditor` build, comparing DX12 = Vulkan editor edit screen captures (`tools\compare_images.ps1`, pixels with channel difference over 2 at most 0.1%, excluding the status bar — actually max difference 1/255, 0 pixels), play with the validation layer on (0 messages, `SKIP` without the SDK). With synchronization validation (`VK_KHRONOS_VALIDATION_VALIDATE_SYNC`), 0 messages for editor play/game match/menu flow. On the DX12 side, the editor capture's 3D area differs from the pre-move HEAD build by 1/255 in 1 pixel (SM 6.0 → 6.6). Vulkan exe `--shadow --rewind-test` passes. 26 check.ps1 items passed.
+- **Left**: two things Best Practices validation reports — broad barrier access masks (`imageBarrier`, on purpose since there are only a few per frame), and filling only part of the 64-byte push constants. Tracy GPU time measurement on Vulkan. Confirming the DXC download on Windows CI after pushing. Timestamp queries are added in benchmark mode (GPU budget).
+- **Other backends (stage 5)**: Metal uses argument buffer tier 2; WebGPU has no bindless, so draws per material group (web preset, separate draw call budget). Shaders are converted from SPIR-V (candidates SPIRV-Cross, Tint/Naga), conversion at build time only.
+
+### [x] Code cleanup 4/5 — splitting editor panels, core include check (done 2026-10-19)
+- **4. Splitting `editor/Editor.cpp`** (1806 → 1500 lines): tuning documents, the project settings window, and project builds were pulled out into panel classes like [Tables]/[Feedback]. `TuningPanel` (game.tuning/view.tuning documents, play copies, resolving row references), `ProjectSettingsPanel` (holds only values being edited and changes the editor's `ProjectInfo` on save), `BuildPanel` (running `build.bat`/`upgrade_project.ps1`, collecting output, the [Build Log] window, status bar "Building"). Saving before building (scene/project settings for shipping) and what to do afterwards (reloading the DLL, rebuilding after an upgrade) stayed in the editor. Panel status messages go to the editor status bar via `takeStatus()`. Ctrl+S and [File] > [Save] use the same `Editor::saveAll()`. `BuildKind` moved to `BuildPanel.h` (still named `editor::BuildKind`). No behavior change.
+- **5. Core → view-side include check** (`tools\check_layers.ps1`): checks that files in `MEALKIT_CORE_SOURCES` in `engine/CMakeLists.txt` include only headers from the same list. The folder order check couldn't catch core → `Frontend.h`/`GameMain.h`/`FrameStats.h` includes within the same `game/`, which only showed up at link time on Linux/macOS CI. Header-only `game/BuildInfo.h`/`platform/Input.h`/`platform/Gamepad.h` (used by core input actions) moved into the core list then (same build result). Check 7 in `docs/CODING_MODEL.md`.
+- **Verified**: 23 check.ps1 items passed, confirmed the check fails when `Frontend.h` is deliberately put in a core file, editor captures (project settings window/tuning panel).
+
+## v0.5.0 — stage 1 done (2026-10-19)
+
+Finished the last item of stage 1 ("the minimum features to make a game") and bumped to v0.5 (ROADMAP "Versions": v0.n = the engine that finished stage n).
+
+### [x] Reference sample (done 2026-10-19)
+- **v0.5 criteria**: the sandbox (physics party battle) runs all the way through title → menu → lobby (LAN room/address/Steam, name/body/ready/chat) → loading → match (countdown/2 minutes/HUD/pause) → results → lobby. All stage 1 features (sound, UI, input/gamepad, settings, saves, loadouts, screen flow, network display, accessibility, versions) are used in this sample.
+- **Verified**: check.ps1 "Game screen flow (title to match)" (title → solo → start with `--ui-press`), two-process LAN join/ready/start, results → lobby → second match, `mp_test` 1+3 (windowed/headless, including network simulation), clang-cl client comparison, 60 Hz.
+- **Passed over since they don't block v0.5**: game screen UI part 2 (Penpot plugin, once there's a designer), code cleanup 3~7, scenario tests for game code. They remain in the ROADMAP stage 1 section.
+- **Impact**: engine version 0.5.0. Existing projects upgrade the template with `tools\upgrade_project.ps1`, and to use the screen flow either `-Source` (game code to the sample, with backup) or take the sandbox's `app/Flow.*`/`Screens.h`/screen `.ui` files. Docs repo `ENGINE_VERSION` 0.5 (0.4 docs on the `0.4` branch).
+
+## v0.4.31 — stage 1 in progress (2026-10-19)
+
+### [x] Version display and connection rejection reasons (done 2026-10-19)
+- **Why**: connections were rejected when executables/data differed but the reason wasn't known, and comparing the executable id (compile time) also blocked builds that differed only in view code.
+- **Build info** (`cmake/BuildInfo.cmake` → `<game>_build_info/mealkit_build_info.h`, every build, rewritten only when changed): game version (`mealkit.project` `version`, default 0.1.0), the project folder's git commit (`+` if files are modified), **simulation version** = SHA-1 of the game version + sources that touch the simulation (game `sim/`, headless file, simulation files of engine `core`/`net`/`physics`/`sim`/`data`/`scene`/`asset`/`game`, Jolt `mealkit.txt`) (LF line endings, relative paths). The same source gives the same value across OSes/compilers. `game::BuildInfo` and `MEALKIT_THIS_BUILD` (only game targets see the header) → `GameMainSpec::build`, `GameModule::build` (`kApiVersion` 21), headless.
+- **Display**: window title `Game v0.1.0 | …`, startup log `Build: version …, commit …, simulation …, msvc-x64`, sandbox title (`v0.1.0 (commit) · MealKit 0.4.31`) and lobby corner.
+- **Connection comparison** (`net/Lockstep.*`): instead of the executable id, determinism group (`determinismGroup()`: `msvc-x64`/`clang-x64`/`clang-arm64` …, rejected if different until real-hardware determinism is verified) → simulation version (`setBuild`, `buildId` if absent) → content hash (`setContentParts` also sends the five components scene/models/tuning/project/tables). The reject packet carries the reason/differing components/host's game version/group so the client knows via `rejectInfo()`. `--any-build` skips the first two. `game::MatchData::contentParts`.
+- **LAN rooms**: announcements carry the simulation version/game version/group (format version 2), and the join list shows "Different version (1.3)"/"Different data".
+- **sandbox**: the notice screen shows rejection reasons from the string table ("Your game version differs from the host's (mine 1.2 / host 1.3)", "Your game data differs from the host's: tuning", title "Can't join the room").
+- **Shipping folder**: with `mealkit.project` `exportVersionFolder` (off by default) on, `export\<name>-<version>\`.
+- **Verified**: unit test `join_reject_reasons` (a different simulation version gives Version + host version, different tuning/tables give Content + that component). Joining with different tuning in two windows → capture of "Your game data differs from the host's: tuning". check.ps1.
+- **Impact**: existing projects get the build info header too (`mealkit_add_game`). Editing engine core folders changes the simulation version (conservative). `docs/DECISIONS.md` 2026-10-19.
+
+## v0.4.30 — stage 1 in progress (2026-10-19)
+
+### [x] Tick rate as a project setting (done 2026-10-19)
+- **Why**: it was fixed at 30 Hz. Action games with few objects do better at 60 Hz for responsiveness/collisions.
+- **Setting**: `mealkit.project` `tickRate` (30 default, 60 optional, 10~120). Goes into the content hash (everyone must match). `game::applyTickRate` sets the process tick rate (`reflect::setTickRate`): in `loadMatchData` (shipping exe/headless/editor play/join windows) before reading time fields (seconds in tuning/scenes/tables), and in the editor when opening a project and saving project settings (from the next play).
+- **Engine**: `game::tickDt()`/`msToTicks()` (`mealkit/game/ProjectSettings.h`). The headless loop uses `tickDt()` instead of `Game::kTickDt`, so headless classes no longer need `kTickDt`. `--delay` is now in **milliseconds** (default 100; ticks are computed after reading the project), and editor play is 100 ms too. Automatic input delay already computed with the tick length.
+- **sandbox** (template): removed the `kTickRate`/`kTickDt` constants in `sim/World.h` in favor of `World::tickRate`/`tickDt` (received by `reset` at match start; `Headless::startWorld` passes `reflect::tickRate()`). Movement acceleration/physics steps/countdown seconds use these. 30 Hz results unchanged (fixed recording hashes unchanged).
+- **Impact**: existing projects build as is (the headless class's `kTickDt` goes unused). To change `tickRate`, move the game `sim/`'s tick constants into `World` like the sandbox.
+- **Verified**: headless 1+3 for 1800 ticks PASS with `tickRate 60`, shadow simulation matches, HUD remaining time is correct in seconds (1:51 at tick 690 = 11.5 seconds). check.ps1 at 30 Hz.
+
+## v0.4.29 — stage 1 in progress (2026-10-19)
+
+### [x] Basic accessibility bundle (done 2026-10-19)
+- **Reducing shake/flash/hitstop**: player settings `gameplay.shakeScale`/`flashScale` (0~100%, sliders in the settings screen [Game] tab)/`hitStop` (toggle). The settings service passes them via `feedback::Player::setAccessibility`, and the feedback table is left as is while results (camera shake value, screen color amount) are multiplied. With hitstop off, `hitStop()` is always false. `settings::Service::Targets::feedback`.
+- **Subtitles**: `subtitle` (game string key)/`subtitleSeconds` (2.5) columns in the sound event table (`audio::SoundEvent`). Playing adds a line to `audio::Engine::subtitles()` (the same key is one line, only extending the time, independent of volume/mute), and `game::Frontend` opens the standard subtitle screen (layer 5, view model `SubtitlesVm` with the last 4 lines) when the player setting `gameplay.subtitles` is on and the project has `assets/ui/subtitles.ui`.
+- **sandbox**: subtitles for the push/jump pad/appear/fall sounds (`sub.*` strings), `assets/ui/subtitles.ui` in the template.
+- **Left**: the three color blindness correction LUTs in the stage 2 post-processing item (as on the roadmap).
+- **Determinism**: no effect (view side only).
+- **Verified**: a "[pushing sound]" subtitle in a bot match capture, check.ps1.
+
+## v0.4.28 — stage 1 in progress (2026-10-19)
+
+### [x] Predict only my character's appearance (done 2026-10-19)
+- **Why**: input delay (60~270 ms) makes my controls feel late. Rollback netcode isn't done, per the deferred table.
+- **Engine** (`game::Simulation`): keeps my inputs sent but not yet executed in target tick order and provides them via `forEachPendingInput(f(tick, input))` (n of them for an input delay of n ticks; ticks overlapping because the delay shrank aren't included).
+- **sandbox** (`view/Prediction.*`, template): for each not-yet-executed move input, adds the distance traveled in one tick (the same speed as the simulation's `movePawn`, body kind scale) and draws my character/camera focus/name tag ahead, smoothly following that offset (`view.tuning` `prediction`: on, max 1.5 m, follow 14/s). Only during play and when I have a character. As the confirmed state catches up, the offset shrinks by itself.
+- **Limits**: only horizontal movement is predicted. Jumps/pushes/collisions with other characters/boxes, and effects (push ring), show at the confirmed position.
+- **Determinism**: no effect (`view/` only, it only reads simulation state).
+- **Verified**: captures of a two-window match with `--delay 8` confirm my character is drawn ahead of its confirmed position, check.ps1.
+
+## v0.4.27 — stage 1 in progress (2026-10-19)
+
+### [x] Automatic input delay adjustment (done 2026-10-19)
+- **Why**: input delay was fixed at `--delay 3` (100 ms), long on LAN and too short for distant peers, so matches stuttered waiting for input (12 ticks per second at a 240 ms round trip).
+- **Initial value**: `LockstepSession::setAutoDelay(AutoDelay{enabled, tickMs, minTicks, maxTicks})`. At `startMatch` the host takes the largest round-trip time measured in the lobby, computes `delayForRtt` (round trip × 1.25 + one tick, rounded up to ticks, between min and max), and sends it in the start packet.
+- **Mid-match**: the host rechecks every second and sends an **engine confirmed command** (type `mealkit.net.InputDelay`; the same path as game commands, so it's in input recordings too; the game's `forEachCommand` skips it as an unknown type) that raises to the needed value at once, or lowers by 1 tick when more than 2 ticks are left over (3 seconds between changes). All peers change right after running the tick containing that command, so it applies from the same tick. Empty ticks created when it grows are filled with each peer's last input, and inputs for overlapping ticks are skipped when it shrinks (the host doesn't change confirmed ticks). It can also be changed directly with `requestInputDelay(ticks)`.
+- **Settings**: `inputDelayAuto` (on by default)/`inputDelayMinMs` (60)/`inputDelayMaxMs` (270) in `mealkit.project`, outside the hash (decided by the host). The shipping exe/headless enable it (`autoDelayOf`), and `--delay <ticks>` fixes it. Editor play stays fixed at 3 ticks as now. With `MatchService::slowPlayers()` the lobby warns about people farther than the cap (sandbox `lobby.slow`).
+- **Determinism**: the delay only changes delivery timing. The tick where it changes is the same for everyone via the confirmed command.
+- **Verified**: unit test `input_delay_change` (3 → 7 → 2 ticks mid-match, both peers change on the same tick with the same input sums, `delayForRtt` values). `mp_test` windowed 1+2 `-Lag 80 -Jitter 20 -Loss 3`: rose from 2 → 8 ticks and 600 ticks took about 25 seconds (48 seconds before); headless 1+3 `-Lag 120 -Jitter 40 -Loss 5` PASS.
+- **Left**: defaults/caps per platform kind (wired PC/console/mobile/web) from measurements when that platform starts (stage 5). Blocking peers beyond the cap via game settings when it becomes necessary.
+
+## v0.4.26 — stage 1 in progress (2026-10-19)
+
+### [x] Network display for players (done 2026-10-19)
+- **Why**: in lockstep everyone stalls when one person is slow, but the numbers were only in the dev window title/F1, and players didn't know who caused a stall.
+- **Session**: the host measures round-trip time per client during lobby/match (clients echo the host time in lobby/bundle packets back in join request/input packets, exponential average). Everyone's values ride in the lobby roster (`LobbyMember::pingMs`) and bundles, so `pingMs(player)` is the same on all peers. When the confirmed tick stalls for over 0.15 seconds, players whose input for that tick is missing ride in the bundle as `waitingFor()` (bits); clients mark the host (bit 0) when no bundle has arrived for over 0.3 seconds. A roster (`Roster` packet: name/ping, doesn't send anyone to the lobby) is sent every 0.5 seconds during the match too, so clients that started via auto-start before receiving a lobby signal know names as well.
+- **Display** (sandbox template): per-player ping on the HUD scoreboard (green, red at `view.tuning` `badPingMs` 150 or more, names ellipsized), "Waiting for P3..." at the top on stalls (string `hud.waiting`), ping in lobby rows. Turned off with player setting `gameplay.showNetwork` (settings screen [Game] tab). Not shown in solo play.
+- **Determinism**: no effect (numbers outside ticks).
+- **Verified**: the `net_conditions` test gained checks for the ping measured by the host and that both sides wait for player 1 when the client stops sending input. Ran a two-window match with `--net-lag 400` and checked the HUD.
+
+## v0.4.25 — stage 1 in progress (2026-10-19)
+
+### [x] Simulating network conditions (done 2026-10-19)
+- **Why**: same-PC tests have near-zero latency, so automatic input delay/disconnect handling couldn't be tested without real friends.
+- **Approach** (`mealkit/net/Conditions.h`): the `withConditions(transport, {delay, jitter, loss})` wrapper drops sent and received packets each with the loss probability, and holds the rest in a queue for half the delay + 0..jitter before releasing them (order can change). It wraps any transport, UDP or Steam. `LockstepSession::setConditions` (before host/join, survives `reset`), match options `--net-lag <ms>` (round-trip time)/`--net-jitter <ms>`/`--net-loss <%>` (shipping exe/headless, `MatchServiceConfig::conditions`), `mp_test.ps1 -Lag -Jitter -Loss` (all peers, also extends the time limit).
+- **Determinism**: no effect (only delivery timing). The randomness is a `Pcg32` outside the simulation.
+- **Verified**: unit test `net_conditions` (90 ticks at 60 ms/jitter 30/15% loss, both sides' input sums match and the client rtt shows the delay). `mp_test -Headless -Clients 3 -Lag 120 -Jitter 40 -Loss 5` PASS, windowed 1+2 `-Lag 80 -Jitter 20 -Loss 3` PASS. When the round trip exceeds the input delay (100 ms), the match slows waiting for input (12 ticks per second at about 240 ms) — fixed by the next item "Automatic input delay adjustment".
+
+## v0.4.24 — stage 1 in progress (2026-10-19)
+
+### [x] Basic screen flow template + LAN room search + text chat (done 2026-10-19)
+- **Why**: host/join could only be chosen on the command line, and a session ended after one match, so there was no going back to the lobby after the results. The central item of the v0.5 goal ("the reference sample runs title → lobby → match → results → lobby all the way").
+- **Session** (`net/Lockstep.*`): multiple matches in one session — `returnToLobby()` (host; clients return on receiving the lobby signal, and ready is cleared), `matchIndex()` (carried in start/lobby signals to drop late start/input/bundle packets from previous matches), `openOffline()` (solo play starts at the lobby too), `reset()` (to Idle, name/content hash remain). Lobby info: `setLocalName`/`setLocalReady`, `lobbyMembers()` collected by the host (index/name/ready/host/loadout; if a lobby signal can't hold them all, the next one continues). Indices of people who left are reused and renumbered without gaps at start. `net::buildId()`/`clampUtf8` made public.
+- **Chat**: `sendChat(line)`/`chatLog()` (last 50 lines). Client → host (resent every 0.1 seconds until acknowledged), the host numbers them and relays to everyone in the same order (resent until acknowledged). 120 bytes, one line per 0.5 seconds. Outside ticks, so not in input recordings/replays.
+- **LAN room search** (`net/Rooms.h`): during the lobby the host sends room announcements (game name, build/content hash, player count, port, host name) every second via broadcast and to 127.0.0.1 (only 127.0.0.1 with `--local`), and the join menu listens on UDP 27199 shared with others (`SO_REUSEADDR`). Same game only, grayed out if version/data differ. `UdpSocket::openShared`/`enableBroadcast` and `userName()` in the platform layer.
+- **Engine `game::MatchService`** (`mealkit/game/MatchService.h`, `GameContext::match`): holds the session, with functions called by menus `playOffline`/`host`/`hostOnline` (Steam)/`join`/`joinOnline`/`start`/`returnToLobby`/`leave`/`setBrowsing`/`rooms`, and the phase `phase()`. The shipping exe/editor play/join windows each have one (the command line uses the same functions). Steam login at startup if included in the build (the menu's Steam button, accepting a friend invite → join right away). The default name is the online account → the computer user name.
+- **`GameInstance`** (`kApiVersion` 20): `menus()` (if true, runs without a command line start at the menu and the engine doesn't use Esc/Enter; old games returning false behave the same), `stop(ctx)` (once when Running ends — to lobby, left, disconnected). The engine calls `start` one frame (loading screen) after becoming Running. `stateHash`/`activeBodies`/`stateView` are called before the match too (0/empty values). `GameContext::scene` (background behind menus). `Window::close()`.
+- **Game UI**: text input widget `textInput <field> [action]` (text node, `placeholder`, `maxLength`): keyboard text (`Input::text`, `WM_CHAR` UTF-16 → UTF-8, Korean IME composition results)/backspace, action on Enter (default `submit`), stop on Esc, and the game doesn't receive the keyboard while typing. `System::focusText`/`editingText`/`pressAny`.
+- **Test options**: `--frames <n>` (draw and finish; if `--capture <png>` has no tick, the last frame), `--ui-press <frame:node,...>` (press widgets by name). check.ps1 "Game screen flow (title to match)".
+- **sandbox** (template): `app/Flow.*` (screen selection/buttons), `app/Screens.h` (view models), screens `assets/ui/{title,menu,join,lobby,loading,pause,results,message}.ui`, countdown/"Start!"/remaining time/chat on the HUD. Simulation match phase `MatchPhase` (3-second countdown → 120-second match → end, tuning `countdown`/`matchLength`, no input/AI/scoring meanwhile, events Countdown/MatchStart/MatchEnd → feedback table). Results ordered by fewest falls; the host takes everyone to the lobby with a button or after 20 seconds (`view.tuning` `resultsSeconds`). Lobby: name (save `playerName`), body selection (loadout), ready, chat, host start (when everyone is ready). Pause (Esc/Start): solo play pauses the match, multiplayer only shows the menu. Input actions `menu.pause` (Esc, Start)/`chat.open` (Enter), removed the pad Start from `menu.settings`.
+  State fields grew, so the fixed recording was regenerated (`arena_4p_seed7.rec`, final hash `6f09aeef2d0059f3`).
+- **Verified**: unit test `lobby_chat_rematch` (UDP loopback: lobby list/loadouts, chat order, match → lobby → second match, someone leaving, LAN room announcements). With two processes, LAN room search → join → ready → start, and solo results → lobby → second match checked with `--ui-press`. Full check.ps1.
+- **Left**: the Steam lobby flow was only compile-checked (real connections assumed per the 2026-10-18 decision). No profanity filter/reporting in chat (as on the roadmap). No text input with gamepads (on-screen keyboards in the console item). Disconnect reasons are still English log sentences (moved to string keys in the "Version display and connection rejection reasons" item).
+- **Impact**: existing projects build and behave as before (`menus()` defaults to false). To use the flow, take the sandbox's `app/Flow.*`/`Screens.h`/screen `.ui` files/strings/binding lines (`tools\upgrade_project.ps1 -Source`).
+- **Build note**: when the console is UTF-8, like the agent shell, MSVC's `/showIncludes` lines don't match ninja's prefix (CP949), so header dependencies aren't recorded. Build with `cmd /c "chcp 949 >nul & build.bat"` (otherwise stale objects remain when only headers change).
+
+## v0.4.23 — stage 1 in progress (2026-10-19)
+
+### [x] Code cleanup 1/2 — match data in one place, one set of match options (done 2026-10-19)
+- **Why**: the shipping exe (`GameMain.cpp`), headless (`loadHeadlessData`), and editor play/join windows (`playContentHash`) each read scene/tuning/game project settings and passed the same seven things to `contentHash`. Missing one in a single place would split peer hashes or recording replays. The command line was also two sets, `parseArgs` and `parseHeadlessArgs`, with two `--help`s. They were merged before the basic screen flow fills the same values from menus.
+- **Match data** (`mealkit/game/GameData.h`): a single `game::loadMatchData(GameTypes, MatchDataOptions, models, MatchData&)` builds project settings (found next to the executable or passed by the editor) + game `game.*` values, the scene (passed scene / file / start scene, default arena if none), tuning, and the content hash. Game types are `GameTypes` (object kinds/tuning/game project settings/tables): `gameTypes(module)` for the shipping exe/editor, from the game class for headless. This function is now the only caller of `contentHash`. `HeadlessData`/`loadHeadlessData` are gone.
+- **Match options** (`mealkit/game/GameOptions.h`, engine core): `MatchOptions` (create/join room/Steam/player count/seed/automated test output; the old `HeadlessOptions` remains as another name for the same type) and `WindowOptions` (window/renderer/view tests), with a single parser `parseGameArgs(argc, argv, match, window)` and `printGameUsage` (match/test/window groups). Headless doesn't pass `window`, so it accepts and ignores window options, and Steam/`--replay-inputs` are accepted on only one side. The game headless class's `defaults` now takes `game::MatchOptions&` (sandbox).
+- **Impact**: `kApiVersion` unchanged. Existing projects' `defaults(game::HeadlessOptions&, …)` still build. In the shipping exe a bad scene file now fails after creating the renderer instead of before creating the window.
+- **Verified**: check.ps1 -Quick (determinism 1+3, headless recording/replay, fixed recording hashes unchanged).
+
+## v0.4.22 — stage 1 in progress (2026-10-19)
+
+### [x] Merging frame loops — `game::Frontend` + the engine's shipping exe main (done 2026-10-19, outside the roadmap)
+- **Why**: the view-side loop of windowed games was copied in three places: the shipping exe (sandbox `app/main.cpp`, 558 lines, game code so a copy per project), editor play (`PlaySession::update`), and join windows (`runPlayer`). Every added service (sound/feedback/input actions/pads/strings/UI/settings/performance numbers) meant editing those three plus every project's `main.cpp`, and the update orders differed slightly. The next item, the basic screen flow, was about to become a fourth copy.
+- **Service bundle** (`mealkit/game/Frontend.h`, `docs/CODING_MODEL.md` "Frame loop for running windowed games"): `game::Frontend` holds input actions/gamepads/string tables/game UI/player settings/view tuning (`LiveTuning`). `init(FrontendConfig)` (reads bindings/strings/UI/settings; window to apply display items to, settings file, view tuning type), `context()` (`GameContext`), every frame `update(now, dt, input, padAllowed, ctx)` (strings → view tuning → pads → UI takes mouse/keyboard first → settings screen → actions), `afterBuildFrame(frame)` (world-space UI camera, listener position, feedback screen color), `renderUi`. Sound/feedback are created by the owner and lent (the editor shares them with the [Sound]/[Feedback] previews).
+  The shipping exe, editor play, and join windows all use it. Editor play calls `init` on the first `update` that receives the renderer (rereading every play), and pads are passed even when the UI takes the keyboard (before, they were blocked so game UI couldn't be navigated with a pad).
+- **The engine's main** (`mealkit/game/GameMain.h`): `game::runGame(argc, argv, GameMainSpec)` does exactly what the sandbox `main.cpp` did: the command line and `--help` (named after the exe), `--system-info`, project/scene/tuning/content hash, sessions (solo/host/join/Steam lobby), `Frontend`, debug UI (F1), automated test output (`FINAL`, `SHADOW`, `REWIND`, `perf:`), and the window title (string keys `game.title`, `title.*`). Game types come from `GameModule` (the same info as the editor DLL; `gameModuleOf<GameClass>` makes it for both macros), and default port/player count from the headless class's `defaults()`.
+  The game's `app/main.cpp` is a single line `MEALKIT_GAME_MAIN(sandbox::GameSession, sandbox::Headless)` (this macro also splits off `--headless`). The shipping exe also uses `GameInstance` virtual calls (a few per frame).
+- **Changed behavior**: the sandbox-only `F8: shockwave` dropped out of the debug UI help line (it's a button in the sandbox debug UI). `--bodies` remains as another name for `--match-data`.
+- **Impact**: `kApiVersion` unchanged (the `GameModule` shape is the same). Existing projects' `main.cpp` still builds, but to keep up with engine features change it to the one line like the sandbox (`tools\upgrade_project.ps1 -Source` replaces all game code with the sample). The template descriptions (CLAUDE.md, README, CMakeLists comments) were fixed and the version bumped.
+- **Verified**: check.ps1 (shipping exe determinism/shadow/rewind/capture, editor play solo/3 players, new project + upgrade).
+
+## v0.4.21 — stage 1 in progress (2026-10-19)
+
+### [x] Gathering performance numbers into one — `game::FrameStats` (done 2026-10-19, outside the roadmap)
+- **Why**: code collecting and showing performance numbers existed separately in three places: the game exe (sandbox `app/main.cpp`: 0.25 s averages, a hand-made `snprintf` line, and the F1 overlay splitting that text on `" | "`), the editor status bar (exponential fps average), and the editor play status line (calling `takeSimMsPerTick` directly). The same fps was computed differently per screen, and with two places calling `takeSimMsPerTick`, which empties on read, they split the values. The benchmark report (stage 2) and performance panel (stage 4) were about to become a fourth and fifth copy.
+- **Approach** (`docs/CODING_MODEL.md` "Collecting and showing performance numbers"): measurement stays in each subsystem's `stats()` (`RenderStats`, `net::SessionStats`, `audio::Stats`, `GameInstance::takeSimMsPerTick`). `game::FrameStats` in `mealkit/game/FrameStats.h` gathers them. The engine loop calls `update(dt, FrameSources{renderer, session, audio, game})` every frame, which returns `true` on the frame where a report period (default 0.25 s) ends. Then `sample()` (`FrameSample`: average/**worst** frame, fps, tick/simulation time, players/rtt/bandwidth/desync, draw calls/instances/vsync, voices/sound time), `line()` (" | " separated), and `lines()` (one line per item) are read. Items from `nullptr` sources are omitted.
+  A global registry (`profiler::record`) wasn't used since it's global state that gets read (lower layers don't call upper ones), and since it's view-side gathering it lives in `game/` (front sources, outside the headless core). Timing inside functions stays Tracy `MEALKIT_ZONE`.
+- **Users**: the sandbox window title/F1 overlay/automated run `perf:` log (same format with `(worst N)` added), the editor status bar fps, tick/simulation time in the editor play status line.
+- **Verified**: unit test `frame_stats` (periods, average/worst, text without sources, reset between periods). check.ps1.
+- **Impact**: `kApiVersion` unchanged (boundary functions didn't change). Existing projects' `app/main.cpp` still builds; to use the same numbers switch to `FrameStats` like the sandbox.
+
+## v0.4.20 — stage 1 in progress (2026-10-19)
+
+### [x] Engine folder layering cleanup + check (done 2026-10-19, outside the roadmap)
+- **Why**: we reviewed "keep only the core and modularize the rest". Build modules that toggle subsystems (sound/UI/settings/feedback/online) gain little (shipping exe 2.4 MB / budget 5 MB, the general-purpose editor is a single `mealkit.dll`, `GameContext` holds services by reference), so they weren't made; instead include direction between folders was made one-way and fixed with a check (`docs/DECISIONS.md` 2026-10-19). Modularizing game features is stage 4 source modules as planned.
+- **Order** (`docs/CODING_MODEL.md` "Dependencies between engine folders"): `core`/`platform` → `net` → `physics` → `sim` → `data` → `loc` → `scene` → `rhi` (stage 2) → `render` → `asset` → `online` → `debug` → `input` → `audio` → `ui` → `feedback` → `settings` → `game` → `editor`. A folder includes only earlier folders. `platform/<os>/` implementation files are excluded and covered by `check_platform.ps1`.
+- **Fixed places that were backwards**:
+  - Table file reading `mealkit/game/Tables.h` → new folder **`mealkit/data/Tables.h`**, namespace `game::` → **`data::`** (`data::loadTable`, `data::resolveRows`, `data::TableText` …). The dependency where input bindings/sound events/feedback tables reached up past the game boundary (`game/`) is gone. Game code uses `mealkit::data::loadTable` instead of `mealkit::game::loadTable` (sandbox `app/Headless.cpp`, template CLAUDE.md, docs repo "Assets").
+  - Gamepad state `input::PadState`/`input::pad::A …` → **`PadState`/`pad::A …`** in `platform/Gamepad.h` (namespace `mealkit`, the same place as keyboard `key::`). The cycle where the platform layer included the input action header is gone.
+- **Check**: `tools\check_layers.ps1` — fails when including a folder later in the order or when a folder not in the order appears (check.ps1 "Engine layers", CI Windows check step). Currently 110 files and 240 cross-folder includes pass.
+- **Impact**: the game DLL boundary (`kApiVersion`) is unchanged. Existing projects' game code changes `game::loadTable` → `data::loadTable`, `#include "mealkit/game/Tables.h"` → `"mealkit/data/Tables.h"`.
+
+## v0.4.19 — stage 1 in progress (2026-10-19)
+
+### [x] Match start data — per-player loadouts (done 2026-10-19)
+- **Why**: the only values sent to everyone at match start were `seed` and `matchData` (one u32), so there was nowhere to bring each player's chosen character/gear into the match.
+- **Network** (`net/Lockstep.*`): `setLocalLoadout(bytes)` (before the match, `kMaxLoadoutBytes` 128 — reduced from the roadmap's 256 so 8 players fit in one start packet). Clients send it in lobby signals (join requests, every second/immediately on change), and at `startMatch` the host confirms its own and everyone's and puts them in the start packet. Solo play takes the same path. `loadout(player)`.
+  A value changed right before start may be missed if the host hasn't received it yet (the lobby screen confirms it before starting — screen flow item).
+- **Game side** (`mealkit/game/Loadout.h`): `game::setLoadout(session, value)` / `game::readLoadout(match, player, value)` — values are a `MEALKIT_STRUCT` (memcpy, no strings, first 4 bytes are a type hash). `loadouts` in `game::MatchInfo`, `game::matchInfo(session)`.
+  `GameInstance::lobby(session, options, userFolder)` (`kApiVersion` 19): the engine (shipping exe, editor play/join windows) calls it every frame before the match starts (for solo play, right before opening the session). An optional function `botLoadout(player, session)` in the headless contract.
+- **Input recording version 3**: loadouts per player in the header → replays/CI recreate the same match. Versions 1/2 are still read.
+- **sandbox**: definition data table `tables/bodies.table` (`BodyKind`: normal/light/heavy, move speed/mass scales; a simulation table, so in the content hash), loadout `Loadout{body}` (`app/Loadout.h`); match start copies it into `PlayerSlot::body` (a state field), read by movement/Pawn mass (AI uses the first row). Humans use `body` from the save, bots a different body per player.
+  State fields grew and bot bodies changed, so the fixed recording was regenerated (`arena_4p_seed7.rec`, final hash `ccfe93aa4c49525b`).
+- **Determinism**: loadouts are copied into state fields and go into the state hash/snapshots. Invalid values (items not owned) can't be blocked (server validation is in the deferred table). Missing row indices fall back to the first row.
+- **Verified**: the `command_channel` test gained UDP loopback loadouts (same values on both sides, other types not read) and a recording header round trip. `mp_test` headless 1+3 PASS.
+
+## v0.4.18 — stage 1 in progress (2026-10-19)
+
+### [x] Saves — progress data (done 2026-10-19)
+- **Why**: if each game saved data that persists outside matches (unlocks/stats/inventory) in its own way, format changes and cloud support would be rebuilt every time.
+- **Approach** (`mealkit/game/Save.h`, engine core): one game `MEALKIT_STRUCT` via `game::writeSave(data, ctx.userFolder, "name", version)` / `readSave(...)`. The file is `saves/<name>.save` in the user folder, first line `# MealKit save (type)`, `version N`, then the field text ("path value").
+  On read, unknown fields are dropped and missing fields get defaults. If the file version is lower, `migrate(file version, lines)` gets a chance to fix lines (moving renamed fields). If higher, a warning. Writes go to a temp file then swap in (`writeTextFile`), keeping the previous file as `.bak`.
+- **`GameContext::userFolder`** (`kApiVersion` 18): the shipping exe/editor play use `game::userFolder(settings)`; automated runs (`--exit-tick`)/join windows get an empty string → no saving (so tests don't depend on PC state).
+- **sandbox**: `app/SaveData.h` (`SaveData`: matches started, times I fell, my pushes, play time), saved at match start/when I fall/every 30 seconds, "Record: fell N times · M min played" on the HUD.
+- **Not included (as on the roadmap)**: account servers/DBs (deferred table). Mid-match state saves (`WorldSnapshot` files) are the same data as stage 3 late join, so then. Cloud is Steam Auto-Cloud (specify `saves/` in Steamworks, no code), other platforms stage 3 EOS Player Data Storage.
+- **Verified**: unit test `save_files` (write/`.bak`/moving a field name via a version 1 → 2 migrate/new field defaults/missing file/no saving with an empty folder).
+
+## v0.4.17 — stage 1 in progress (2026-10-19)
+
+### [x] Settings system + standard settings screen (done 2026-10-19)
+- **Why**: almost every game rebuilds display/sound/key settings in the same shape. The engine provides the default screen and games only change its look.
+- **Schema** (`mealkit/settings/Settings.h`, field declarations): display (window mode windowed/borderless/fullscreen, window size, vsync, frame limit, render scale, graphics quality, field of view, brightness), sound (master/music/effects/interface/voice volume, mute when the window is in the background), controls (mouse/gamepad sensitivity, Y-axis invert), game (language, interface size, subtitles).
+  The file is `settings.ini` in the user folder (`game::userFolder`, "path value" lines, unrelated to the content hash).
+- **`settings::Service`** (`GameContext::settings`, `kApiVersion` 17): the engine (shipping exe, editor play, join windows) makes one, reads, and applies — window mode/size (`Window::setMode`, a new platform feature, monitor resolution list `displaySizes`), vsync, frame limit, audio bus volumes, focus mute, language (`Strings::load`), UI scale, sensitivity/invert (`Actions::setLookSettings`: the mouse/pad parts of `Delta2` actions, view side before quantization).
+  Games read with `values()` (sandbox: field of view). `open()`/`close()`, and the button action `settings.open` in any `.ui` opens the standard screen.
+  Fullscreen is a borderless window the size of the monitor (a flip model swap chain has the same latency without exclusive fullscreen). Render scale/graphics quality/brightness are only saved for now — used in stage 2 dynamic resolution/post-processing.
+- **Standard settings screen** (`assets/ui/settings.ui`, engine view model `SettingsVm`): the tab list and row list are filled from the schema (toggles/sliders/selects `<` `>`/keys). Games change only the design and keep bindings/`settings.*` actions. Navigable with keyboard/gamepad (`navigation`), Esc/B close.
+  Changing resolution/window mode shows a "Keep these settings? Reverting in N seconds" window and reverts unless [Keep] is pressed within 15 seconds. [Defaults for this tab].
+  Keys tab: a row per button action (excluding `ui.*`); pressing one rebinds to the next key (Esc cancels) and saves to `input.bindings` in the user folder, warns if the key is shared with another action, and [Defaults for this tab] restores all keys. Text comes from `settings.*`/`action.<id>`/`language.<code>` in the string table.
+- **Automated runs** (`--exit-tick`) use defaults and don't save (so this PC's settings don't change test results). With `--size`/`--vsync`/`--fps`, the command line wins over display items for that run. Editor play doesn't change the editor window's mode, and join windows don't save. `--settings` starts with the settings screen open.
+- **SimCheck**: also blocks including `mealkit/input/`, `mealkit/loc/`, `mealkit/feedback/` from `sim/` (`mealkit/settings/` was already blocked).
+- **sandbox**: HUD [Settings (F10)] button (`settings.open`), input action `menu.settings` (F10, pad Start), field of view from player settings, Esc doesn't quit the game while the settings screen is open.
+- **Verified**: unit test `settings_service` (opening the screen and pressing a toggle changes the value and saves it to the file, rereading gives that value, closing). `sandbox.exe --settings` capture.
+- **Left**: settings items added by the game (`GameClass::SettingsType`, `game.` prefix), rebinding axis actions (4 movement keys), button prompt icons, menu navigation with the gamepad stick.
+
+## v0.4.16 — stage 1 in progress (2026-10-19)
+
+### [x] Game screen UI part 1: `.ui` runtime + preview panel (done 2026-10-19)
+- **Why**: score/lobby state was shown only in the window title. A UI runtime is needed to build the sample's HUD/menus/settings/screen flow. Following the roadmap order, the runtime came before the Penpot plugin (part 2), and for now screens are written by hand as `.ui`.
+- **`.ui` format** (`mealkit/ui/Document.*`, `assets/ui/*.ui`): one property per line; nodes open with `board name 1920 1080` (root, logical units of the reference resolution) / `frame` / `text` / `image` / `use name component.ui` (reuse, overridden with `set child property value`) and close with `end`.
+  Layout: `pos`, `size number|hug|fill`, `min`/`max`, `margin`, `absolute`, `constraints left|right|leftright|center|scale top|...`, `rotation`, `opacity`, `hidden`, `clip`. Flex: `layout row|column [reverse] [wrap]`, `gap`, `padding`, `justify start|center|end|space-between|space-around|space-evenly`, `align`, `alignContent`, `alignSelf`.
+  Drawing: `fill #RRGGBB[AA]|$token|linear …|radial …`, `stroke`, `radius` (per corner), `shadow dx dy blur spread color` (multiple), images `src`/`slice` (9-slice)/`tint`. Text: `key stringKey` or `content text`, `font`, `fontSize`, `color`, `letterSpacing`, `lineHeight`, `textAlign`, `verticalAlign`, `underline`, `strike`, `transform`, `wrap word|syllable|none`, `overflow ellipsis`, `maxLines`, `span number properties…` (style of numbered tag `<1>…</1>`).
+  Bindings: `{field}`/`{field:n0|f1|time|pct}` in text, `visible [!]field`, `disabled`, `widthRatio` (health bars), `colorField`. Widgets: `button action`, `toggle field`, `slider field min max step`, `select field key1,key2` (`{option}` in text), `scroll [horizontal]`, `list field` (the first child is the repeated template, other children are examples). States: `on hover|pressed|focus|disabled|checked properties…`, `transition seconds`. Board lines: `navigation` (keyboard/gamepad focus), `firstFocus`, `back action`, `focusUp/Down/Left/Right name`.
+  Theme `assets/ui/theme.ui` (`color name #…`, `number name value`; color tokens resolved when drawing, number tokens when reading). If the first line is `# MealKit UI exported from Penpot`, it's marked as a plugin-produced file (part 2). Errors are `file(line): …`.
+- **Runtime** (`ui::System`, `mealkit/ui/Ui.*`, `GameContext::ui`, `kApiVersion` 16): `open`/`openWorld` (world-space templates)/`close`/`bind(screen, view model)`/`actions()`/`drawAt(template, 3D position, view model)`. The engine (shipping exe, editor play, join windows) calls `update` every frame (before game update: mouse/focus; the mouse over UI and focused widgets aren't received by the game) and `render` (after 3D, before debug UI).
+  Reading a `.ui` gives a depth-first node array, and lists expand to the view model count (again when the count changes). Scale = `min(width/board width, height/board height) × UI scale`; the root stretches to the whole screen and children attach via constraints. Flex follows CSS rules (fill = share remaining space, cross-axis stretch, wrapping, multi-line distribution).
+  Text: lines are broken in one pass across span boundaries (Hangul/Han/Kana per syllable, `word` only at spaces), kerning, line height/baseline with CSS half-leading, ellipsis (line limit/fixed height), underline/strikethrough. Fonts are found by file name in `assets/fonts`, and glyphs missing from a font are looked up in other fonts.
+  Controls: mouse (hover/press/click, slider drag, wheel scroll), input actions `ui.up/down/left/right/confirm/back` (only the topmost screen with `navigation` — so the HUD doesn't take movement keys): focus moves to the nearest widget in that direction, sliders/select boxes change value with left/right, and moving the mouse hides the focus indicator. Only input widgets write values into their own view model fields and fire actions (the given name or `changed`, with the changed field).
+  Files (.ui/theme/fonts/images) are reread within 0.25 seconds of changing. Diagnostics: `info` (node count, file/binding errors), `boxes` (per-node boxes — used by part 2 layout comparison), `layout` (layout without drawing), `press` (for tests).
+- **Drawing** (`shaders/Ui.hlsl`, `Renderer::drawUi`/`updateUiAtlas`): one 112-byte rectangle instance draws per-corner rounded rectangles/solid/linear/radial gradients/inner borders/blurred shadows/rotation/images/SDF text via pixel shader SDFs. No vertex buffer; the whole screen's UI is one draw call, premultiplied alpha, an overlay view without gamma conversion (colors as sRGB), at native back buffer resolution.
+  Two atlases (glyphs R8, images RGBA8, 2048²) upload only changed regions through the frame upload ring. Atlases are two SRV table slots (SM 6.0) — SM 6.6 bindless comes with the stage 2 RHI.
+- **Fonts/images** (`ui::Atlas`): only glyphs in use are baked to SDF at runtime (40 em pixels, padding 6). **The engine computes SDFs itself**: `stbtt_GetGlyphSDF` misses cubic curves (CFF `.otf`, Pretendard), making round strokes (ㅇ, 0) vanish, so stb_truetype's outlines are flattened into line segments and computed with distance/winding number (`docs/DECISIONS.md` 2026-10-19). Images via stb_image (PNG only). When an atlas fills up, it's cleared and rebaked.
+- **View models** (`core/Reflect.h`): `MEALKIT_VIEWMODEL(name)` (module list `reflect::moduleViewModels()`, `GameModule::viewModels`), `MEALKIT_LIST(row type, name, max, description)` = array + `nameCount`.
+- **Editor [UI] panel** (`editor/UiPanel.*`, [View] > [UI], `--ui <file>`): the list of screens in `assets/ui`, drawing the chosen screen over the scene view in edit mode. A frame matching the resolution aspect (16:9 1080p/720p, 21:9, 4:3, portrait), UI scale, language switch (text overflow), focus indicator, picking a game view model and entering fake values with field widgets, node count (budget 500), file/binding error list.
+- **sandbox**: HUD (`assets/ui/hud.ui`: player list — color/name/"me"/falls, match time, push ready bar, [Shockwave] button → `debug.shockwave` action → confirmed command, respawn hint) and name tags above characters (`nametag.ui`, world-space UI), theme, strings, input bindings `ui.*`. View models `HudVm`/`NameTagVm`/`PlayerRowVm` (`view/Hud.*`), view tuning `nameTagHeight`.
+- **Fixed**: join windows in editor multiplayer play sometimes failing to join — every editor process cleared `build\Editor\bin\hot\` on startup, so join windows launched at the same time deleted each other's just-copied game DLLs (`LoadLibrary failed (2)`). Now only its own copies and others' copies older than 1 minute are deleted (`GameModuleHost::load`).
+- **Engine**: `Input::mouseX/mouseY/mouseMoved` (cursor position), unit tests link the UI module in windowed builds (`MEALKIT_TEST_UI`).
+- **Verified**: unit test `ui_layout` (Flex margins/gaps/alignment/fill, constraints right/center/both, list count/excluding example children, visible bindings, toggles writing their field with `changed`, error line numbers). Game captures (1080p/720p) and editor play/preview captures. State hash unchanged.
+- **Left (within part 1)**: Grid layout (`layout grid` is still a read error — together with part 2's supported range), text input widgets (IME), rotation only affects a node's own rectangle (children/text don't rotate), layout is redone every frame for now (tens of µs per screen — "only changed nodes" when screens grow), menu navigation with the gamepad stick (currently the D-pad), button prompt icons (last device). Part 2 is the next ROADMAP item.
+
+## v0.4.15 — stage 1 in progress (2026-10-18)
+
+### [x] Localization string tables (done 2026-10-18)
+- **Why**: writing text directly in code while building UI means finding and replacing all of it later when adding another language. It comes before game screen UI.
+- **Format**: `assets/strings/<language>.txt`, one `key = string` per line (keys are letters/digits/`._-`, first character a letter), `#` comments, `\n` newlines, `{name}` placeholders, multiple style spans with numbered tags `<1>…</1>` (interpreted by the UI, the table returns them as is). UTF-8 BOMs are read too.
+- **`loc::Strings`** (`mealkit/loc/Strings.h`, engine core): `GameContext::strings` (`kApiVersion` 15). `get(key)`, `format(key, {{"name", value}})`, `has`, `languages()` (the settings screen's language list).
+  Keys missing from the chosen language come from the default language table; if missing there too, the key name is shown with one warning per key. Files are checked every 0.25 seconds and reread.
+  The default language is project setting `language` (default `ko`); the shipping exe changes it with `--lang <code>` (the player's chosen language once the settings screen exists). Editor play/join windows use the default language.
+- **Build-time glyph check** (`engine/tools/StringCheck.cpp` → `mealkit_stringcheck`, stb_truetype): before the game exe/game DLL, `mealkit_add_game` checks that every character in `assets/strings/*.txt` exists in one of the fonts in `assets/fonts` (`.ttf`/`.otf`/`.ttc` including subfolders).
+  If not, the build stops with `file(line): error STR001: U+XXXX ...`. With no fonts at all, nothing is checked (projects without game UI yet). Also exported to game projects in editor builds (`MealKitTargets.cmake`).
+- **Font**: `assets/fonts/Pretendard-Medium.otf` (Pretendard 1.3.9, SIL OFL 1.1, 1.5 MB) and the license `Pretendard-OFL.txt` (goes into the shipping notices automatically, v0.4.6 rule). `.otf`/`.ttf`/`.ttc` are binary in `.gitattributes`.
+- **sandbox**: moved the player-visible window title (game name, lobby/connecting/waiting/ended text) into `ko.txt`/`en.txt`. Performance numbers are for developers, so English as is. End reasons are still English engine text — changed to reason codes in the "Version display and connection rejection reasons" item.
+- **Engine**: `listFiles(folder, extension)` (`platform/Paths.h`).
+- **Verified**: unit test `strings_table` (reading/error lines/default language fallback/missing keys/`format`/language list/key rules). Putting characters missing from the font (☃, Han characters) stops the build with `STR001`. `--lang fr` warns and falls back to the default language.
+- **Left**: key attachment/tag export in the Penpot plugin is the game screen UI item, and language selection the settings screen item.
+
+## v0.4.14 — stage 1 in progress (2026-10-18)
+
+### [x] Debug UI (Dear ImGui) (done 2026-10-18)
+- **Why**: dev screens like performance/cheats/simulation state are quickly built by programmers in code. Not mixed with game UI (Penpot).
+- **Game side**: `GameInstance::debugUi(GameContext&)` (an empty function by default, `kApiVersion` 14). The engine calls it inside an ImGui frame, and the game wraps the body in `#if MEALKIT_DEBUG_UI` and uses `<imgui.h>` directly.
+  Buttons that change the simulation don't modify state; they send confirmed commands (the sandbox [Shockwave] button = the `DebugShockwave` command).
+- **Dev game exe** (`build\Release`/`Debug`/`Profile`): an overlay toggled with **F1** (ImGui is created when first turned on — reading fonts). The engine window "MealKit" (the window title's performance numbers, bottom left) and the game's windows.
+  Over debug windows the game doesn't receive keys/mouse (`WantCaptureKeyboard/Mouse` → `keyboardAllowed/mouseAllowed`). `--debug-ui` starts with it on (captures/automated tests).
+- **Editor**: during play, `debugUi` is called every frame inside the editor's ImGui frame. ImGui is put inside `mealkit.dll` (also in the export def), so the editor and game DLL use one ImGui and one context — the `SetCurrentContext` handoff written in the roadmap isn't needed. Not in join windows yet.
+- **Shipping build**: `build.bat Export` builds separately in **`build\Export`** with `-DMEALKIT_DEBUG_UI=OFF` (`docs/DECISIONS.md` 2026-10-18). No ImGui code/strings in the shipping exe (dev exe 2583 KB, shipping exe 2093 KB). The first Export builds the engine once more.
+- **Engine**: moved the ImGui glue layer from `editor/` to `mealkit/debug/ImGuiLayer.*` (shared by the editor/overlay; an empty ini path doesn't save window positions). ImGui is compiled separately as an OBJECT library (separating warning/UNICODE options) and put into the engine target, passing `MEALKIT_DEBUG_UI=1`/the imgui path to games. ImGuizmo is editor only.
+- **sandbox**: a "Sandbox" window (tick, players, Pawn/box/moving object counts, falls per player, [Shockwave]). The shockwave key collided with the editor's F6 (pause), so it moved to **F8**.
+- **Verified**: the window shows in editor play captures and `sandbox.exe --debug-ui` captures. No `ImGui` strings in the shipping exe. State hash unchanged.
+- **Left**: the overlay in join windows; stage 4 "Debug drawing API"/"Performance panel and budget warnings" sit on top of this.
+
+## v0.4.13 — stage 1 in progress (2026-10-18)
+
+### [x] Confirmed command channel (done 2026-10-18)
+- **Why**: lockstep sent only 8 bytes of player input per tick, so there was no way to send occasional commands of varying size like cheats, input delay changes, pause votes, or mid-match setting changes.
+- **Network** (`net/Lockstep.*`): `submitCommand(data, size)` (1..`kMaxCommandBytes` 200 bytes). The host holds received commands and puts them in **the tick it confirms** (the moment all inputs have arrived):
+  player index → received order, up to `kCommandBytesPerTick` 256 bytes per tick (2-byte header per command); on overflow that player's rest go to the next tick (order kept).
+  Commands go into `net::TickInputs` (`commandBytes` + `commands`) and are distributed with input bundles (the same redundant sending as inputs). Client → host they're numbered and re-sent in every input packet until the host acknowledges (`commandAck` in the bundle header), and the host drops duplicates by number.
+  Ticks with commands reduce the number of ticks that fit in a bundle packet (1200 bytes). Solo play takes the same path (put in the next tick).
+- **Game side** (`mealkit/sim/Commands.h`): command types are `MEALKIT_STRUCT`s in game `sim/` (sent via memcpy, so no strings/containers, `static_assert`), distinguished by a 4-byte hash of the type name.
+  The view side calls `sim::sendCommand(ctx.session, command)`, and at the very start of `World::step()` `sim::forEachCommand(tickInputs, ...)` + `c.read(out)`/`c.is<T>()`; `c.player` is the sending player.
+- **Recording**: commands are inside tick inputs, so they go into rewind/shadow simulation/`--record-inputs` automatically. Input recording files are **version 2** (per tick a u16 command byte count + bytes), and version 1 is still read.
+  An optional function `botCommands(tick, player, session)` in the headless contract (bot commands; `GameSession`'s `--bot` uses the same function).
+- **sandbox**: debug command `DebugShockwave` (`sim/Commands.*`: pushes boxes around the sending player's character with the push force, `Push` event), action `debug.shockwave` (F6), bots send one every 300 ticks.
+  Bot results changed, so the fixed recording `samples/sandbox/replays/arena_4p_seed7.rec` was regenerated (it now contains 12 commands, so CI compares command processing on all OSes too. Final hash `d5e47a38258e973e`).
+- **Verified**: unit test `command_channel` (solo: next tick, order, per-tick size overflow, recording round trip / UDP loopback host + client: the same commands on the same tick on both sides). `mp_test` 1+3 PASS, and old version 1 recordings still `REPLAY ok`.
+- **Left**: the engine-reserved command (input delay change) in the "Automatic input delay adjustment" item. `false` when the queue is full (256 on the host, 64 on clients).
+
+## v0.4.12 — stage 1 in progress (2026-10-18)
+
+### [x] Gamepads (done 2026-10-18)
+- **Approach**: platform layer `mealkit::Gamepads` (`platform/Gamepad.h`; on Windows XInput 1.4 in `win32/Gamepad.cpp`, linking `xinput`): 4 slots for Xbox/XInput-compatible pads. Connected slots are read every frame, unconnected slots via `XInputGetState` only once per second (about 14 µs for an empty slot, `docs/DECISIONS.md` 2026-10-18). Connects/disconnects are logged.
+  Sticks are -1..1 (y is + upward), triggers 0..1, and buttons are stored in `input::PadState` as `input::pad::*` bits. Deadzones are on the input action side (`deadzone` per row, circular for sticks).
+- **Binding source for input actions**: the engine (shipping exe, editor play, join windows) passes `first()` (the first connected pad) to `Actions::update` every frame. Not passed when the window has no focus (in the editor, when the game view isn't receiving the keyboard).
+  `-name` in the `pad` column is the negative side: two buttons make one axis like `pad DPadUp -DPadDown`. A trigger used as a button is pressed at 0.5 or more.
+- **sandbox**: `move` left stick, `jump` A, `push` right trigger/X; a new action `turn` (`Delta2`, right stick, `rate 500` — the same units as mouse pixels, so it shares `orbitSensitivity`) rotates the camera immediately without holding, while mouse `look` works only while the right button is held. D-pad up/down on `zoom`.
+- **Verified**: pad deadzones/`-name` in unit test `input_actions`. No change in shipping exe size (system DLL). **Not tested with a real pad** (no pad on this PC) — plugging one in logs `Gamepad 0 connected`.
+- **Left**: PlayStation/Switch pads (Windows.Gaming.Input/RawInput), vibration, multiple local players (currently only the first pad). Other platforms in stage 5.
+
+## v0.4.11 — stage 1 in progress (2026-10-18)
+
+### [x] Input action mapping (done 2026-10-18)
+- **Why**: game code checked `'W'`, `Space`, and mouse buttons directly, so key rebinding/gamepads had to be handled separately.
+- **Actions and bindings are data**: the engine table `assets/input.bindings` (engine row type `input::Action`, a view-only table — editor [Tables] panel, CSV). Row id = action name.
+  Columns: kind (`MEALKIT_ENUM ActionKind`: `Button`, `Axis` -1..1, `Axis2` length at most 1, `Delta`/`Delta2` change this frame), the player-visible name, keys (`Axis` in "negative positive" pairs, `Axis2` in fours "up down left right", `-` for an empty slot),
+  mouse (`Left Right Middle WheelUp WheelDown`, values `Wheel Move MoveX MoveY` — pixels/wheel notches as is), gamepad (`A B X Y ... LeftStick RightStick DPad LeftTrigger`), `rate` (amount per second for keys/sticks in delta actions), deadzone.
+  Unknown names warn on read. Files are checked every 0.25 seconds and reread (edits in the [Tables] panel during play apply immediately).
+- **`input::Actions`** (`mealkit/input/Actions.h`, engine core — headless unit tests use it too): the engine (shipping exe, editor play, join windows) makes one per window, passes it as `GameContext::actions` (`kApiVersion` 13), and updates it every frame before the game's `update`.
+  Games only read `down/pressed/released/axis/axis2("name")`. While not receiving keyboard/mouse (outside the editor game view, no window focus), everything is released. Multiple bindings add up (buttons OR, `Axis2` clamped to length 1). Missing actions give 0 and warn once per name. `lastDevice()` (for button prompts).
+  This item also built the slot for gamepad state (`input::PadState`) and deadzones (circular for sticks, rescaling the outside to 0..1). Actually reading pads is the next item (XInput).
+- **Keys rebound by the player**: `setBinding`/`resetBinding`/`saveUser` save only binding fields of rows differing from the project to `input.bindings` in the user folder (`game::userFolder(settings)` = user app data folder/<game name>), and on read overlay them on the project values (kind/name are the game's). Unrelated to the content hash. The rebinding screen is the "Settings system + standard settings screen" item.
+- **sandbox**: actions `move` (WASD/arrows, left stick), `jump`, `push`, `orbit` (rotate the camera while the right button is held), `look` (`Delta2`, mouse movement), `zoom` (`Delta`, wheel). `view/LocalInput` and `OrbitCamera::control` read only actions, and movement is quantized in the camera-relative direction by the length of `axis2("move")` (as far as the stick is tilted).
+  Added `Vec2` (`core/Math.h`). Engine/debug keys (Esc, V, F12, Enter/I in the lobby) stayed in `app/main.cpp` — moved to UI actions in the screen flow template item.
+- **Verified**: unit test `input_actions` (diagonal length, not allowed, press/release, deltas, deadzone, user file overlay/revert/name table). State hash unchanged (input byte format unchanged, fixed recording `REPLAY ok`).
+- **Existing projects**: without `assets/input.bindings`, a missing action warning appears and controls don't work. Copy that file from the sample and upgrade with `upgrade_project.ps1 -Source` (or move game code to actions).
+
+## v0.4.10 — stage 1 in progress (2026-10-18)
+
+### [x] Event → feedback table (game feel as data) (done 2026-10-18)
+- **Why**: attaching sound/shake to tick events required writing `view/` code (as did `view/Sounds.cpp` in the audio item). Let sound/VFX people tune game feel without programmers.
+- **`MEALKIT_ENUM(Name, Underlying, A, B, C)`** (`core/Reflect.h`): enums with value names (in order from 0). Names in files/the editor (old numbers are read too), integers as is in memory/hashes. `ValueInfo::enumNames`, `reflect::enumName(v)`, and the editor picks by name. Used by the feedback table to choose event kinds by name.
+- **Feedback table** `assets/feedback.table` (engine row type `feedback::Reaction`): row id = event kind name (the first `MEALKIT_ENUM` field of the game event type), multiple rows for the same kind as `kind.name` (e.g. `Fall`, `Fall.local`).
+  Columns: whose event (`any`/`local`/`others`, comparing the event's `player` field with this window's player), the field to read strength from and its max value, the field to read position from (none if empty), the sound event and the sound parameter receiving strength,
+  camera shake (size/time/speed/falloff distance), screen flash (strength/time/color), hitstop (seconds).
+- **`feedback::Player`** (`mealkit/feedback/Feedback.h`, `GameContext::feedback`, `kApiVersion` 12): games just call `ctx.feedback.trigger(event, localPlayer)` per tick event (the event type is a `MEALKIT_STRUCT`, fields read by path).
+  `cameraShake(focus)` (sum of sines with different frequencies per axis, time/distance attenuation) — the game camera adds it to its focus. `screenTint` (the engine passes it as `FrameParams::tintColor/tintAmount`: shaders and the background clear color blend toward that color). `hitStop()`.
+  The table checks its file time every 0.25 seconds and rereads — edits during play show immediately. The shipping exe/editor/join windows each make one (the editor together with the sound engine).
+- **Hitstop is view only**: the simulation keeps running (lockstep). The sandbox holds the two tick states (`WorldState` copies) and interpolation fraction from the moment hitstop starts and draws that image, stopping the view clock (effects). When it ends, it returns to the current state immediately.
+- **Editor [Feedback] panel** (`editor/FeedbackPanel.*`, [View] > [Feedback], `--feedback`): the left shows kind names of the game's `EventType` (`GameModule::eventType`) and row counts, the right the selected kind's rows (field widgets, delete, add — suffixes from the second row), the list of event fields (those selectable for strength/position).
+  Edits are saved at most once per 0.3 seconds and the game rereads them. [Preview] fires that kind's rows once right now (sound and flash show even while editing). This table doesn't appear in the [Tables] panel (so the two don't overwrite the same file).
+- **sandbox**: `GameEvent` became a `MEALKIT_STRUCT` (kind `MEALKIT_ENUM(EventKind, ...)`, player, position, value), created with `makeEvent()` (it has a base class, so brace initialization doesn't work). `using EventType = GameEvent`.
+  Deleted `view/Sounds.*` in favor of the feedback table: push (sound + shake, my own push gets a flash + 0.05 s hitstop), jump pad (sound + shake), spawn/jump (sound), fall death (sound, a red flash when I fall), impacts (strength = speed/15 for the sound parameter and shake).
+  The shockwave ring is still code (`view/Effects.cpp`) — moved into a feedback table effect with stage 2 particles.
+- **Verified**: unit test `reflect_enum`. State hash unchanged (events are outside the hash, fixed recording `REPLAY ok`). The [Feedback] panel (kind list, rows, event fields) in an editor capture.
+- **Left**: the effect (particle) column together with stage 2 particles. The stage 4 virtual camera reuses the same shake code.
+
+## v0.4.9 — stage 1 in progress (2026-10-18)
+
+### [x] Audio (done 2026-10-18)
+- **Evaluating SDL3 first** (work moved over from the platform layer): measured with a small exe under the same conditions as the shipping exe (static CRT, /O2, LTO). Baseline exe 140 KB.
+  SDL3 3.4.18 static with video/render/GPU/camera/sensor off, only joystick/gamepad/haptic/HIDAPI/audio: **2006 KB (+1866 KB)**, 1728 KB (+1588 KB) even with HIDAPI off. Initialization about 50 ms, polling about 3 µs per frame.
+  The miniaudio 0.11.25 engine (WASAPI only, MP3/FLAC off): **437 KB (+297 KB)**. XInput directly: +0 KB, though `XInputGetState` on an empty slot costs about 14 µs per slot.
+  → SDL3 would spend a third of the exe budget (5 MB) on pad support: **not used.** Sound uses miniaudio's own backends (per platform, that platform's backend), gamepads the platform layer's XInput (`docs/DECISIONS.md` 2026-10-18).
+- **External libraries**: `third_party/miniaudio` (0.11.25, MIT-0, `miniaudio.h`), `third_party/stb` (2c980bb: `stb_vorbis.c` v1.22, `stb_truetype.h` v1.26, `stb_image.h` v2.30, MIT). Both with `mealkit.txt` + `gen_notices.ps1`.
+  The implementation is the single `audio/MiniaudioImpl.cpp` (warnings off), configuration in `audio/MiniaudioConfig.h` (WAV + Ogg Vorbis decoders, no MP3/FLAC/encoding/generators, one backend per platform). Naming it `Miniaudio.h` made Windows treat it as the same file as `miniaudio.h`, so it was renamed.
+- **`audio::Engine`** (`mealkit/audio/Audio.h`, a view-side library, absent from headless, `GameContext::audio`, `kApiVersion` 11):
+  `play(event, position, {{"speed", 6}})`/`play2D` → `Handle`, `setParam`, `setPosition`, `stop(handle, fade)`, `stopAll`, `setGlobalParam`, `setListener` (by the engine every frame with `FrameParams::cameraPos`/`cameraForward`), `setBusVolume`, `setMuted`, `update(dt)`.
+  Without a device `init` is false and every call does nothing (the game runs without sound).
+- **Sound event table** `assets/sounds.table` (engine row type `audio::SoundEvent`, a view-only table registered by the engine `audio::engineTables()`): clips (space-separated assets paths), container (`random` doesn't repeat the last clip / `switch` integer of the parameter value / `blend` crossfades two adjacent clips by parameter, up to 4),
+  random volume/pitch (± fraction), parameter curves (parameter range → volume/pitch/lowpass start and end values, linear), 3D or not/attenuation (min/max distance, linear), bus, loop, streaming, priority, concurrency limit and on overflow (`oldest`/`quietest`/`none`), cooldown (seconds).
+  The file time is checked every 0.25 seconds and reread on change (playing sounds find their new rows by name) — **edits during play are heard immediately.** Editing view-only tables in the editor [Tables] panel saves at most once per 0.3 seconds.
+- **Voice management** (handled by the engine): the cap on actually mixed voices = project setting `audioVoices` (default 32). Every frame they're chosen by priority × audibility (volume × distance attenuation); loops over the cap or inaudible become **virtual voices** (not mixed, only the playback position is counted, resuming from that position when audible again), and short sounds are cut.
+  **Same-frame grouping**: starts happen at once in `update()` — if the same event comes many times, up to the cap by strength (curve parameter, or volume) descending. Up to 64 culled sounds are recorded with reasons.
+  Sound effects are decoded into memory when the table is read (playing copies of the source `ma_sound`), and streamed clips are opened at playback. The engine mixes in stereo (even if the device is 7.1).
+- **Buses**: master → music / sfx / ui / voice (other names in the table become project buses). A level meter node per bus (the audio thread writes the peak to an atomic). The shipping exe mutes when the window loses focus (to become toggleable in the settings screen), and `--mute` starts muted (automated tests).
+- **Editor [Sound] panel** (`editor/SoundPanel.*`, [View] > [Sound], `--sounds`): event preview with parameter sliders, bus volumes/levels, real/virtual voice list (audibility/distance), culled sounds and reasons. The editor makes one audio engine shared by play and preview. Stopping play stops all sounds. Join windows are on the same PC, so they open muted.
+- **Physics contact events** (`PhysicsWorld::setContactEvents(minSpeed, maxPerStep)`, `contacts()`): a Jolt contact listener collects approach speeds of newly touching pairs, and at the end of `step()` they're sorted by strength → body index → position keeping up to the cap — **the same regardless of physics thread count** (unit test `physics_contact_events`: 384 events over 60 ticks identical between 1 and 4 threads, with the same state hash). Not in hashes/snapshots.
+- **sandbox**: `sim/` also leaves impact (`Impact`, strength = approach speed, the 8 strongest per tick — tuning `impactSpeed`/`impactsPerTick`) and jump (`Jump`) events. `GameEvent::radius` became `value` (push range / impact speed).
+  `view/Sounds.cpp` turns tick events into sound events (moved into data in the next item "Event → feedback table"), and `GameSession::start` plays background music. Sounds are synthesized by `tools/make_sample_sounds.py` (3 impacts, push, jump, jump pad, spawn, fall death, three UI, a 16-second music loop. CC0, fixed seed).
+- **Measurements**: during the first 8 seconds of 2000 boxes falling, main thread audio time was 0.06~0.15 ms per frame, at most 7 concurrent voices. Shipping exe 1611 KB → 2035 KB (+424 KB). State hash unchanged (fixed input recording `REPLAY ok`).
+- **Changed**: this PC has no Ogg encoder (no ffmpeg/oggenc), so background music started as **WAV streaming**. Ogg Vorbis decoding (stb_vorbis) is in the build but not yet tested with an `.ogg` file — to be checked when the first `.ogg` asset appears.
+  Level meters are per bus (engine meter nodes), and the "switch" of an event picks by the parameter's integer value rather than a string.
+- **Left**: occlusion/reverb/ducking/interactive music (stage 4), bus volumes in the settings screen (settings item), UI sounds (game UI item). Other platform backends in stage 5.
+
+## v0.4.8 — stage 1 in progress (2026-10-18)
+
+### [x] Definition data tables (`.table`) (done 2026-10-18)
+- **Why**: there was nowhere for data with many rows of the same shape like weapons/items/enemy kinds (tuning is one struct). Stage 4 modules (inventory/skills), loadouts, and sound events sit on top of this.
+- **Declaration** (`core/Reflect.h`, `kApiVersion` 10): row types are `MEALKIT_STRUCT`s, registered with `MEALKIT_TABLE(PropKind, "tables/props.table", flags)` (`reflect::moduleTables()`, the same approach as `MEALKIT_OBJECT`; the game DLL passes them as `GameModule::tables`).
+  `reflect::kTableView` in `flags` marks view-only tables (outside the content hash, applied immediately during play — used by the audio/feedback items).
+- **Row references** `RowRef<Row>` (field kind `Kind::RowRef`): the row name id in files/the editor, the row index after loading. Hashing/comparison by id, snapshots keep both id and index. It contains a string, so `hasStringField` is true — not put in simulation state, which keeps the index (u32).
+- **Files** (`game/Tables.h`/`.cpp`, engine core): lines after `row <id>` are that row's "path value" (same path rules as tuning, including nesting/arrays). Row order = file order = row index. Ids are letters/digits/`_ - .`; on duplicates within a table the later row is dropped with a warning.
+  - Format-aware side: `sim::Table<Row>` (`mealkit/sim/Table.h`: ids + rows, `operator[]`, `get(RowRef)`, `find(id)`) and `game::loadTable(table)` (registered path).
+  - Format-unaware side (editor/hash): `game::TableData` (a `reflect::Instance` per row), `readTableText`/`writeTableText`, `loadTableData`/`saveTableData`.
+  - Resolving references: `game::resolveRows(data, {game::tableIndex(table), ...}, &missing)` — every `RowRef` inside structs/arrays; missing ids give "path -> id (row type)" lines. Row types are found by pointer and by name (still matching after swapping the DLL).
+  - CSV (`exportTableCsv`/`importTableCsv`): first line `id` + field paths, RFC 4180 (commas/newlines inside quotes, `""`), Excel's BOM, column order doesn't matter and unknown columns are ignored. Import is one-way, replacing the table with the CSV contents (written to the file only on save).
+  - Content hash: `contentHash(..., tables)` adds ids and row values (excluding `MEALKIT_VIEW_FIELD`) of simulation tables (`game::hashTables`). The shipping exe/headless use `reflect::moduleTables()`, the editor `GameModule::tables`.
+- **Editor [Tables] panel** (`editor/TablesPanel.*`, [View] > [Tables], `Ctrl+T`, `--tables`): table picker, save/reload, add/duplicate/delete/move rows up and down, the id cell (applied on Enter or clicking elsewhere, rules checked), field widgets per cell (headers are field descriptions),
+  CSV import/export (file dialogs). Below it a **missing row references** list: between tables, and the editor also checks tuning and scene object fields every 0.5 seconds and adds them. `RowRef` fields in the inspector/tuning are dropdowns (missing ids in red `(?)`).
+  Pressing play saves edited tables (the game reads files when a match starts). Table values are DLL types, so they're kept as text when unloading the DLL and rebuilt with the new type.
+- **sandbox**: `PropKind` in `sim/Tables.h` (size/stretch range, density, minimum mass, friction, restitution) + `assets/tables/props.table` (`crate`, `heavy`, `bouncy`). Eight box values in tuning moved into the table.
+  `PropSpawnArea.kind` (`RowRef<PropKind>`, default `crate`) picks the kind, and `World::loadScene` resolves the index with `propKinds.find(id)` (the first row with a warning if missing). `Headless::startWorld` reads it with `game::loadTable` every match and passes it to `World::reset`.
+  `crate` is bit-identical to the old tuning values, so **the state hash is unchanged** (fixed input recording, 901 ticks `REPLAY ok`). The content hash changed, so the recording was regenerated.
+- **Verified**: unit test `tables` (file round trip, duplicate/invalid ids, CSV round trip with quotes/newlines/BOM/column order, resolving references and missing ids, hashing by id, snapshots), the [Tables] panel and inspector dropdowns in an editor capture.
+- **Left**: `LiveTable`, rereading view-only tables during play, comes with the first view-only table (sound events, audio item). Following row references between tables in the editor (click to go to that row) later.
+
+## v0.4.7 — stage 1 in progress (2026-10-18)
+
+### [x] Separating the sample (sandbox) data (done 2026-10-18)
+- **Why**: the data mechanisms (tuning/scene fields/view tuning) were in place, but numbers remained in the sample code. New projects start by copying this code.
+- **Into `Tuning`** (`sim/Tuning.h`, `assets/game.tuning`): character half height/radius/mass, ground detection margin, upward speed allowing jumps, spawn line spacing / AI target distance range, jump/push probabilities (1/N integers so the random sequence stays the same) /
+  box size/stretch range, friction, restitution, minimum mass / scene collision object friction / jump pad detection height. These are game rule values independent of the map.
+- **Into scene objects** (`sim/Objects.h`): values that differ per map moved into **area objects** placed by eye in the editor.
+  - `MatchArea` (match area, one per scene): the box itself is the rule — width/depth = AI roaming range/range where fallen boxes are dropped again, bottom = fall death height (-30), top = the height they're dropped again from (30). No fields.
+    Scenes without one (the engine default arena) warn and run with the old values (±40, -30..30) (`// const-ok`).
+  - `PropSpawnArea` (box spawn area, several allowed): scatters `count` boxes inside the area (scene order, same random sequence). Box Pool capacity = the sum. `matchData` (`--bodies`/`--match-data`) now means "0 = scene, otherwise that count" (split by area ratio with the remainder in the last area, integer math).
+  - Removed the default spawn point table (`kDefaultSpawns`): scenes without spawn points line up from the origin at `spawnSpacing`.
+  - Added `Match Area` (0,0,0 / 80×60×80) and `Box Spawn Area` (0,13,0 / 80×24×80, 2000 boxes) to `arena.scene` — bit-identical bounds to the old constants.
+- **Engine: area object kind** `reflect::kObjectArea` (`kObjectFlags`): an invisible box that uses only its size. The editor draws only the 12 edges (thickness as a fraction of camera distance, so the inside isn't hidden) and selects it only by clicking edges (clicking inside selects objects inside).
+  Created from the [Add] menu at 10×4×10. Games use `scene::visibleInGame()` (markers/areas aren't drawn) and `scene::areaBounds()` (axis-aligned box).
+- **View side**: the shockwave's foot height takes `world.tuning.pawnHalfHeight` as an argument. The "World ready"/"Play mode" logs show player count/moving bodies instead of box count (check.ps1's regex too).
+- **SimCheck warning SIM012** (deciding the roadmap's "decide when introduced"): **warns** about float literals in `sim/` other than 0/1/2/0.5 (the build continues). Excluded inside `MEALKIT_*( ... )` field declarations (defaults are data themselves) and on `// const-ok: <reason>` lines.
+  Three remained in the sandbox: input quantization 127, the 8 in the volume formula, the divide-by-zero threshold 1e-4 — all `const-ok`. `kTickRate` is also `const-ok` until the tick rate item.
+- **Determinism**: moved preserving even the calculation order, so **the state hash didn't change by a single bit** — the repo's fixed input recording, 901 ticks, still `REPLAY ok` (5114b2f8798f3f1d). The content hash changed, so the recording was regenerated.
+- **Template** (engine version 0.4.7): the sample code is the template, so the version is bumped. The "Where to put numbers" rule and SIM012 were written into the template CLAUDE.md.
+- **Left**: data with many rows (weapons/sound events) is the next item `.table`.
+
+## v0.4.6 — stage 1 in progress (2026-10-18)
+
+### [x] Enforcing the project folder layout (done 2026-10-18)
+- **Why**: source files got mixed into the shipping folder, and external library info had been kept in sync by hand in three places (`VERSIONS.txt`, `THIRD_PARTY_NOTICES.txt`, code). Remove the time spent thinking about folder layout.
+- **Rules in one place** `tools\check_layout.ps1 [-Project <folder>]`: check.ps1 ("Project layout + notices"), Export (`game_export` calls it first and fails on errors), and the editor (runs it via `ChildProcess` when opening a project; errors in a notification window, warnings in the status bar/log) all use this script. No separate rules in C++.
+  - Directly under `assets/`: only kind folders (`scenes models textures sounds effects ui fonts tables strings lut`) and designated files (`game.tuning view.tuning input.bindings feedback.table sounds.table`).
+  - Inside kind folders: only that kind's extensions (subfolders are free). `fonts/` also accepts font license `.txt`, and `ui/`/`effects/` accept `.png`.
+  - External tool sources (`.blend .psd .kra .penpot .fbx .aup3 ...`) don't go anywhere in `assets/` (→ `art/`). `.autosave`/`.gitkeep` are allowed.
+  - `third_party/<lib>/`: `mealkit.txt` (version/license/source required) and a license file, permissive licenses (MIT, MIT-0, BSD-2/3, Zlib, Unlicense, PublicDomain, CC0-1.0, OFL-1.1, BSL-1.0, ISC); game projects can't use names of libraries the engine already has.
+  - Warns if designated folders (`source assets art modules third_party`, kind folders) are missing.
+- **External library metadata**: wrote 6 engine `third_party/<lib>/mealkit.txt` files (name, version, license, licenseFile, source, usedIn, inGame, note, kept, why).
+  `tools\gen_notices.ps1` makes `third_party/VERSIONS.txt` (table + reasons + SDK rows) and `THIRD_PARTY_NOTICES.txt` (by library name, original LICENSE as is). `-Check` is called by check.ps1 (fails if edited by hand).
+  `-Project <folder> -Out <file>` is for the shipping folder: MealKit's own MIT notice + engine libraries that go into the game exe (`inGame yes`: Jolt, cgltf, meshoptimizer) + the project's `third_party/` + `assets/fonts/*.txt`.
+  SDKs not put in the repo, like Steamworks, go only into the table from the script's SDK list.
+- **Game libraries** (`mealkit_add_game`): finds the project's `third_party/*/mealkit.txt`; with a `CMakeLists.txt`, `add_subdirectory` + link `cmakeTarget`, otherwise header-only (`include` key, default that folder) attached only to the game exe/DLL (not to the headless target).
+  SimCheck takes `--third-party <folder>`, and **SIM011** blocks includes in `sim/` of headers found in those folders or paths containing `third_party/`.
+- **Export**: layout check → merging notices → `MealKitExport.cmake` (fails if the exe exceeds 5 MB, prints the size, doesn't copy `.gitkeep`).
+- **Template** (engine version 0.4.6): `art/ modules/ third_party/` and `.gitkeep` in `assets/<kind>/` in `templates/project`. New projects get all folders, and `upgrade_project` creates missing `.gitkeep` as "added" (files aren't moved — the check reports their location).
+  Narrowed `*.png` in the template/engine `.gitignore` to capture files (`/screenshot*.png /capture*.png /out*.png`) (textures and `icon.png` get committed). The README folder table follows the new layout.
+- **Decided**: the sound event table is the designated single file `assets/sounds.table` rather than `assets/audio/sounds.table` (the same spot as `feedback.table`; there's no `audio/` kind folder under `assets/`). Penpot source backups go in `art/ui/` rather than `design/` (matching CODING_MODEL's `art/` answer).
+- **Verified**: `check_layout` on the engine repo OK (0 warnings), three misplaced files (`assets/foo.txt`, `models/x.blend`, `scenes/y.png`) give 3 errors. A new project (`new_project`) passes with 0 warnings.
+  Added a header-only library to a new project, used it from `view/`, and ran `build.bat Export`: layout OK → 5 notices (MealKit, cgltf, Jolt, meshoptimizer, that library) → exe 1611 KB → Export OK. Including the same header from a `sim/` file gives SIM011.
+- **Left**: a tool to apply `patches/*.patch` when there's an original to patch. The editor asset browser (stage 4) routing imports into kind folders.
+
+## v0.4.5 — stage 1 in progress (2026-10-18)
+
+### [x] View tuning (`ViewTuning`) + time values in seconds (done 2026-10-18)
+- **Why**: tuning (`Tuning`) holds simulation values, so it's in the content hash and can't change during multiplayer play. Display-only values like camera/colors/effects had nowhere to go and remained as code constants in `view/`.
+  Writing time values in ticks means fixing all data when the tick rate (the last item of stage 1) changes.
+- **Two field types** (`core/Reflect.h`, `kApiVersion` 9):
+  - `mealkit::Ticks { u32 value; }`: integer ticks in memory/hashes/`sim/`, seconds in files/the editor. On read, `Ticks::seconds()` rounds once with the process tick rate (double multiply + `lround`, negatives become 0).
+    Defaults are written in seconds too: `MEALKIT_FIELD(Ticks, respawn, Ticks::seconds(1.5f), ...)`. It converts to `u32` automatically, so it's used as is like `TickTimer::start(tick, world.tuning.respawn)`. Text is `%.6g` seconds (rereading gives the same ticks).
+  - `mealkit::Color { u32 value; }`: rgba8 sRGB (same layout as `render::rgba`), `#RRGGBB`/`#RRGGBBAA` in files. The editor uses a color picker widget.
+  - Tick rate: `reflect::setTickRate()`/`tickRate()` (default 30). A process setting set once when a project opens, like `setProjectRoot()` (added to the exceptions in CODING_MODEL "How to access engine features"). Nobody changes it for now; in the "Tick rate as a project setting" item the project settings decide it.
+- **View tuning**: when a game declares `using ViewTuningType = ViewTuning;` (GameSession), `MEALKIT_GAME_MODULE` passes it as `GameModule::viewTuningType` (optional).
+  - Values are in `assets/view.tuning`. The engine's `game::LiveTuning` (`game/GameData.h`) reads it and checks the file time every 0.25 seconds, rereading on change (deleted lines become defaults). If the file doesn't exist yet, it's read when it appears next to `game.tuning`.
+  - Games read it every frame with `ctx.viewTuning<ViewTuning>()` (`GameContext::viewTuningData`) and don't keep it. If the engine doesn't pass it, the declaration's defaults.
+  - The shipping exe (sandbox `main.cpp`)/editor/join windows each have one. The editor [Tuning] panel has two tabs ("Game", "View"), and View tab values show in the in-editor game as soon as they're edited.
+    In multiplayer play the editor rewrites the copy `build\Editor\play\play.view.tuning` at most once per 0.2 seconds and join windows (`--view-tuning`) reread it — so **it changes immediately even during multiplayer play**. The Game tab applies immediately only in solo play, as now.
+  - The editor tuning code was grouped per file (`TuningDoc`: value, text kept when swapping the DLL, saved state) and shared by both tabs.
+- **sandbox**: moved into `view/ViewTuning.h` the camera (field of view/sensitivity/zoom/distance/elevation ranges/start values/clip planes), character appearance (body/face size and color, AI color, my character marker), shockwave (time/segment count/thickness/color/ring size), 8 player colors, 6 box colors.
+  `Camera`/`Draw`/`Effects` take values as arguments (no code constants). Effect sizes of spawn/jump pad events (1.2, 2.0) were removed from the simulation and put in view tuning.
+  `Tuning`'s `pushCooldownTicks`/`respawnTicks`/`aiThinkTicks` became `pushCooldown`/`respawn`/`aiThink` (`Ticks`, 0.5/1.5/1.33333 seconds), and the jump pad's `cooldownTicks` became `cooldown` (0.666667 seconds). Keys in `game.tuning`/`arena.scene` changed too.
+- **Determinism**: the tick values are the same (15/45/40/20 ticks), so the state hash is unchanged — the repo's fixed input recording matched the pre-change hashes for all 901 ticks (`REPLAY ok`). Scene field text changed, so the content hash differed and the recording was regenerated (the hash lines are the same).
+  View tuning can't be read from `sim/` (`view/` headers are SimCheck SIM009).
+- **Verified**: Release/Editor builds, headless `mp_test` 1+3 PASS, [Tuning] panel tabs and the `Ticks` widget (0.500 s, tick count in the tooltip) in an editor solo play capture.
+- **Left**: actually changing the tick rate is the last item. Time columns in `.table` use `Ticks` too (upcoming items).
+
+## v0.4.4 — stage 1 in progress (2026-10-18)
+
+### [x] Repository visibility (decided 2026-10-18)
+- When to go public isn't decided by date/stage but when the user asks. External contributions use DCO (`git commit -s`, no CLA), reference sample assets are CC0. Reasons in `docs/DECISIONS.md` 2026-10-18.
+- To do when going public: `CONTRIBUTING.md` (DCO), a CC0 notice in the asset folder, a Windows on ARM CI runner, docs on Read the Docs.
+
+### [x] Docs repo (done 2026-10-18)
+- **Why**: usage docs were piling up in one file `docs/GUIDE.md` (Korean). Split out the docs that change separately from engine code, and show them in English/Korean per engine version.
+- **Repo** `D:\MealKit-docs` (git, no remote yet): Sphinx 8.2.3 + MyST 4.0.1 + sphinx-rtd-theme, versions pinned in `requirements.txt`. The table of contents follows the ROADMAP:
+  About (introduction/requirements/license) / Getting started (building the engine/first project/workflow/editor quick start) / Manual (engine folder and projects/editor/assets/multiplayer and determinism/building and shipping/performance) / Cookbook / Engine development (source layout/testing/contributing) / Reference (command line) / Glossary.
+  Every section of GUIDE.md got a place (current state/measurements/voice chat → About, build → Getting started, running the game/headless/Steamworks → Multiplayer, testing/CI/structure/frame flow → Engine development).
+  The command line reference was newly written as tables from the `--help` of the game/headless/editor and the `tools\` scripts.
+- **Translation**: English source, Korean in `locale/ko/LC_MESSAGES/<doc>.po` (one per doc, no line locations → small diffs). 538 sentences. The first translation was made by pairing in order with a copy of GUIDE.md's Korean sentences split into the same structure as the English source.
+  Comments inside code blocks are translated too: Sphinx's own code block translation rereads the translation as reST (`::`), so the content vanishes in MyST; a small transform in `conf.py` (`LiteralBlockTranslator`) replaces them directly from the catalog (only the gettext builder extracts code blocks).
+- **Checks** `tools/build.py` (shared by local and CI): `html` (English `_build/html/en`, Korean `_build/html/ko`, warnings = errors), `update` (sphinx-intl: new sentences blank, changed sentences fuzzy), `check` (building both languages + 0 untranslated/fuzzy/translations without source + comparing `ENGINE_VERSION` with the engine `VERSION` MINOR), `linkcheck`.
+  Confirmed that changing one English sentence makes `check` fail and that sentence becomes fuzzy after `update`. CI is `.github/workflows/docs.yml` (ubuntu; while the engine repo is private, versions are compared only when the `ENGINE_REPO_TOKEN` secret exists).
+  Links to engine repo files use the `{engine}` role (GitHub `master`) and are excluded from link checks while private.
+- **Source of truth on the engine side**: moved GUIDE "Determinism rules" into the `docs/CODING_MODEL.md` section "Determinism rules (simulation code)", and the "why" column of the external library table into `third_party/VERSIONS.txt`. The docs repo links to them instead of copying.
+- **Updating references**: CLAUDE.md, ROADMAP, the DECISIONS deferred table, SimCheck comments/messages (→ CODING_MODEL), comments in `.gitignore`/CMake/`check.ps1`/`record_replay.ps1`/CI, README, template README. Deleted `docs/GUIDE.md` (mentions in past decisions/changelog are records, so left as is).
+- **Versioned docs address**: CMake builds `MEALKIT_DOCS_URL` (`https://mealkit.readthedocs.io/en/<MAJOR.MINOR>/`) from `VERSION` and passes it (`kDocsUrl` in `core/Version.h`), and error messages of the "none" online backend and the sandbox's Steam point to `manual/multiplayer.html#steamworks`.
+  The Read the Docs project name `mealkit` is an assumption — if it differs when going public, fix one CMake line. Until then this address doesn't open.
+- **Editor `--lang ko|en`**: changes the editor language for this run only (user settings unchanged). For `--capture`-ing docs screenshots per language.
+- **Template**: the determinism rules link in the template README and sandbox messages changed, so engine version 0.4.3 → 0.4.4.
+- **Differences from the ROADMAP approach/left**: only a `master` docs branch was made (MINOR branches from 0.5). No screenshots yet (only the option was added). Generating the reference with `--dump-reference`, and Weblate, later.
+  CODING_MODEL section names in the English docs were transcribed into English (CODING_MODEL itself is in Korean). Rewriting the existing GUIDE content a little per page.
+
+## v0.4.3 — stage 1 in progress (2026-10-16)
+
+### [x] CI build matrix (done 2026-10-18)
+- **Why**: as platforms/compilers multiply, people can't build every combination and compare hashes. The foundation of stage 5 crossplay (the same tick hashes across OSes/CPUs/compilers) is checked on every commit from day one.
+- **Workflow** (`.github/workflows/ci.yml`, push/PR/manual): 3 Windows (windows-2022) — `windows-msvc` (Release, reference), `windows-clang-cl` (`build.bat ClangCL`), `windows-msvc-editor` (`build.bat Editor`, unit tests only) — call the same `build.bat` as locally.
+  2 headless — `linux-x64-clang` (ubuntu-24.04, apt clang + ninja), `macos-arm64-clang` (macos-15 Apple Silicon, Apple clang) — run `cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_COMPILER=clang++` and build only `sandbox_headless`/`mealkit_tests` (`MEALKIT_HEADLESS_ONLY`; SimCheck runs at build time too).
+  `windows-msvc` also runs `check_strings`/`check_platform`. Each build uploads its results folder as an artifact, and a final `compare` job gathers and compares them. A new commit on the same branch cancels the previous run.
+- **Per build** `tools/ci_test.ps1` (both Windows PowerShell 5.1 and pwsh 7): unit tests and the `detmath-bits` line, replaying the repo's fixed input recordings (`samples/*/replays/*.rec`) with `<sample>_headless --replay-inputs --hash-log` (`REPLAY ok` = identical to the MSVC hashes in the recording every tick),
+  headless `mp_test` (1+3, 900 ticks, a different physics thread count per client). When mp_test fails, per-peer output goes into the artifact too.
+- **Comparison** `tools/ci_compare.ps1`: compares every build's `detmath-bits` and per-tick hash logs with `windows-msvc`, writes a Markdown table to the job summary (`$GITHUB_STEP_SUMMARY`), and on difference shows the first diverged line (tick) and fails.
+- **Fixed input recording** `samples/sandbox/replays/arena_4p_seed7.rec` (36 KB): confirmed inputs and hashes for 901 ticks (0~900) of headless host 1 + clients 3, seed 7, 2000 boxes. Four players pushing each other goes through more physics contacts than solo.
+  Made by `tools/record_replay.ps1` (regenerating gives a byte-identical file). If simulation results are changed on purpose, regenerate it with this and commit them together — a "Committed replays" step was added to local `check.ps1` so it's known before pushing.
+  `.rec` (and `.glb`/`.png`/`.ico`) are binary in `.gitattributes` so the Windows runner's `core.autocrlf` doesn't change them.
+- **Local verification**: `ci_test.ps1` PASSes in Release/ClangCL/Editor builds (`detmath-bits f67a477cb2496808`, recording replay identical for 901 ticks), `ci_compare.ps1` PASSes, and deliberately changing one hash line FAILs. 9 `check.ps1 -Quick` items passed.
+- **CI results** (run #4, commit 6b548bc, about 4 minutes): all 5 builds passed. `detmath-bits f67a477cb2496808` is the same on all builds, and the hashes of the fixed recording's 901 ticks are
+  **the same on Windows MSVC/clang-cl (x64), Linux x64 Clang (apt clang), and macOS ARM64 Apple clang** — determinism across OS/CPU architecture/compiler confirmed for the first time. The headless mp_test inside each runner PASSes too.
+- **Fixed during the first runs**:
+  `build/` in `.gitignore` was case-insensitive on Windows, so `third_party/JoltPhysics/Build/CMakeLists.txt` and `engine/res/MealKitEditor.png` (an editor resource) weren't in the repo → output folders pinned to the top level like `/build/`.
+  MSVC-only `sscanf_s` in `Reflect.cpp` → `strtoul`. Jolt's own LTO produced LLVM bitcode libraries with Clang that Linux GNU ld couldn't read → Jolt LTO off on non-MSVC (same as the engine).
+  The headless network loop busy-waited with `FrameLimiter` (1000fps, not sleeping when under 1ms remained), so on the 4-vCPU Windows runner 4 peers starved the physics worker threads and didn't finish within 60 seconds
+  → sleep 1ms only on iterations where no tick advanced (new `sleepSeconds` in `core/Clock.h`, Windows high-resolution waitable timer / POSIX nanosleep). Local 1+3 900 ticks still about 5 seconds.
+  Made `ci_compare.ps1` fail when build results are missing (`-Expect`), `ci_test.ps1` print peer logs when mp_test fails, and the headless build use `ninja -k 0` to show all errors at once.
+  `platform/posix/` compiled and worked on Linux/macOS with nothing to fix.
+- **Differences from the ROADMAP approach/left**: the actions (checkout/upload/download-artifact v4) give a Node.js 20 warning (upgrading them separately). No Windows on ARM (ARM Windows runners are for public repos, so after the repo visibility decision). The ROADMAP's `check_layout` was left out since that check didn't exist yet (layout checks are the designer item), and SimCheck runs inside each build.
+  There's only the sandbox recording — when samples grow (reference sample rules item), putting them in `samples/<sample>/replays/` makes `ci_test.ps1` replay them automatically. Once stage 3 desync diagnostics exist, call them on comparison failures.
+
+### [x] Headless simulation (done 2026-10-18)
+- **Why**: for CI to compare per-tick hashes across compilers/OSes/CPUs on every commit on runners without GPUs/windows (the foundation of stage 5 crossplay), an executable that runs only the simulation is needed first.
+- **Splitting the engine library** (`engine/CMakeLists.txt`): the core (`mealkit_core`: core, game, sim, physics, scene, asset, net, `render/Mesh`, platform time/files/sockets/system) and the front end (window/input/renderer/online services/platform features for the editor).
+  Game builds have two static libraries, `mealkit_core` + `mealkit` (linking the core PUBLIC); Editor builds combine both into `mealkit.dll` as before. Unit tests link only the core.
+  `ModelCache` doesn't call the renderer directly but holds upload function pointers (`setRenderer` is a header inline, so headless builds that never call it link without the renderer). Asset folder path separators became `/`.
+- **Non-Windows CMake** (`cmake/MealKit.cmake`): Windows stays MSVC/clang-cl. Clang/GCC on Linux/macOS build only the core + headless targets + unit tests + SimCheck via `MEALKIT_HEADLESS_ONLY`.
+  Compile options `-Wall -Wextra -fno-rtti -ffp-contract=off -fno-fast-math`, thread library. Jolt adds `-ffp-contract=off` itself with `CROSS_PLATFORM_DETERMINISTIC`. LTO only for MSVC.
+  **This PC has no Linux/macOS tools (including WSL distros), so the non-Windows configuration has never been run** — it's first built and fixed in the CI build matrix item (as is the POSIX platform implementation).
+- **Game-side boundary** (`docs/CODING_MODEL.md` "How to run the game without a window", decided with the user): the game has one class and `MEALKIT_HEADLESS_GAME(class)` in `app/Headless.cpp`.
+  The class provides the types `World`/`TuningType`/`ProjectSettingsType`, `kTickDt`, `startWorld(World&, MatchInfo, tuning, flattened scene, models, physics threads)`, `botInput(tick, player)`, and optionally `defaults(options, game project settings)`.
+  The engine (`mealkit/game/Headless.h/.cpp`) handles option parsing, reading project/scene/tuning, the content hash (the same value as the shipping exe, so it connects with windowed peers too), sessions (solo/host/join), running `game::Simulation`, and output (`FINAL`, `SHADOW`, `REPLAY`).
+  In Game builds `mealkit_add_game()` makes `<name>_headless` (sim/ + `Headless.cpp`; with `MEALKIT_HEADLESS_TARGET` the macro also makes `main`) (`HEADLESS` argument; not made if the file is missing).
+  The shipping exe calls `mealkitHeadlessMain` when given `--headless`. The sandbox `GameSession` uses the same functions for match start and bot input (`botInput` moved from `view/LocalInput`; it uses CRT trig, so it can't go in `sim/`).
+- **How it runs**: input is always bots. Solo runs without rest (900 ticks in about 2 seconds, including the shadow simulation); with a network it catches up at most 8 ticks at a time and sleeps 1ms while waiting. The host starts when `--auto-start` (default `--players`) players gather.
+  Window options (`--bot`, `--vsync`, `--fps`, `--size`, `--debug`) are accepted and discarded (mp_test passes the same arguments). The match value option is named `--match-data` on the engine side (the same as `--bodies` in sandbox windowed mode).
+- **Hash logs/input recordings** (`mealkit/game/InputRecord.h/.cpp`): `game::Simulation` writes `PlayOptions::hashLogPath` (`<tick> <hash hex>` per tick) and `recordInputsPath` (confirmed tick inputs + hashes, little endian, with seed/player count/match data/content hash in the header).
+  So the windowed game (`--hash-log`, `--record-inputs`) and headless produce the same files. `--replay-inputs` reruns the `World` from the start without a network and compares with the recorded hash every tick (`REPLAY ok` / `REPLAY DESYNC tick=N`, warning if the content hash differs).
+  `PlayOptions` changed, so `kApiVersion` 8. Added `LockstepSession::contentHash()`.
+- **Tools**: `mp_test.ps1 -Headless` (`--headless` on all peers, 1+3 900 ticks in about 5 seconds, windowed about 30 seconds). Added to `check.ps1` "Headless (mp_test, record + replay)" (headless mp_test + recording with `sandbox_headless` → replaying with `sandbox.exe --headless`, comparing hash logs) and
+  "Headless = window" (whether the hash log of the windowed game's shadow/rewind run matches headless). Unit test `input_record` (recording round trip).
+- **Verified**: Release/Editor builds, 19 `check.ps1` items passed. At seed 7 for 900 ticks, the 901-line hash logs of headless/replay/the windowed game are all identical. Executable sizes: `sandbox.exe` 1.6 MB, `sandbox_headless.exe` 1.5 MB.
+  Compiler comparison: replaying a recording made by the MSVC build with `sandbox_headless.exe` from `build.bat ClangCL` gives `REPLAY ok`, and the hash log matches MSVC.
+  In the first `check.ps1`, "Editor play (3 players)" failed once (join windows didn't connect within 400 frames). The same test run separately three times plus one more full `check.ps1` all passed, and the cause wasn't found (no evidence relating it to this change). If it shows up again, start with the join window logs (`build\Editor\play\player*.log`).
+- **Left**: real Linux/macOS builds and CI (next item), a dedicated relay process that doesn't play (the lockstep session's host is currently player 0, so the session side needs changes; considered together with stage 3 "Host migration").
+
+### Fix: the editor treating a fine game DLL as "older than the engine" (2026-10-18)
+- **Symptom**: `GameModuleHost::olderThanEngine` compared the modification times of the game DLL and `mealkit.dll`. When only engine `.cpp` files change, `mealkit.dll` is relinked but its exports are the same, so the import lib stays and Ninja doesn't relink the game DLL.
+  So the editor did a game code build on every startup, and when that build failed it couldn't go back to the previous DLL (check.ps1 "Editor keeps the old DLL on failure" failed).
+- **Decision**: engine time = the newest of the engine import lib (`build\Editor\engine\mealkit.lib`, which the linker rewrites only when exports change) and the engine headers (`engine/src/mealkit/**/*.h`, excluding `editor/` which game code doesn't use).
+  Headers are included for cases that change without exports, like struct layout/inline functions. Without an import lib, `mealkit.dll`'s time is used as before. Game projects look at the same engine build's lib (`IMPORTED_IMPLIB` in `MealKitTargets.cmake`) and the `MEALKIT_ENGINE_DIR` headers too.
+  The game module boundary (`GameModule`, `kApiVersion`) wasn't changed. Merely saving a header without content changes demands a rebuild (conservative).
+- **Verified**: with only a comment added to an engine `.cpp` so that only `mealkit.dll` was relinked (lib unchanged), 17 `check.ps1` items passed and the editor loaded the game DLL without a build.
+  Touching `core/Types.h` made the editor start a game code build at startup, and after rebuilding the engine the game DLL was relinked too and loaded right away.
+
+### [x] Platform layer (`mealkit/platform/`) (done 2026-10-18)
+The SDL3 evaluation (window/input/gamepad/audio devices) wasn't done and moved to be the first task of the stage 1 "Audio" item (`docs/DECISIONS.md` 2026-10-18). Window/input remain plain Win32.
+- **Rule**: headers stay where their features are (game code includes don't change), and only implementation `.cpp` files calling OS APIs moved to `platform/win32/`/`platform/posix/`. CMake picks one via `WIN32`.
+  **Moved**: `core/Clock.cpp` → `win32/Clock.cpp`, the socket part of `net/Socket.cpp` → `win32/Socket.cpp` (address display stays in `net/Socket.cpp`),
+  `platform/Paths.cpp` split into the std::filesystem part (`platform/Paths.cpp`) and the OS part (`win32/Paths.cpp`), `Process.cpp`/`Window.cpp` → `win32/`, `editor/Image.*` → `platform/Image.h` + `win32/Image.cpp` (WIC, `namespace mealkit`).
+- **New interfaces**: in `Paths.h`, `openFile` (fopen with UTF-8 paths), `fileCreationTime`, `formatFileTime`, `userDataDirectory` (%LOCALAPPDATA% / XDG / Application Support), `documentsDirectory`.
+  In `System.h`, `debugOutput`, `debuggerAttached`, `debugBreak`, `showErrorDialog`, `exitProcess`, `processId`. New headers `DynamicLibrary.h` (game DLLs), `FileDialog.h` (`openFileDialog`/`saveFileDialog`/`pickFolderDialog`).
+  Editor-only features (DLLs/dialogs/images) have only Windows implementations.
+- **Changed callers**: `Log.cpp` (SRWLOCK → `std::mutex`, dialogs/exit via `System.h`), `Scene.cpp`/`ModelCache.cpp` (`openFile`), `GameModuleHost.cpp` (`DynamicLibrary`, `processId`, `fileWriteTime`),
+  `Project.cpp` (`userDataDirectory`), `ProjectManager.cpp`/`Editor.cpp` (file dialogs/file times/documents folder via platform, removing their own UTF-8↔UTF-16 conversions). Picking a project icon now uses the common dialog (`GetOpenFileName`).
+- **Minimal POSIX implementation** (`platform/posix/`): `Clock` (clock_gettime + nanosleep), `Socket` (BSD sockets, non-blocking), `Paths` (/proc/self/exe/_NSGetExecutablePath, atomic writes with fsync + rename, nanosecond file times),
+  `System` (no dialogs, `_Exit`). **This PC has no Linux tools, so it has never been compiled** — first built and fixed in the headless/CI items. Window/input/DLL/dialogs/images in stage 5.
+- **Check** `tools\check_platform.ps1` (check.ps1 "Platform layer" step): searches `engine/src/mealkit` (outside `platform/win32|posix`) and `samples/` for OS header includes and representative Win32/POSIX function calls (case-sensitive).
+  Two exceptions before the RHI: `render/Renderer.cpp`, `editor/ImGuiLayer.cpp`. Confirmed it fails with a file that deliberately includes `<windows.h>`.
+- **Verified**: Release/Editor/ClangCL builds, 17 `check.ps1` items passed. The editor's file/folder dialogs weren't clicked by hand.
+  During verification "Editor keeps the old DLL on failure" failed twice: during this work `mealkit.dll` was relinked without export changes and became newer than the game DLL, and `olderThanEngine` (file time comparison) treated a fine game DLL as "older than the engine".
+  Passed after relinking the game DLL. The decision method was fixed in the "Fix" item just above.
+
+### [x] Real Steam verification (closed 2026-10-18, unverified)
+**No real Steam connection tests were done; by the user's decision the item was closed assuming it passed without problems.** The Steam backend is still only compile/link-checked. There are no measurements.
+- **Assumed and passed over (write the results here when actually done)**: `--steam` with two accounts → invite → joining via `+connect_lobby` → no desync over 900+ ticks, disconnect/retry/NAT logs, relay RTT (whether it fits the 100 ms input delay assumption),
+  whether the Steam overlay appears over the DX12 swap chain, images/input/determinism on Steam Deck/Proton.
+- **If the assumption is wrong**: if relay RTT is large, pull automatic input delay adjustment (stage 1) forward. If connecting doesn't work at all, start with the session accept/send options in `online/OnlineSteam.cpp`.
+
+### [x] Online services layer (`mealkit/online/`, Steam/none backends) (done 2026-10-18)
+- **Why**: lobbies/invites/relays were tied directly to `mealkit/platform/Steam.h` (`steam::`). Make room first to add crossplay (EOS) and platforms without Steam.
+- **`online::Service`** (`mealkit/online/Online.h`): account (`localUserId`, `displayName`), friends-only lobbies (`createLobby`/`joinLobby`/`leaveLobby`/`lobbyState`/`isLobbyOwner`/`lobbyMemberCount`),
+  invites (`inviteFriends`, `takeJoinRequest`), the host's address (`lobbyOwnerAddress()` → `net::Address`), platform relay transport (`createTransport()` → `net::Transport`).
+  Former global functions like `steam::init()` were gathered into one object (main creates it and passes it as an argument, CODING_MODEL "How to access engine features"). The SDK is process-global, so one per process.
+- **One backend per build** (same approach as CODING_MODEL "Graphics APIs and OS features", no virtual function layer): `OnlineSteam.cpp` (game builds with the SDK, `MEALKIT_STEAM=1`), `OnlineNone.cpp` (no SDK or Editor builds).
+  `Service::backend()`/`backendName()` tell this build's backend. "None" has no lobbies, and connecting is `UdpTransport` (direct IP) as now.
+- **sandbox**: the `--steam`/`--steam-join`/`+connect_lobby` paths use only `online::Service` (option names unchanged). The Steam code was only moved and behaves the same.
+- **Removed**: `mealkit/platform/Steam.h`, `Steam.cpp`, `SteamStub.cpp`. Game code using them directly must switch to `online::Service` (the template is unchanged, so the engine version stays 0.4.3. Projects using the sample code can `upgrade_project -Source`).
+- **Not included this time**: achievements/stats/leaderboards (stage 4 "Achievements, leaderboards, stats"), cloud saves (stage 1 "Saves"), enabling several backends together (Steam friend invites + EOS lobbies, stage 3 EOS). Planned feature table:
+
+  | Feature | Steam | EOS (stage 3) | Console platform services (stage 5) |
   |---|---|---|---|
-  | 계정 | Steam ID | Product User ID (EOS Connect로 Steam·콘솔·기기 ID 로그인, Epic 계정 불필요) | 플랫폼 계정 |
-  | 친구·초대 | Steam 오버레이 | 플랫폼 친구 + EOS 로비 초대 | 플랫폼 |
-  | 로비·P2P 릴레이 | Steam 로비·릴레이 (Steam끼리) | EOS 로비·P2P (**크로스플레이 매치는 항상 이것**) | EOS |
-  | 업적·통계·리더보드 | Steam | EOS | 플랫폼 (트로피 등) |
-  | 클라우드 세이브 | Auto-Cloud (설정만) | Player Data Storage | 플랫폼 세이브 |
+  | Account | Steam ID | Product User ID (Steam/console/device ID login via EOS Connect, no Epic account needed) | platform account |
+  | Friends/invites | Steam overlay | platform friends + EOS lobby invites | platform |
+  | Lobbies/P2P relay | Steam lobbies/relay (Steam to Steam) | EOS lobbies/P2P (**crossplay matches always use this**) | EOS |
+  | Achievements/stats/leaderboards | Steam | EOS | platform (trophies etc.) |
+  | Cloud saves | Auto-Cloud (settings only) | Player Data Storage | platform saves |
 
-- **검증**: Release(Steam SDK 있음)·ClangCL·Editor(없음 백엔드) 빌드, `check.ps1` 통과(`mp_test` 포함). **실제 Steam 접속은 여전히 미검증**(위 "Steam 실검증"은 가정으로 닫았다).
+- **Verified**: Release (Steam SDK present)/ClangCL/Editor (none backend) builds, `check.ps1` passed (including `mp_test`). **Real Steam connections are still unverified** ("Real Steam verification" above was closed on an assumption).
 
-### [x] 최소 사양 실기 측정과 다른 PC 결정론 (완료 처리 2026-10-18, 실기 미검증)
-코드로 할 수 있는 부분만 실제로 했다. **아래 실기 시험은 하지 않았고, 사용자 결정으로 문제없이 통과한 것으로 가정하고 항목을 닫았다.** 측정값은 없다.
-- **가정하고 넘긴 것 (실제로 하면 결과를 여기에 적는다)**:
-  - 11세대(Xe-LP) 실기의 `sandbox.exe --system-info` 출력, Vulkan 버전·descriptor indexing(`vulkaninfo --summary`), `--bot` 프레임·틱 시간 → 성능 예산 표 "현재" 값은 여전히 Core Ultra 기준이다.
-  - Intel PC ↔ AMD PC UDP 900틱 이상 디싱크 없음(시작 로그 `CPU:` 줄, MSVC·clang-cl 섞기 `--any-build`). Windows on ARM.
-- **가정이 틀리면**: SM 6.6이 없으면 2단계 텍스처 방식(bindless)을 다시 정한다. CPU 사이 디싱크면 디싱크 진단 도구(3단계)를 당겨 원인을 찾고 고정소수점 보류를 다시 본다.
-  CI 빌드 매트릭스(1단계)가 생기면 OS·CPU 사이 해시 비교는 매 커밋 자동으로 확인된다.
-- **GPU 검사** (`render::queryGpu`, `render::gpuMinimumError`, `Renderer::gpu()`/`initError()`): 어댑터 이름, 사용자 모드 드라이버 버전(`CheckInterfaceSupport`, 장치 관리자와 같은 네 자리),
-  vendor·device ID, 메모리, 기능 수준, 최고 셰이더 모델(런타임이 아는 것까지 6.9부터 내려가며 묻는다), 리소스 바인딩 티어, wave 폭, 메시 셰이더 티어(참고용), UMA.
-  시작 로그 한 줄: `GPU: <이름> | driver <버전> | feature level 12_2 | SM 6.8 | binding tier 3 | unified (UMA) memory`.
-  **SM 6.6과 바인딩 티어 3이 없으면 시작하지 않는다**(전에는 6.0 검사). 오류 창에 GPU 이름·드라이버 버전·"드라이버를 업데이트하라"·최소 사양(Intel 11세대)을 보인다.
-  지금 셰이더는 6.0만 쓰지만 최소 사양 결정(2026-10-15)대로 미리 막아, 2단계 bindless 때 지원하지 않는 PC가 새로 생기지 않게 한다.
-- **`sandbox.exe --system-info`**: 창 없이 CPU 이름과 위 GPU 정보를 출력하고 끝낸다. 최소 사양 미달이면 종료 코드 2. 실기 측정 결과를 그대로 옮겨 적는 용도.
-  CPU 이름은 `mealkit/platform/System.h`의 `cpuName()`(CPUID 브랜드 문자열, x64만). sandbox 시작 로그에도 `CPU:` 줄을 남긴다(다른 PC 결정론 기록용).
-- **`build.bat ClangCL`**: clang-cl로 Release(정적 CRT)를 `build\ClangCL`에 만든다. clang-cl은 PATH, 없으면 vswhere(`-prerelease` 포함)로 "C++ Clang tools" 구성 요소를 찾는다.
-  clang에는 `/fp:precise` 대신 `-ffp-contract=off`를 준다(clang의 precise는 식 안 곱셈-덧셈 합치기를 허용한다). Jolt의 Windows 분기는 clang-cl에 그 옵션을 주지 않아 `cmake/MealKit.cmake`가 Jolt 타깃에도 건다.
-  링크 시간 최적화는 끈다(lld-link가 필요해진다). `/W4` 경고 0개. exe 1.79 MB(MSVC 1.62 MB). 출시하지 않는 비교용 빌드다.
-- **`mp_test.ps1 -ClientExe <exe>`**: 클라이언트만 다른 실행 파일로 돌린다. 호스트는 `--any-build`(시험 전용: 빌드 ID가 달라도 받는다, `LockstepSession::setAcceptOtherBuilds`)로 연다.
-  빌드 ID는 지금 `Lockstep.cpp`의 컴파일 시각이라 컴파일러가 다르면 항상 다르다. 정식 비교 방식(시뮬레이션 버전 + 결정론 그룹)은 "버전 표시와 접속 거부 이유"에서 정한다.
-- **결과 (Intel Core Ultra 5 125U, 같은 PC, clang 22.1.3 / MSVC 2022)**:
-  `detmath-bits` 같음(`f67a477cb2496808`). MSVC 호스트 + clang-cl 클라이언트 3개, 반대 방향 모두 900틱 PASS이고 해시도 MSVC끼리와 같다(`5bcaa500ce729a6d`).
-  같은 시드 혼자 900틱 해시 같음, clang-cl 빌드 단독 `SHADOW ok`·`REWIND ok`. `check.ps1` 통과(첫 실행에서 "Editor play (3 players)"가 한 번 3번째 플레이어 접속 전에 끝났고, 그 단계만 세 번·전체 다시 돌려 통과).
+### [x] Min-spec hardware measurement and cross-PC determinism (closed 2026-10-18, hardware unverified)
+Only the parts doable in code were actually done. **The hardware tests below weren't done; by the user's decision the item was closed assuming they passed without problems.** There are no measurements.
+- **Assumed and passed over (write the results here when actually done)**:
+  - `sandbox.exe --system-info` output on 11th gen (Xe-LP) hardware, Vulkan version/descriptor indexing (`vulkaninfo --summary`), `--bot` frame/tick times → the "current" values in the performance budget table are still based on Core Ultra.
+  - No desync over 900+ ticks UDP between an Intel PC ↔ AMD PC (startup log `CPU:` line, mixing MSVC/clang-cl with `--any-build`). Windows on ARM.
+- **If the assumption is wrong**: without SM 6.6, the stage 2 texture approach (bindless) is reconsidered. With desyncs between CPUs, pull the desync diagnostic tools (stage 3) forward to find the cause and revisit the deferred fixed-point item.
+  Once the CI build matrix (stage 1) exists, hash comparison across OSes/CPUs is checked automatically on every commit.
+- **GPU check** (`render::queryGpu`, `render::gpuMinimumError`, `Renderer::gpu()`/`initError()`): adapter name, user-mode driver version (`CheckInterfaceSupport`, the same four parts as Device Manager),
+  vendor/device ID, memory, feature level, highest shader model (asked downward from 6.9 as far as the runtime knows), resource binding tier, wave width, mesh shader tier (for reference), UMA.
+  One startup log line: `GPU: <name> | driver <version> | feature level 12_2 | SM 6.8 | binding tier 3 | unified (UMA) memory`.
+  **It doesn't start without SM 6.6 and binding tier 3** (formerly a 6.0 check). The error window shows the GPU name/driver version/"update your driver"/the min spec (Intel 11th gen).
+  Shaders use only 6.0 for now, but blocking early per the min-spec decision (2026-10-15) keeps unsupported PCs from newly appearing at stage 2 bindless.
+- **`sandbox.exe --system-info`**: prints the CPU name and the GPU info above without a window and exits. Exit code 2 if below min spec. Meant for copying hardware measurement results verbatim.
+  The CPU name is `cpuName()` in `mealkit/platform/System.h` (CPUID brand string, x64 only). The sandbox startup log also leaves a `CPU:` line (for recording cross-PC determinism).
+- **`build.bat ClangCL`**: builds Release (static CRT) with clang-cl into `build\ClangCL`. clang-cl from PATH, or the "C++ Clang tools" component found via vswhere (including `-prerelease`).
+  clang gets `-ffp-contract=off` instead of `/fp:precise` (clang's precise allows in-expression multiply-add fusion). Jolt's Windows branch doesn't give clang-cl that option, so `cmake/MealKit.cmake` applies it to the Jolt target too.
+  Link-time optimization is off (it would need lld-link). 0 `/W4` warnings. exe 1.79 MB (MSVC 1.62 MB). A comparison build that isn't shipped.
+- **`mp_test.ps1 -ClientExe <exe>`**: runs only the clients with a different executable. The host opens with `--any-build` (test only: accepts different build IDs, `LockstepSession::setAcceptOtherBuilds`).
+  The build ID is currently the compile time of `Lockstep.cpp`, so it always differs between compilers. The proper comparison method (simulation version + determinism group) is decided in "Version display and connection rejection reasons".
+- **Results (Intel Core Ultra 5 125U, same PC, clang 22.1.3 / MSVC 2022)**:
+  `detmath-bits` identical (`f67a477cb2496808`). MSVC host + 3 clang-cl clients and the reverse both PASS for 900 ticks with the same hash as MSVC-only (`5bcaa500ce729a6d`).
+  Same seed solo 900 ticks with the same hash, the clang-cl build alone gives `SHADOW ok`/`REWIND ok`. `check.ps1` passed (in the first run "Editor play (3 players)" ended once before the 3rd player connected; rerunning that step three times and the whole thing passed).
 
-### README 줄이기 (2026-10-16)
-- **README**: 영어로 한 줄 소개 + 특징 5개 + 문서 링크 + 라이선스만 남겼다. 사용 설명은 나중에 별도 문서 프로젝트(고도의 godot-docs처럼)로 다시 쓴다.
-- **`docs/GUIDE.md`**: 예전 README 전체를 그대로 옮긴 임시 문서(한국어). README를 가리키던 곳(CLAUDE.md, ROADMAP, SimCheck 주석·메시지, SteamStub·sandbox 로그, `.gitignore`, `CMakeLists.txt`, 템플릿 README)을 이 문서로 바꿨다.
-- **템플릿**: `templates/project/README.md`의 결정론 규칙 링크가 바뀌어 엔진 버전 0.4.2 → 0.4.3.
+### Shortening the README (2026-10-16)
+- **README**: kept only a one-line English intro + 5 features + docs link + license. Usage docs will be rewritten later as a separate docs project (like Godot's godot-docs).
+- **`docs/GUIDE.md`**: a temporary document (Korean) holding the whole old README as is. Places pointing to the README (CLAUDE.md, ROADMAP, SimCheck comments/messages, SteamStub/sandbox logs, `.gitignore`, `CMakeLists.txt`, template README) were changed to this document.
+- **Template**: the determinism rules link in `templates/project/README.md` changed, so engine version 0.4.2 → 0.4.3.
 
-## v0.4.2 — 1단계 진행 중 (2026-10-16)
+## v0.4.2 — stage 1 in progress (2026-10-16)
 
-### [x] 고도식 프로젝트 관리자 + 에디터 한국어/영어 (완료 2026-10-16)
-- **프로젝트 관리자** (`editor/ProjectManager.cpp`, 고도 프로젝트 관리자를 따름): 위 막대 [만들기](새 프로젝트 창) · [가져오기](폴더를 목록에 더함) · 검색(이름·경로) · 언어 고르기.
-  목록 줄마다 즐겨찾기 별(맨 위로 정렬, 그다음 최근에 고친 순), 게임 아이콘(눌러서 그림 고르기), 게임 이름(눌러서 고치기), 폴더 경로(눌러서 고치기), 오른쪽에 흐리게 개발 시작일·마지막 수정일.
-  더블클릭으로 열기, 오른쪽 클릭 메뉴(열기, 탐색기에서 보기, 아이콘 바꾸기, 목록에서 제거). 창 제목 "MealKit Engine - 프로젝트 매니저". `editor.bat`을 인자 없이 실행하면 뜬다(`editor.bat sample`은 예제 프로젝트).
-- **이름 바꾸기 = exe 이름 바꾸기**: 확인 창 뒤 `tools\rename_project.ps1`을 창 없이 실행한다. `mealkit.project`의 `name` 줄(원래 형식), 템플릿 파일
-  (고치지 않았으면 새 이름으로 다시 채우고 `.mealkit-template` 해시도 새로, 고쳤으면 옛 이름만 바꾸고 "check it" 표시), `source\`의 문자열·주석 안 이름(코드 식별자는 그대로)을 바꾸고 `build\`를 지운다.
-  `export\<옛 이름>`은 남긴다.
-- **폴더 옮기기**: 확인 창 뒤 `build\`(절대 경로가 들어 있다)를 지우고 같은 드라이브면 이름 바꾸기, 아니면 복사 후 지우기. 목록·즐겨찾기 경로를 바꾼다. 옮기기 전에 시작일을 `mealkit.project`에 적는다(폴더 생성 시각이 바뀔 수 있어서).
-  엔진 저장소의 예제 프로젝트는 이름·폴더를 바꿀 수 없다.
-- **아이콘**: 프로젝트 설정 `icon`(기본 `icon.png`, 프로젝트 폴더 기준). 관리자에서 그림(PNG·JPEG·BMP·ICO 등)을 고르면 256px 이하 PNG로 복사한다. 없으면 밀키트 아이콘(`MealKitEditor.exe`의 RCDATA 2번).
-  그림 읽기·쓰기는 WIC(`editor/Image.cpp`), 화면에는 ImGui 사용자 텍스처(`ImGuiLayer::createTexture`/`releaseTexture`). 정사각형이 아니면 가운데를 잘라 보인다.
-- **날짜**: 프로젝트 설정 `created`(읽기 전용, `new_project.ps1`이 `@CREATED@`로 적는다. 없으면 폴더 생성 시각). 수정일은 `build`·`export`·`third_party`·점으로 시작하는 폴더를 뺀 가장 최근 파일 시각.
-- **사용자 파일** (`%LOCALAPPDATA%\MealKit`): `recent_projects.txt`(최대 100개), `favorite_projects.txt`, `editor_settings.txt`(`language ko`). BOM이 붙어 있어도 읽는다.
-- **에디터 글자 번역** (`editor/Strings.h`): 코드에는 영어 원문을 `tr()`/`trl()`/`trf()`로 쓰고 한국어는 `engine/res/strings/ko.txt`(247줄). 기본 언어 한국어, 번역이 없으면 영어.
-  `trl()`은 `번역###원문`이라 언어를 바꿔도 도킹·팝업 ID가 같다(기존 `###Hierarchy` 같은 ID는 그대로라 레이아웃 파일도 이어진다).
-  엔진이 선언한 필드 설명·씬 기본 종류 이름은 영어로 바꾸고 `trData()`로 번역한다. 게임이 선언한 글자는 게임의 언어 그대로. 되감기 오류 메시지(`Simulation.h`)는 영어.
-  `tools\check_strings.ps1`(check.ps1 항목)이 빠진 번역·안 쓰는 줄·printf 형식 차이·에디터 코드의 한글 문자열을 찾는다.
-- **글꼴**: Segoe UI(영문) + 맑은 고딕(한글) + Segoe Fluent Icons/MDL2 Assets(아이콘 글자 `editor::icon::`)를 합친다. 맑은 고딕만 쓸 때 역슬래시가 ₩로 보이던 것이 고쳐졌다.
-- **템플릿**: `mealkit.project`에 `created` 줄. 템플릿이 바뀌어 엔진 버전 0.4.1 → 0.4.2.
-- **검증**: 관리자·에디터 화면을 한국어/영어로 캡처해 확인. 임시 프로젝트로 `rename_project.ps1`을 두 번 돌리고 게임 DLL(`<새 이름>_game.dll`)이 빌드되는 것을 확인. `check.ps1` 통과.
-  관리자 안에서 클릭으로 하는 이름 고치기·폴더 옮기기·아이콘 고르기는 직접 눌러 보지 않았다.
-- **게임 exe 아이콘**: `mealkit_add_game()`(`cmake/MealKit.cmake`)이 구성 때 `mealkit.project`의 `icon`(빈 값이면 `icon.png`, 프로젝트 폴더 기준, 절대 경로도 됨)을 읽고,
-  빌드 때 `cmake/MakeIcon.ps1`(PowerShell + System.Drawing, 외부 도구 없음)이 16·20·24·32·40·48·64·128·256px PNG 항목의 `.ico`로 바꿔 `<이름>_icon.rc`로 아이콘 리소스 1번에 넣는다.
-  정사각형이 아니면 비율을 지켜 가운데에 놓는다. 그림이 없으면 엔진 기본 아이콘(`engine/res/MealKitEditor.ico`). Release·Debug·Profile·Export 모두 같고 Editor 빌드(게임 DLL)는 해당 없다.
-  `mealkit.project`는 구성 의존, 그림 파일은 `CONFIGURE_DEPENDS` GLOB으로 지켜봐서 그림을 새로 고르거나 지워도 `build.bat`만 다시 하면 된다. exe가 약 33 KB 커진다(sandbox 1.58 → 1.62 MB).
-  템플릿은 그대로라 엔진 버전은 0.4.2 그대로. 검증: sandbox(기본 아이콘·임시 `icon.png`)와 새 프로젝트(`icon art\logo.png`)의 Release·Export exe에서 셸 아이콘을 꺼내 확인.
-- **남은 것**: 다른 언어 추가는 `kLanguages`와 `<언어>.txt`만 더하면 된다.
+### [x] Godot-style project manager + editor Korean/English (done 2026-10-16)
+- **Project manager** (`editor/ProjectManager.cpp`, following Godot's project manager): top bar [Create] (new project window) · [Import] (adds a folder to the list) · search (name/path) · language picker.
+  Each list row has a favorite star (sorted to the top, then by most recently modified), the game icon (click to pick an image), the game name (click to edit), the folder path (click to edit), and dimmed on the right the development start date/last modified date.
+  Double-click to open, right-click menu (open, show in Explorer, change icon, remove from list). Window title "MealKit Engine - Project Manager". It appears when `editor.bat` runs without arguments (`editor.bat sample` is the sample project).
+- **Rename = rename the exe**: after a confirmation window, runs `tools\rename_project.ps1` without a window. Changes the `name` line in `mealkit.project` (original format), template files
+  (refilled with the new name and new `.mealkit-template` hashes if unedited; if edited, only the old name is replaced and marked "check it"), and names inside strings/comments in `source\` (code identifiers unchanged), and deletes `build\`.
+  `export\<old name>` is kept.
+- **Moving folders**: after a confirmation window, deletes `build\` (which contains absolute paths), renames on the same drive, otherwise copies then deletes. Updates list/favorites paths. Writes the start date into `mealkit.project` before moving (the folder creation time may change).
+  The engine repo's sample project can't be renamed or moved.
+- **Icons**: project setting `icon` (default `icon.png`, relative to the project folder). Picking an image (PNG/JPEG/BMP/ICO etc.) in the manager copies it as a PNG of at most 256px. Without one, the MealKit icon (RCDATA 2 of `MealKitEditor.exe`).
+  Images are read/written with WIC (`editor/Image.cpp`), shown on screen as ImGui user textures (`ImGuiLayer::createTexture`/`releaseTexture`). Non-square images show the center cropped.
+- **Dates**: project setting `created` (read-only, written by `new_project.ps1` as `@CREATED@`; the folder creation time if absent). The modified date is the time of the most recent file excluding `build`/`export`/`third_party`/dot folders.
+- **User files** (`%LOCALAPPDATA%\MealKit`): `recent_projects.txt` (up to 100), `favorite_projects.txt`, `editor_settings.txt` (`language ko`). Read even with a BOM.
+- **Editor text translation** (`editor/Strings.h`): code uses the English source via `tr()`/`trl()`/`trf()`, with Korean in `engine/res/strings/ko.txt` (247 lines). Default language Korean, English if there's no translation.
+  `trl()` is `translation###source`, so docking/popup IDs stay the same when the language changes (existing IDs like `###Hierarchy` are unchanged, so layout files carry over).
+  Field descriptions/scene built-in kind names declared by the engine were changed to English and translated with `trData()`. Text declared by games stays in the game's language. Rewind error messages (`Simulation.h`) are in English.
+  `tools\check_strings.ps1` (a check.ps1 item) finds missing translations/unused lines/printf format differences/Korean strings in editor code.
+- **Fonts**: merges Segoe UI (Latin) + Malgun Gothic (Korean) + Segoe Fluent Icons/MDL2 Assets (icon glyphs `editor::icon::`). Fixed backslashes showing as ₩ when only Malgun Gothic was used.
+- **Template**: a `created` line in `mealkit.project`. The template changed, so engine version 0.4.1 → 0.4.2.
+- **Verified**: checked the manager/editor screens via captures in Korean/English. Ran `rename_project.ps1` twice on a temp project and confirmed the game DLL (`<new name>_game.dll`) builds. `check.ps1` passed.
+  Renaming/moving folders/picking icons by clicking inside the manager weren't clicked by hand.
+- **Game exe icons**: at configure time `mealkit_add_game()` (`cmake/MealKit.cmake`) reads `icon` from `mealkit.project` (`icon.png` if empty, relative to the project folder, absolute paths work too),
+  and at build time `cmake/MakeIcon.ps1` (PowerShell + System.Drawing, no external tools) converts it to an `.ico` with 16/20/24/32/40/48/64/128/256px PNG entries and puts it into icon resource 1 via `<name>_icon.rc`.
+  Non-square images are centered keeping the aspect ratio. Without an image, the engine default icon (`engine/res/MealKitEditor.ico`). The same for Release/Debug/Profile/Export; not applicable to the Editor build (game DLL).
+  `mealkit.project` is a configure dependency and image files are watched with a `CONFIGURE_DEPENDS` GLOB, so after picking a new image or deleting it just rerun `build.bat`. The exe grows by about 33 KB (sandbox 1.58 → 1.62 MB).
+  The template is unchanged, so the engine version stays 0.4.2. Verified: extracted shell icons from Release/Export exes of the sandbox (default icon/a temporary `icon.png`) and a new project (`icon art\logo.png`).
+- **Left**: adding another language only needs `kLanguages` and `<language>.txt`.
 
-### 에디터 창 모양 (2026-10-16)
-- **제목 표시줄**: `WindowDesc::captionColor`(0xRRGGBB)를 주면 DWM 어두운 제목 표시줄(Windows 10 20H1+)과 제목 표시줄 색(Windows 11)을 켠다.
-  에디터·프로젝트 관리자·참가 창은 `editor::kEditorCaptionColor`(ImGui 메뉴 막대 색)를 쓴다. 게임 창은 기본값(시스템 색) 그대로.
-- **아이콘**: `Window`가 exe의 아이콘 리소스 1번을 창 아이콘으로 쓴다(없으면 Windows 기본). `MealKitEditor.exe`에 `engine/res/MealKitEditor.rc`/`.ico`를 넣었다.
-  아이콘은 `python tools/make_editor_icon.py`(Pillow)로 다시 만든다. 게임 exe 아이콘은 v0.4.2 프로젝트 관리자 항목에서 넣었다.
+### Editor window look (2026-10-16)
+- **Title bar**: giving `WindowDesc::captionColor` (0xRRGGBB) turns on the DWM dark title bar (Windows 10 20H1+) and the title bar color (Windows 11).
+  The editor/project manager/join windows use `editor::kEditorCaptionColor` (the ImGui menu bar color). Game windows keep the default (system color).
+- **Icons**: `Window` uses the exe's icon resource 1 as the window icon (Windows default if none). Added `engine/res/MealKitEditor.rc`/`.ico` to `MealKitEditor.exe`.
+  The icon is regenerated with `python tools/make_editor_icon.py` (Pillow). Game exe icons were added in the v0.4.2 project manager item.
 
-## v0.4.1 — 1단계 진행 중 (2026-10-16)
+## v0.4.1 — stage 1 in progress (2026-10-16)
 
-### [x] 프로젝트 설정 (`mealkit.project`를 필드 선언으로) (완료 2026-10-16)
-- **구현됨**: 엔진의 `MEALKIT_STRUCT(game::ProjectSettings)`(`mealkit/game/ProjectSettings.h`: `name`, `engine`, `engineVersion`, `scene`)와
-  `game::ProjectFile`(설정 + `game.*` 줄 + 모르는 줄 + 머리 주석). `mealkit.project`는 `.tuning`과 같은 "경로 값" 줄로 쓰고, 예전 "키=값" 줄도 읽는다.
-  모르는 키는 경고하고 저장할 때 그대로 다시 쓴다(새 엔진이 쓴 항목을 잃지 않는다).
-- **게임 항목**: 게임이 `GameClass::ProjectSettingsType`(MEALKIT_STRUCT)을 선언하면 `MEALKIT_GAME_MODULE`이 `GameModule::projectSettingsType`으로 넘긴다(없어도 된다).
-  `kApiVersion` 6 → 7. 파일에서는 `game.` 접두사. 에디터는 게임 DLL을 바꿔 끼울 때 튜닝처럼 값을 텍스트로 보존한다.
-  예제(sandbox)는 `app/ProjectSettings.h`에 `defaultPort`(27015), `defaultMaxPlayers`(4)를 옮겼다(전에는 `main.cpp` 상수).
-- **문자열 필드**: 필드 선언에 `std::string`(`reflect::Kind::String`)을 더했다. 텍스트는 줄 끝까지(앞뒤 공백 없음), 해시는 길이 + 바이트, 스냅샷 저장·복원, 차이 보고, 에디터 입력 칸.
-  시뮬레이션 상태에는 넣을 수 없다: `game::Simulation`이 `reflect::hasStringField<State>()`로 컴파일 때 막는다.
-  `kFieldReadOnly` 플래그와 `MEALKIT_FIELD_FLAGS`를 더했다(에디터가 회색으로 보여 주고 고치지 않는다: 이름·엔진 폴더·엔진 버전은 도구가 관리).
-- **에디터**: [파일] > [프로젝트 설정...] 창(엔진 항목 + 게임 항목, 저장·되돌리기, "지금 씬을 시작 씬으로"). `Ctrl+S`와 출시 빌드 전에 함께 저장한다.
-  창 제목에 "(프로젝트 설정 *)". 업그레이드가 끝나면 도구가 고친 `engine`·`engineVersion`만 다시 읽는다. 자동 테스트용 `--project-settings`.
-- **게임 실행 파일**: `game::loadGameProject()`가 실행 파일 폴더(출시본)나 그 위(개발 중)의 `mealkit.project`를 찾아 읽는다. 시작 씬이 `main.cpp`와 파일 두 곳에 있던 것이 파일 하나로 줄었다.
-  출시 빌드(`MealKitExport.cmake`)가 `mealkit.project`를 exe 옆에 넣는다(개발 PC 경로가 든 `engine`·`engineVersion` 줄은 뺀다).
-- **콘텐츠 해시**: `game::contentHash`가 엔진·게임 프로젝트 설정을 `kFieldView`를 빼고 넣는다. 엔진 공통 항목은 지금 모두 해시 제외(틱레이트 같은 시뮬레이션 항목이 생기면 해시 대상으로 선언한다).
-  에디터 여러 명 플레이는 디스크에 저장된 값으로 해시를 만든다(참가 창과 같은 값).
-- **도구·템플릿**: 템플릿 `mealkit.project`가 새 형식. `build.bat`·`editor.bat`은 `delims== `로 두 형식을 다 읽는다. `project_common.ps1`도 두 형식을 읽고,
-  `upgrade_project.ps1`은 `engine`·`engineVersion` 줄을 **원래 형식 그대로** 고친다(고친 `build.bat`이 예전 형식만 읽을 수 있어서). 템플릿이 바뀌어 엔진 버전 0.4.0 → 0.4.1.
-- **검증**: 단위 테스트 `reflect_string`, `project_file`(두 형식 섞인 파일 읽기, 저장 후 다시 읽기, 해시 제외). `check.ps1` 통과, `mp_test` PASS.
-- **남은 것**: 씬 목록(문자열 목록 필드가 필요하다. 씬 여러 개 다루기·팩 파일 때). 이름 바꾸기(CMake 타깃·exe 이름이 따라 바뀌어야 해서 지금은 읽기 전용).
-  예전 형식 `mealkit.project`를 에디터가 저장하면 새 형식이 되므로, `build.bat`을 직접 고쳐 업그레이드가 `.new`로 남긴 프로젝트는 그 `build.bat`의 `delims`를 고쳐야 한다.
+### [x] Project settings (`mealkit.project` as field declarations) (done 2026-10-16)
+- **Implemented**: the engine's `MEALKIT_STRUCT(game::ProjectSettings)` (`mealkit/game/ProjectSettings.h`: `name`, `engine`, `engineVersion`, `scene`) and
+  `game::ProjectFile` (settings + `game.*` lines + unknown lines + header comment). `mealkit.project` is written as "path value" lines like `.tuning`, and old "key=value" lines are still read.
+  Unknown keys warn and are written back as is on save (so items written by a newer engine aren't lost).
+- **Game items**: when a game declares `GameClass::ProjectSettingsType` (MEALKIT_STRUCT), `MEALKIT_GAME_MODULE` passes it as `GameModule::projectSettingsType` (optional).
+  `kApiVersion` 6 → 7. The `game.` prefix in files. The editor keeps the values as text when swapping the game DLL, like tuning.
+  The sample (sandbox) moved `defaultPort` (27015) and `defaultMaxPlayers` (4) into `app/ProjectSettings.h` (formerly `main.cpp` constants).
+- **String fields**: added `std::string` (`reflect::Kind::String`) to field declarations. Text runs to the end of line (no leading/trailing spaces), hashing is length + bytes, snapshot save/restore, diff reports, editor input fields.
+  They can't go in simulation state: `game::Simulation` blocks it at compile time with `reflect::hasStringField<State>()`.
+  Added the `kFieldReadOnly` flag and `MEALKIT_FIELD_FLAGS` (the editor shows them grayed and doesn't edit them: name/engine folder/engine version are managed by tools).
+- **Editor**: [File] > [Project Settings...] window (engine items + game items, save/revert, "Use current scene as start scene"). Saved together on `Ctrl+S` and before shipping builds.
+  "(Project Settings *)" in the window title. After an upgrade, only the `engine`/`engineVersion` the tool changed are reread. `--project-settings` for automated tests.
+- **Game executables**: `game::loadGameProject()` finds and reads `mealkit.project` in the executable folder (shipping) or above it (development). The start scene, which was in both `main.cpp` and the file, is now only in the file.
+  The shipping build (`MealKitExport.cmake`) puts `mealkit.project` next to the exe (excluding the `engine`/`engineVersion` lines that contain dev PC paths).
+- **Content hash**: `game::contentHash` adds the engine/game project settings excluding `kFieldView`. All common engine items are currently hash-excluded (when simulation items like the tick rate appear, they're declared as hash targets).
+  Editor multiplayer play builds the hash from values saved on disk (the same values as join windows).
+- **Tools/template**: the template `mealkit.project` uses the new format. `build.bat`/`editor.bat` read both formats with `delims== `. `project_common.ps1` reads both too,
+  and `upgrade_project.ps1` edits the `engine`/`engineVersion` lines **in their original format** (because an edited `build.bat` may only read the old format). The template changed, so engine version 0.4.0 → 0.4.1.
+- **Verified**: unit tests `reflect_string`, `project_file` (reading files mixing both formats, rereading after saving, hash exclusion). `check.ps1` passed, `mp_test` PASS.
+- **Left**: a scene list (needs a string list field; when handling multiple scenes/pack files). Renaming (the CMake target/exe name must follow, so read-only for now).
+  When the editor saves an old-format `mealkit.project` it becomes the new format, so projects where `build.bat` was edited by hand and the upgrade left a `.new` need that `build.bat`'s `delims` fixed.
 
-## v0.4 — 0단계: 개발자 경험 (2026-10-15)
+## v0.4 — stage 0: developer experience (2026-10-15)
 
-기능을 더 쌓기 전에 툴부터 편하게 만든다. 툴이 불편한 채로 기능을 쌓으면 나중에 그 기능들을 다시 고쳐야 한다.
-원칙: **무엇을 어디에, 얼마나는 에디터(데이터)에서, 어떻게 동작하는지는 코드에서** 다룬다. 비주얼 스크립팅은 만들지 않는다.
+Make the tools comfortable before stacking more features. Stacking features on uncomfortable tools means reworking those features later.
+Principle: **what, where, and how much are handled in the editor (data); how it behaves is handled in code**. No visual scripting.
 
-### [x] 고도식 범용 에디터 + 게임 DLL 핫 리로드 (결정·완료 2026-10-15)
-- **구현됨**: `MealKitEditor.exe` + `mealkit.dll`(Editor 빌드, RelWithDebInfo, 동적 CRT), 프로젝트 관리자(최근 목록, 폴더 열기, 새 프로젝트),
-  `mealkit.project`, `<이름>_game.dll`(게임 코드만, 다시 빌드 수 초), 원본 DLL 감시 핫 리로드, `Ctrl+R` 게임 코드 빌드, 빌드 실패 시 이전 DLL 유지,
-  엔진이 더 새것이면 열 때 자동 빌드, `GameInstance` API 버전 검사. 출시 exe는 그대로(결정론 해시 동일 확인).
-- **남은 것**: 디버거가 붙어 있으면 PDB가 잠겨 핫 리로드 빌드가 실패할 수 있다(PDB 이름을 빌드마다 바꾸는 방식 검토).
-  mealkit.dll을 다시 빌드할 때는 에디터를 닫아야 한다. 디버그 CRT용 에디터 구성(EditorDebug)은 아직 없다.
-- **왜**: 지금은 프로젝트마다 에디터 exe가 따로 있고 게임 코드가 그 안에 들어 있어서, 코드를 고치면 에디터를 닫고 빌드하고 다시 열어야 한다. 에디터와 VS Code를 같이 띄워 놓고 일할 수 없다.
-- **구조**:
-  - 엔진 저장소가 **에디터 하나**(`MealKitEditor.exe`)를 만든다. 실행하면 **프로젝트 관리자**(최근 프로젝트, 열기, 새 프로젝트)가 뜨고, 프로젝트 폴더를 연다.
-  - 프로젝트는 에디터용으로 **게임 DLL**(`<이름>_game.dll`: World, GameSession)만 빌드한다. 에디터가 이 DLL을 불러 플레이 모드를 돌린다.
-  - VS Code에서 DLL만 다시 빌드하면 에디터가 편집 모드에서 바꿔 끼운다(씬·카메라·선택 유지). 컴파일 에러는 에디터 로그 창에도 표시.
-  - **출시용 `<이름>.exe`는 지금처럼 정적 단일 exe** (가벼움, 결정론 영향 없음).
-- **설계 결정할 것**:
-  - 에디터와 게임 DLL이 엔진을 같이 써야 하므로(`PhysicsWorld`, `ModelCache` 등), 에디터 구성에서는 엔진도 DLL(`mealkit.dll`)로 만들고 CRT는 동적(`/MD`)으로 쓴다. 출시 구성은 정적 그대로.
-  - 게임 DLL 진입점은 C 함수 하나(`mealkitGameCreate`)와 **API 버전 번호**. 엔진과 DLL 버전이 다르면 불러오지 않고 다시 빌드하라고 알린다(크래시 대신).
-  - 에디터 플레이와 출시본이 네트워크로 섞이지 않도록 콘텐츠 해시에 빌드 구성을 포함한다.
-- **Dev 빌드 구성**: 최적화는 켜고 링크 시간 최적화(LTCG)는 끈 구성. 게임 DLL 다시 빌드를 수 초로 줄인다.
-- **영향**: `new_project.ps1`, 프로젝트 템플릿, `mealkit_add_game()`, 에디터 [빌드] 메뉴(프로젝트 경로를 실행 중에 알게 됨)가 바뀐다. 프로젝트의 `editor.bat`은 엔진 에디터에 프로젝트 경로를 넘기는 역할만 남는다.
-- **단점(감수)**: DLL 경계 관리, 엔진·DLL 버전 불일치 처리, 디버깅 설정이 조금 복잡해진다.
+### [x] Godot-style general-purpose editor + game DLL hot reload (decided/done 2026-10-15)
+- **Implemented**: `MealKitEditor.exe` + `mealkit.dll` (Editor build, RelWithDebInfo, dynamic CRT), project manager (recent list, open folder, new project),
+  `mealkit.project`, `<name>_game.dll` (game code only, rebuilt in seconds), hot reload watching the original DLL, `Ctrl+R` game code build, keeping the previous DLL on build failure,
+  automatic build on open when the engine is newer, `GameInstance` API version check. The shipping exe unchanged (determinism hash confirmed identical).
+- **Left**: with a debugger attached, the PDB may be locked and the hot reload build may fail (considering renaming the PDB every build).
+  The editor must be closed when rebuilding mealkit.dll. No editor configuration with the debug CRT (EditorDebug) yet.
+- **Why**: currently each project has its own editor exe with the game code inside, so changing code means closing the editor, building, and reopening it. You can't work with the editor and VS Code open side by side.
+- **Structure**:
+  - The engine repo builds **one editor** (`MealKitEditor.exe`). Running it shows a **project manager** (recent projects, open, new project) and opens a project folder.
+  - For the editor, projects build only a **game DLL** (`<name>_game.dll`: World, GameSession). The editor loads this DLL to run play mode.
+  - Rebuilding just the DLL from VS Code makes the editor swap it in edit mode (keeping scene/camera/selection). Compile errors also show in the editor log window.
+  - **The shipping `<name>.exe` stays a static single exe as now** (lightweight, no effect on determinism).
+- **Design decisions to make**:
+  - The editor and game DLL must share the engine (`PhysicsWorld`, `ModelCache` etc.), so in the editor configuration the engine is also a DLL (`mealkit.dll`) with the dynamic CRT (`/MD`). The shipping configuration stays static.
+  - The game DLL entry point is one C function (`mealkitGameCreate`) and an **API version number**. If the engine and DLL versions differ, it isn't loaded and the user is told to rebuild (instead of crashing).
+  - The build configuration is included in the content hash so editor play and shipping builds don't mix on the network.
+- **Dev build configuration**: optimization on, link-time optimization (LTCG) off. Cuts game DLL rebuilds to seconds.
+- **Impact**: `new_project.ps1`, the project template, `mealkit_add_game()`, and the editor [Build] menu (learning the project path at runtime) change. A project's `editor.bat` is left only passing the project path to the engine editor.
+- **Downsides (accepted)**: managing the DLL boundary, handling engine/DLL version mismatches, and debugging setup get a bit more complex.
 
-### [x] 게임 코드 구조: `sim/` · `view/` 폴더와 결정론 검사 (완료 2026-10-15)
-- **구현됨**: 예제·템플릿 코드를 `sim/`(World: 상태·`step` 순서·`hash`, `Systems.h`, `Players.cpp`, `Props.cpp`), `view/`(Camera, LocalInput, Draw), `app/`(GameSession, main, GameModule)로 나눴다.
-  `World::step()`은 시스템 함수를 순서대로 직접 부르고, 시스템 함수는 `World&`만 받는다(이번 틱 입력은 `world.inputs`). 상자 색은 sim에서 팔레트 번호만 갖고 색은 `view/`가 정한다.
-  구조를 바꾼 뒤에도 같은 시드·입력의 상태 해시가 이전과 같다(`mp_test` PASS).
-- **검사**: `engine/tools/SimCheck.cpp`(`mealkit_simcheck`)가 `sim/` 파일을 토큰 단위로 검사한다(주석·문자열 제외). `mealkit_add_game()`이 게임 타깃보다 먼저 실행하고,
-  어기면 `파일(줄,열): error SIMnnn`과 대신 쓸 것을 출력하고 빌드를 멈춘다(VS Code `$msCompile`이 잡는다). 게임 프로젝트의 Editor 빌드는 `MealKitTargets.cmake`로 이 도구를 가져온다.
-  막는 것: CRT 수학 함수(호출), `quatFromAxisAngle`, `rand`·`<random>`, 실제 시간(`<chrono>`, `time()`, `nowSeconds`), `new`/`delete`/스마트 포인터,
-  `virtual`/`override`, 코루틴·스레드·`atomic`, `unordered_*`, 가변 `static`·전역 변수·`thread_local`, `using namespace std`, 렌더러·플랫폼·에디터·`game/`·`view/`·`app/` 헤더.
-- **CMake**: `mealkit_add_game(<이름> [SOURCE_DIR source])`이 `sim/ view/ app/`을 `GLOB_RECURSE CONFIGURE_DEPENDS`로 모은다. 예전 방식(`SOURCES` 나열)도 그대로 받는다(이때 `sim/` 폴더가 없으면 검사도 없다).
-- **남은 것**: 설정 헤더는 설정 시스템(1단계)이 생기면 금지 목록에 넣는다. 매크로 안에 숨긴 금지 코드와 함수 포인터로 넘긴 수학 함수는 잡지 못한다(그림자 시뮬레이션·`mp_test`가 마지막 확인).
-  이미 만든 프로젝트는 자동으로 옮겨지지 않는다(프로젝트 업그레이드 도구 항목).
+### [x] Game code structure: `sim/` · `view/` folders and determinism checks (done 2026-10-15)
+- **Implemented**: split the sample/template code into `sim/` (World: state/`step` order/`hash`, `Systems.h`, `Players.cpp`, `Props.cpp`), `view/` (Camera, LocalInput, Draw), and `app/` (GameSession, main, GameModule).
+  `World::step()` calls system functions directly in order, and system functions take only `World&` (this tick's inputs are `world.inputs`). Box colors are only palette indices in sim, with the colors decided by `view/`.
+  After the restructuring the state hash for the same seed/inputs is the same as before (`mp_test` PASS).
+- **Check**: `engine/tools/SimCheck.cpp` (`mealkit_simcheck`) checks `sim/` files token by token (excluding comments/strings). `mealkit_add_game()` runs it before the game target,
+  and violations print `file(line,col): error SIMnnn` with what to use instead and stop the build (VS Code's `$msCompile` picks it up). Editor builds of game projects import this tool via `MealKitTargets.cmake`.
+  Blocked: CRT math functions (calls), `quatFromAxisAngle`, `rand`/`<random>`, real time (`<chrono>`, `time()`, `nowSeconds`), `new`/`delete`/smart pointers,
+  `virtual`/`override`, coroutines/threads/`atomic`, `unordered_*`, mutable `static`/global variables/`thread_local`, `using namespace std`, renderer/platform/editor/`game/`/`view/`/`app/` headers.
+- **CMake**: `mealkit_add_game(<name> [SOURCE_DIR source])` gathers `sim/ view/ app/` with `GLOB_RECURSE CONFIGURE_DEPENDS`. The old approach (listing `SOURCES`) is still accepted (then without a `sim/` folder there's no check).
+- **Left**: settings headers go into the forbidden list once the settings system (stage 1) exists. Forbidden code hidden inside macros and math functions passed as function pointers aren't caught (the shadow simulation/`mp_test` are the final check).
+  Existing projects aren't migrated automatically (project upgrade tool item).
 
-### [x] 기본 도구: `Pool<T>` · 틱 이벤트 · 틱 타이머 · `GameContext` (완료 2026-10-15)
-- **구현됨**: `mealkit/sim/Pool.h`(`Id<T>` 세대 번호, `for (auto [id, item] : pool)` 슬롯 순서 순회, `endTick(onDestroy)`, `hashState`),
-  `mealkit/sim/TickEvents.h`, `mealkit/sim/TickTimer.h`, `mealkit/game/GameContext.h`(창·렌더러·에셋·세션 + 뷰포트·입력 허용, `kApiVersion` 2).
-  `MEALKIT_ASSERT`는 Editor 빌드에서도 켜진다(`MEALKIT_ASSERTS`, 디버거가 없으면 로그만). sandbox의 상자는 `Pool<Prop>`(바디 id를 항목에 둔다),
-  밀치기 쿨다운은 `TickTimer`, 밀치기는 틱 이벤트 → 화면 충격파(`view/Effects`). SimCheck 안내 문구가 이 도구들을 가리킨다.
-- **결과**: 상태 해시에 Pool 슬롯 상태가 들어가 해시 값 자체는 이전과 다르다(`mp_test` 3+1 피어 900틱 PASS). Pool 용량은 튜닝 시스템 전까지 `World::reset` 인자.
-- **남은 것**: sandbox는 상자를 지우지 않아 삭제 경로는 단위 테스트로만 확인했다(실제 게임 코드에서 처음 쓸 때 `mp_test`로 다시 확인).
-  이미 만든 프로젝트(`D:\GameEngine\MealKit\Sandbox`)는 옛 `GameInstance` 시그니처라, 새 엔진으로는 게임 코드 빌드가 실패한다(에디터에서 플레이 불가). 손으로 옮기거나 업그레이드 도구로 처리한다.
-- **왜**: `docs/CODING_MODEL.md`의 "한 문제에 한 답"은 엔진이 그 답에 쓸 도구를 줘야 지켜진다. 도구가 없으면 프로젝트마다 다시 만들고 모양이 갈린다.
-- **방식**: `mealkit/sim/`에 `Pool<T>`(매치 시작 때 정하는 고정 용량, 세대 번호 id, 즉시 생성·틱 끝 일괄 삭제, 만든 틱에는 순회 제외),
-  시뮬레이션 → 화면 전용 틱 이벤트 배열, 틱 타이머(`readyTick`) 헬퍼. 화면 쪽은 엔진 서비스(렌더러·입력·소리·에셋·UI·디버그 UI)를 묶은 `GameContext&` 하나를 `GameInstance`에 넘긴다(`kApiVersion` 올림).
-  `GameSession`은 `step()`마다 틱 이벤트를 화면 쪽 큐로 옮긴다(한 프레임에 여러 틱이 돌 때 빠지지 않게). `MEALKIT_ASSERT`를 Editor 빌드에서도 켠다.
-- **순서**: 오브젝트 타입 시스템과 상태 필드 선언이 이 도구 위에 놓이므로 그보다 먼저 한다.
-- **결정론**: Pool 순회는 슬롯 순서. Pool 상태(세대 번호, 빈 슬롯 목록 포함)는 `hash()`에. 틱 이벤트는 시뮬레이션이 읽지 않으므로 해시에 넣지 않는다.
+### [x] Basic tools: `Pool<T>` · tick events · tick timers · `GameContext` (done 2026-10-15)
+- **Implemented**: `mealkit/sim/Pool.h` (`Id<T>` generation numbers, `for (auto [id, item] : pool)` iteration in slot order, `endTick(onDestroy)`, `hashState`),
+  `mealkit/sim/TickEvents.h`, `mealkit/sim/TickTimer.h`, `mealkit/game/GameContext.h` (window/renderer/assets/session + viewport/input allow, `kApiVersion` 2).
+  `MEALKIT_ASSERT` is on in Editor builds too (`MEALKIT_ASSERTS`; without a debugger, log only). The sandbox's boxes are a `Pool<Prop>` (body ids in the items),
+  the push cooldown is a `TickTimer`, and pushes are tick events → a view shockwave (`view/Effects`). SimCheck's hint messages point to these tools.
+- **Result**: Pool slot state goes into the state hash, so the hash value itself differs from before (`mp_test` 3+1 peers 900 ticks PASS). Pool capacity is a `World::reset` argument until the tuning system.
+- **Left**: the sandbox doesn't delete boxes, so the deletion path was only checked with unit tests (recheck with `mp_test` when real game code first uses it).
+  The already created project (`D:\GameEngine\MealKit\Sandbox`) has the old `GameInstance` signature, so its game code build fails with the new engine (can't play in the editor). Migrate it by hand or with the upgrade tool.
+- **Why**: the "one answer per problem" of `docs/CODING_MODEL.md` holds only if the engine provides the tools for those answers. Without tools, every project rebuilds them and their shapes diverge.
+- **Approach**: in `mealkit/sim/`, `Pool<T>` (fixed capacity set at match start, generation-numbered ids, immediate creation/batched deletion at the end of the tick, excluded from iteration on the creation tick),
+  a simulation → view-only tick event array, and a tick timer (`readyTick`) helper. On the view side, one `GameContext&` bundling engine services (renderer/input/sound/assets/UI/debug UI) is passed to `GameInstance` (`kApiVersion` bumped).
+  `GameSession` moves tick events into the view-side queue after every `step()` (so nothing is lost when several ticks run per frame). `MEALKIT_ASSERT` is turned on in Editor builds too.
+- **Order**: the object type system and state field declarations sit on top of these tools, so this comes first.
+- **Determinism**: Pool iteration is in slot order. Pool state (including generation numbers and the free slot list) goes into `hash()`. Tick events aren't read by the simulation, so they're not hashed.
 
-### [x] 게임 정의 오브젝트 타입 + 인스펙터 필드 (완료 2026-10-15)
-- **구현됨**: 필드 선언 장치 `mealkit/core/Reflect.h`(`MEALKIT_STRUCT`/`MEALKIT_OBJECT`/`MEALKIT_FIELD`/`MEALKIT_VIEW_FIELD`/`MEALKIT_ARRAY`).
-  `__COUNTER__`로 필드 번호를 매기고 실행 중 설명(`reflect::TypeInfo`)을 만들어, 타입을 모르는 엔진·에디터가 텍스트 저장, 해시, 스냅샷, 비교, 위젯을 처리한다.
-  씬 물체는 `type` 이름(기본 `solid`/`decoration`/`spawn` + 게임 종류)과 필드 텍스트(`field <경로> <값>`)를 가진다(씬 파일 version 2, version 1도 읽는다).
-  게임 코드가 없거나 필드가 바뀌어도 값은 보존된다. 게임 DLL은 `GameModule::objectTypes`로 종류를 넘기고(`kApiVersion` 3),
-  에디터는 [추가] 메뉴·`+ 종류...`·인스펙터 "종류" 콤보와 필드 위젯(`editor/FieldEditor`)을 보여 준다. 게임은 `scene::readObject<T>(entity)`로 읽는다.
-  예제: sandbox `JumpPad`(점프 힘, 재사용 대기) — 아레나에 하나 놓았다.
-- **콘텐츠 해시**: 장식 종류(`kObjectCosmetic`)와 `MEALKIT_VIEW_FIELD`는 뺀다. 게임은 `scene.contentHash(&reflect::moduleObjectTypes())`.
-- **왜**: 지금 에디터에 놓을 수 있는 물체 종류(`Solid`/`Decoration`/`SpawnPoint`)가 엔진 `Scene.h`에 박혀 있다. 코인·트리거·점프대를 만들려면 엔진을 고쳐야 한다.
-- **방식**: 게임 코드가 타입과 필드를 한 번 선언하면 에디터의 `추가` 메뉴와 인스펙터에 자동으로 나타나고 `.scene`에 저장된다. `World`는 매치를 시작할 때 읽는다.
+### [x] Game-defined object types + inspector fields (done 2026-10-15)
+- **Implemented**: the field declaration mechanism `mealkit/core/Reflect.h` (`MEALKIT_STRUCT`/`MEALKIT_OBJECT`/`MEALKIT_FIELD`/`MEALKIT_VIEW_FIELD`/`MEALKIT_ARRAY`).
+  Fields are numbered with `__COUNTER__` and a runtime description (`reflect::TypeInfo`) is built, so the engine/editor can handle text saving, hashing, snapshots, comparison, and widgets without knowing the type.
+  Scene objects have a `type` name (built-in `solid`/`decoration`/`spawn` + game kinds) and field text (`field <path> <value>`) (scene file version 2; version 1 is still read).
+  Values are preserved even without game code or when fields change. The game DLL passes kinds via `GameModule::objectTypes` (`kApiVersion` 3),
+  and the editor shows the [Add] menu/`+ Kind...`/the inspector "Kind" combo and field widgets (`editor/FieldEditor`). Games read them with `scene::readObject<T>(entity)`.
+  Example: sandbox `JumpPad` (jump power, cooldown) — one placed in the arena.
+- **Content hash**: decoration kinds (`kObjectCosmetic`) and `MEALKIT_VIEW_FIELD` are excluded. Games use `scene.contentHash(&reflect::moduleObjectTypes())`.
+- **Why**: the object kinds you can place in the editor (`Solid`/`Decoration`/`SpawnPoint`) were hardcoded in the engine's `Scene.h`. Making coins/triggers/jump pads required editing the engine.
+- **Approach**: when game code declares a type and fields once, they appear automatically in the editor's `Add` menu and inspector and are saved in `.scene`. The `World` reads them when the match starts.
   ```cpp
   MEALKIT_OBJECT(JumpPad) {
-      MEALKIT_FIELD(f32, power, 12.0f, "점프 힘");
-      MEALKIT_FIELD(u32, cooldownTicks, 30, "재사용 대기(틱)");
+      MEALKIT_FIELD(f32, power, 12.0f, "Jump power");
+      MEALKIT_FIELD(u32, cooldownTicks, 30, "Cooldown (ticks)");
   };
   ```
-- **기존 종류**: 상자·장식·스폰도 이 시스템 위의 기본 타입으로 옮긴다. 기존 `.scene`은 그대로 읽히게 한다.
-- **결정론**: 필드 값은 콘텐츠 해시에 포함한다(장식용 필드는 표시해서 제외). 순회는 오브젝트 id 순서.
+- **Existing kinds**: boxes/decorations/spawns also move onto this system as built-in types. Existing `.scene` files still read as is.
+- **Determinism**: field values are included in the content hash (decorative fields are marked and excluded). Iteration is in object id order.
 
-### [x] 튜닝 값을 데이터로 (완료 2026-10-15)
-- **구현됨**: 게임이 `MEALKIT_STRUCT(Tuning)`(sandbox `sim/Tuning.h`)을 선언하고 `GameSession::TuningType`으로 알린다(`GameModule::tuningType`, `kApiVersion` 4).
-  값은 `assets/game.tuning`(텍스트 `경로 값`). `game::loadTuning`이 읽고 `World::reset`이 `world.tuning`으로 복사한다. 콘텐츠 해시는 `game::contentHash`(씬 + 모델 + 튜닝).
-  에디터 [튜닝] 패널(환경 옆 탭)에서 고치고 저장(Ctrl+S도 같이)한다. 플레이를 누르면 저장 안 된 값을 `build\Editor\play\play.tuning`으로 넘기고,
-  플레이 중에 고치면 `GameInstance::setTuning`으로 바로 적용한다(혼자 플레이). 게임 실행 파일은 `--tuning <파일>`로 다른 값을 쓸 수 있다.
-  sandbox의 이동·점프·중력·밀치기·상자 밀도 상수를 튜닝으로 옮겼다(같은 값이라 상태 해시도 이전과 같다).
-- **왜**: 이동 속도·점프력·쿨다운이 `World.cpp`의 `constexpr`이라 값 하나 맞추는 데도 빌드가 필요하다.
-- **방식**: 위와 같은 필드 선언으로 게임 전역 설정(`assets/game.tuning` 같은 텍스트 파일)을 만들고 에디터 패널에서 고친다.
-  에디터 혼자 플레이에서는 값을 바꾸면 바로 적용, 멀티플레이에서는 매치 시작 때 고정하고 콘텐츠 해시에 넣는다.
+### [x] Tuning values as data (done 2026-10-15)
+- **Implemented**: the game declares `MEALKIT_STRUCT(Tuning)` (sandbox `sim/Tuning.h`) and announces it as `GameSession::TuningType` (`GameModule::tuningType`, `kApiVersion` 4).
+  Values are in `assets/game.tuning` (text `path value`). `game::loadTuning` reads it and `World::reset` copies it into `world.tuning`. The content hash is `game::contentHash` (scene + models + tuning).
+  Edited in the editor [Tuning] panel (a tab next to Environment) and saved (also with Ctrl+S). Pressing play passes unsaved values as `build\Editor\play\play.tuning`,
+  and edits during play apply immediately via `GameInstance::setTuning` (solo play). Game executables can use other values with `--tuning <file>`.
+  Moved the sandbox's movement/jump/gravity/push/box density constants into tuning (same values, so the state hash is the same as before).
+- **Why**: movement speed/jump power/cooldowns were `constexpr` in `World.cpp`, so tweaking a single value needed a build.
+- **Approach**: build game-wide settings (a text file like `assets/game.tuning`) with the same field declarations as above and edit them in an editor panel.
+  In editor solo play changing values applies immediately; in multiplayer they're fixed at match start and go into the content hash.
 
-### [x] 상태 필드를 한 번만 선언 (완료 2026-10-15)
-- **구현됨**: sandbox `WorldState`·`Player`·`Prop`·`Pad`를 `MEALKIT_STRUCT`/`MEALKIT_FIELD`로 선언했다. `World::hash()`는 `reflect::hashStruct`(선언한 필드 전부) + 물리 해시 한 줄이다.
-  스냅샷: `game::saveSnapshot`/`loadSnapshot`(`mealkit/game/WorldSnapshot.h`, 상태 필드 + `PhysicsWorld::save/restore`).
-  물리 스냅샷은 바디 목록·모양·Jolt 상태(`SaveState`)를 담고, 복원하면 그 사이에 만들거나 지운 바디도 되돌린다. 바디 id는 엔진이 정하는 순서로 매겨(`CreateBodyWithID`) 복원 뒤에 만든 바디도 같은 id가 된다.
-  단위 테스트 `physics_snapshot`: 복원 후 40틱 동안 해시가 처음과 같다(중간에 바디 삭제·생성 포함).
-  에디터 [상태] 패널(인스펙터 옆 탭, 플레이하면 앞으로)이 선언을 그대로 읽기 전용 표로 보여 준다(`GameInstance::stateView`, `kApiVersion` 5).
-- **바뀐 것**: 바디 id 할당 방식이 바뀌어 상태 해시 값이 이전과 다르다(피어끼리는 같다, `mp_test` PASS).
-- **왜**: 새 상태 하나에 구조체, `step`, `hash`, 그리기를 고쳐야 하고, `hash`를 빠뜨려도 조용히 디싱크 감지에서 빠진다. 중간 참가(스냅샷)를 넣으면 한 곳이 더 는다.
-- **방식**: 시뮬레이션 상태도 필드 선언(위와 같은 장치)으로 만들고 **해시, 스냅샷 저장·복원, 에디터 실시간 보기**를 자동 생성한다. 3단계 "중간 참가"의 기반.
+### [x] Declaring state fields only once (done 2026-10-15)
+- **Implemented**: declared the sandbox's `WorldState`/`Player`/`Prop`/`Pad` with `MEALKIT_STRUCT`/`MEALKIT_FIELD`. `World::hash()` is one line of `reflect::hashStruct` (all declared fields) + the physics hash.
+  Snapshots: `game::saveSnapshot`/`loadSnapshot` (`mealkit/game/WorldSnapshot.h`, state fields + `PhysicsWorld::save/restore`).
+  Physics snapshots hold the body list/shapes/Jolt state (`SaveState`), and restoring also reverts bodies created or deleted in between. Body ids are assigned in an engine-defined order (`CreateBodyWithID`), so bodies created after a restore get the same ids too.
+  Unit test `physics_snapshot`: after restoring, the hash stays the same as the original for 40 ticks (including body deletion/creation midway).
+  The editor [State] panel (a tab next to the inspector, brought to front on play) shows the declarations as is in a read-only table (`GameInstance::stateView`, `kApiVersion` 5).
+- **Changed**: the body id allocation changed, so state hash values differ from before (identical between peers, `mp_test` PASS).
+- **Why**: one new piece of state required editing the struct, `step`, `hash`, and drawing, and forgetting `hash` silently dropped it from desync detection. Adding late join (snapshots) would add one more place.
+- **Approach**: simulation state is also built from field declarations (the same mechanism as above), automatically generating **hashing, snapshot save/restore, and the editor live view**. The foundation for stage 3 "Late join".
 
-### [x] 결정론 수학 유틸 (삼각함수 근사) (완료 2026-10-15)
-- **구현됨**: `mealkit/core/DetMath.h`(`detSin`/`detCos`/`detAtan`/`detAtan2`/`detQuatFromAxisAngle`/`detYawQuat`, Cephes 계수). CRT와의 최대 오차 sin·cos 6e-8, atan2 2.4e-7.
-  엔진 단위 테스트 `mealkit_tests`(엔진 저장소 빌드)가 오차와 결과 비트 해시(`detmath-bits`)를 출력하고, Release·Editor 빌드에서 같은 해시를 확인했다. SimCheck SIM001 안내가 이 함수들을 가리킨다.
-- **왜**: 시뮬레이션에서는 CRT `sin`/`cos`/`atan2`를 쓸 수 없는데, 엔진에 대신 쓸 함수가 없다(`quatFromAxisAngle`도 시뮬레이션 금지). 캐릭터 회전, AI 방향 전환, 래그돌 목표 포즈 모두 각도 계산이 필요하다.
-- **방식**: `mealkit/core/DetMath.h`에 사칙연산과 `sqrt`만 쓰는 다항식 근사 `detSin`/`detCos`/`detAtan2`/`detQuatFromAxisAngle`. 입력 범위를 정수 연산으로 줄인 뒤(각도 → [-π/4, π/4]) 근사한다.
-- **검사**: 모든 입력 구간에서 CRT 결과와의 오차 한계를 테스트하고, 결과 비트가 Release/Editor 구성에서 같은지 `mp_test`·해시로 확인한다. `sim/` 금지 헤더 검사는 CRT 함수 대신 이 함수를 쓰라고 안내한다.
-- **비용**: 작음. 아래 "플레이어·캐릭터 분리"와 4단계 "이동 모드"의 전제.
+### [x] Deterministic math utilities (trig approximations) (done 2026-10-15)
+- **Implemented**: `mealkit/core/DetMath.h` (`detSin`/`detCos`/`detAtan`/`detAtan2`/`detQuatFromAxisAngle`/`detYawQuat`, Cephes coefficients). Max error versus the CRT: sin/cos 6e-8, atan2 2.4e-7.
+  The engine unit tests `mealkit_tests` (engine repo build) print the errors and a hash of the result bits (`detmath-bits`), and the same hash was confirmed on Release/Editor builds. SimCheck SIM001's hint points to these functions.
+- **Why**: the simulation can't use CRT `sin`/`cos`/`atan2`, but the engine had nothing to use instead (`quatFromAxisAngle` is also forbidden in the simulation). Character rotation, AI turning, and ragdoll target poses all need angle math.
+- **Approach**: polynomial approximations `detSin`/`detCos`/`detAtan2`/`detQuatFromAxisAngle` in `mealkit/core/DetMath.h` using only arithmetic and `sqrt`. The input range is reduced with integer math (angle → [-π/4, π/4]) before approximating.
+- **Checks**: tests bound the error versus CRT results over all input ranges, and `mp_test`/hashes confirm the result bits are the same across Release/Editor configurations. The forbidden `sim/` header check tells you to use these functions instead of CRT ones.
+- **Cost**: small. A prerequisite for "Separating players and characters" below and stage 4 "Movement modes".
 
-### [x] 플레이어와 캐릭터 분리 (빙의) (완료 2026-10-15)
-- **구현됨**: sandbox `WorldState`가 `slots`(PlayerSlot: 접속, 팀, 떨어진 횟수, 컨트롤러), `controllers`(Pool<Controller>: 플레이어/AI, 빙의한 Pawn, 리스폰 타이머, AI 목표),
-  `pawns`(Pool<Pawn>: 몸, 물리 바디)로 나뉜다. `possess`/`unpossess`(sim/Pawns.cpp)로만 잇는다.
-  떨어진 Pawn은 없애고(바디는 틱 끝에 삭제) 컨트롤러는 `respawnTicks` 뒤 새 Pawn에 빙의한다. 그동안 카메라는 마지막 자리에 머문다(관전).
-  AI 컨트롤러(튜닝 `aiPawns`, 기본 2)는 시뮬레이션 안에서 `aiRng`(Pcg32, 상태 필드)와 `detSin`/`detCos`로 목표를 골라 걷는다(대역폭 0).
-  `--bot`은 입력을 만드는 테스트 도구로 그대로 둔다. `mp_test.ps1`에 `-Scene`, `-Tuning`을 추가했다(바닥 없는 씬으로 리스폰 반복 시험 PASS).
-- **왜**: 지금은 `players[i]`가 접속한 사람이면서 동시에 캡슐 몸이다. 리스폰 대기, 관전, 차량 탑승, AI 캐릭터, 죽어도 남는 점수를 넣을 자리가 없다.
-- **방식**: 시뮬레이션 상태를 세 가지로 나눈다.
-  - `PlayerSlot`: 매치 동안 유지. 접속 상태, 이름, 팀, 점수, 이번 틱 입력.
-  - `Pawn`: 월드 안의 몸(종류, 이동 모드, 체력 등). 생기고 사라지며 id 순서로 갱신.
-  - `Controller`: 슬롯 또는 AI를 Pawn에 잇는다. 플레이어 / AI / 없음(관전). `possess(controller, pawnId)`, `unpossess(controller)`.
-- **언리얼과 다른 점**: Actor 상속 트리는 만들지 않는다. 전부 시뮬레이션 안의 평평한 배열이고, 빙의 변경도 시뮬레이션 안에서만 일어난다(클라이언트는 입력으로 "탑승 요청"만 보낸다).
-- **AI**: AI 컨트롤러는 시뮬레이션 안에서 결정론으로 돈다(모든 피어가 같은 계산, 대역폭 0). 지금의 `--bot`(입력을 만들어 보내는 방식)은 테스트 도구로 따로 둔다.
-- **템플릿**: `sim/`·`view/` 구조와 같이 템플릿에 넣는다. 나중에 넣으면 만든 프로젝트를 모두 옮겨야 한다.
-- **결정론**: 슬롯·Pawn·Controller 상태 모두 `hash()`에. Pawn 생성·삭제는 틱 안에서 정해진 순서로, id는 재사용하지 않거나 세대 번호를 붙인다.
-- **이어지는 것**: 3단계 중간 참가(빈 슬롯 이어받기), 4단계 이동 모드·게임 흐름·체력 모듈.
+### [x] Separating players and characters (possession) (done 2026-10-15)
+- **Implemented**: the sandbox `WorldState` is split into `slots` (PlayerSlot: connection, team, falls, controller), `controllers` (Pool<Controller>: player/AI, possessed Pawn, respawn timer, AI target),
+  and `pawns` (Pool<Pawn>: body, physics body). They're connected only via `possess`/`unpossess` (sim/Pawns.cpp).
+  Fallen Pawns are removed (bodies deleted at the end of the tick), and the controller possesses a new Pawn after `respawnTicks`. Meanwhile the camera stays at the last spot (spectating).
+  AI controllers (tuning `aiPawns`, default 2) pick targets inside the simulation with `aiRng` (Pcg32, a state field) and `detSin`/`detCos` and walk (zero bandwidth).
+  `--bot` stays as a test tool that generates input. Added `-Scene`, `-Tuning` to `mp_test.ps1` (repeated respawn test with a floorless scene PASS).
+- **Why**: `players[i]` was both the connected person and the capsule body. There was no place for respawn waits, spectating, riding vehicles, AI characters, or scores that survive death.
+- **Approach**: simulation state is split three ways.
+  - `PlayerSlot`: kept through the match. Connection state, name, team, score, this tick's input.
+  - `Pawn`: a body in the world (kind, movement mode, health etc.). Appears and disappears, updated in id order.
+  - `Controller`: connects a slot or AI to a Pawn. Player / AI / none (spectating). `possess(controller, pawnId)`, `unpossess(controller)`.
+- **Differences from Unreal**: no Actor inheritance tree. Everything is flat arrays inside the simulation, and possession changes happen only inside the simulation (clients only send a "board request" as input).
+- **AI**: AI controllers run deterministically inside the simulation (every peer computes the same, zero bandwidth). The current `--bot` (generating and sending input) stays separate as a test tool.
+- **Template**: goes into the template together with the `sim/`/`view/` structure. Adding it later would mean migrating every created project.
+- **Determinism**: slot/Pawn/Controller state all go into `hash()`. Pawn creation/deletion happens in a fixed order within the tick, and ids aren't reused or carry generation numbers.
+- **What follows**: stage 3 late join (taking over empty slots), stage 4 movement modes/game flow/health modules.
 
-### [x] 씬 트리 계층 (부모·자식) (완료 2026-10-15)
-- **구현됨**: `scene::Entity::parent`(씬 파일 `parent <id>`), 위치·회전·크기는 부모 기준. `worldTransform`/`setWorldTransform`/`isDescendant`/`subtree`/`flattened`(Scene.h).
-  에디터 씬 트리는 접고 펴는 트리이고, 끌어다 놓으면 부모가 바뀐다(화면 위치 유지, 자기 자손 아래로는 막음). 빈 곳에 놓거나 우클릭 "최상위로 꺼내기"로 빼낸다.
-  기즈모는 월드 공간, 인스펙터는 부모 기준 값. 복제·삭제는 자식까지 함께. 게임은 `scene::flattened()`로 펼친 평평한 목록을 쓴다(sandbox GameSession::start).
-  없는 부모나 순환은 불러올 때 최상위로 옮기고 경고한다. 크기는 축별 곱(회전된 부모의 비균등 크기에서 생기는 찌그러짐은 버림).
-- **왜**: 여러 물체를 묶어 옮기기, 움직이는 발판 위의 장식 같은 경우 부모·자식이 필요하다.
-- **방식**: `Entity`에 `parent` id를 두고 에디터에서는 트리로 보여 준다(끌어서 부모 변경). **게임이 불러올 때 월드 좌표로 펼쳐** 실행 중에는 지금처럼 평평한 배열로 둔다(속도·결정론 유지). 4단계 "프리팹"과 이어진다.
+### [x] Scene tree hierarchy (parent/child) (done 2026-10-15)
+- **Implemented**: `scene::Entity::parent` (scene file `parent <id>`), position/rotation/scale relative to the parent. `worldTransform`/`setWorldTransform`/`isDescendant`/`subtree`/`flattened` (Scene.h).
+  The editor scene tree is a collapsible tree, and drag and drop changes the parent (screen position kept, dropping under its own descendants blocked). Dropping on empty space or right-click "Move to top level" takes it out.
+  The gizmo is in world space, the inspector shows parent-relative values. Duplicate/delete include children. Games use the flat list flattened with `scene::flattened()` (sandbox GameSession::start).
+  Missing parents or cycles are moved to the top level on load with a warning. Scale multiplies per axis (skew from non-uniform scale of a rotated parent is dropped).
+- **Why**: moving groups of objects together and decorations on a moving platform need parent/child.
+- **Approach**: `Entity` gets a `parent` id and the editor shows it as a tree (drag to reparent). **The game flattens it to world coordinates on load** and keeps a flat array at runtime as now (keeping speed/determinism). Connects to stage 4 "Prefabs".
 
-### [x] 에디터에서 여러 명으로 플레이 (완료 2026-10-15)
-- **구현됨**: 플레이 버튼 옆 인원(혼자/2~4명)과 "참가 창 봇". 여러 명이면 에디터가 방장(127.0.0.1:27215)이 되고, 같은 에디터 실행 파일을 참가 창 모드
-  (`MealKitEditor.exe --project <폴더> --player <주소> --scene <파일> --tuning <파일> [--bot]`)로 더 띄운다. 참가 창은 현재 씬·튜닝(저장 안 된 값 포함)을
-  `build\Editor\play\`의 임시 파일로 받아 같은 게임 DLL로 접속하고, 콘텐츠 해시(`editor::playContentHash`)가 같아야 들어온다.
-  참가 창은 Job 개체(`ProcessGroup`)로 묶어 정지하거나 에디터가 꺼지면 같이 닫힌다. 로그는 `build\Editor\play\player<N>.log`.
-  상태 표시줄에 인원·동기화 여부. 30초 안에 모두 접속하지 않으면 알림을 띄우고 멈춘다. 여러 명일 때 튜닝은 바로 적용하지 않는다(디싱크 방지).
-  게임 DLL 핫 복사본 이름에 프로세스 번호를 넣어 여러 프로세스가 같이 쓸 수 있다. 자동 테스트: `--play --players 3 --bot`.
-  플레이 진행은 `editor/PlaySession`으로 옮겼다.
-- **왜**: 멀티플레이 엔진인데 여러 명 테스트는 명령줄로 창을 직접 띄워야 한다.
-- **방식**: 플레이 버튼 옆에서 "플레이어 2~4명"을 고르면 현재 씬(저장 안 된 편집 포함, 임시 파일로)으로 `--host --local` 창 1개 + 참가 창을 자동으로 띄운다.
-  추가 창은 봇 입력 또는 직접 조작. 정지하면 모두 닫는다. 유니티 Multiplayer Play Mode에 해당.
+### [x] Multiplayer play from the editor (done 2026-10-15)
+- **Implemented**: player count (solo/2~4) and "bots in join windows" next to the play button. With multiple players the editor becomes the host (127.0.0.1:27215) and launches more copies of the same editor executable in join window mode
+  (`MealKitEditor.exe --project <folder> --player <address> --scene <file> --tuning <file> [--bot]`). Join windows receive the current scene/tuning (including unsaved values)
+  as temp files in `build\Editor\play\`, connect with the same game DLL, and get in only if the content hash (`editor::playContentHash`) matches.
+  Join windows are grouped in a Job object (`ProcessGroup`) so they close together on stop or when the editor exits. Logs are `build\Editor\play\player<N>.log`.
+  Player count/sync state in the status bar. If not everyone connects within 30 seconds, a notification appears and it stops. With multiple players tuning isn't applied immediately (to avoid desyncs).
+  The process id is put into the game DLL hot copy name so multiple processes can share it. Automated test: `--play --players 3 --bot`.
+  Play progression moved into `editor/PlaySession`.
+- **Why**: it's a multiplayer engine, yet multiplayer tests needed launching windows by hand on the command line.
+- **Approach**: picking "2~4 players" next to the play button automatically launches one `--host --local` window + join windows with the current scene (including unsaved edits, via temp files).
+  Extra windows use bot input or are controlled directly. Stopping closes them all. The equivalent of Unity's Multiplayer Play Mode.
 
-### [x] 그림자 시뮬레이션으로 디싱크 즉시 감지 (완료 2026-10-15)
-- **구현됨**: 엔진 `game::Simulation<World>`(mealkit/game/Simulation.h)가 고정 틱 실행·보간용 직전 상태·그림자 World를 맡는다(게임의 GameSession은 이것 하나를 갖는다).
-  `PlayOptions::shadow`이면 같은 입력으로 World를 하나 더(물리 스레드 1개) 돌려 매 틱 해시를 비교하고, 다르면 그 틱에서 멈추고
-  `reflect::diffStruct`로 다른 상태 필드를 남긴다(비어 있으면 물리만 다름). 에디터는 메뉴 막대에 "그림자: 일치/갈라짐"을 보이고 알림 창으로 차이를 보여 준다.
-  에디터 메뉴 막대의 "그림자 검사"(기본 켬)로 끈다. 게임 실행 파일은 `--shadow`(결과 `SHADOW ok|DESYNC`).
-  단위 테스트: 전역 변수를 섞은 가짜 World에서 첫 틱에 잡고 `sum` 필드 차이를 보고한다. sandbox 900틱(바디 2000개) 일치.
-- **왜**: 결정론 실수는 지금 `mp_test`를 돌려야 드러나고, 어디서 났는지 찾기 어렵다.
-- **방식**: 에디터 플레이 중 같은 입력으로 `World`를 하나 더 돌리고 매 틱 해시를 비교한다. 다르면 즉시 멈추고 틱·상태 차이를 보여 준다.
-- **잡는 것 / 못 잡는 것**: 초기화 안 된 변수, 포인터 주소 순서, 실제 시간 읽기, 전역 상태는 잡는다. CPU마다 다른 계산(FMA 등)은 못 잡는다(`mp_test`, 다른 PC 테스트로).
-- **비용**: 시뮬레이션 CPU 2배 (에디터에서만, 끌 수 있게).
+### [x] Instant desync detection with a shadow simulation (done 2026-10-15)
+- **Implemented**: the engine's `game::Simulation<World>` (mealkit/game/Simulation.h) handles fixed tick execution/the previous state for interpolation/the shadow World (the game's GameSession holds one of these).
+  With `PlayOptions::shadow`, it runs one more World with the same inputs (1 physics thread) and compares hashes every tick; on mismatch it pauses at that tick
+  and records differing state fields with `reflect::diffStruct` (if empty, only physics differs). The editor shows "Shadow: match/diverged" in the menu bar and the differences in a notification window.
+  Turned off with "Shadow check" in the editor menu bar (on by default). Game executables use `--shadow` (result `SHADOW ok|DESYNC`).
+  Unit test: a fake World mixing in a global variable is caught on the first tick, reporting the `sum` field difference. The sandbox matches for 900 ticks (2000 bodies).
+- **Why**: determinism mistakes only showed up when running `mp_test`, and it was hard to find where they came from.
+- **Approach**: during editor play, run one more `World` with the same inputs and compare hashes every tick. On mismatch, stop immediately and show the tick/state differences.
+- **Catches / misses**: catches uninitialized variables, pointer address order, reading real time, global state. Misses computations that differ per CPU (FMA etc.) (via `mp_test`, tests on other PCs).
+- **Cost**: 2x simulation CPU (editor only, and can be turned off).
 
-### [x] 일시정지, 한 틱씩 진행, 되감기 (완료 2026-10-15)
-- **구현됨**: `PlayOptions::record`(에디터 혼자 플레이)이면 틱 입력·해시를 기록하고 150틱마다 `WorldSnapshot`(상태 필드 + 물리)을 남긴다(최근 40개, 약 3분 20초).
-  `GameInstance::debug()`(`game::SimDebug`, `kApiVersion` 6): 일시정지(F6), 한 틱(F7), 타임라인 슬라이더로 되감기(가까운 스냅샷에서 기록된 입력으로 다시 돌림).
-  다시 돌린 해시가 기록과 다르면 "선언하지 않은 상태 또는 결정론 위반"으로 알린다. 계속하면 현재 틱으로 돌아간다. 튜닝을 바꾸면 기록을 새로 시작한다.
-  여러 명 플레이에서는 멈출 수 없으므로 기록하지 않는다. 게임 실행 파일 `--rewind-test`(결과 `REWIND ok|FAIL`): sandbox 900틱 기록 3.8 MB, 전 구간 재현 일치.
-- **왜**: 버그가 난 순간을 다시 보기 어렵다. 결정론이라 입력만 기록하면 어느 틱으로든 돌아갈 수 있다.
-- **방식**: 에디터 플레이 중 입력을 기록하고 일정 간격(예: 5초)마다 스냅샷을 남긴다. 타임라인 슬라이더로 가까운 스냅샷에서 빨리 감아 원하는 틱으로 간다. 일시정지 중에는 상태 인스펙터로 값을 본다.
-- **의존**: "상태 필드를 한 번만 선언"의 스냅샷 기능.
+### [x] Pause, single tick step, rewind (done 2026-10-15)
+- **Implemented**: with `PlayOptions::record` (editor solo play), tick inputs/hashes are recorded and a `WorldSnapshot` (state fields + physics) is kept every 150 ticks (the last 40, about 3 min 20 s).
+  `GameInstance::debug()` (`game::SimDebug`, `kApiVersion` 6): pause (F6), single tick (F7), rewinding with a timeline slider (rerunning from the nearest snapshot with recorded inputs).
+  If the rerun hash differs from the recording, it reports "undeclared state or determinism violation". Continuing returns to the current tick. Changing tuning restarts the recording.
+  Multiplayer play can't pause, so it doesn't record. Game executable `--rewind-test` (result `REWIND ok|FAIL`): a 900-tick sandbox recording is 3.8 MB, and the whole range reproduces identically.
+- **Why**: it's hard to revisit the moment a bug happened. With determinism, recording just the inputs lets you go back to any tick.
+- **Approach**: during editor play, record inputs and keep a snapshot at fixed intervals (e.g. 5 seconds). The timeline slider fast-forwards from the nearest snapshot to the desired tick. While paused, values are viewed in the state inspector.
+- **Depends on**: the snapshot feature of "Declaring state fields only once".
 
-### [x] 주기적 자동 저장 (완료 2026-10-15)
-- **구현됨**: 저장 안 된 변경이 있으면 편집 중 90초마다 `<씬>.autosave`에 쓴다(원본은 그대로). 저장하면 자동 저장본을 지운다.
-  씬을 열 때 자동 저장본이 더 새로우면 "복구 / 버리기"를 묻는다(복구도 되돌리기 가능). 에러 알림용 모달(`Editor::showMessage`)도 추가했다.
-- **왜**: 지금은 에디터를 정상 종료할 때만 `.autosave`를 남긴다. 크래시가 나면 그 사이 작업이 사라진다.
-- **방식**: 변경이 있으면 1~2분마다 `.autosave`에 쓰고, 다음 실행 때 복구할지 묻는다. 원본 파일은 덮어쓰지 않는다.
+### [x] Periodic autosave (done 2026-10-15)
+- **Implemented**: with unsaved changes, writes `<scene>.autosave` every 90 seconds while editing (the original is untouched). Saving deletes the autosave.
+  When opening a scene, if the autosave is newer it asks "Recover / Discard" (recovery can be undone). Also added a modal for error notices (`Editor::showMessage`).
+- **Why**: `.autosave` was only left when the editor exited normally. On a crash, the work since then was lost.
+- **Approach**: with changes, write `.autosave` every 1~2 minutes and ask whether to recover on the next run. The original file isn't overwritten.
 
-### [x] 한 번에 도는 검증 스크립트 (`tools/check.ps1`) (완료 2026-10-15)
-- **구현됨**: 15개 항목을 차례로 돌리고 PASS/FAIL과 걸린 시간을 출력한다(실패가 있으면 종료 코드 1). 로그·스크린샷은 `build\check\`.
-  Editor·Release 빌드, 단위 테스트 두 빌드(결정론 수학 비트 일치), `mp_test` 1+3, 그림자·되감기(`--shadow --rewind-test`), 게임 캡처, 에디터 캡처,
-  에디터 혼자 플레이(그림자 검사), 에디터 3명 플레이, SimCheck가 잘못된 sim/ 코드를 막는지(임시 파일로 SIM002), 빌드 실패 때 이전 DLL 유지,
-  게임 코드 다시 빌드 + 불러오기, 새 프로젝트 + 업그레이드(변경 0), 출시 빌드. 전체 약 2분. `-Quick`(빌드 + 단위 테스트 + mp_test, 약 40초).
-- **왜**: 범용 에디터 작업 때 Editor 빌드, Release 빌드, 결정론 테스트, 에디터 플레이 캡처, 핫 리로드, 빌드 실패 처리, 출시 빌드를 매번 손으로 돌렸다. 엔진을 고칠 때마다 이걸 다 기억해서 돌리기 어렵다.
-- **방식**: 위 과정을 차례로 실행하고 항목별 PASS/FAIL과 걸린 시간을 출력한다. 스크린샷은 `build\check\`에 남긴다. `-Quick`(빌드 + 결정론 테스트만) 옵션.
-- **이후**: 헤드리스 시뮬레이션(4단계)이 생기면 GPU 없이 도는 부분을 늘린다.
+### [x] One-shot verification script (`tools/check.ps1`) (done 2026-10-15)
+- **Implemented**: runs 15 items in sequence and prints PASS/FAIL and elapsed time (exit code 1 on any failure). Logs/screenshots in `build\check\`.
+  Editor/Release builds, unit tests on both builds (deterministic math bits match), `mp_test` 1+3, shadow/rewind (`--shadow --rewind-test`), game capture, editor capture,
+  editor solo play (shadow check), editor 3-player play, whether SimCheck blocks bad sim/ code (SIM002 with a temp file), keeping the previous DLL on build failure,
+  game code rebuild + reload, new project + upgrade (0 changes), shipping build. About 2 minutes total. `-Quick` (build + unit tests + mp_test, about 40 seconds).
+- **Why**: during the general-purpose editor work, the Editor build, Release build, determinism tests, editor play captures, hot reload, build failure handling, and shipping build were run by hand every time. Remembering to run all of it on every engine change is hard.
+- **Approach**: runs the steps above in sequence and prints per-item PASS/FAIL and elapsed time. Screenshots stay in `build\check\`. A `-Quick` (build + determinism tests only) option.
+- **Later**: once the headless simulation (stage 4) exists, extend the parts that run without a GPU.
 
-### [x] 프로젝트 업그레이드 도구 + 엔진 버전 (완료 2026-10-15)
-- **구현됨**: 엔진 버전은 저장소 루트 `VERSION`(0.4.0) → CMake가 `MEALKIT_VERSION`으로 넘기고 `mealkit/core/Version.h`(`kEngineVersion`). 에디터 창 제목·프로젝트 관리자에 보인다.
-  `mealkit.project`에 `engineVersion=`. 새 프로젝트는 템플릿 파일의 SHA-256을 `.mealkit-template`에 남긴다(`tools/project_common.ps1`을 new_project와 같이 쓴다).
-  `tools/upgrade_project.ps1 -Project <폴더> [-DryRun] [-Force] [-Source]`: 해시가 기록과 같은(고치지 않은) 템플릿 파일만 새 템플릿으로 바꾸고,
-  고친 파일은 `<파일>.new`로 새 내용을 남긴다(템플릿이 그대로면 조용히 둔다). `mealkit.project`는 engine=·engineVersion=만 고친다. 바꾸기 전 파일은 `.upgrade_backup\<시각>\`.
-  `-Source`는 `source/`를 엔진 예제 코드로 바꾸고(예제에 없는 파일은 지움, 백업) 없는 에셋만 더한다.
-  에디터는 프로젝트를 열 때 버전이 다르면 업그레이드를 묻고, 누르면 스크립트를 빌드 로그 창에서 돌린 뒤 게임 코드를 다시 빌드한다(자동 테스트 `--upgrade`).
-- **Sandbox 이전**: `D:\GameEngine\MealKit\Sandbox`를 `-Source -Force`로 옮겼다(예전 템플릿 그대로임을 git 기록과 비교해 확인, 백업 `.upgrade_backup\20261015-184512`).
-  Editor·Release 빌드, `mp_test` 1+3 PASS, 에디터 플레이 확인.
-- **왜**: 템플릿(`build.bat`, `.vscode`, `CMakeLists.txt` 형식)이 바뀔 때마다 기존 프로젝트를 손으로 옮겨야 한다(범용 에디터 작업 때 Sandbox를 손으로 옮겼다).
-- **방식**: `tools/upgrade_project.ps1 <프로젝트>`가 템플릿이 관리하는 파일만 새로 쓰고 `source/`, `assets/`는 건드리지 않는다. 바꾸기 전 파일은 `.upgrade_backup/`에 남긴다.
-  사용자가 고친 템플릿 파일(예: `CMakeLists.txt`의 SOURCES)은 덮어쓰지 않고 차이를 보여 준다.
-- **엔진 버전**: 엔진에 `MEALKIT_VERSION`, `mealkit.project`에 `engineVersion=`. 에디터가 프로젝트를 열 때 버전이 다르면 업그레이드를 권한다.
+### [x] Project upgrade tool + engine version (done 2026-10-15)
+- **Implemented**: the engine version is the repo root `VERSION` (0.4.0) → passed by CMake as `MEALKIT_VERSION` into `mealkit/core/Version.h` (`kEngineVersion`). Shown in the editor window title/project manager.
+  `engineVersion=` in `mealkit.project`. New projects record SHA-256 hashes of template files in `.mealkit-template` (`tools/project_common.ps1` is shared with new_project).
+  `tools/upgrade_project.ps1 -Project <folder> [-DryRun] [-Force] [-Source]`: replaces only template files whose hash matches the record (unedited) with the new template,
+  and edited files get the new content left as `<file>.new` (left quietly if the template is unchanged). `mealkit.project` only has engine=/engineVersion= changed. Files from before the change go to `.upgrade_backup\<time>\`.
+  `-Source` replaces `source/` with the engine sample code (deleting files not in the sample, with backup) and adds only missing assets.
+  When opening a project with a different version the editor asks to upgrade; pressing it runs the script in the build log window and then rebuilds the game code (automated test `--upgrade`).
+- **Sandbox migration**: migrated `D:\GameEngine\MealKit\Sandbox` with `-Source -Force` (confirmed it was still the old template by comparing with git history, backup `.upgrade_backup\20261015-184512`).
+  Editor/Release builds, `mp_test` 1+3 PASS, editor play checked.
+- **Why**: every time the template (`build.bat`, `.vscode`, `CMakeLists.txt` format) changes, existing projects had to be migrated by hand (the Sandbox was migrated by hand during the general-purpose editor work).
+- **Approach**: `tools/upgrade_project.ps1 <project>` rewrites only files managed by the template and doesn't touch `source/`, `assets/`. Files from before the change stay in `.upgrade_backup/`.
+  Template files edited by the user (e.g. SOURCES in `CMakeLists.txt`) aren't overwritten, and the difference is shown.
+- **Engine version**: `MEALKIT_VERSION` in the engine, `engineVersion=` in `mealkit.project`. When the editor opens a project with a different version, it recommends upgrading.
 
-### [x] 코드 서식 통일 (`.clang-format`, `.editorconfig`) (완료 2026-10-15)
-- **구현됨**: 저장소 루트와 프로젝트 템플릿에 `.clang-format`(LLVM 기반, 4칸, 120열, 중괄호 같은 줄, 짧은 함수·if·case 한 줄, include 순서는 그대로)과 `.editorconfig`.
-  `third_party/.clang-format`은 서식을 끈다. VS Code는 C/C++ 파일을 저장할 때 서식을 맞춘다(`.vscode/settings.json`, 템플릿도).
-  기존 엔진·예제 코드에 한 번 적용했다(서식만 바뀐 커밋). 줄 맞춤이 뜻이 있는 행렬 코드는 `// clang-format off`로 둔다.
-- **왜**: 프로젝트가 여러 개가 되거나 AI로 코드를 짜도 스타일이 일관되게. 지금 스타일(4칸, 120열, 중괄호 같은 줄)을 규칙 파일로 고정한다.
-- **방식**: 엔진과 프로젝트 템플릿에 넣고, VS Code에서 저장할 때 자동 서식. `third_party/`는 제외. 비용 거의 없음.
+### [x] Unified code formatting (`.clang-format`, `.editorconfig`) (done 2026-10-15)
+- **Implemented**: `.clang-format` (LLVM-based, 4 spaces, 120 columns, braces on the same line, short functions/if/case on one line, include order left as is) and `.editorconfig` at the repo root and in the project template.
+  `third_party/.clang-format` turns formatting off. VS Code formats C/C++ files on save (`.vscode/settings.json`, the template too).
+  Applied once to existing engine/sample code (a formatting-only commit). Matrix code where alignment carries meaning is kept with `// clang-format off`.
+- **Why**: consistent style even with multiple projects or AI-written code. The current style (4 spaces, 120 columns, braces on the same line) is pinned in a rules file.
+- **Approach**: put into the engine and project template, auto-formatting on save in VS Code. `third_party/` excluded. Nearly no cost.

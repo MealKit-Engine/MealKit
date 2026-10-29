@@ -1,55 +1,55 @@
 # @NAME@
 
-MealKit 엔진(`@MEALKIT_ROOT@`, 3D 멀티플레이, Windows + DirectX 12(기준)·Vulkan, C++20/MSVC/CMake+Ninja)으로 만드는 게임 프로젝트.
-사용자와는 한국어로 대화한다. 코드 주석과 에디터 UI는 한국어, 로그 메시지와 씬 파일 키는 영어로 쓴다.
+A game project made with the MealKit engine (`@MEALKIT_ROOT@`, 3D multiplayer, Windows + DirectX 12 (reference)/Vulkan, C++20/MSVC/CMake+Ninja).
+Talk with the user in Korean. Code comments, log messages, and scene file keys are written in English; editor UI text is English source text with a Korean translation.
 
-## 명령
+## Commands
 
-- 게임 코드 빌드(에디터용 DLL, 핫 리로드): `build.bat Editor` → `build\Editor\bin\@NAME@_game.dll`
-- 출시용 빌드: `build.bat` (Release) / `build.bat Debug` / `build.bat Profile` / `build.bat Export` (→ `export\@NAME@\`)
-- 실행: `build\Release\bin\@NAME@.exe --help` (게임), `editor.bat` (에디터)
-- 결정론 테스트: `powershell -ExecutionPolicy Bypass -File @MEALKIT_ROOT@\tools\mp_test.ps1 -Clients 3 -Ticks 900 -Exe build\Release\bin\@NAME@.exe` → PASS 필수
-- 게임 화면 확인: `build\Release\bin\@NAME@.exe --bot --exit-tick 300 --capture out.png 240`
-- 에디터 화면 확인: `@MEALKIT_ROOT@\build\Editor\bin\MealKitEditor.exe --project . --frames 60 --select 5 --capture out.png` (플레이 모드는 `--play --bot` 추가)
+- Build game code (DLL for the editor, hot reload): `build.bat Editor` → `build\Editor\bin\@NAME@_game.dll`
+- Shipping builds: `build.bat` (Release) / `build.bat Debug` / `build.bat Profile` / `build.bat Export` (→ `export\@NAME@\`)
+- Run: `build\Release\bin\@NAME@.exe --help` (game), `editor.bat` (editor)
+- Determinism test: `powershell -ExecutionPolicy Bypass -File @MEALKIT_ROOT@\tools\mp_test.ps1 -Clients 3 -Ticks 900 -Exe build\Release\bin\@NAME@.exe` → must PASS
+- Check the game screen: `build\Release\bin\@NAME@.exe --bot --exit-tick 300 --capture out.png 240`
+- Check the editor screen: `@MEALKIT_ROOT@\build\Editor\bin\MealKitEditor.exe --project . --frames 60 --select 5 --capture out.png` (add `--play --bot` for play mode)
 
-## 규칙
+## Rules
 
-- 엔진 코드와 에디터는 이 폴더에 없다. 엔진을 고쳐야 하면 `@MEALKIT_ROOT@`에서 고친다 (그쪽 CLAUDE.md를 따른다).
-- `source/sim/`은 결정론 코드다: CRT 삼각함수 금지(`mealkit/core/DetMath.h`를 쓴다), `/fp:precise` 유지, `Pcg32`만 사용, 순회·바디 생성 순서 고정.
-  틱을 넘어 남는 상태는 `WorldState` 안에 `MEALKIT_FIELD`로 선언한다. 선언하면 해시·스냅샷·에디터 [상태] 패널에 저절로 들어간다.
-  빌드 때 SimCheck가 검사해 어기면 `error SIMnnn`으로 빌드가 멈춘다(대신 쓸 것을 알려 준다). 규칙의 근거는 엔진의 `docs/CODING_MODEL.md`.
-  시뮬레이션 코드를 바꾸면 결정론 테스트로 디싱크가 없는지 확인한다.
-- 게임 코드 폴더: `source/sim/`(규칙: 시스템별 파일, 시스템 함수는 `World&`만 받고 `World::step()`이 순서대로 호출),
-  `source/view/`(카메라·로컬 입력·그리기, sim 상태는 읽기만), `source/app/`(`GameSession` = `mealkit::game::GameInstance` 구현, `main.cpp`의 `MEALKIT_GAME_MAIN`(출시 exe, main·창·세션은 엔진 `mealkit/game/GameMain.h`), `GameModule.cpp`의 `MEALKIT_GAME_MODULE`).
-  `sim/`에서 매치 중 생기고 사라지는 객체는 `mealkit::sim::Pool<T>`, "N틱 뒤"는 `TickTimer`, 화면에 알릴 일은 `world.events`(`TickEvents`)로 한다.
-  화면 쪽은 엔진 서비스를 `mealkit::game::GameContext&`로 받는다 (`docs/CODING_MODEL.md`).
-- 사람(`PlayerSlot`)과 몸(`Pawn`)은 나뉘고 `Controller`가 잇는다(플레이어 또는 AI). 리스폰·관전·탑승·AI는 Pawn을 새로 만들거나 `possess`/`unpossess`로 바꿔 구현한다 (`source/sim/Pawns.cpp`).
-- `GameSession`은 엔진의 `game::Simulation<World>`로 틱을 돌린다(그림자 시뮬레이션, 일시정지·되감기가 여기서 나온다). 틱 루프를 직접 짜지 않는다.
-- 에디터에 놓을 새 물체 종류는 `source/sim/Objects.h`에 `MEALKIT_OBJECT(이름) { MEALKIT_FIELD(타입, 필드, 기본값, "표시 이름"); };`로 선언하고,
-  `World.cpp`의 `loadScene`에서 `scene::readObject<이름>(entity)`로 읽는다. 게임 코드를 다시 빌드하면 에디터 [추가] 메뉴에 나온다.
-  include는 `"sim/World.h"`처럼 `source/` 기준으로 쓴다. 파일을 추가해도 `CMakeLists.txt`를 고치지 않는다.
-- **숫자는 코드 상수로 두지 않는다** (엔진 `docs/CODING_MODEL.md` "숫자는 어디에 두나"): 게임 규칙 값 → `Tuning`, 맵마다 다른 값(범위, 개수, 높이) → 씬 물체(영역은 `kObjectFlags = mealkit::reflect::kObjectArea`인 `MEALKIT_OBJECT`의 위치·크기),
-  보이기만 하는 값 → `ViewTuning`. `sim/`의 실수 리터럴은 SimCheck가 경고(SIM012)한다. 단위 변환·알고리즘 상수만 줄 끝 `// const-ok: <이유>`로 남긴다.
-- 튜닝 값(속도, 쿨다운 같은 숫자)은 코드 상수 대신 `source/sim/Tuning.h`의 `MEALKIT_FIELD`로 선언하고 `world.tuning`으로 읽는다. 값은 `assets/game.tuning`, 에디터 [튜닝] 패널에서 고친다.
-  보이기만 하는 값(카메라, 색, 효과 시간)은 `source/view/ViewTuning.h`(`assets/view.tuning`, [튜닝] 패널 "화면" 탭)에 두고 화면 쪽에서 `ctx.viewTuning<ViewTuning>()`으로 읽는다. 콘텐츠 해시에 들어가지 않아 여러 명 플레이 중에도 바로 바뀐다.
-  시간 값은 `MEALKIT_FIELD(mealkit::Ticks, 이름, mealkit::Ticks::seconds(0.5f), "설명 (초)")`로 선언한다(파일·에디터는 초, `sim/`은 정수 틱).
-- 같은 모양의 행이 여러 개인 데이터(무기, 아이템, 적 종류)는 정의 데이터 표: `source/sim/Tables.h`에 행 타입 `MEALKIT_STRUCT`와 `MEALKIT_TABLE(Row, "tables/x.table", 0)`,
-  값은 `assets/tables/x.table`(에디터 [표] 패널, CSV). 다른 데이터는 `mealkit::RowRef<Row>`(행 id)로 가리킨다. `app/Headless.cpp`의 `startWorld`가 `mealkit::data::loadTable`로 읽어 `World`에 넘기고, `sim/`은 행 번호로 읽는다.
-- 엔진을 올린 뒤 에디터가 "프로젝트 업그레이드"를 물으면 받아들인다(또는 `@MEALKIT_ROOT@\tools\upgrade_project.ps1 -Project .`).
-  빌드 파일만 새로 바꾸고 직접 고친 파일은 `<파일>.new`로 남긴다. `.mealkit-template`은 지우지 않는다.
-- 폴더 구조는 엔진이 정한다: `assets/` 바로 밑은 종류 폴더(`scenes models textures sounds effects ui fonts tables strings lut`)와 정해진 파일만, 외부 도구 원본(`.blend`, `.psd`, Penpot)은 `art/`.
-  외부 라이브러리는 `third_party/<lib>/`에 원본 `LICENSE`와 `mealkit.txt`(name, version, license, source, usedIn, 빌드할 게 있으면 `cmakeTarget`)를 두면 게임 exe·DLL에 붙는다(`sim/`에서는 SIM011).
-  `@MEALKIT_ROOT@\tools\check_layout.ps1 -Project .`이 검사하고, Export도 같은 검사로 실패한다.
-- 디버그 치트·매치 중 설정 변경처럼 시뮬레이션을 바꾸는 일은 화면 쪽에서 상태를 고치지 않고 확정 명령으로 보낸다: `source/sim/`에 명령 타입 `MEALKIT_STRUCT`(문자열 없음), 화면 쪽은 `mealkit::sim::sendCommand(ctx.session, 명령)`, `World::step()` 맨 앞에서 `mealkit::sim::forEachCommand`로 처리(`mealkit/sim/Commands.h`).
-- 개발용 화면(성능, 치트 버튼, 상태 보기)은 `GameSession::debugUi(ctx)` 안에서 `#if MEALKIT_DEBUG_UI`로 감싸 Dear ImGui로 그린다(게임 exe는 F1, 에디터는 플레이 중). 출시 빌드(`build.bat Export`)에는 없다. 게임 UI에는 쓰지 않는다.
-- 게임 화면(HUD·메뉴)은 `assets/ui/*.ui`에 쓰고(에디터 [보기] > [UI]에서 미리보기, 저장하면 바로 다시 읽는다), 게임 코드는 `source/view/`에 `MEALKIT_VIEWMODEL` 뷰 모델을 두고 `ctx.ui.open("ui/hud.ui")` → `ctx.ui.bind(화면, vm)` → 매 프레임 vm 채우기, 버튼은 `ctx.ui.actions()`. UI가 시뮬레이션을 바꿔야 하면 확정 명령으로 보낸다.
-- 플레이어 설정(화면·소리·키·언어)은 엔진의 표준 설정 화면을 쓴다: 버튼에 `button settings.open`, 코드에서는 `ctx.settings.open()`, 값은 `ctx.settings.values()`(화면 쪽만, `sim/`에서는 읽지 않는다). 모양은 `assets/ui/settings.ui`에서 바꾸고 바인딩·`settings.*` 액션은 둔다.
-- 플레이어마다 고른 캐릭터·장비처럼 매치에 영향을 주는 값은 로드아웃(`source/sim/Loadout.h`의 `MEALKIT_STRUCT`)으로 보낸다: `GameSession::lobby`에서 `mealkit::game::setLoadout(session, l)`, `Headless::startWorld`에서 `mealkit::game::readLoadout(match, p, l)`로 읽어 `World::reset`이 플레이어 슬롯(상태)에 복사한다. `sim/`은 그 복사본만 읽는다. 매치 중에 들어온 사람은 엔진 명령으로 온다: `applyCommands`에서 `mealkit::sim::readPresence(c, p)` → 새 슬롯이면 슬롯·컨트롤러를 만들고 `p.readLoadout(l)`, 끊기면(`!p.connected`) 그 사람의 캐릭터를 치운다(sandbox `setPresence`).
-- 화면 흐름(타이틀 → 메뉴 → 로비 → 매치 → 결과 → 로비)은 `source/app/Flow.cpp`와 `assets/ui/`의 화면 `.ui`. 방을 열고 닫는 일은 `ctx.match`(`host`, `join`, `playOffline`, `start`, `returnToLobby`, `leave`)만 부르고, 매치 끝은 `sim/`의 매치 단계가 정한다.
-- 매치 밖에 남는 기록·해금은 `source/app/SaveData.h`의 `MEALKIT_STRUCT(SaveData)` 하나를 `mealkit::game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion)`/`readSave`로 저장한다. 필드를 더하고 지워도 예전 파일을 읽고, 뜻이 바뀌면 버전을 올려 migrate에서 옮긴다. `sim/`은 세이브를 읽지 않는다.
-- 플레이어에게 보이는 글자는 코드에 쓰지 않고 `assets/strings/ko.txt`(`키 = 문자열`, 언어마다 파일 하나)에 두고 `ctx.strings.get("키")`, 값이 들어가면 `ctx.strings.format("키", {{"이름", 값}})`. 표의 글자가 `assets/fonts`의 글꼴에 없으면 빌드가 멈춘다(STR001).
-- 조작은 키가 아니라 입력 액션으로 읽는다: `ctx.actions.axis2("move")`, `ctx.actions.pressed("jump")`. 액션과 키·마우스·게임패드 바인딩은 `assets/input.bindings`(에디터 [표] 패널)에 두고, 코드에서 키(`window.input()`)를 직접 보지 않는다.
-- 틱 이벤트(`world.events`, `GameEvent`의 종류는 `MEALKIT_ENUM`)에 붙는 소리·흔들림·번쩍임·화면 정지는 코드가 아니라 연출 표 `assets/feedback.table`(에디터 [연출] 패널)에 둔다. 게임 코드는 `ctx.feedback.trigger(e, localPlayer)`만 부른다.
-- 소리는 `source/view/`에서 `ctx.audio.play("이벤트", 위치, {{"파라미터", 값}})`(`mealkit/audio/Audio.h`)로만 낸다. 이벤트(클립, 볼륨, 감쇠, 동시 재생 상한)와 버스는 `assets/sounds.events`(저작 도구 MealKit Audio, 에디터 [도구] 메뉴. [소리] 패널에서 미리듣기),
-  클립은 `assets/sounds/`의 WAV(배경음은 `stream true`). `sim/`은 소리를 모르고 `world.events`에 틱 이벤트만 남긴다.
-- 씬 충돌 데이터, 모델 파일, 튜닝 값이 바뀌면 콘텐츠 해시가 바뀌어, 다른 데이터를 쓰는 피어는 접속이 거부된다.
+- Engine code and the editor aren't in this folder. If the engine needs changes, change it in `@MEALKIT_ROOT@` (following its CLAUDE.md).
+- `source/sim/` is deterministic code: no CRT trig functions (use `mealkit/core/DetMath.h`), keep `/fp:precise`, use only `Pcg32`, fixed iteration and body creation order.
+  State that persists across ticks is declared with `MEALKIT_FIELD` inside `WorldState`. Once declared, it automatically goes into the hash, snapshots, and the editor [State] panel.
+  SimCheck checks at build time, and violations stop the build with `error SIMnnn` (it tells you what to use instead). The reasoning behind the rules is in the engine's `docs/CODING_MODEL.md`.
+  After changing simulation code, confirm there are no desyncs with the determinism test.
+- Game code folders: `source/sim/` (rules: one file per system; system functions take only `World&` and `World::step()` calls them in order),
+  `source/view/` (camera, local input, drawing; only reads sim state), `source/app/` (`GameSession` = the `mealkit::game::GameInstance` implementation, `MEALKIT_GAME_MAIN` in `main.cpp` (shipping exe; main, window, and session are in the engine's `mealkit/game/GameMain.h`), `MEALKIT_GAME_MODULE` in `GameModule.cpp`).
+  In `sim/`, objects created/destroyed during a match use `mealkit::sim::Pool<T>`, "N ticks later" uses `TickTimer`, and things to tell the view go through `world.events` (`TickEvents`).
+  The view side takes engine services as `mealkit::game::GameContext&` (`docs/CODING_MODEL.md`).
+- People (`PlayerSlot`) and bodies (`Pawn`) are separate, connected by a `Controller` (player or AI). Respawn, spectating, mounting, and AI are implemented by creating new Pawns or switching with `possess`/`unpossess` (`source/sim/Pawns.cpp`).
+- `GameSession` runs ticks with the engine's `game::Simulation<World>` (shadow simulation, pause, and rewind come from here). Don't write your own tick loop.
+- New object kinds to place in the editor are declared in `source/sim/Objects.h` as `MEALKIT_OBJECT(Name) { MEALKIT_FIELD(type, field, default, "Display name"); };`,
+  and read in `World.cpp`'s `loadScene` with `scene::readObject<Name>(entity)`. Rebuilding game code makes them appear in the editor [Add] menu.
+  Includes are written relative to `source/`, like `"sim/World.h"`. Adding files doesn't require editing `CMakeLists.txt`.
+- **Don't keep numbers as code constants** (engine `docs/CODING_MODEL.md` "Where to put numbers"): game rule values → `Tuning`; values that differ per map (ranges, counts, heights) → scene objects (areas are the position/size of a `MEALKIT_OBJECT` with `kObjectFlags = mealkit::reflect::kObjectArea`),
+  visual-only values → `ViewTuning`. SimCheck warns on float literals in `sim/` (SIM012). Only unit conversions and algorithm constants are kept, with `// const-ok: <reason>` at line end.
+- Tuning values (numbers like speeds and cooldowns) are declared with `MEALKIT_FIELD` in `source/sim/Tuning.h` instead of code constants and read via `world.tuning`. Values are edited in `assets/game.tuning` and the editor [Tuning] panel.
+  Visual-only values (camera, colors, effect durations) go in `source/view/ViewTuning.h` (`assets/view.tuning`, the "View" tab of the [Tuning] panel) and are read on the view side with `ctx.viewTuning<ViewTuning>()`. They aren't in the content hash, so they change immediately even during multiplayer.
+  Time values are declared as `MEALKIT_FIELD(mealkit::Ticks, name, mealkit::Ticks::seconds(0.5f), "Description (seconds)")` (seconds in files and the editor, integer ticks in `sim/`).
+- Data with many rows of the same shape (weapons, items, enemy kinds) uses definition data tables: row type `MEALKIT_STRUCT` and `MEALKIT_TABLE(Row, "tables/x.table", 0)` in `source/sim/Tables.h`,
+  values in `assets/tables/x.table` (editor [Tables] panel, CSV). Other data points to rows with `mealkit::RowRef<Row>` (row id). `startWorld` in `app/Headless.cpp` reads them with `mealkit::data::loadTable` and passes them to the `World`, and `sim/` reads by row index.
+- After upgrading the engine, accept when the editor asks to "upgrade project" (or `@MEALKIT_ROOT@\tools\upgrade_project.ps1 -Project .`).
+  It replaces only build files and leaves files you edited as `<file>.new`. Don't delete `.mealkit-template`.
+- The engine decides the folder layout: directly under `assets/` only kind folders (`scenes models textures sounds effects ui fonts tables strings lut`) and fixed files; external tool sources (`.blend`, `.psd`, Penpot) go in `art/`.
+  External libraries get attached to the game exe/DLL when placed in `third_party/<lib>/` with the original `LICENSE` and a `mealkit.txt` (name, version, license, source, usedIn, and `cmakeTarget` if there's something to build) (SIM011 in `sim/`).
+  `@MEALKIT_ROOT@\tools\check_layout.ps1 -Project .` checks it, and Export fails with the same check.
+- Things that change the simulation, like debug cheats and mid-match settings changes, aren't done by modifying state from the view side but sent as confirmed commands: a command type `MEALKIT_STRUCT` (no strings) in `source/sim/`, `mealkit::sim::sendCommand(ctx.session, command)` on the view side, processed with `mealkit::sim::forEachCommand` at the very start of `World::step()` (`mealkit/sim/Commands.h`).
+- Dev screens (performance, cheat buttons, state views) are drawn with Dear ImGui inside `GameSession::debugUi(ctx)`, wrapped in `#if MEALKIT_DEBUG_UI` (F1 in the game exe, during play in the editor). They're absent in shipping builds (`build.bat Export`). Not used for game UI.
+- Game screens (HUD, menus) are written in `assets/ui/*.ui` (previewed in the editor [View] > [UI], re-read immediately on save), and game code keeps `MEALKIT_VIEWMODEL` view models in `source/view/` and does `ctx.ui.open("ui/hud.ui")` → `ctx.ui.bind(screen, vm)` → fill vm every frame; buttons via `ctx.ui.actions()`. If UI needs to change the simulation, send confirmed commands.
+- Player settings (display, sound, keys, language) use the engine's standard settings screen: `button settings.open` on a button, `ctx.settings.open()` in code, values via `ctx.settings.values()` (view side only; not read in `sim/`). Change the look in `assets/ui/settings.ui`, keeping the bindings and `settings.*` actions.
+- Values that affect a match, like each player's chosen character and gear, are sent as loadouts (a `MEALKIT_STRUCT` in `source/sim/Loadout.h`): `mealkit::game::setLoadout(session, l)` in `GameSession::lobby`, read with `mealkit::game::readLoadout(match, p, l)` in `Headless::startWorld`, and `World::reset` copies them into player slots (state). `sim/` reads only that copy. People joining mid-match arrive via engine commands: in `applyCommands`, `mealkit::sim::readPresence(c, p)` → for a new slot, create the slot and controller and `p.readLoadout(l)`; on disconnect (`!p.connected`), remove that person's character (sandbox `setPresence`).
+- Screen flow (title → menu → lobby → match → results → lobby) is `source/app/Flow.cpp` and the screen `.ui` files in `assets/ui/`. Opening and closing rooms only calls `ctx.match` (`host`, `join`, `playOffline`, `start`, `returnToLobby`, `leave`), and the match end is decided by the match phase in `sim/`.
+- Records and unlocks that persist outside matches are saved as one `MEALKIT_STRUCT(SaveData)` in `source/app/SaveData.h` with `mealkit::game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion)`/`readSave`. Old files are read even when fields are added or removed, and when meanings change, bump the version and convert in migrate. `sim/` doesn't read saves.
+- Player-visible text isn't written in code; it goes in `assets/strings/ko.txt` (`key = string`, one file per language) and is read with `ctx.strings.get("key")`, or with values `ctx.strings.format("key", {{"name", value}})`. If table characters aren't in the fonts in `assets/fonts`, the build stops (STR001).
+- Controls are read as input actions, not keys: `ctx.actions.axis2("move")`, `ctx.actions.pressed("jump")`. Actions and key/mouse/gamepad bindings live in `assets/input.bindings` (editor [Tables] panel), and code doesn't look at keys (`window.input()`) directly.
+- Sound, shake, flash, and screen freeze attached to tick events (`world.events`, `GameEvent` kinds are `MEALKIT_ENUM`) go in the feedback table `assets/feedback.table` (editor [Feedback] panel), not code. Game code only calls `ctx.feedback.trigger(e, localPlayer)`.
+- Sound is played only from `source/view/` with `ctx.audio.play("event", position, {{"parameter", value}})` (`mealkit/audio/Audio.h`). Events (clips, volume, attenuation, concurrent play limits) and buses are in `assets/sounds.events` (authoring tool MealKit Audio, editor [Tools] menu; preview in the [Sound] panel),
+  clips are WAVs in `assets/sounds/` (music uses `stream true`). `sim/` doesn't know sound and only leaves tick events in `world.events`.
+- When scene collision data, model files, or tuning values change, the content hash changes, and peers using different data are refused connection.

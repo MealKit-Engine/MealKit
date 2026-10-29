@@ -1,7 +1,7 @@
 build/
 export/
 .vs/
-# 스크린샷·캡처만 (텍스처와 icon.png는 올린다)
+# Screenshots and captures only (textures and icon.png are committed)
 /screenshot*.png
 /capture*.png
 /out*.png

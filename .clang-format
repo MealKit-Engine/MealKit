@@ -1,5 +1,5 @@
-# MealKit 코드 서식 (엔진과 게임 프로젝트 공통). VS Code는 저장할 때 이 규칙으로 맞춘다.
-# 4칸 들여쓰기, 120열, 중괄호는 같은 줄, 짧은 함수·if·case는 한 줄 허용. include 순서는 손으로 정한다(windows.h 뒤 헤더 순서 때문).
+# MealKit code formatting (shared by the engine and game projects). VS Code formats with these rules on save.
+# 4-space indent, 120 columns, braces on the same line, short functions/if/case allowed on one line. Include order is set by hand (because of header order after windows.h).
 Language: Cpp
 BasedOnStyle: LLVM
 Standard: c++20

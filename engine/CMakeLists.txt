@@ -331,7 +331,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     # Sound: the mkaudio runtime (separate repo MealKit-Audio, version-pinned in third_party/mkaudio; miniaudio + stb_vorbis are the engine's)
     # is wrapped by mealkit/audio/ (glue layer). The game only sees mkaudio header types (Handle etc.) used by mealkit/audio/Audio.h, so only the include path is passed.
     # When editing together with the runtime: -DMEALKIT_MKAUDIO_DIR=<MealKit-Audio checkout> (pull it in with tools\update_mkaudio.ps1 when done)
-    set(MEALKIT_MKAUDIO_DIR "" CACHE PATH "로컬 MealKit-Audio 체크아웃 (비면 third_party/mkaudio)")
+    set(MEALKIT_MKAUDIO_DIR "" CACHE PATH "Local MealKit-Audio checkout (empty uses third_party/mkaudio)")
     if(MEALKIT_MKAUDIO_DIR)
         set(mealkit_mkaudio_dir ${MEALKIT_MKAUDIO_DIR})
         message(STATUS "MealKit: audio runtime from ${MEALKIT_MKAUDIO_DIR} (local checkout)")

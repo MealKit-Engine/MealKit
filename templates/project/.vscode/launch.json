@@ -1,9 +1,9 @@
 {
-    // F5: 선택한 구성을 빌드하고 디버거로 실행한다 (C/C++ 확장 ms-vscode.cpptools 필요)
+    // F5: builds the selected configuration and runs it under the debugger (requires the C/C++ extension ms-vscode.cpptools)
     "version": "0.2.0",
     "configurations": [
         {
-            // 에디터에서 게임 코드(@NAME@_game.dll)에 중단점을 건다. 디버깅 중에는 PDB가 잠겨 핫 리로드 빌드가 실패할 수 있다.
+            // Sets breakpoints in game code (@NAME@_game.dll) from the editor. While debugging, the PDB is locked and hot reload builds may fail.
             "name": "Editor (debug game code)",
             "type": "cppvsdbg",
             "request": "launch",

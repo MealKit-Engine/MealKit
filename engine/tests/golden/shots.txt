@@ -1,8 +1,8 @@
-# 그래픽 회귀 테스트 장면 (tools\check.ps1 "Graphics regression"): MealKitEditor --render-golden <이 파일> <폴더>
-# 이름 씬(assets 기준) 카메라 x y z yaw pitch (도) [조명 모델 pbr|toon|unlit, 없으면 프로젝트 설정].
-# 기준 그림은 같은 폴더의 <이름>.png, 다시 만들기는 check.ps1 -UpdateGolden. 바람은 화면 시간 0으로 그린다
-# materials: 텍스처·법선·금속/거칠기·알파 마스크 (tools/make_sample_models.py의 crate·fence)
-# styles: 스타일 프리셋 (조명 모델 셋 × 외곽선·림·바람·디졸브, 인스턴스 번쩍임·디졸브 진행도는 씬 물체 flags)
+# Graphics regression test scenes (tools\check.ps1 "Graphics regression"): MealKitEditor --render-golden <this file> <folder>
+# name scene(relative to assets) camera x y z yaw pitch (degrees) [lighting model pbr|toon|unlit; project setting if omitted].
+# Reference images are <name>.png in the same folder; regenerate with check.ps1 -UpdateGolden. Wind is drawn at view time 0
+# materials: textures, normals, metal/roughness, alpha mask (crate and fence from tools/make_sample_models.py)
+# styles: style presets (three lighting models × outline, rim, wind, dissolve; instance flash/dissolve progress via scene object flags)
 arena_overview  scenes/arena.scene   0 24 -48      0 -24
 arena_models    scenes/arena.scene   0  5  32      0 -12
 arena_low       scenes/arena.scene  14  2 -18    -35  -4
@@ -12,18 +12,18 @@ styles_pbr      scenes/styles.scene   0.3 2.2 -4.6   0 -16  pbr
 styles_toon     scenes/styles.scene   0.3 2.2 -4.6   0 -16  toon
 styles_unlit    scenes/styles.scene   0.3 2.2 -4.6   0 -16  unlit
 materials_toon  scenes/materials.scene   2.6 2.0 -3.2  -35 -22  toon
-# hdri: 하늘 HDRI(스카이박스, SH 환경광, 반사 큐브) — 처음 그릴 때 build/cache/environments에 굽는다
+# hdri: sky HDRI (skybox, SH ambient light, reflection cube) — baked into build/cache/environments on first draw
 hdri_view       scenes/hdri.scene     2.6 2.0 -3.2  -35 -12
 hdri_up         scenes/hdri.scene     0.5 1.0 -4.5    0  20
-# probes: 반사 프로브 (assets/probes/probes_9.mkprobe, 다시 굽기 MealKitEditor --scene assets\scenes\probes.scene --bake-probes). 방 안 구슬은 프로브, 밖 구슬은 하늘
+# probes: reflection probes (assets/probes/probes_9.mkprobe, rebake with MealKitEditor --scene assets\scenes\probes.scene --bake-probes). The sphere inside the room uses the probe, the one outside uses the sky
 probes_inside   scenes/probes.scene  -1.0 1.6 -2.0  -60 -15
 probes_outside  scenes/probes.scene   7 2.5 -5  -70 -12
-# lights: 점광원 셋 (밤 하늘, 횃불·파랑·빨강, 에디터 표시는 빛 색 작은 상자), PBR과 툰
+# lights: three point lights (night sky, torch/blue/red, shown in the editor as small boxes in the light's color), PBR and toon
 lights_view     scenes/lights.scene   0 3.0 -6.5   0 -18
 lights_toon     scenes/lights.scene   0 3.0 -6.5   0 -18  toon
-# anim: 스켈레탈 애니메이션 (models/characters/rig_figure.glb, 씬 필드 anim = 클립과 어긋남): 쉬는 자세·idle·run·wave, 앞과 옆
+# anim: skeletal animation (models/characters/rig_figure.glb, scene field anim = clip and offset): rest pose, idle, run, wave, front and side
 anim_figures    scenes/anim.scene   0 1.6 6   180 -8
 anim_side       scenes/anim.scene   5 1.4 0.5  -90 -6
-# post: 포스트 프로세싱 (다른 장면은 모두 기본값 = AgX 톤 매핑 + 블룸 + FXAA). post는 노출·LUT(lut/warm.cube)·블룸·비네트·그레인·색수차, post_off는 톤 매핑 끔
+# post: post-processing (all other scenes use defaults = AgX tone mapping + bloom + FXAA). post has exposure, LUT (lut/warm.cube), bloom, vignette, grain, chromatic aberration; post_off turns tone mapping off
 post_graded     scenes/post.scene      0.3 2.2 -4.6   0 -16
 post_off        scenes/post_off.scene  0.3 2.2 -4.6   0 -16

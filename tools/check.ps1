@@ -506,7 +506,7 @@ if (-not $Quick) {
     # Build failure: putting forbidden code in sim/ makes SimCheck stop the build, and the editor must still be able to play with the previous DLL
     $bad = Join-Path $root "samples\sandbox\sim\ZzCheckFailure.cpp"
     try {
-        Set-Content -Path $bad -Value "// tools/check.ps1이 잠깐 만드는 파일 (SimCheck 실패 시험)`r`n#include <random>`r`n" -Encoding UTF8
+        Set-Content -Path $bad -Value "// Temporary file created by tools/check.ps1 (SimCheck failure test)`r`n#include <random>`r`n" -Encoding UTF8
         Invoke-Check editor "SimCheck stops a bad build" {
             param($log)
             $ok = -not (Build $log "Editor")

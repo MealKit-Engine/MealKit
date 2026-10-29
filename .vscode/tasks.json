@@ -1,5 +1,5 @@
 {
-    // Ctrl+Shift+B: 기본 빌드 (Release). 다른 작업은 Ctrl+Shift+P → "Tasks: Run Task"
+    // Ctrl+Shift+B: default build (Release). Other tasks via Ctrl+Shift+P → "Tasks: Run Task"
     "version": "2.0.0",
     "tasks": [
         {

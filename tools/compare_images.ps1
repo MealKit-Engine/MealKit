@@ -19,7 +19,7 @@ using System.Drawing;
 using System.Drawing.Imaging;
 using System.Runtime.InteropServices;
 public static class MealKitImageDiff {
-    // 돌려주는 값: [가장 큰 채널 차이, 문턱을 넘은 픽셀 수, 비교한 픽셀 수]
+    // Returns: [largest channel difference, number of pixels over the threshold, number of pixels compared]
     public static long[] Compare(string a, string b, int threshold, int ignoreBottom, string diffOut) {
         using (var ia = new Bitmap(a)) using (var ib = new Bitmap(b)) {
             if (ia.Width != ib.Width || ia.Height != ib.Height)
@@ -42,7 +42,7 @@ public static class MealKitImageDiff {
                     for (int c = 0; c < 3; ++c) d = Math.Max(d, Math.Abs(pa[o + c] - pb[o + c]));
                     if (d > max) max = d;
                     if (d > threshold) ++bad;
-                    // 차이 그림 (BGRA): 다른 픽셀은 빨강, 나머지는 A를 1/4 밝기로
+                    // Diff image (BGRA): differing pixels are red, the rest at 1/4 brightness of A
                     if (d > threshold) { diff[o] = 0; diff[o + 1] = 0; diff[o + 2] = 255; }
                     else for (int c = 0; c < 3; ++c) diff[o + c] = (byte)(pa[o + c] / 4);
                     diff[o + 3] = 255;

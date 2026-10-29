@@ -1,4 +1,4 @@
-# 바이너리 데이터: 줄 끝 변환(core.autocrlf)을 하지 않는다. 입력 기록(.rec)은 CI가 모든 OS에서 같은 바이트로 재생한다.
+# Binary data: no line ending conversion (core.autocrlf). Input recordings (.rec) are replayed by CI with identical bytes on every OS.
 *.rec binary
 *.glb binary
 *.png binary

@@ -1,17 +1,17 @@
-# 저장소 최상위 출력 폴더만 (Windows는 대소문자를 가리지 않아 build/는 third_party/JoltPhysics/Build/까지 막았다)
+# Only output folders at the repo top level (Windows is case-insensitive, so build/ also blocked third_party/JoltPhysics/Build/)
 /build/
 /out/
 /export/
 .vs/
-# 스크린샷·캡처만 (텍스처·아이콘은 올린다)
+# Only screenshots/captures (textures and icons are committed)
 /screenshot*.png
 /capture*.png
 /out*.png
 *.autosave
 mealkit_editor.ini
-# Steamworks SDK: Valve 약관상 공개 저장소에 올리지 않는다 (문서 저장소 "매뉴얼 > 멀티플레이와 결정론 > Steamworks")
+# Steamworks SDK: not committed to a public repo per Valve's terms (docs repo "Manual > Multiplayer and determinism > Steamworks")
 third_party/steamworks/
-# EOS SDK와 Epic 개발자 포털 값(credentials.txt): Epic 약관상 올리지 않고, 클라이언트 비밀값은 저장소에 두지 않는다
+# EOS SDK and Epic Developer Portal values (credentials.txt): not committed per Epic's terms, and client secrets don't go in the repo
 third_party/eos/
 tools/penpot-plugin/node_modules/
 __pycache__/

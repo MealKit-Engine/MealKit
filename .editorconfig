@@ -1,4 +1,4 @@
-# MealKit 편집기 공통 설정 (엔진과 게임 프로젝트 공통). C++ 서식 규칙은 .clang-format.
+# MealKit shared editor settings (shared by the engine and game projects). C++ formatting rules are in .clang-format.
 root = true
 
 [*]
@@ -14,7 +14,7 @@ indent_size = 4
 [*.md]
 trim_trailing_whitespace = false
 
-# 외부 라이브러리는 원본 그대로 둔다
+# External libraries are left as in the original
 [third_party/**]
 charset = unset
 indent_style = unset

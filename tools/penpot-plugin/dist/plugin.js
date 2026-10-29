@@ -607,7 +607,7 @@
       blur: !!shape.blur && !shape.blur.hidden && (shape.blur.value ?? 0) > 0,
       backgroundBlur: !!shape.backgroundBlur && !shape.backgroundBlur.hidden && (shape.backgroundBlur.value ?? 0) > 0,
       radius: [shape.borderRadiusTopLeft ?? 0, shape.borderRadiusTopRight ?? 0, shape.borderRadiusBottomRight ?? 0, shape.borderRadiusBottomLeft ?? 0],
-      // 네 모서리가 같은 토큰일 때만 $토큰 (다르면 숫자)
+      // $token only when all four corners use the same token (a number otherwise)
       radiusToken: tokens["borderRadiusTopLeft"] && ["borderRadiusTopRight", "borderRadiusBottomRight", "borderRadiusBottomLeft"].every((k) => tokens[k] === tokens["borderRadiusTopLeft"]) ? tokens["borderRadiusTopLeft"] : void 0,
       data: readData(shape),
       children: []
@@ -659,7 +659,7 @@
       n.text = {
         characters: t.characters,
         growType: t.growType,
-        // 정렬은 문단(글자 범위)에 있다: 도형의 align은 문단과 다를 수 있다
+        // Alignment lives on the paragraph (text range): a shape's align can differ from the paragraph's
         align: String(rangeOr(t, "align", t.align) ?? "left"),
         verticalAlign: String(t.verticalAlign ?? "top"),
         runs: textRuns(t)
