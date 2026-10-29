@@ -436,6 +436,25 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ### [ ] Job System
 - Parallelize render preparation (culling, filling instances, animation poses). Physics already uses Jolt's thread pool, so consider sharing the same workers.
+### [ ] Optimization candidates (proposed 2026-10-29)
+- **Why**: the techniques below are not in the engine yet and are not in the `docs/DECISIONS.md` deferred table (GPU-driven rendering, Forward+, mesh shaders, async loading are already there). Each one is small, view-side or build-side, and has **no effect on determinism**. None is done before a measurement shows the cost it removes: each is measured with `--benchmark` before and after (the "Performance baseline check" above), and an item that saves nothing measurable is dropped and moved to the deferred table.
+- **Order**: cheap and broad first (1~4), then the ones that need a game or a sample to show the bottleneck (5~9).
+
+| # | Technique | Where | What it saves | Cost / risk |
+|---|---|---|---|---|
+| 1 | **Front-to-back bucket order** | `DrawList::submit` | Sort opaque buckets by the nearest visible instance's distance (and instances inside a bucket roughly by distance) so early depth rejects hidden pixels. Overdraw is the main pixel cost on integrated graphics; the overdraw view mode shows it | A sort of a few hundred keys per frame. Alpha-clip buckets go last (they disable early depth) |
+| 2 | **Vertex quantization** | `asset::ModelCache`, `Mesh.h`, `Forward.hlsl` | 36-byte vertex → about 20 bytes: position as 16-bit normalized in the mesh box (`meshopt_quantize*`), normal as octahedral 2×16-bit (or 10:10:10). Vertex fetch bandwidth on shared memory, GPU memory | Shader and both backends change; hull points stay from the original float vertices (determinism rule as now). Skinned 44-byte vertices together |
+| 3 | **Small-object distance cull** | `render/Culling.h`, `ModelCache::pickLod` | Below a screen size (the same measure as LOD) an instance is not drawn at all. A per-kind limit (`props`, `environment`) in project settings; scatter brush instances use it most | Popping; fade out with the existing dissolve flag over a short range |
+| 4 | **Pipeline cache on disk** | `rhi::Device::createPipeline` | D3D12 `ID3D12PipelineLibrary` / `VkPipelineCache` saved in the user folder, keyed by driver version and shader hash. Shorter first start and fewer hitches on first use of a pipeline (variants grow with skinning, outlines, view modes) | Must ignore a cache from another driver; dev builds keep it off while shaders hot reload |
+| 5 | **Static shadow caching** | `Renderer::drawShadows` | Static scene objects are drawn into the cascade once and copied each frame while the sun and the cascade box do not move (texel snapping already keeps the box still while the camera moves within a texel); only moving bodies are drawn on top | One more depth target per cascade. Gain only when static objects are many (terrain, scatter) |
+| 6 | **Variable rate shading (tier 1)** | RHI + `Renderer` | Per-draw coarse shading (2×2) for the sky, distant LODs and fog-covered objects. Xe-LP has VRS tier 1 (DX12 `RSSetShadingRate`, Vulkan `VK_KHR_fragment_shading_rate`) | Toggleable option, off where the device lacks it. Checked against golden images with a tolerance |
+| 7 | **Animation LOD** | view-side pose update (`samplePose`, `skinPalette`) | Distant or small characters update their pose every 2nd/4th frame, and off-screen characters not at all (the simulation pose path is untouched) | Visible stepping up close; driven by the same screen size as mesh LOD |
+| 8 | **Profile-guided optimization for Export** | `cmake/MealKit.cmake`, `build.bat Export` | MSVC `/GENPROFILE` build runs `--benchmark` and a headless bot match, then `/USEPROFILE` (LTO is already on). Typically 5~15 % CPU on branchy code (simulation, UI layout); the exe often gets smaller | Export takes longer; profile data per compiler version. Results must stay bit-identical: `mp_test` and detmath checks run on the PGO exe (compilers may not change float results, but it is checked, not assumed) |
+| 9 | **Frame allocation check** | `check.ps1`, debug builds | Count heap allocations per frame in a steady benchmark frame (a counting `operator new` in dev builds) and warn above 0 for render and UI paths. Keeps "a steady frame allocates nothing" (`DrawList`) true as features grow | Dev builds only; the shipping exe is unchanged |
+
+- **Not proposed here** (already decided elsewhere): Job System (item above, parallel culling/instances/poses), GPU culling and ExecuteIndirect, Forward+, async loading, texture streaming, SIMD in `sim/` (would need determinism verification; Jolt already uses SIMD inside).
+- **Determinism**: none of 1~9 touches `sim/`. 8 changes the compiled code of `sim/`, so it is the only one that needs the determinism checks on its output.
+
 
 ### [ ] Spatial audio and interactive music (on top of stage 1 audio)
 - **Why**: stage 1 audio goes up to events, voice management, and buses. Indoor/behind-wall sound and music that changes with the situation (Wwise's strength) are added when a reference sample needs them.
