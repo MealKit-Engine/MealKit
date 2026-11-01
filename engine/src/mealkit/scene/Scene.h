@@ -145,6 +145,8 @@ struct Transform {
 };
 
 Transform localTransform(const Entity& e);
+// local placed under parent (parent * local)
+Transform combineTransforms(const Transform& parent, const Transform& local);
 Transform worldTransform(const Scene& scene, const Entity& e);
 // Given a world transform, converts it to parent-relative values
 void setWorldTransform(const Scene& scene, Entity& e, const Transform& world);
@@ -185,6 +187,18 @@ reflect::TextFields defaultFields(const reflect::TypeInfo& type);
 
 bool save(const Scene& scene, const std::string& path);
 bool load(Scene& scene, const std::string& path, std::string* error = nullptr);
+
+// ---------------------------------------------------------------- Prefabs (assets/prefabs/*.prefab)
+// A bundle of objects saved to a file and placed in scenes many times. Data only (kinds, transforms, field values); behavior is sim/ code.
+// Placing makes plain copies (an extension of the editor's duplicate): later edits to the file don't change copies already placed,
+// and the game never reads prefab files (it sees only the copies in the scene).
+// The file holds entity blocks like a scene (no environment). Roots are in world coordinates relative to the first root's x/z (height kept).
+
+// Saves roots (and their children) to path
+bool savePrefab(const Scene& scene, const std::vector<u32>& roots, const std::string& path);
+bool loadPrefab(Scene& prefab, const std::string& path, std::string* error = nullptr);
+// Adds copies of the prefab's objects to scene with new ids, roots placed under the transform at. Returns the new root ids
+std::vector<u32> placePrefab(Scene& scene, const Scene& prefab, const Transform& at);
 
 // Default arena: floor, walls, ramp, pillars, 4 spawn points. Rotations are constants without trig, so the same on any PC.
 Scene makeDefault();

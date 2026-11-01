@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.8 — Prefabs (2026-11-02)
+
+### [x] Stage 4: Prefabs (done 2026-11-02)
+- **Implemented**: `assets/prefabs/*.prefab` (`@format prefab 1`, entity blocks in the scene format, no environment). `scene::savePrefab`/`loadPrefab`/`placePrefab` (`scene/Scene.h`).
+  Editor: [Edit] > Save as Prefab... (also the scene tree context menu) saves the selection roots and their children; roots are stored relative to the first root's x/z (height kept).
+  [Assets] window: double-click places copies in front of the camera, drag places them where dropped. New `prefabs/` kind folder (`check_layout.ps1`, template, CODING_MODEL), prefab files are fixed on asset rename.
+- **Approach**: data only, and placing makes plain copies (an extension of duplicate): editing the file doesn't change copies already placed, and the game never reads prefab files. Behavior reuse is source modules.
+
 ## v0.7.7 — AI pathfinding (2026-11-02)
 
 ### [x] Stage 4: AI pathfinding (grid) (done 2026-11-02)

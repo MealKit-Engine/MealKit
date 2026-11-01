@@ -2234,6 +2234,42 @@ TEST_CASE(scene, scene_hierarchy) {
     removeFile(path);
 }
 
+TEST_CASE(scene, scene_prefab) {
+    scene::Scene s;
+    s.entities.reserve(8);
+    s.add(scene::kTypeSolid, "other").position = {50.0f, 0.0f, 0.0f};
+    scene::Entity& root = s.add(scene::kTypeSolid, "table");
+    root.position = {10.0f, 1.0f, 4.0f};
+    root.fields.emplace_back("hp", "3");
+    scene::Entity& leg = s.add(scene::kTypeDecoration, "leg");
+    leg.parent = root.id;
+    leg.position = {0.5f, -0.5f, 0.0f};
+    scene::Entity& lamp = s.add(scene::kTypeDecoration, "lamp");
+    lamp.position = {12.0f, 2.0f, 4.0f};
+
+    const std::string path = executableDirectory() + "\\test_prefab.prefab";
+    TEST_CHECK(scene::savePrefab(s, {root.id, lamp.id}, path));
+    scene::Scene prefab;
+    TEST_CHECK(scene::loadPrefab(prefab, path));
+    removeFile(path);
+    // ids from 1, roots relative to the first root's x/z, children kept parent-relative
+    TEST_CHECK(prefab.entities.size() == 3 && prefab.entities[0].id == 1 && prefab.entities[1].parent == 1 &&
+               prefab.entities[2].parent == 0);
+    TEST_CHECK(near(prefab.entities[0].position, {0.0f, 1.0f, 0.0f}) && near(prefab.entities[1].position, {0.5f, -0.5f, 0.0f}) &&
+               near(prefab.entities[2].position, {2.0f, 2.0f, 0.0f}));
+    TEST_CHECK(prefab.entities[0].fields.size() == 1 && prefab.entities[0].fields[0].second == "3");
+
+    // Placing twice makes independent copies with new ids
+    const size_t before = s.entities.size();
+    const std::vector<u32> a = scene::placePrefab(s, prefab, {{-5.0f, 0.0f, 0.0f}, {}, {1.0f, 1.0f, 1.0f}});
+    const std::vector<u32> b = scene::placePrefab(s, prefab, {{0.0f, 3.0f, 20.0f}, {}, {1.0f, 1.0f, 1.0f}});
+    TEST_CHECK(a.size() == 2 && b.size() == 2 && s.entities.size() == before + 6 && a[0] != b[0]);
+    const scene::Entity* placed = s.find(b[0]);
+    TEST_CHECK(placed && near(placed->position, {0.0f, 4.0f, 20.0f}));
+    const scene::Entity& placedLeg = s.entities[before + 4];
+    TEST_CHECK(placedLeg.parent == b[0] && near(scene::worldTransform(s, placedLeg).position, {0.5f, 3.5f, 20.0f}));
+}
+
 // ---------------------------------------------------------------- Simulation<World> (shadow simulation, rewind)
 
 MEALKIT_STRUCT(FakeState) {

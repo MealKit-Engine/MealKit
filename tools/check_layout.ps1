@@ -20,6 +20,7 @@ $utf8 = New-Object System.Text.UTF8Encoding $false
 # Kind folder → extensions (CODING_MODEL "Project folder layout")
 $kinds = [ordered]@{
     "scenes"   = @(".scene")
+    "prefabs"  = @(".prefab")
     "models"   = @(".glb", ".gltf", ".bin")
     "textures" = @(".png", ".jpg", ".jpeg", ".hdr", ".dds", ".ktx2")
     "sounds"   = @(".wav", ".ogg")

@@ -10,6 +10,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <unordered_map>
 
 namespace mealkit::scene {
 namespace {
@@ -188,6 +189,10 @@ u64 Scene::contentHash(const TypeList* gameTypes) const {
     return h.value;
 }
 
+namespace {
+void writeEntities(FILE* f, const std::vector<Entity>& entities);
+}
+
 bool save(const Scene& scene, const std::string& path) {
     FILE* f = openFile(path, "wb");
     if (!f) {
@@ -209,7 +214,16 @@ bool save(const Scene& scene, const std::string& path) {
     reflect::TextFields post;
     reflect::toText(reflect::typeOf<PostFields>(), &env.post, post);
     for (const auto& [key, value] : post) fprintf(f, "post %s %s\n", key.c_str(), value.c_str());
-    for (const Entity& e : scene.entities) {
+    writeEntities(f, scene.entities);
+    const bool ok = fflush(f) == 0;
+    fclose(f);
+    return ok;
+}
+
+namespace {
+
+void writeEntities(FILE* f, const std::vector<Entity>& entities) {
+    for (const Entity& e : entities) {
         fprintf(f, "\nentity\nid %u\nname %s\nkind %s\n", e.id, e.name.c_str(), e.type.c_str());
         if (e.parent) fprintf(f, "parent %u\n", e.parent);
         writeVec3(f, "position", e.position);
@@ -220,12 +234,10 @@ bool save(const Scene& scene, const std::string& path) {
         for (const auto& [key, value] : e.fields) fprintf(f, "field %s %s\n", key.c_str(), value.c_str());
         fprintf(f, "end\n");
     }
-    const bool ok = fflush(f) == 0;
-    fclose(f);
-    return ok;
 }
 
-bool load(Scene& out, const std::string& path, std::string* error) {
+// Reads a scene, or a prefab (only entity blocks; other keys are warned about and ignored)
+bool loadText(Scene& out, const std::string& path, const text::Format& format, std::string* error) {
     FILE* f = openFile(path, "rb");
     if (!f) {
         if (error) *error = "cannot open file";
@@ -246,8 +258,8 @@ bool load(Scene& out, const std::string& path, std::string* error) {
         char* p = line;
         while (*p == ' ' || *p == '\t') ++p;
         if (*p == '\0' || *p == '#') continue;
-        u32 version = text::kScene.version; // versions 1~4 are all read in the current shape (3 only added the hdri line, 4 the post line; no migrate)
-        if (text::readFormatLine(p, text::kScene, path, version)) continue;
+        u32 version = format.version; // scene versions 1~4 are all read in the current shape (3 only added the hdri line, 4 the post line; no migrate)
+        if (text::readFormatLine(p, format, path, version)) continue;
 
         char* rest = p;
         while (*rest && *rest != ' ') ++rest;
@@ -289,6 +301,8 @@ bool load(Scene& out, const std::string& path, std::string* error) {
             else if (std::strcmp(key, "flags") == 0) e.flags = static_cast<u32>(std::strtoul(rest, nullptr, 10));
             else if (std::strcmp(key, "model") == 0) e.model = rest;
             else MEALKIT_WARN("%s:%d: unknown entity key '%s' ignored", path.c_str(), lineNo, key);
+        } else if (&format == &text::kPrefab) {
+            MEALKIT_WARN("%s:%d: unknown prefab key '%s' ignored", path.c_str(), lineNo, key);
         } else {
             Environment& env = scene.environment;
             if (std::strcmp(key, "sun") == 0) ok = readVec3(rest, env.sunDirection);
@@ -347,6 +361,78 @@ bool load(Scene& out, const std::string& path, std::string* error) {
     return true;
 }
 
+} // namespace
+
+bool load(Scene& scene, const std::string& path, std::string* error) { return loadText(scene, path, text::kScene, error); }
+
+bool savePrefab(const Scene& scene, const std::vector<u32>& roots, const std::string& path) {
+    // Roots and their children in scene order, ids renumbered from 1, roots in world coordinates relative to the first root (x/z only)
+    std::vector<u32> ids;
+    for (const Entity& e : scene.entities)
+        for (u32 root : roots)
+            if (isDescendant(scene, e.id, root)) {
+                ids.push_back(e.id);
+                break;
+            }
+    const Entity* first = roots.empty() ? nullptr : scene.find(roots.front());
+    if (ids.empty() || !first) return false;
+    Vec3 origin = worldTransform(scene, *first).position;
+    origin.y = 0.0f; // heights above the y = 0 floor are kept
+    const auto newId = [&](u32 id) { return static_cast<u32>(std::find(ids.begin(), ids.end(), id) - ids.begin()) + 1; };
+    std::vector<Entity> entities;
+    for (u32 id : ids) {
+        const Entity& source = *scene.find(id);
+        Entity e = source;
+        e.id = newId(id);
+        if (std::find(roots.begin(), roots.end(), id) != roots.end()) {
+            const Transform world = worldTransform(scene, source);
+            e.position = world.position - origin;
+            e.rotation = world.rotation;
+            e.scale = world.scale;
+            e.parent = 0;
+        } else {
+            e.parent = newId(source.parent);
+        }
+        entities.push_back(std::move(e));
+    }
+    FILE* f = openFile(path, "wb");
+    if (!f) {
+        MEALKIT_ERROR("Cannot write prefab: %s", path.c_str());
+        return false;
+    }
+    fprintf(f, "# MealKit prefab. Placed in scenes as copies from the editor's [Assets] window\n%s\n",
+            text::formatLine(text::kPrefab).c_str());
+    writeEntities(f, entities);
+    const bool ok = fflush(f) == 0;
+    fclose(f);
+    return ok;
+}
+
+bool loadPrefab(Scene& prefab, const std::string& path, std::string* error) {
+    return loadText(prefab, path, text::kPrefab, error);
+}
+
+std::vector<u32> placePrefab(Scene& scene, const Scene& prefab, const Transform& at) {
+    std::unordered_map<u32, u32> remap;
+    for (const Entity& e : prefab.entities) remap[e.id] = scene.nextId++;
+    std::vector<u32> roots;
+    for (const Entity& source : prefab.entities) {
+        Entity e = source;
+        e.id = remap[source.id];
+        if (source.parent) {
+            e.parent = remap[source.parent];
+        } else {
+            const Transform placed = combineTransforms(at, localTransform(source));
+            e.position = placed.position;
+            e.rotation = placed.rotation;
+            e.scale = placed.scale;
+            roots.push_back(e.id);
+        }
+        scene.entities.push_back(std::move(e));
+    }
+    return roots;
+}
+
 Transform localTransform(const Entity& e) { return {e.position, e.rotation, e.scale}; }
 
 namespace {
@@ -364,6 +450,8 @@ Quat conjugate(Quat q) { return {-q.x, -q.y, -q.z, q.w}; }
 f32 safeDiv(f32 a, f32 b) { return b > 1e-6f || b < -1e-6f ? a / b : a; }
 
 } // namespace
+
+Transform combineTransforms(const Transform& parent, const Transform& local) { return combine(parent, local); }
 
 Transform worldTransform(const Scene& scene, const Entity& e) {
     Transform t = localTransform(e);
