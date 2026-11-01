@@ -673,6 +673,39 @@ TEST_CASE(game, bug_report) {
     removeFile(rec);
 }
 
+TEST_CASE(game, crash_report) {
+    // What the crash handler leaves in crash/pending/ → the next run bundles it into crash/<time>.zip, the same shape as bug reports
+    const std::string user = executableDirectory() + "/test_crash";
+    const std::string pending = user + "/" + game::kCrashReportFolder + "/pending";
+    const std::string rec = user + "/current.rec";
+    createDirectories(pending);
+    TEST_CHECK(game::collectCrashReport(user).empty()); // nothing pending
+    {
+        game::InputRecordWriter w;
+        TEST_CHECK(w.open(rec, game::MatchInfo{3, 1, 0, {{}}}, 9));
+        w.write(net::TickInputs{}, 42);
+    }
+    const auto write = [](const std::string& path, const std::string& text) {
+        FILE* f = openFile(path, "wb");
+        if (f) std::fwrite(text.data(), 1, text.size(), f), std::fclose(f);
+    };
+    write(pending + "/crash.txt", "exception = c0000005\n");
+    write(pending + "/info.txt", "# MealKit crash report\ntick = 1\n");
+    write(pending + "/recording.txt", rec);
+    const std::string zip = game::collectCrashReport(user);
+    TEST_CHECK(!zip.empty() && fileExists(zip) && !fileExists(pending + "/crash.txt"));
+    std::vector<ZipEntry> entries;
+    std::string error;
+    TEST_CHECK(readZip(zip, entries, error) && entries.size() == 3); // info, crash.txt, replay.rec (no log/dump here)
+    std::string extracted, text;
+    TEST_CHECK(game::extractBugReport(zip, user + "/out", extracted, text, error) &&
+               text.find("crash report") != std::string::npos);
+    TEST_CHECK(game::collectCrashReport(user).empty()); // collected once
+    removeFile(zip);
+    removeFile(extracted);
+    removeFile(rec);
+}
+
 MEALKIT_STRUCT(TestSaveV1) {
     MEALKIT_FIELD(u32, coins, 0, "코인");
     MEALKIT_FIELD(u32, oldName, 0, "예전 이름");

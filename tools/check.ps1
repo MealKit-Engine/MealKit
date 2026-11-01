@@ -330,6 +330,22 @@ if (-not $Quick) {
         $code = Run $log $game "--bot --mute --seed 7 --exit-tick 300 --capture `"$png`" 240"
         return $code -eq 0 -and (Test-Path $png)
     }
+    # Crash report (ROADMAP "Crash reports"): crash on purpose → crash/pending/ (minidump, info, log) → the next run bundles crash/<time>.zip with replay.rec
+    Invoke-Check game "Crash report" {
+        param($log)
+        $crashDir = Join-Path $env:LOCALAPPDATA "sandbox\crash" # userFolder of the sample's mealkit.project
+        $before = @(Get-ChildItem $crashDir -Filter *.zip -ErrorAction SilentlyContinue | ForEach-Object FullName)
+        $rec = Join-Path $out "crash.rec"
+        $code = Run $log $game "--bot --mute --vsync 0 --exit-tick 900 --crash-at 120 --record-inputs `"$rec`""
+        if ($code -eq 0) { return "the game did not crash" }
+        if (-not (Test-Path (Join-Path $crashDir "pending\crash.dmp"))) { return "no crash.dmp in crash\pending" }
+        $log2 = "$log.next"
+        $code = Run $log2 $game "--bot --mute --vsync 0 --exit-tick 30 --crash-at 100000"
+        $new = @(Get-ChildItem $crashDir -Filter *.zip | Where-Object { $before -notcontains $_.FullName })
+        $ok = $code -eq 0 -and $new.Count -eq 1 -and (Has $log2 "Crash report saved") -and -not (Test-Path (Join-Path $crashDir "pending\crash.txt"))
+        $new | Remove-Item # test reports are deleted
+        return $ok
+    }
     # Screen flow: title → menu → solo → lobby → start → match (presses widgets by name, ends by frame count)
     # GPU capture (ROADMAP "GPU capture button and editor view modes"): if RenderDoc is present, capture one frame with --gpu-capture-at and check an .rdc appears
     Invoke-Check game "GPU capture (RenderDoc)" {

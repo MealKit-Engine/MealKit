@@ -5,6 +5,18 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 
 ## After v0.5.4 — stage 3 in progress (same engine version, no template changes)
 
+### [x] Stage 3: Crash reports (done 2026-11-01)
+- **At the crash** (`platform/System.h` `installCrashHandler`): Windows `SetUnhandledExceptionFilter` + `abort`/`std::terminate`/pure call/invalid parameter turned into an exception (CRT abort dialog off) → `crash/pending/crash.txt` (exception code, address, thread) + `crash.dmp` (`MiniDumpWithIndirectlyReferencedMemory`, about 300 KB; `dbghelp.dll` loaded at install, no import lib). POSIX: fatal signals write `crash.txt` only. Not installed under a debugger. Then the game hook (`game/BugReport.cpp` `onCrash`) writes `info.txt` (same lines as bug reports + tick/players at the crash, kept current by `updateCrashReport` every frame), `log.txt` and `recording.txt` (path of the input recording, flushed every tick).
+- **Next run** (`collectCrashReport`, before `keepReplay` moves `current.rec`): bundles pending/ + the recording into `crash/YYYY-MM-DD_HH-MM.zip`, empties pending/, WARN log, and (not in automated runs) a yes/no dialog `askDialog` that opens the folder.
+- **Viewing**: same layout as bug report zips, so the editor's [Open Replay] / `--replay <zip>` plays to the crash tick and pauses; the log and notification say "Crash report".
+- **Bug reports**: `info.txt` builder shared (`infoText` + `matchLines`), tick/players/localPlayer lines now come after `tuning`.
+- **Switch**: project setting `bugReports` (same as F9); join windows (`playerFiles` off) don't arm it. For tests `--crash-at <frame>` (null write).
+- **Verified**: unit test `game crash_report`; `check.ps1` "Crash report" (crash at frame 120 → `crash.dmp` → next run makes one zip, pending emptied); manual: editor `--replay <crash zip>` paused at tick 45.
+- **Left**: no upload (DECISIONS deferred table: Crashpad/sentry). No handler in the editor process itself. Stack overflow may fail to write the dump (no `SetThreadStackGuarantee` yet).
+
+### miniaudio CVE-2026-32837 fix (2026-11-01)
+- Applied upstream commit `1df46ae` (dr_libs update: dr_wav 0.14.6 BEXT coding history read bound, W64 chunk size underflow, dr_flac/dr_mp3 fixes) on top of 0.11.25 in the engine's and MealKit-Audio's `third_party/miniaudio/`; `mealkit.txt` version `0.11.25+1df46ae`, notices regenerated. Replace with 0.11.26 when released.
+
 ### Float output cleanup in text files (2026-10-29)
 - Floats in field text (`.table`/`.tuning`/`mealkit.project`/scene object fields, `reflect::toText`) and `.scene` lines are written in the shortest representation that reads back to the same float (`0.4`, `std::to_chars`) instead of `%.9g` (`0.400000006`): `text::writeFloats` (`core/TextFormat.h`). -0 is written as 0.
 - The reading side and format versions are unchanged, so old files still read and values are bit-identical. Saving shortens the lines, so there will be one large diff. Test `core/text_floats` (2000 random bit patterns round-tripped).

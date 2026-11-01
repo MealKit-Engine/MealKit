@@ -16,6 +16,14 @@ void debugBreak();
 
 // Fatal error dialog (does nothing on windowless platforms/headless. The log was already written).
 void showErrorDialog(const char* title, const char* message);
+// Yes/no question dialog. false on platforms without dialogs.
+bool askDialog(const char* title, const char* message);
+
+// Crash handler (game/CrashReport.h): on an unhandled exception (Windows) or a fatal signal (POSIX), writes into folder
+// crash.txt (exception code, address) and, on Windows, crash.dmp (minidump), then calls hook (folder exists, files only), then exits.
+// One handler per process; calling again replaces it. Not installed while a debugger is attached (it should stop there instead).
+using CrashHook = void (*)();
+void installCrashHandler(const std::string& folder, CrashHook hook);
 
 // If an exe built without a console window (Windows GUI program) was run from a command prompt, attaches stdout/stderr to that window (--help etc.).
 // If output was redirected to a file/pipe, leaves it as is. Does nothing on other platforms.

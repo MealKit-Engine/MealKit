@@ -5,6 +5,7 @@
 #include <csignal>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
 #include <sys/resource.h>
 #include <unistd.h>
 #if defined(__APPLE__)
@@ -17,7 +18,32 @@ void debugOutput(const char*) {}
 bool debuggerAttached() { return false; } // TracerPid from /proc/self/status if ever needed (stage 5)
 void debugBreak() { std::raise(SIGTRAP); }
 void showErrorDialog(const char*, const char*) {}
+bool askDialog(const char*, const char*) { return false; }
 void attachParentConsole() {}
+
+namespace {
+
+std::string g_crashFolder;
+CrashHook g_crashHook = nullptr;
+
+void onFatalSignal(int sig) {
+    // No minidump on POSIX (core dumps are the OS's job); crash.txt names the signal
+    if (FILE* f = std::fopen((g_crashFolder + "/crash.txt").c_str(), "w")) {
+        std::fprintf(f, "signal = %d\n", sig);
+        std::fclose(f);
+    }
+    if (g_crashHook) g_crashHook();
+    std::signal(sig, SIG_DFL);
+    std::raise(sig);
+}
+
+} // namespace
+
+void installCrashHandler(const std::string& folder, CrashHook hook) {
+    g_crashFolder = folder;
+    g_crashHook = hook;
+    for (int sig : {SIGSEGV, SIGBUS, SIGILL, SIGFPE, SIGABRT}) std::signal(sig, onFatalSignal);
+}
 void exitProcess(int code) { std::_Exit(code); }
 u32 processId() { return static_cast<u32>(getpid()); }
 

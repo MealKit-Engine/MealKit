@@ -8,6 +8,7 @@ Open... = 열기...
 Open Replay... = 리플레이 열기...
 Could not read the replay: %s = 리플레이를 읽지 못했습니다: %s
 Bug report: %s = 버그 리포트: %s
+Crash report: playing up to the tick where the game crashed. = 크래시 리포트: 게임이 멈춘 틱까지 재생합니다.
 it has no ticks = 기록된 틱이 없습니다
 This replay was recorded with different game data (scene, models, tuning or project settings). It may diverge. = 이 리플레이는 다른 게임 데이터(씬, 모델, 튜닝, 프로젝트 설정)로 기록됐습니다. 도중에 갈라질 수 있습니다.
 The replay diverged from the recording at tick %u (different build or data). = 리플레이가 %u 틱에서 기록과 갈라졌습니다 (다른 빌드나 데이터).
