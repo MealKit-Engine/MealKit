@@ -14,7 +14,7 @@ void LocalPrediction::addInput(const World& world, u8 player, const net::PlayerI
     GameInput g;
     std::memcpy(&g, input.bytes, sizeof(g));
     const BodyKind* body = bodyOf(world, player);
-    const f32 speed = world.tuning.playerSpeed * (body ? body->speedScale : 1.0f); // same speed as the simulation's movePawn
+    const f32 speed = world.tuning.move.speed * (body ? body->speedScale : 1.0f); // same speed as the simulation's movePawn
     Vec3 wish{static_cast<f32>(g.moveX) / 127.0f, 0.0f, static_cast<f32>(g.moveZ) / 127.0f};
     const f32 len2 = lengthSq(wish);
     if (len2 > 1.0f) wish = wish / std::sqrt(len2);

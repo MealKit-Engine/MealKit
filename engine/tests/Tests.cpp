@@ -28,6 +28,7 @@
 #include "mealkit/scene/Scene.h"
 #include "mealkit/sim/Commands.h"
 #include "mealkit/sim/MatchFlow.h"
+#include "mealkit/sim/Movement.h"
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
@@ -1900,6 +1901,77 @@ TEST_CASE(physics, physics_snapshot_bytes) {
     const std::vector<u64> b = runPhysics(joiner, joinerBodies, 40, 20);
     TEST_CHECK(a == b);
     std::printf("  physics snapshot bytes: %zu for 41 bodies\n", bytes.size());
+}
+
+// Movement modes: each mode walks on the ground, the kinematic one climbs a step, and a snapshot as bytes
+// (with a character created and destroyed after it) restores the same per-tick hashes in another world
+TEST_CASE(sim, movement_modes) {
+    struct Run {
+        physics::PhysicsWorld w;
+        sim::Mover movers[3];
+    };
+    const sim::MoveTuning tuning;
+    auto build = [&](Run& r) {
+        r.w.init(1024, 2);
+        r.w.setGravity({0.0f, -20.0f, 0.0f});
+        physics::BodyDesc ground;
+        ground.motion = physics::Motion::Static;
+        ground.position = {0.0f, -0.5f, 0.0f};
+        r.w.createBox({30.0f, 0.5f, 30.0f}, ground);
+        ground.position = {0.0f, 0.15f, 6.0f}; // a 0.3 m step across every lane
+        r.w.createBox({30.0f, 0.15f, 1.0f}, ground);
+        for (u32 i = 0; i < 3; ++i) {
+            sim::MoverShape shape;
+            shape.position = {static_cast<f32>(i) * 3.0f, 1.0f, 0.0f};
+            r.movers[i] = sim::createMover(r.w, static_cast<sim::MoveMode>(i), shape, tuning);
+        }
+    };
+    auto run = [&](Run& r, int from, int ticks) {
+        std::vector<u64> hashes;
+        for (int t = from; t < from + ticks; ++t) {
+            sim::MoveIntent intent;
+            intent.wish = {0.0f, 0.0f, t < 60 ? 0.0f : 1.0f}; // stand, then walk onto the step
+            intent.jump = t == 40;
+            for (sim::Mover& m : r.movers) sim::move(r.w, m, intent, tuning, 1.0f, {0.0f, -20.0f, 0.0f}, 1.0f / 30.0f);
+            r.w.step(1.0f / 30.0f, 2);
+            Vec3 p, v;
+            for (sim::Mover& m : r.movers) sim::senseMover(r.w, m, tuning, p, v);
+            Hasher h;
+            r.w.hashState(h);
+            hashes.push_back(h.value);
+        }
+        return hashes;
+    };
+    Run a;
+    build(a);
+    run(a, 0, 35);
+    Vec3 p, v;
+    for (sim::Mover& m : a.movers) {
+        sim::senseMover(a.w, m, tuning, p, v);
+        TEST_CHECK(m.grounded == 1u);
+        TEST_CHECK(p.y > 0.8f && p.y < 1.5f); // standing, not sunk or flying (floating hovers a little)
+    }
+    physics::PhysicsSnapshot snap, received;
+    a.w.save(snap);
+    std::vector<u8> bytes;
+    snap.write(bytes);
+    TEST_CHECK(received.read(bytes.data(), bytes.size()));
+
+    const std::vector<u64> first = run(a, 35, 60);
+    sim::senseMover(a.w, a.movers[0], tuning, p, v);
+    TEST_CHECK(p.z > 6.0f && p.y > 1.1f); // kinematic walked up onto the step
+    Run b;
+    build(b);
+    sim::Mover extra = sim::createMover(b.w, sim::MoveMode::Kinematic, {}, tuning); // different state before loading
+    sim::destroyMover(b.w, extra);
+    b.w.clearBodies();
+    TEST_CHECK(b.w.restore(received));
+    // Movers' own fields (grounded, gap) are game state that the game's snapshot carries: take them from a second run at tick 35
+    Run c;
+    build(c);
+    run(c, 0, 35);
+    for (u32 i = 0; i < 3; ++i) b.movers[i] = c.movers[i];
+    TEST_CHECK(run(b, 35, 60) == first);
 }
 
 // Contact events: the same list (sort order) even with different physics thread counts, and the same hash

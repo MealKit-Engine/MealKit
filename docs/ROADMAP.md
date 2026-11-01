@@ -353,20 +353,13 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ### [x] Game flow framework (GameMode / GameState) — v0.7.3, details in `docs/CHANGELOG.md`
 
-### [ ] Character movement modes
-- **Why**: currently there's only sandbox's physics capsule. Each game wants a different control feel, so movement code is rewritten every time.
-- **Approach**: not inheritance; each Pawn kind picks **a movement mode + tuning data**. Input (`GameInput`) → movement intent (direction, jump, etc.) → per-mode processing → physics.
+### [x] Character movement modes (kinematic, physics capsule, floating) — v0.7.4, details in `docs/CHANGELOG.md`
 
-  | Mode | Method | Suited games | Caveats |
-  |---|---|---|---|
-  | Kinematic (default) | Jolt `CharacterVirtual` | precise controls, stairs, slopes, moving platforms | verify determinism with `mp_test` first |
-  | Physics capsule (current sandbox) | rigid body + velocity control | shoving party games | stairs and slopes feel awkward |
-  | Floating | downward raycast + spring/damping to hover | physics interaction + smooth movement | needs spring tuning values |
-  | Active ragdoll | Jolt `Ragdoll` + motors following a target pose | slapstick physics games | see below |
-
-- **Order**: kinematic → floating → active ragdoll. The physics capsule moves the current code into a mode.
-- **Active ragdoll**: depends on stage 2 skeletal animation's "pose sampling for the simulation". The cost is about 11~15 bodies plus constraints per character. Benchmark whether it fits the tick budget (4 ms) with 4 players, and if it exceeds, use a simplified ragdoll with fewer joints.
-- **Determinism**: every mode processes in Pawn id order, and angle math uses only the deterministic math utils. Per-mode state goes into `hash()`.
+### [ ] Active ragdoll movement mode (split from "Character movement modes" 2026-11-01)
+- **Why**: slapstick physics games. The fourth mode of engine `mealkit/sim/Movement.h`.
+- **Approach**: Jolt `Ragdoll` + motors following a target pose. Depends on stage 2 skeletal animation's "pose sampling for the simulation".
+- **Cost**: about 11~15 bodies plus constraints per character. Benchmark whether it fits the tick budget (4 ms) with 4 players, and if it exceeds, use a simplified ragdoll with fewer joints.
+- **Determinism**: same as the other modes (Pawn id order, ragdoll bodies created in a fixed order, state through PhysicsWorld snapshots).
 
 ### [ ] Animation state table + animation events
 - **Why**: skeletal animation has only a crossfade set by game code. Every game rewrites idle/run/jump/attack switching.

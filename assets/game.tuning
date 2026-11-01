@@ -1,9 +1,9 @@
 # MealKit tuning (Tuning). Edit it in the editor's [Tuning] panel.
 @format tuning 1
-playerSpeed 7
-groundAccel 12
-airAccel 3
-jumpSpeed 8
+move.speed 7
+move.groundAccel 12
+move.airAccel 3
+move.jumpSpeed 8
 gravity 0 -20 0
 pushCooldown 0.5
 pushRadius 7
@@ -21,8 +21,8 @@ aiPushOneIn 3
 pawnHalfHeight 0.899999976
 pawnRadius 0.449999988
 pawnMass 80
-groundProbe 0.119999997
-jumpMaxRise 1
+move.groundProbe 0.119999997
+move.jumpMaxRise 1
 spawnSpacing 1.20000005
 solidFriction 0.800000012
 padBelow 0.300000012

@@ -19,16 +19,15 @@ namespace {
 
 // What a Pawn wants to do this tick (humans from input, AI from decisions)
 struct Intent {
-    Vec3 wish; // horizontal move direction, length 0..1
-    bool jump = false;
+    mealkit::sim::MoveIntent move;
     bool push = false;
 };
 
 Intent intentFromInput(const GameInput& in) {
     Intent i;
     constexpr f32 kAxis = 127.0f; // const-ok: input quantization (i8 -127..127 → -1..1)
-    i.wish = {static_cast<f32>(in.moveX) / kAxis, 0.0f, static_cast<f32>(in.moveZ) / kAxis};
-    i.jump = (in.buttons & kButtonJump) != 0;
+    i.move.wish = {static_cast<f32>(in.moveX) / kAxis, 0.0f, static_cast<f32>(in.moveZ) / kAxis};
+    i.move.jump = (in.buttons & kButtonJump) != 0;
     i.push = (in.buttons & kButtonPush) != 0;
     return i;
 }
@@ -46,32 +45,21 @@ Intent thinkAI(World& world, Controller& c, const Pawn& pawn) {
         const Vec3 target = pawn.position + Vec3{mealkit::detSin(angle), 0.0f, mealkit::detCos(angle)} * distance;
         c.aiTarget = {std::clamp(target.x, world.arenaMin.x, world.arenaMax.x), 0.0f,
                       std::clamp(target.z, world.arenaMin.z, world.arenaMax.z)};
-        i.jump = rng.below(t.aiJumpOneIn) == 0;
+        i.move.jump = rng.below(t.aiJumpOneIn) == 0;
         i.push = rng.below(t.aiPushOneIn) == 0;
     }
     const Vec3 to{c.aiTarget.x - pawn.position.x, 0.0f, c.aiTarget.z - pawn.position.z};
     const f32 len2 = mealkit::lengthSq(to);
-    if (len2 > 1.0f) i.wish = to / std::sqrt(len2) * t.aiSpeedScale;
+    if (len2 > 1.0f) i.move.wish = to / std::sqrt(len2) * t.aiSpeedScale;
     return i;
 }
 
 void movePawn(World& world, Pawn& p, const Intent& intent, u8 player) {
     const Tuning& t = world.tuning;
     const BodyKind* body = bodyOf(world, player);
-    const f32 speed = t.playerSpeed * (body ? body->speedScale : 1.0f); // body kind (loadout)
-    Vec3 wish = intent.wish;
-    const f32 wishLen2 = mealkit::lengthSq(wish);
-    if (wishLen2 > 1.0f) wish = wish / std::sqrt(wishLen2);
-
-    Vec3 v = world.physics.linearVelocity(p.body);
-    const f32 accel = std::min(1.0f, (p.grounded ? t.groundAccel : t.airAccel) * world.tickDt);
-    v.x += (wish.x * speed - v.x) * accel;
-    v.z += (wish.z * speed - v.z) * accel;
-    if (p.grounded && intent.jump && v.y < t.jumpMaxRise) {
-        v.y = t.jumpSpeed;
+    const f32 speedScale = body ? body->speedScale : 1.0f; // body kind (loadout)
+    if (mealkit::sim::move(world.physics, p.mover, intent.move, t.move, speedScale, t.gravity, world.tickDt))
         world.events.push(makeEvent(EventKind::Jump, player, p.position, 0.0f));
-    }
-    world.physics.setLinearVelocity(p.body, v);
 
     if (intent.push && cooldown::tryUse(p.push, world.state.tick, t.pushCooldown.value)) {
         pushProps(world, p.position);
@@ -120,19 +108,17 @@ void createControllers(World& world) {
     }
 }
 
-// A capsule with locked rotation. Moved by setting velocity directly, and physically pushes boxes away.
-Id<Pawn> spawnPawn(World& world, const Vec3& position, f32 massScale) {
-    mealkit::physics::BodyDesc d;
-    d.position = position;
-    d.lockRotation = true;
-    d.friction = 0.0f;
-    d.restitution = 0.0f;
-    d.linearDamping = 0.0f;
-    d.mass = world.tuning.pawnMass * massScale;
-    d.allowSleep = false;
+// A capsule moved by the body kind's movement mode (engine mealkit/sim/Movement.h). Every mode pushes boxes away.
+Id<Pawn> spawnPawn(World& world, const Vec3& position, const BodyKind* body) {
+    mealkit::sim::MoverShape shape;
+    shape.position = position;
+    shape.halfHeight = world.tuning.pawnHalfHeight;
+    shape.radius = world.tuning.pawnRadius;
+    shape.mass = world.tuning.pawnMass * (body ? body->massScale : 1.0f);
     Pawn p;
     p.position = position;
-    p.body = world.physics.createCapsule(world.tuning.pawnHalfHeight - world.tuning.pawnRadius, world.tuning.pawnRadius, d);
+    p.mover = mealkit::sim::createMover(world.physics, body ? body->movement : mealkit::sim::MoveMode::Capsule, shape,
+                                        world.tuning.move);
     return world.state.pawns.create(p);
 }
 
@@ -163,7 +149,7 @@ void respawnPawns(World& world) {
         const Vec3 at = spawnPosition(world, c.spawnIndex);
         const u8 player = c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer;
         const BodyKind* body = bodyOf(world, player);
-        const Id<Pawn> pawn = spawnPawn(world, at, body ? body->massScale : 1.0f);
+        const Id<Pawn> pawn = spawnPawn(world, at, body);
         possess(world, id, pawn);
         world.events.push(makeEvent(EventKind::Spawn, player, at, 0.0f));
     }
@@ -193,9 +179,9 @@ void usePads(World& world) {
             const bool over = d.x <= pad.halfExtents.x && -d.x <= pad.halfExtents.x && d.z <= pad.halfExtents.z &&
                               -d.z <= pad.halfExtents.z;
             if (!over || feet < top - world.tuning.padBelow || feet > top + world.tuning.padAbove) continue;
-            Vec3 v = world.physics.linearVelocity(p.body);
+            Vec3 v = mealkit::sim::moverVelocity(world.physics, p.mover);
             v.y = pad.power;
-            world.physics.setLinearVelocity(p.body, v);
+            mealkit::sim::setMoverVelocity(world.physics, p.mover, v);
             pad.ready.start(tick, pad.cooldownTicks);
             world.events.push(makeEvent(EventKind::Bounce, pawnPlayer(s, p), {pad.center.x, top, pad.center.z}, 0.0f));
             break;
@@ -253,11 +239,7 @@ void setPresence(World& world, const mealkit::sim::Presence& presence) {
 
 void sensePawns(World& world) {
     for (auto [id, p] : world.state.pawns) {
-        p.position = world.physics.position(p.body);
-        p.velocity = world.physics.linearVelocity(p.body);
-        mealkit::physics::RayHit hit;
-        const f32 probe = world.tuning.pawnHalfHeight + world.tuning.groundProbe;
-        p.grounded = world.physics.castRay(p.position, {0.0f, -probe, 0.0f}, hit, p.body) ? 1u : 0u;
+        mealkit::sim::senseMover(world.physics, p.mover, world.tuning.move, p.position, p.velocity);
     }
 }
 

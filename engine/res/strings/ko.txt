@@ -716,3 +716,22 @@ Remove %s = %s 제거
 Version = 버전
 Remove = 제거
 Add = 추가
+
+# Movement modes (sim/Movement.h)
+Ground acceleration (1/s) = 지상 가속 (1/s)
+Air acceleration (1/s) = 공중 가속 (1/s)
+Jump speed (m/s) = 점프 속도 (m/s)
+No jump while rising faster than this (m/s) = 이보다 빨리 올라가는 중에는 점프하지 않음 (m/s)
+Ground detection margin (m) = 발밑 땅 감지 여유 (m)
+Kinematic: steepest walkable slope (degrees) = 키네마틱: 걸을 수 있는 최대 경사 (도)
+Kinematic: step height (m) = 키네마틱: 계단 높이 (m)
+Kinematic: snap to floor below (m) = 키네마틱: 아래 바닥에 붙는 거리 (m)
+Floating: hover gap under the capsule (m) = 플로팅: 캡슐 아래 뜨는 간격 (m)
+Floating: spring (1/s²) = 플로팅: 스프링 (1/s²)
+Floating: damping (1/s) = 플로팅: 감쇠 (1/s)
+Mode = 방식
+Body (Kinematic: the body following the character) = 바디 (키네마틱: 캐릭터를 따라가는 바디)
+Character (Kinematic) = 캐릭터 (키네마틱)
+Half height (m) = 반 높이 (m)
+Grounded = 땅에 닿음
+Floating: distance from the capsule bottom to the ground (m, -1 if none in reach) = 플로팅: 캡슐 바닥에서 땅까지 거리 (m, -1이면 닿는 땅 없음)

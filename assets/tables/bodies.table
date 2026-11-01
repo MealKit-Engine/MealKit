@@ -4,11 +4,14 @@
 row normal
 speedScale 1
 massScale 1
+movement Capsule
 
 row light
 speedScale 1.15
 massScale 0.75
+movement Kinematic
 
 row heavy
 speedScale 0.85
 massScale 1.5
+movement Floating

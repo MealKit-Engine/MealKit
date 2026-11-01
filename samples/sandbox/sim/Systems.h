@@ -11,12 +11,12 @@ namespace sandbox {
 // Pawns.cpp
 Vec3 spawnPosition(const World& world, u32 index);
 void createControllers(World& world); // match start: one per player slot, then AI
-Id<Pawn> spawnPawn(World& world, const Vec3& position, f32 massScale);
+Id<Pawn> spawnPawn(World& world, const Vec3& position, const BodyKind* body); // body: movement mode, mass (nullptr = defaults)
 const BodyKind* bodyOf(const World& world, u8 player); // a player's body kind (nullptr for AI or an empty table)
 void possess(World& world, Id<Controller> controller, Id<Pawn> pawn);
 void unpossess(World& world, Id<Controller> controller);
 void respawnPawns(World& world);      // a new Pawn for controllers without one whose respawn wait has ended
-void controlPawns(World& world);      // input/AI → velocity, jump, push
+void controlPawns(World& world);      // input/AI → movement mode (velocity, jump), push
 void usePads(World& world);           // launches Pawns on jump pads upward
 void removeFallenPawns(World& world); // removes fallen Pawns and waits for respawn
 void sensePawns(World& world);        // physics results → position, velocity, grounded

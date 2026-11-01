@@ -3,6 +3,16 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.4 — character movement modes (2026-11-01)
+
+### [x] Stage 4: Character movement modes (done 2026-11-01)
+- **Engine physics** (`physics/PhysicsWorld.h`): kinematic characters = Jolt `CharacterVirtual` (`createCharacter`/`destroyCharacter`/`moveCharacter`, `characterPosition`/`Velocity`/`Ground`). Each one gets a kinematic capsule body of the same size that follows it (`MoveKinematic`), so boxes, other Pawns and rays see it; the character ignores its own body. Characters are in `hashState`, `writeState` (`character <id> p .. v .. ground ..` lines in desync dumps), `save`/`restore` (recreated by id like bodies, `CharacterVirtual::SaveState` bytes) and snapshot bytes (late join). Slope limit is passed as a cosine (callers use `detCos`); Jolt's own `ACos`/`Cos` are deterministic.
+- **Engine movement modes** (`sim/Movement.h`, header only): `MoveMode` Kinematic/Capsule/Floating, `MoveTuning` (speed, accelerations, jump, ground probe, slope/step/stick for kinematic, hover gap/spring/damping for floating), `MoveIntent` (wish, jump), `Mover` state (mode, body, character, grounded, ground gap). `createMover`/`destroyMover`, `move()` before the physics step (returns "jumped"), `senseMover()` after it, `moverVelocity`/`setMoverVelocity` (jump pads). Kinematic applies gravity itself and rides ground velocity (moving platforms); Capsule is the old sandbox code; Floating springs toward `floatHeight` over a downward ray.
+- **Sandbox**: `Pawn.body`/`grounded` → `Pawn.mover`. Tuning `playerSpeed`, `groundAccel`, `airAccel`, `jumpSpeed`, `jumpMaxRise`, `groundProbe` → nested `move.*` (`move.speed` etc. in `game.tuning`). `bodies.table` new column `movement`: normal = Capsule (AI too), light = Kinematic, heavy = Floating, chosen in the lobby like before.
+- **Checked**: unit test `sim/movement_modes` (all modes stand, kinematic climbs a 0.3 m step, snapshot bytes restored into another world give the same per-tick hashes); with the first body row switched to each mode: the three scenarios, headless replay, `--shadow --rewind-test`, `mp_test -Headless -Clients 2 -Ticks 3000 -LateJoin` PASS, screen captures. Replay `arena_4p_seed7.rec` re-recorded (Pawn state layout changed).
+- **Not yet**: active ragdoll (own ROADMAP item), crouching/swimming/ladders, kinematic characters pushing each other (they see each other's kinematic bodies as walls), cross-platform CI comparison of kinematic runs (CI replays use capsule bodies).
+- **Template**: sample `sim/` code is the new-project code (VERSION 0.7.4); project `CLAUDE.md` mentions movement modes.
+
 ## v0.7.3 — game flow framework (2026-11-01)
 
 ### [x] Stage 4: Game flow framework (done 2026-11-01)

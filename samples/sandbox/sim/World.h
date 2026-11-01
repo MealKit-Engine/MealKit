@@ -7,6 +7,7 @@
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/scene/Scene.h"
 #include "mealkit/sim/MatchFlow.h"
+#include "mealkit/sim/Movement.h"
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
@@ -57,7 +58,7 @@ using mealkit::sim::TickTimer;
 struct Controller;
 struct Pawn;
 
-enum class PawnKind : u8 { Runner }; // for now a single physics capsule with locked rotation
+enum class PawnKind : u8 { Runner }; // the movement mode comes from the body kind (tables/bodies.table movement)
 enum class ControllerKind : u8 { None, Player, AI };
 
 MEALKIT_STRUCT(Pawn) {
@@ -65,9 +66,8 @@ MEALKIT_STRUCT(Pawn) {
     MEALKIT_FIELD(Id<Controller>, owner, {}, "조종하는 컨트롤러");
     MEALKIT_FIELD(Vec3, position, {}, "위치");
     MEALKIT_FIELD(Vec3, velocity, {}, "속도");
-    MEALKIT_FIELD(u32, grounded, 0, "땅에 닿음"); // whether something is underfoot
     MEALKIT_FIELD(cooldown::Cooldown, push, {}, "밀치기 쿨타임");
-    MEALKIT_FIELD(mealkit::physics::BodyId, body, mealkit::physics::kInvalidBody, "물리 바디");
+    MEALKIT_FIELD(mealkit::sim::Mover, mover, {}, "이동 (모드, 물리 바디, 땅에 닿음)");
 };
 
 MEALKIT_STRUCT(Controller) {

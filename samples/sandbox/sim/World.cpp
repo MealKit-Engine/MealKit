@@ -160,7 +160,7 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
     senseProps(*this);
     // End of tick: delete bodies of objects deleted this tick in slot order, and put objects created this tick into iteration from the next tick
     state.controllers.endTick();
-    state.pawns.endTick([this](Pawn& pawn) { physics.destroy(pawn.body); });
+    state.pawns.endTick([this](Pawn& pawn) { mealkit::sim::destroyMover(physics, pawn.mover); });
     state.props.endTick([this](Prop& prop) { physics.destroy(prop.body); });
     ++state.tick;
 }

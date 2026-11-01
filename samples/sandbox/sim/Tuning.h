@@ -2,6 +2,7 @@
 
 #include "mealkit/core/Math.h"
 #include "mealkit/core/Reflect.h"
+#include "mealkit/sim/Movement.h"
 
 // Game tuning values: assets/game.tuning (edited in the editor [Tuning] panel). The World copies it at match start and reads it as world.tuning.
 // In multiplayer it's fixed at match start and goes into the content hash (peers using different values are rejected).
@@ -20,11 +21,8 @@ MEALKIT_STRUCT(Tuning) {
     MEALKIT_FIELD(mealkit::u32, lives, 0, "목숨 (0이면 무한, 있으면 모두 잃은 쪽이 탈락)");
     MEALKIT_FIELD(mealkit::u32, teams, 0, "팀 수 (0·1이면 개인전, 슬롯 번호 % 팀 수)");
     MEALKIT_FIELD(mealkit::u32, minPlayers, 1, "이만큼 모일 때까지 대기");
-    // Movement
-    MEALKIT_FIELD(mealkit::f32, playerSpeed, 7.0f, "이동 속도 (m/s)");
-    MEALKIT_FIELD(mealkit::f32, groundAccel, 12.0f, "지상 가속 (1/s)");
-    MEALKIT_FIELD(mealkit::f32, airAccel, 3.0f, "공중 가속 (1/s)");
-    MEALKIT_FIELD(mealkit::f32, jumpSpeed, 8.0f, "점프 속도 (m/s)");
+    // Movement (engine movement modes, mealkit/sim/Movement.h: the mode is per body kind in tables/bodies.table)
+    MEALKIT_FIELD(mealkit::sim::MoveTuning, move, {}, "이동");
     MEALKIT_FIELD(mealkit::Vec3, gravity, (mealkit::Vec3{0.0f, -20.0f, 0.0f}), "중력 (m/s²)");
     // Pushing
     MEALKIT_FIELD(mealkit::Ticks, pushCooldown, mealkit::Ticks::seconds(0.5f), "밀치기 재사용 대기 (초)");
@@ -45,8 +43,6 @@ MEALKIT_STRUCT(Tuning) {
     MEALKIT_FIELD(mealkit::f32, pawnHalfHeight, 0.9f, "캐릭터 반 높이 (m)");
     MEALKIT_FIELD(mealkit::f32, pawnRadius, 0.45f, "캐릭터 반지름 (m)");
     MEALKIT_FIELD(mealkit::f32, pawnMass, 80.0f, "캐릭터 질량 (kg)");
-    MEALKIT_FIELD(mealkit::f32, groundProbe, 0.12f, "발밑 땅 감지 여유 (m)");
-    MEALKIT_FIELD(mealkit::f32, jumpMaxRise, 1.0f, "이보다 빨리 올라가는 중에는 점프하지 않음 (m/s)");
     MEALKIT_FIELD(mealkit::f32, spawnSpacing, 1.2f, "스폰 지점보다 많을 때 옆으로 비켜 서는 거리 (m)");
     // Scene
     MEALKIT_FIELD(mealkit::f32, solidFriction, 0.8f, "씬 충돌 물체 마찰");
