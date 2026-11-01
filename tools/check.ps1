@@ -501,8 +501,8 @@ if (-not $Quick) {
         $common = "--project `"$root`" --frames 60 --select 25 --capture"
         if ((Run "$log.dx12" $editor "$common `"$dx`"") -ne 0 -or -not (Test-Path $dx)) { return "DX12 capture failed" }
         if ((Run "$log.vulkan" $vkEditor "$common `"$vk`"") -ne 0 -or -not (Test-Path $vk)) { return "Vulkan capture failed" }
-        # The bottom row (log: DLL path/port/time differ per run) and status bar are excluded. In the default 1600x900 layout the bottom row starts at about y = 615
-        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $dx -B $vk -IgnoreBottom 290 -DiffOut (Join-Path $out "backend-diff.png") 2>&1
+        # The log lines (DLL path/port/token/time differ per run) and status bar are excluded. In the default 1600x900 layout the first log line starts at about y = 598
+        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $dx -B $vk -IgnoreBottom 310 -DiffOut (Join-Path $out "backend-diff.png") 2>&1
         $output | Out-File -Encoding utf8 $log
         if ($LASTEXITCODE -ne 0) { return ($output | Select-Object -First 1) }
         return $true
