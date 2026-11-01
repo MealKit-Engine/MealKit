@@ -33,6 +33,7 @@
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
 #if MEALKIT_TEST_UI
+#include "mealkit/asset/AnimStates.h"
 #include "mealkit/asset/Environment.h"
 #include "mealkit/render/SceneLights.h"
 #include "mealkit/asset/ModelCache.h"
@@ -1214,6 +1215,80 @@ TEST_CASE(asset, skeletal_animation) {
     asset::jointMatrices(rig->skeleton, pose, world);
     const Mat4& hip = world[static_cast<size_t>(leg)]; // leg joint = beside the hip (z flip of 0 is the same)
     TEST_CHECK(std::abs(length(moved - Vec3{hip.m[3][0], hip.m[3][1], -hip.m[3][2]}) - 0.7f) < 1e-3f); // leg length unchanged
+}
+
+// Animation state table: parsing, transitions (conditions, triggers, end), 1D blend, crossfade, events once per cycle crossing
+TEST_CASE(asset, animation_states) {
+    asset::ModelCache models;
+    const asset::Model* rig = models.get("models/characters/rig_figure.glb");
+    TEST_CHECK(rig && rig->skinned());
+    if (!rig || !rig->skinned()) return;
+    sim::Table<asset::AnimState> table;
+    table.rows.reserve(4); // row() returns pointers into rows
+    const auto row = [&](const char* id, const char* clip, const char* transitions) {
+        table.ids.push_back(id);
+        table.rows.emplace_back();
+        table.rows.back().clip = clip;
+        table.rows.back().transitions = transitions;
+        return &table.rows.back();
+    };
+    row("pawn.idle", "idle", "move if speed > 0.6 and grounded; wave on push; nowhere if x");
+    asset::AnimState* move = row("pawn.move", "run 3 idle 0", "idle if speed < 0.4; bad");
+    move->blendParam = "speed";
+    move->blendIn = 0.2f;
+    move->events = "0.25 Footstep 0.75 Footstep";
+    asset::AnimState* wave = row("pawn.wave", "wave", "idle if end");
+    wave->loop = false;
+    wave->blendIn = 0.0f;
+    row("crate", "idle", "");
+    asset::AnimStates states;
+    std::string warnings;
+    states.build(table, &warnings);
+    TEST_CHECK(states.setCount() == 1 && states.findSet("pawn") == 0 && states.findSet("crate") < 0);
+    TEST_CHECK(warnings.find("crate") != std::string::npos && warnings.find("unknown state") != std::string::npos &&
+               warnings.find("'bad'") != std::string::npos);    const asset::AnimStates::Set& set = states.set(0);
+    TEST_CHECK(set.states.size() == 3 && set.states[1].points.size() == 2 && set.states[1].points[0].clip == "idle"); // sorted by value
+    TEST_CHECK(set.states[0].transitions.size() == 2 && set.states[0].transitions[0].conds.size() == 2);
+
+    asset::AnimInstance anim;
+    asset::AnimParams params;
+    std::vector<std::string> events;
+    const f32 dt = 1.0f / 60.0f;
+    asset::updateAnim(states, 0, rig->clips, anim, params, dt, &events);
+    TEST_CHECK(anim.set == 0 && anim.state == 0 && anim.fade == 1.0f);
+    params.set("speed", 2.0f); // not grounded yet: both conditions must hold
+    asset::updateAnim(states, 0, rig->clips, anim, params, dt, &events);
+    TEST_CHECK(anim.state == 0);
+    params.set("grounded", true);
+    asset::updateAnim(states, 0, rig->clips, anim, params, dt, &events);
+    TEST_CHECK(anim.state == 1 && anim.from == 0 && anim.fade > 0.0f && anim.fade < 1.0f && anim.blend == 2.0f);
+    std::vector<asset::JointPose> pose;
+    asset::animPose(states, rig->skeleton, rig->clips, anim, pose);
+    TEST_CHECK(pose.size() == rig->skeleton.joints.size());
+    // Two full cycles (cycle = lerp of idle/run lengths at speed 2): four footsteps, fade finished
+    const f32 cycle = [&] {
+        const f32 i = asset::findClip(rig->clips, "idle")->duration, r = asset::findClip(rig->clips, "run")->duration;
+        return i + (r - i) * (2.0f / 3.0f);
+    }();
+    events.clear();
+    for (f32 t = 0.0f; t < cycle * 2.0f - dt; t += dt) asset::updateAnim(states, 0, rig->clips, anim, params, dt, &events);
+    TEST_CHECK(events.size() == 4 && events[0] == "Footstep" && anim.fade == 1.0f && anim.state == 1);
+    // Trigger from move isn't listed → stays; slowing down returns to idle, then the trigger plays wave until its end
+    params.trigger("push");
+    asset::updateAnim(states, 0, rig->clips, anim, params, dt, &events);
+    TEST_CHECK(anim.state == 1 && params.triggers.empty());
+    params.set("speed", 0.0f);
+    asset::updateAnim(states, 0, rig->clips, anim, params, dt, &events);
+    TEST_CHECK(anim.state == 0);
+    params.trigger("push");
+    asset::updateAnim(states, 0, rig->clips, anim, params, dt, &events);
+    TEST_CHECK(anim.state == 2 && anim.fade == 1.0f);
+    const f32 waveSeconds = asset::findClip(rig->clips, "wave")->duration;
+    for (f32 t = 0.0f; t < waveSeconds + 0.1f; t += dt) asset::updateAnim(states, 0, rig->clips, anim, params, dt, &events);
+    TEST_CHECK(anim.state == 0);
+    // Unknown set resets
+    asset::updateAnim(states, 5, rig->clips, anim, params, dt, &events);
+    TEST_CHECK(anim.set == -1);
 }
 
 // Texture cache mipmaps: size halves, sRGB averages in linear, normals renormalize to length 1. half conversion

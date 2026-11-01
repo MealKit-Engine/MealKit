@@ -2,6 +2,7 @@
 
 #include "mealkit/render/SceneLights.h"
 
+#include <algorithm>
 #include <cmath>
 
 using namespace mealkit;
@@ -60,28 +61,17 @@ void onWorldEvent(const GameEvent& e, const WorldState& state, f64 viewTime, Wor
         const Vec3 d = pawn.position - e.position;
         const f32 dist2 = d.x * d.x + d.y * d.y + d.z * d.z;
         if (dist2 > 1e-4f && dist2 <= e.value * e.value) view.hitTime[id.slot] = viewTime; // excluding the pushing Pawn (distance 0)
+        else if (dist2 <= 1e-4f && id.slot < view.anims.size()) view.anims[id.slot].params.trigger("push"); // the pusher's animation
     }
 }
 
-// One skinned character: blends the current clip (looping) and the previous clip into a palette (clip clock is view time, the same for every character)
-void drawFigure(const asset::Model& figure, const PawnLook& pl, const WorldView::Anim& anim, f64 viewTime,
+// One skinned character: the state table's current pose (with its crossfade) into a palette
+void drawFigure(const asset::Model& figure, const asset::AnimStates& states, const asset::AnimInstance& anim,
                 const render::InstanceData& instance, render::DrawList& out) {
-    thread_local std::vector<asset::JointPose> now, before, blended;
+    thread_local std::vector<asset::JointPose> pose;
     thread_local std::vector<asset::BoneMatrix> palette;
-    const auto sample = [&](bool running, std::vector<asset::JointPose>& pose) {
-        const asset::AnimationClip* clip = asset::findClip(figure.clips, running ? pl.runClip : pl.idleClip);
-        if (clip) asset::samplePose(figure.skeleton, *clip, static_cast<f32>(std::fmod(viewTime, 4096.0)), true, pose);
-        else asset::restPose(figure.skeleton, pose);
-    };
-    sample(anim.running, now);
-    const f32 t = pl.blendSeconds > 0.0f ? static_cast<f32>((viewTime - anim.changed) / pl.blendSeconds) : 1.0f;
-    if (t < 1.0f) {
-        sample(anim.wasRunning, before);
-        asset::blendPoses(before, now, t, blended);
-        asset::skinPalette(figure.skeleton, blended, palette);
-    } else {
-        asset::skinPalette(figure.skeleton, now, palette);
-    }
+    asset::animPose(states, figure.skeleton, figure.clips, anim, pose);
+    asset::skinPalette(figure.skeleton, pose, palette);
     out.addSkinned(figure.lods[0], instance, palette.data(), static_cast<u32>(palette.size()));
 }
 
@@ -92,6 +82,12 @@ void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha,
     const asset::Model* figure = pl.model.empty() ? nullptr : models.get(pl.model);
     if (figure && !figure->skinned()) figure = nullptr;
     view.anims.resize(current.pawns.capacity());
+    // Animation advances by view time (stops during hitstop like the rest of the view)
+    const f32 dt = view.animTime < 0.0 ? 0.0f : static_cast<f32>(std::max(0.0, viewTime - view.animTime));
+    view.animTime = viewTime;
+    const i32 set = figure ? view.animStates.findSet(pl.animSet) : -1;
+    thread_local std::vector<std::string> events;
+    events.clear();
     view.hitTime.resize(current.pawns.capacity(), -1.0);
     for (auto [id, b] : current.props) {
         const Prop* before = previous.props.get(id); // boxes created this tick have no previous state
@@ -118,16 +114,15 @@ void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha,
                               ? pl.hitFlash * (1.0f - static_cast<f32>(sinceHit) / pl.hitFlashSeconds)
                               : 0.0f;
         const u32 flags = render::instanceFlash(0, flash);
-        if (figure) { // skinned character: idle when standing, run when moving, blended over blendSeconds when switching
+        if (figure) { // skinned character: the state table picks clips from movement parameters (assets/tables/animation.table)
             WorldView::Anim& anim = view.anims[id.slot];
-            const bool running = b.velocity.x * b.velocity.x + b.velocity.z * b.velocity.z > pl.runSpeed * pl.runSpeed;
-            if (!before) anim = {running, running, -100.0};
-            if (running != anim.running) {
-                anim.wasRunning = anim.running;
-                anim.running = running;
-                anim.changed = viewTime;
-            }
-            drawFigure(*figure, pl, anim, viewTime, {pos - Vec3{0, pl.footOffset, 0}, color.value, facing, {1, 1, 1}, flags}, out);
+            if (!before) anim.instance = {};
+            anim.params.set("speed", std::sqrt(b.velocity.x * b.velocity.x + b.velocity.z * b.velocity.z));
+            anim.params.set("grounded", b.mover.grounded != 0);
+            const size_t firstEvent = events.size();
+            asset::updateAnim(view.animStates, set, figure->clips, anim.instance, anim.params, dt, &events);
+            for (size_t i = firstEvent; i < events.size(); ++i) view.animEvents.push_back({std::move(events[i]), pos});
+            drawFigure(*figure, view.animStates, anim.instance, {pos - Vec3{0, pl.footOffset, 0}, color.value, facing, {1, 1, 1}, flags}, out);
         } else {
             out.add(box, {pos, color.value, facing, pl.bodySize, flags});
             out.add(box, {pos + rotate(facing, pl.visorOffset), pl.visorColor.value, facing, pl.visorSize, flags});

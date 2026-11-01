@@ -1,0 +1,19 @@
+# MealKit table (AnimState). Edit it in the editor's [Tables] panel. Row id = <set>.<state>; the first row of a set is its entry state.
+@format table 1
+
+row pawn.idle
+clip idle
+transitions move if speed > 0.6; wave on push
+
+row pawn.move
+clip idle 0 run 3
+blendParam speed
+blendIn 0.2
+transitions idle if speed < 0.4; wave on push
+events 0.25 Footstep 0.75 Footstep
+
+row pawn.wave
+clip wave
+loop false
+blendIn 0.1
+transitions idle if end

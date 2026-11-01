@@ -46,10 +46,7 @@ MEALKIT_STRUCT(PawnLook) {
     // Skinned model (if empty, box body + face). Feet are at the origin, drawn footOffset below the body center
     MEALKIT_FIELD(std::string, model, "models/characters/rig_figure.glb", "캐릭터 모델 (스킨, 비면 상자)");
     MEALKIT_FIELD(f32, footOffset, 0.9f, "몸 중심에서 발까지 (m)");
-    MEALKIT_FIELD(std::string, idleClip, "idle", "서 있을 때 클립");
-    MEALKIT_FIELD(std::string, runClip, "run", "움직일 때 클립");
-    MEALKIT_FIELD(f32, runSpeed, 1.0f, "이 속도(m/s)보다 빠르면 달리기 클립");
-    MEALKIT_FIELD(f32, blendSeconds, 0.15f, "클립을 바꿀 때 섞는 시간 (초)");
+    MEALKIT_FIELD(std::string, animSet, "pawn", "애니메이션 상태 세트 (assets/tables/animation.table)");
 };
 
 MEALKIT_STRUCT(ShockwaveLook) {

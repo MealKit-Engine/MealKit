@@ -3,6 +3,7 @@
 #include "sim/World.h"
 #include "view/ViewTuning.h"
 
+#include "mealkit/asset/AnimStates.h"
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/render/DrawList.h"
 #include "mealkit/render/Renderer.h"
@@ -22,12 +23,19 @@ struct WorldView {
         mealkit::f64 time;
     };
     std::vector<Flash> flashes; // push lights (view time; applyLights turns them into point lights)
-    // Skinned character clips (per Pawn slot): current clip, view time of the change, previous clip (blending)
+    // Skinned character animation (per Pawn slot): state table playback (assets/tables/animation.table) and the parameters it reads
     struct Anim {
-        bool running = false, wasRunning = false;
-        mealkit::f64 changed = -100.0;
+        mealkit::asset::AnimInstance instance;
+        mealkit::asset::AnimParams params;
     };
     std::vector<Anim> anims;
+    mealkit::asset::AnimStates animStates; // loaded by GameSession, reloaded when the file changes
+    mealkit::f64 animTime = -1.0;          // view time of the last animation update (negative = none yet)
+    struct AnimEvent {
+        std::string row; // feedback table row
+        Vec3 position;
+    };
+    std::vector<AnimEvent> animEvents; // fired by drawWorld this frame; GameSession plays them through ctx.feedback
 };
 
 // Tick events → view state: other Pawns within push range flash (viewTime: the view clock that stops during hitstop)

@@ -175,6 +175,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/asset/ModelCache.cpp
     src/mealkit/asset/Animation.h
     src/mealkit/asset/Animation.cpp
+    src/mealkit/asset/AnimStates.h
+    src/mealkit/asset/AnimStates.cpp
     src/mealkit/render/DrawList.h
     src/mealkit/render/Culling.h
     src/mealkit/render/Mesh.h

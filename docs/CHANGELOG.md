@@ -3,6 +3,18 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.5 — animation state table + animation events (2026-11-01)
+
+### [x] Stage 4: Animation state table + animation events (done 2026-11-01)
+- **Engine** (`asset/AnimStates.h`, view side only): engine table `assets/tables/animation.table` (row type `asset::AnimState`, registered with the engine tables so the [Tables] panel edits it). Row id `<set>.<state>`, the first row of a set is the entry state. Columns: `clip` (one clip, or a 1D blend `clip value clip value` sorted by value), `blendParam`, `loop`, `speed`, `blendIn`, `transitions` (`<state> if <cond> [and <cond>]` with `> < >= <= == !=`, `param`/`!param` as on/off, `end` for a finished non-looping clip, or `<state> on <trigger>`; first match wins), `events` (`cycle fraction feedback row` pairs).
+  `AnimStates` parses the table (warnings for bad ids, unknown targets, bad conditions) and rereads it when the file changes (`poll`). `AnimParams` holds named values and one-frame triggers. `updateAnim` runs transitions, advances the state's phase (blend states: cycle length = lerp of the two active clips, clips share the normalized phase), cross-fades from the previous state over `blendIn`, and returns event row names crossed this update (the fading-out state fires none). `animPose` samples the result.
+- **Feedback**: `feedback::Player::play(row, position)` plays a row by name (the old `preview` calls it), used for animation events.
+- **Sandbox**: `PawnLook.idleClip/runClip/runSpeed/blendSeconds` → `animSet` (`pawn`). `drawWorld` sets `speed` and `grounded` per Pawn, `onWorldEvent` gives the pusher a `push` trigger, events go through `ctx.feedback.play` at the Pawn. `assets/tables/animation.table`: `pawn.idle`, `pawn.move` (idle↔run blend by speed, footsteps at 0.25/0.75), `pawn.wave` (on push, back at end). `feedback.table` new row `Footstep` (dust effect).
+- **Checked**: unit test `asset/animation_states` (parsing and warnings, AND conditions, trigger only from listed states, `end`, blend sorting, four footsteps in two cycles, cross-fade finishing); sandbox bot capture shows the running blend and footstep dust; Release and Editor builds.
+- **Decision**: animation events are written in the table, not read from glTF markers (`docs/DECISIONS.md` 2026-11-01).
+- **Not yet**: 2D blend spaces (when a game needs strafing), a dedicated editor preview of states (the [Tables] panel edits the file and a running game picks changes up), animation LOD (optimization candidate 7).
+- **Template**: sample `view/` code is the new-project code (VERSION 0.7.5).
+
 ## v0.7.4 — character movement modes (2026-11-01)
 
 ### [x] Stage 4: Character movement modes (done 2026-11-01)

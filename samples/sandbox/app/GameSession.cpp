@@ -55,6 +55,9 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     m_input.clearLatches();
     m_prediction.reset();
     m_effects = {};
+    m_view.anims.clear();
+    m_view.animTime = -1.0;
+    m_view.animStates.load(); // assets/tables/animation.table (character animation states)
     m_hudVm = {};
     ctx.audio.stop(m_music);
     m_music = ctx.audio.play2D("music");
@@ -111,6 +114,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     }
     const bool hitStop = ctx.feedback.hitStop(); // freezes only the view: view clock/effects/camera focus (the simulation continues)
     if (!hitStop) m_viewTime += dt;
+    m_view.animStates.poll(dt); // edits to animation.table apply while playing
     m_effects.prune(m_viewTime, look.shockwave);
 
     // Every confirmed tick: build and send local input, and move tick events into view effects
@@ -225,7 +229,9 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     applyLights(m_scene, m_view, m_viewTime, m_lights, frame);
 
     drawScene(m_scene, ctx.models, frame.cameraPos, m_viewTime, out);
+    m_view.animEvents.clear();
     drawWorld(previous, current, alpha, localPlayer, now, m_viewTime, look, ctx.models, m_view, out, m_prediction.offset);
+    for (const WorldView::AnimEvent& e : m_view.animEvents) ctx.feedback.play(e.row, e.position); // footsteps etc. (feedback table rows)
     // Name tags above characters (world-space UI): above the interpolated position
     for (u32 slot = 0; slot < current.playerCount && slot < m_tagVms.size(); ++slot) {
         const Pawn* pawn = playerPawn(current, slot);

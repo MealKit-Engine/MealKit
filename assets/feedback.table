@@ -59,3 +59,6 @@ flashColor #FFFFFF
 
 row MatchEnd
 sound ui_confirm
+
+row Footstep
+effect dust

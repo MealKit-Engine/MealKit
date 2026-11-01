@@ -361,11 +361,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 - **Cost**: about 11~15 bodies plus constraints per character. Benchmark whether it fits the tick budget (4 ms) with 4 players, and if it exceeds, use a simplified ragdoll with fewer joints.
 - **Determinism**: same as the other modes (Pawn id order, ragdoll bodies created in a fixed order, state through PhysicsWorld snapshots).
 
-### [ ] Animation state table + animation events
-- **Why**: skeletal animation has only a crossfade set by game code. Every game rewrites idle/run/jump/attack switching.
-- **Approach**: a view-side data table per character kind: states (clip or 1D/2D blend space), blend times, and transitions on parameters the game sets (`speed`, `grounded`, triggers). No graph editor; edited as a table with editor preview. Animation events come from glTF marker names → the feedback table (footsteps, swing sounds), the same path as cutscenes.
-- **Determinism**: no effect (`view/`). The simulation pose path (`samplePoseTick`) stays separate. IK and root motion are in the `docs/DECISIONS.md` deferred table.
-- **Depends on**: character movement modes (parameters come from movement state).
+### [x] Animation state table + animation events — v0.7.5, details in `docs/CHANGELOG.md`
 
 ### [ ] Virtual cameras (Cinemachine style) + cutscenes
 - **Why**: the camera is half of control feel, yet every game builds it from scratch. Camera transitions and staging written in code can't be touched by artists either.
