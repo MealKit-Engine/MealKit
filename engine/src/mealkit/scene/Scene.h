@@ -22,12 +22,46 @@ inline constexpr const char* kTypeProbe = "reflection_probe"; // reflection prob
 inline constexpr const char* kProbeFileField = "bake";        // a reflection probe's baked file (relative to assets, stored as field text)
 inline constexpr const char* kAnimField = "anim";             // looping view clip of a skinned model "<clip> [seconds offset]" (on any kind, excluded from the content hash)
 inline constexpr const char* kTypePointLight = "point_light"; // point light (view only, only the light is visible in the game, fields are PointLightFields)
+inline constexpr const char* kTypeVirtualCamera = "virtual_camera"; // virtual camera (view only, invisible in the game, fields are VirtualCameraFields, camera/Brain.h)
 
 // Fields of point light objects (a built-in kind, but edited with inspector/field lines like game kinds). Read with readObject<PointLightFields>(e)
 MEALKIT_STRUCT(PointLightFields) {
     MEALKIT_FIELD(Color, color, (Color::rgb(255, 214, 160)), "Light color");
     MEALKIT_FIELD(f32, intensity, 3.0f, "Intensity");
     MEALKIT_FIELD(f32, range, 6.0f, "Range (m)");
+};
+
+// Virtual camera body kinds (camera/Brain.h): how the camera position is decided from the follow target
+//   ThirdPerson: spring arm behind the target (player turns it, pulls in on hitting walls) · FirstPerson: at the target's eyes
+//   TopDown: fixed angle above the target · Orbit: circles the target (or its own position) by itself · Rail: closest point of a path to the target
+//   Fixed: its own placed position · Free: spectator camera moved by the player
+MEALKIT_ENUM(CameraBody, u8, ThirdPerson, FirstPerson, TopDown, Orbit, Rail, Fixed, Free);
+MEALKIT_ENUM(CameraEase, u8, EaseInOut, Linear, Cut);
+
+// Fields of virtual camera objects. The brain shows the active camera with the highest priority; game code only changes active/priority
+MEALKIT_STRUCT(VirtualCameraFields) {
+    MEALKIT_FIELD(CameraBody, body, CameraBody::ThirdPerson, "Body kind");
+    MEALKIT_FIELD(i32, priority, 10, "Priority (highest active one is shown)");
+    MEALKIT_FIELD(bool, active, true, "Active at start");
+    MEALKIT_FIELD(std::string, follow, {}, "Follow target (object name, empty: the possessed Pawn)");
+    MEALKIT_FIELD(std::string, lookAt, {}, "Look-at target (object name, empty: the follow point)");
+    MEALKIT_FIELD(f32, height, 0.8f, "Follow point above the target (m)");
+    MEALKIT_FIELD(f32, distance, 18.0f, "Distance (m)");
+    MEALKIT_FIELD(f32, minDistance, 4.0f, "Closest zoom (m)");
+    MEALKIT_FIELD(f32, maxDistance, 80.0f, "Farthest zoom (m)");
+    MEALKIT_FIELD(f32, yaw, 45.0f, "Start direction (degrees)");
+    MEALKIT_FIELD(f32, pitch, 30.0f, "Start height angle (degrees)");
+    MEALKIT_FIELD(f32, minPitch, -6.0f, "Lowest height angle (degrees)");
+    MEALKIT_FIELD(f32, maxPitch, 83.0f, "Highest height angle (degrees)");
+    MEALKIT_FIELD(f32, orbitSpeed, 5.0f, "Orbit speed (degrees/s, Orbit body)");
+    MEALKIT_FIELD(f32, fov, 0.0f, "Vertical field of view (degrees, 0: player setting)");
+    MEALKIT_FIELD(f32, deadZone, 0.0f, "Dead zone (m, the follow point stays while the target moves inside it)");
+    MEALKIT_FIELD(f32, damping, 0.0f, "Follow damping (s, 0: immediately)");
+    MEALKIT_FIELD(f32, collisionRadius, 0.3f, "Wall margin of the spring arm (m)");
+    MEALKIT_FIELD(f32, blendSeconds, 0.8f, "Blend time when this camera takes over (s)");
+    MEALKIT_FIELD(CameraEase, ease, CameraEase::EaseInOut, "Blend easing");
+    MEALKIT_FIELD(std::string, rail, {}, "Rail path (object names in order, Rail body)");
+    MEALKIT_FIELD(f32, moveSpeed, 10.0f, "Move speed (m/s, Free body)");
 };
 
 // Descriptions of engine built-in kinds (no fields, only labels and flags)

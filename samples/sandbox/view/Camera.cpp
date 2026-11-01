@@ -1,53 +1,51 @@
 #include "view/Camera.h"
 
-#include <algorithm>
-#include <cmath>
-
 using namespace mealkit;
 
 namespace sandbox {
-namespace {
 
-constexpr f32 kPi = 3.14159265f; // unit conversion (degrees → radians)
+void GameCamera::load(const scene::Scene& flat, const CameraTuning& t) {
+    brain.load(flat);
+    brain.setFallback(t.fallback);
+    cutscenes.load();
+    orbiting = false;
+}
 
-} // namespace
-
-void OrbitCamera::control(Window& window, const input::Actions& actions, const CameraTuning& t) {
-    if (!placed) {
-        yaw = t.startYaw;
-        pitch = t.startPitch;
-        distance = t.startDistance;
-        placed = true;
-    }
+void GameCamera::control(Window& window, const input::Actions& actions, const CameraTuning& t) {
     if (actions.pressed("orbit")) orbiting = true;
     if (!actions.down("orbit") || !window.focused()) orbiting = false;
     window.setCursorCaptured(orbiting);
-    Vec2 look = actions.axis2("turn"); // gamepad stick: immediately, without holding (rate = converted to pixels per second)
-    if (orbiting) look += actions.axis2("look"); // the mouse is in pixels, up is +
-    yaw += look.x * t.orbitSensitivity;
-    pitch -= look.y * t.orbitSensitivity;
-    pitch = std::clamp(pitch, t.minPitch, t.maxPitch); // returns within range when tuning changes
-    distance -= actions.axis("zoom") * t.zoomStep;
-    distance = std::clamp(distance, t.minDistance, t.maxDistance);
+    Vec2 l = actions.axis2("turn"); // gamepad stick: immediately, without holding (rate = converted to pixels per second)
+    if (orbiting) l += actions.axis2("look"); // the mouse is in pixels, up is +
+    look += Vec2{l.x * t.orbitSensitivity, -l.y * t.orbitSensitivity};
+    zoom -= actions.axis("zoom") * t.zoomStep;
 }
 
-Vec3 OrbitCamera::forward() const { return {-std::sin(yaw), 0.0f, -std::cos(yaw)}; }
-
-Vec3 OrbitCamera::eye(const Vec3& focus) const {
-    return focus + Vec3{std::sin(yaw) * std::cos(pitch), std::sin(pitch), std::cos(yaw) * std::cos(pitch)} * distance;
+void GameCamera::release(Window& window) {
+    window.setCursorCaptured(false);
+    orbiting = false;
 }
 
-void OrbitCamera::apply(const Vec3& focus, render::Viewport viewport, const CameraTuning& t,
-                        render::FrameParams& frame) const {
-    const Vec3 from = eye(focus);
-    const f32 width = viewport.width > 0.0f ? viewport.width : 1.0f;
-    const f32 height = viewport.height > 0.0f ? viewport.height : 1.0f;
-    frame.viewport = viewport;
-    const f32 fovY = t.fovDegrees * (kPi / 180.0f);
-    frame.viewProj =
-        lookAtLH(from, focus, Vec3{0, 1, 0}) * perspectiveReversedZ(fovY, width / height, t.nearPlane, t.farPlane);
-    frame.cameraPos = from;
-    frame.cameraForward = normalize(focus - from); // sound listener direction
+void GameCamera::update(const World& world, const Pawn* me, const Vec3* target, f32 dt, f32 fov, Vec3 shake,
+                        std::vector<std::string>& events) {
+    camera::BrainInput in;
+    in.dt = dt;
+    in.look = look;
+    in.zoom = zoom;
+    in.hasTarget = target != nullptr;
+    if (target) in.target = *target;
+    in.defaultFov = fov;
+    in.shake = shake;
+    const physics::BodyId ignore = me ? me->mover.body : physics::kInvalidBody;
+    in.ray = [&world, ignore](Vec3 from, Vec3 to, f32& fraction) { // view-side query, changes nothing
+        physics::RayHit hit;
+        if (!world.physics.castRay(from, to - from, hit, ignore)) return false;
+        fraction = hit.fraction;
+        return true;
+    };
+    brain.update(in, &events);
+    look = {};
+    zoom = 0.0f;
 }
 
 } // namespace sandbox

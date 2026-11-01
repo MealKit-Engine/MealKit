@@ -34,6 +34,8 @@
 #include "mealkit/sim/TickTimer.h"
 #if MEALKIT_TEST_UI
 #include "mealkit/asset/AnimStates.h"
+#include "mealkit/asset/Cutscene.h"
+#include "mealkit/camera/Brain.h"
 #include "mealkit/asset/Environment.h"
 #include "mealkit/render/SceneLights.h"
 #include "mealkit/asset/ModelCache.h"
@@ -1218,6 +1220,99 @@ TEST_CASE(asset, skeletal_animation) {
 }
 
 // Animation state table: parsing, transitions (conditions, triggers, end), 1D blend, crossfade, events once per cycle crossing
+TEST_CASE(asset, camera_clip) {
+    const std::string path = findAssetFile("models/cutscenes/intro.glb");
+    TEST_CHECK(!path.empty());
+    std::vector<asset::CameraClip> clips;
+    std::string error;
+    TEST_CHECK(asset::loadCameraClips(path, clips, error));
+    if (clips.empty()) return;
+    TEST_CHECK(clips[0].name == "intro");
+    TEST_CHECK(std::fabs(clips[0].duration - 3.0f) < 1e-4f && clips[0].keys.size() == 91);
+    // First key: generator eye (sin(-60) * 34, 20, cos(-60) * 34) in glTF → z flipped, looking at the arena center
+    const asset::CameraKey k = asset::sampleCamera(clips[0], 0.0f);
+    TEST_CHECK(std::fabs(k.position.x + 29.4449f) < 1e-3f && std::fabs(k.position.y - 20.0f) < 1e-3f &&
+               std::fabs(k.position.z + 17.0f) < 1e-3f);
+    TEST_CHECK(dot(rotate(k.rotation, Vec3{0, 0, 1}), normalize(Vec3{0, 1, 0} - k.position)) > 0.9999f);
+    TEST_CHECK(std::fabs(k.fovDegrees - 50.0f) < 1e-3f);
+    TEST_CHECK(!asset::loadCameraClips(findAssetFile("models/tree.glb"), clips, error) && error == "no camera node");
+
+    sim::Table<asset::CutsceneRow> table;
+    table.ids = {"intro", "broken"};
+    table.rows.resize(2);
+    table.rows[0].file = "models/cutscenes/intro.glb";
+    table.rows[0].events = "2 B 0.5 A";
+    table.rows[1].file = "models/missing.glb";
+    table.rows[1].events = "x A 1";
+    asset::Cutscenes cutscenes;
+    std::string warnings;
+    cutscenes.build(table, &warnings);
+    TEST_CHECK(warnings.find("broken: events need") != std::string::npos && warnings.find("bad event time 'x'") != std::string::npos &&
+               warnings.find("not found") != std::string::npos);
+    const asset::Cutscenes::Cutscene* intro = cutscenes.find("intro");
+    TEST_CHECK(intro && intro->clip && intro->events.size() == 2 && intro->events[0].second == "A");
+
+    // Brain playback: events in order, input blocked, back to the game camera at the end
+    camera::Brain brain;
+    brain.load(scene::Scene{});
+    TEST_CHECK(brain.playCutscene(cutscenes, "intro") && !brain.playCutscene(cutscenes, "broken") && brain.blocksInput());
+    std::vector<std::string> events;
+    camera::BrainInput in;
+    in.dt = 0.1f;
+    for (int i = 0; i < 29; ++i) brain.update(in, &events);
+    TEST_CHECK(events.size() == 2 && events[0] == "A" && events[1] == "B" && brain.cutscenePlaying());
+    for (int i = 0; i < 3; ++i) brain.update(in, &events);
+    TEST_CHECK(!brain.cutscenePlaying() && !brain.blocksInput() && brain.currentName().empty());
+}
+
+TEST_CASE(camera, brain) {
+    TEST_CHECK(dot(rotate(camera::lookRotation({1, 2, 3}), Vec3{0, 0, 1}), normalize(Vec3{1, 2, 3})) > 0.9999f);
+    TEST_CHECK(dot(rotate(camera::lookRotation({0, -1, 0}), Vec3{0, 0, 1}), Vec3{0, -1, 0}) > 0.9999f);
+    scene::Scene s;
+    scene::Entity& a = s.add(scene::kTypeVirtualCamera, "follow");
+    a.fields = scene::defaultFields(*scene::findType(scene::kTypeVirtualCamera, nullptr));
+    scene::Entity& b = s.add(scene::kTypeVirtualCamera, "overview");
+    b.position = {0, 10, -10};
+    b.fields = {{"body", "Fixed"}, {"priority", "20"}, {"active", "false"}, {"blendSeconds", "1"}, {"ease", "Linear"}};
+    camera::Brain brain;
+    brain.load(s);
+    camera::BrainInput in;
+    in.dt = 0.1f;
+    in.hasTarget = true;
+    in.target = {2, 0, 3};
+    brain.update(in);
+    const Vec3 focus = in.target + Vec3{0, 0.8f, 0};
+    TEST_CHECK(brain.currentName() == "follow" && std::fabs(length(brain.pose().position - focus) - 18.0f) < 1e-3f);
+    TEST_CHECK(dot(brain.pose().forward(), normalize(focus - brain.pose().position)) > 0.9999f);
+    // Spring arm: a wall halfway pulls the camera in (margin 0.3 m)
+    in.ray = [](Vec3, Vec3, f32& fraction) { return fraction = 0.5f, true; };
+    brain.update(in);
+    TEST_CHECK(std::fabs(length(brain.pose().position - focus) - (18.3f * 0.5f - 0.3f)) < 1e-3f);
+    in.ray = nullptr;
+    // Higher priority takes over with a 1 s linear blend; game code only switches active
+    TEST_CHECK(brain.setActive("overview", true) && !brain.setActive("nothing", true));
+    brain.update(in);
+    TEST_CHECK(brain.currentName() == "overview" && length(brain.pose().position - b.position) > 1.0f);
+    for (int i = 0; i < 10; ++i) brain.update(in);
+    TEST_CHECK(length(brain.pose().position - b.position) < 1e-4f);
+    // Lower its priority: back to the follow camera; none active: the fallback (first person here)
+    brain.setPriority("overview", 0);
+    brain.update(in);
+    TEST_CHECK(brain.currentName() == "follow");
+    brain.setActive("follow", false);
+    brain.setActive("overview", false);
+    scene::VirtualCameraFields first;
+    first.body = scene::CameraBody::FirstPerson;
+    first.blendSeconds = 0.0f;
+    brain.setFallback(first);
+    brain.update(in);
+    TEST_CHECK(brain.currentName().empty() && length(brain.pose().position - focus) < 1e-4f);
+    // Shake is added on top
+    in.shake = {0, 0.5f, 0};
+    brain.update(in);
+    TEST_CHECK(std::fabs(brain.pose().position.y - focus.y - 0.5f) < 1e-4f);
+}
+
 TEST_CASE(asset, animation_states) {
     asset::ModelCache models;
     const asset::Model* rig = models.get("models/characters/rig_figure.glb");

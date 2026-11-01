@@ -17,7 +17,7 @@ void LocalInput::poll(const input::Actions& actions) {
     jumpLatch |= actions.pressed("jump");
 }
 
-GameInput LocalInput::sample(const input::Actions& actions, const OrbitCamera& camera) const {
+GameInput LocalInput::sample(const input::Actions& actions, const GameCamera& camera) const {
     GameInput g;
     const Vec3 forward = camera.forward();
     const Vec3 right = cross(Vec3{0, 1, 0}, forward);

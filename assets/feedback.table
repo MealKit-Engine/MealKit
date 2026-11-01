@@ -62,3 +62,6 @@ sound ui_confirm
 
 row Footstep
 effect dust
+
+row CutsceneStart
+sound spawn

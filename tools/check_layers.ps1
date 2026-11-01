@@ -13,7 +13,7 @@ $layers = @(
     @("net"), @("physics"), @("sim"), @("data"), # simulation side (used by headless)
     @("live"), # dev tool connection (live connection server, tool contract)
     @("loc"), @("scene"), @("rhi"), @("render"), @("asset"), @("online"), @("debug"), # view side
-    @("input"), @("audio"), @("ui"), @("feedback"), @("settings"),
+    @("input"), @("audio"), @("ui"), @("feedback"), @("camera"), @("settings"),
     @("game"), # game boundary (GameInstance, GameContext)
     @("editor")
 )

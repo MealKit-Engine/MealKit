@@ -644,6 +644,81 @@ def make_rig():
     print("wrote %s (%d triangles, %d joints, %d clips, %d bytes)" % (os.path.relpath(path, ROOT), tris, len(joints), len(clips), total))
 
 
+def make_intro_cutscene():
+    """Camera animation like one exported from Blender: a camera node with translation/rotation keys (models/cutscenes/intro.glb)."""
+    out = os.path.join(OUT_DIR, "cutscenes")
+    os.makedirs(out, exist_ok=True)
+
+    def look_quat(eye, target):  # glTF space: the camera looks along -z, y up
+        z = normalize(sub(eye, target))
+        x = normalize(cross((0.0, 1.0, 0.0), z))
+        y = cross(z, x)
+        m00, m11, m22 = x[0], y[1], z[2]
+        tr = m00 + m11 + m22
+        if tr > 0:
+            s4 = math.sqrt(tr + 1.0) * 2.0
+            return ((y[2] - z[1]) / s4, (z[0] - x[2]) / s4, (x[1] - y[0]) / s4, 0.25 * s4)
+        if m00 > m11 and m00 > m22:
+            s4 = math.sqrt(1.0 + m00 - m11 - m22) * 2.0
+            return (0.25 * s4, (y[0] + x[1]) / s4, (z[0] + x[2]) / s4, (y[2] - z[1]) / s4)
+        if m11 > m22:
+            s4 = math.sqrt(1.0 + m11 - m00 - m22) * 2.0
+            return ((y[0] + x[1]) / s4, 0.25 * s4, (z[1] + y[2]) / s4, (z[0] - x[2]) / s4)
+        s4 = math.sqrt(1.0 + m22 - m00 - m11) * 2.0
+        return ((z[0] + x[2]) / s4, (z[1] + y[2]) / s4, 0.25 * s4, (x[1] - y[0]) / s4)
+
+    seconds, keys = 3.0, 13
+    times, positions, rotations = [], [], []
+    for i in range(keys):
+        t = i / (keys - 1)
+        u = t * t * (3.0 - 2.0 * t)
+        angle = math.radians(-60.0 + 150.0 * u)  # sweeps around the arena
+        radius = 34.0 - 14.0 * u
+        eye = (math.sin(angle) * radius, 20.0 - 10.0 * u, math.cos(angle) * radius)
+        times.append(seconds * t)
+        positions += eye
+        rotations += look_quat(eye, (0.0, 1.0 - 0.2 * u, 0.0))
+    blob = bytearray()
+    views, accessors = [], []
+
+    def add(values, count, kind, extra=None):
+        while len(blob) % 4:
+            blob.append(0)
+        data = struct.pack("<%df" % len(values), *values)
+        views.append({"buffer": 0, "byteOffset": len(blob), "byteLength": len(data)})
+        blob.extend(data)
+        acc = {"bufferView": len(views) - 1, "componentType": 5126, "count": count, "type": kind}
+        acc.update(extra or {})
+        accessors.append(acc)
+        return len(accessors) - 1
+
+    t_acc = add(times, keys, "SCALAR", {"min": [0.0], "max": [seconds]})
+    p_acc = add(positions, keys, "VEC3")
+    r_acc = add(rotations, keys, "VEC4")
+    gltf = {
+        "asset": {"version": "2.0", "generator": "MealKit make_sample_models.py"},
+        "scene": 0, "scenes": [{"nodes": [0]}],
+        "nodes": [{"name": "Camera", "camera": 0, "translation": positions[0:3], "rotation": rotations[0:4]}],
+        "cameras": [{"type": "perspective", "perspective": {"yfov": math.radians(50.0), "znear": 0.1, "aspectRatio": 1.7778}}],
+        "animations": [{"name": "intro", "samplers": [{"input": t_acc, "output": p_acc, "interpolation": "LINEAR"},
+                                                     {"input": t_acc, "output": r_acc, "interpolation": "LINEAR"}],
+                        "channels": [{"sampler": 0, "target": {"node": 0, "path": "translation"}},
+                                     {"sampler": 1, "target": {"node": 0, "path": "rotation"}}]}],
+        "buffers": [{"byteLength": len(blob)}], "bufferViews": views, "accessors": accessors,
+    }
+    js = json.dumps(gltf, separators=(",", ":")).encode("utf-8")
+    js += b" " * ((4 - len(js) % 4) % 4)
+    total = 12 + 8 + len(js) + 8 + len(blob)
+    path = os.path.join(out, "intro.glb")
+    with open(path, "wb") as f:
+        f.write(struct.pack("<III", 0x46546C67, 2, total))
+        f.write(struct.pack("<II", len(js), 0x4E4F534A))
+        f.write(js)
+        f.write(struct.pack("<II", len(blob), 0x004E4942))
+        f.write(blob)
+    print("wrote %s (%d keys, %d bytes)" % (os.path.relpath(path, ROOT), keys, total))
+
+
 if __name__ == "__main__":
     os.makedirs(OUT_DIR, exist_ok=True)
     make_tree()
@@ -654,3 +729,4 @@ if __name__ == "__main__":
     make_styles()
     make_probe_ball()
     make_rig()
+    make_intro_cutscene()

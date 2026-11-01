@@ -82,7 +82,16 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         t.flags = b.flags;
         return t;
     }();
-    static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn, &probe, &pointLight};
+    static const reflect::TypeInfo virtualCamera = [] {
+        reflect::TypeInfo t = reflect::typeOf<VirtualCameraFields>();
+        const reflect::TypeInfo b =
+            makeBuiltin(kTypeVirtualCamera, "Virtual camera", reflect::kObjectMarker | reflect::kObjectCosmetic);
+        t.name = b.name;
+        t.label = b.label;
+        t.flags = b.flags;
+        return t;
+    }();
+    static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn, &probe, &pointLight, &virtualCamera};
     return list;
 }
 

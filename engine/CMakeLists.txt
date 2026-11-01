@@ -177,6 +177,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/asset/Animation.cpp
     src/mealkit/asset/AnimStates.h
     src/mealkit/asset/AnimStates.cpp
+    src/mealkit/asset/Cutscene.h
+    src/mealkit/asset/Cutscene.cpp
     src/mealkit/render/DrawList.h
     src/mealkit/render/Culling.h
     src/mealkit/render/Mesh.h
@@ -203,6 +205,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/audio/Audio.cpp
     src/mealkit/feedback/Feedback.h
     src/mealkit/feedback/Feedback.cpp
+    src/mealkit/camera/Brain.h
+    src/mealkit/camera/Brain.cpp
     src/mealkit/ui/Atlas.h
     src/mealkit/ui/Atlas.cpp
     src/mealkit/ui/Document.h

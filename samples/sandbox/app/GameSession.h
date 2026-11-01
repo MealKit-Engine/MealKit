@@ -74,13 +74,16 @@ private:
     mealkit::scene::Scene m_scene;                       // the flattened match scene (also drawn behind menus)
     const mealkit::scene::Scene* m_sceneSource = nullptr; // the source m_scene was made from
     mealkit::game::PlayOptions m_options;
-    OrbitCamera m_camera;
+    GameCamera m_camera;     // virtual cameras of the match scene + cutscenes
+    GameCamera m_menuCamera; // behind the menu/lobby
+    std::vector<std::string> m_cameraEvents; // cutscene feedback rows fired this frame
+    MatchPhase m_lastPhase = MatchPhase::Waiting;
     LocalInput m_input;
     LocalPrediction m_prediction; // moves only my character's appearance ahead (hides input delay)
     WorldView m_view;
     std::vector<mealkit::render::ReflectionProbe> m_probes; // reflection probes (filled every frame)
     std::vector<mealkit::render::PointLight> m_lights;      // point lights (filled every frame)
-    Vec3 m_focus{0.0f, 1.0f, 0.0f}; // point the camera follows (last position if I have no Pawn)
+    mealkit::f64 m_cameraTime = 0.0, m_menuTime = 0.0; // last buildFrame times (camera dt)
     Effects m_effects;              // tick events → view effects
     mealkit::f64 m_viewTime = 0.0;  // clock for view effects (sum of update dt)
     mealkit::audio::Handle m_music; // background music (during the match)

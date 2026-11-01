@@ -327,3 +327,19 @@ flags 0
 field count 2000
 field kind crate
 end
+
+entity
+id 29
+name results
+kind virtual_camera
+position 0 26 -34
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+field body Fixed
+field priority 20
+field active false
+field lookAt Platform
+field blendSeconds 1.5
+end

@@ -1,16 +1,7 @@
 # MealKit tuning (ViewTuning). Edit it in the editor's [Tuning] panel.
 @format tuning 1
-camera.fovDegrees 60
 camera.orbitSensitivity 0.00499999989
 camera.zoomStep 2
-camera.startDistance 18
-camera.minDistance 4
-camera.maxDistance 80
-camera.startYaw 0.800000012
-camera.startPitch 0.550000012
-camera.minPitch -0.100000001
-camera.maxPitch 1.45000005
-camera.focusHeight 0.800000012
 camera.nearPlane 0.100000001
 camera.farPlane 1000
 pawn.bodySize 0.800000012 1.79999995 0.800000012

@@ -17,7 +17,7 @@ struct LocalInput {
     // Every frame: remembers buttons briefly pressed between ticks until the next tick
     void poll(const mealkit::input::Actions& actions);
     // Every tick: turns the current controls into input. Call clearLatches() after
-    GameInput sample(const mealkit::input::Actions& actions, const OrbitCamera& camera) const;
+    GameInput sample(const mealkit::input::Actions& actions, const GameCamera& camera) const;
     void clearLatches() { pushLatch = jumpLatch = false; }
 };
 

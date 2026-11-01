@@ -3,6 +3,7 @@
 #include "sim/World.h"
 
 #include "mealkit/core/Reflect.h"
+#include "mealkit/scene/Scene.h"
 
 #include <array>
 
@@ -13,20 +14,35 @@ namespace sandbox {
 
 using mealkit::Color;
 
+// Default third-person camera when the scene has no active virtual camera (scene virtual_camera objects override it)
+inline mealkit::scene::VirtualCameraFields defaultFollowCamera() {
+    mealkit::scene::VirtualCameraFields f;
+    f.yaw = 45.8f;
+    f.pitch = 31.5f;
+    f.collisionRadius = 0.3f;
+    return f;
+}
+
+// Camera behind the menu/lobby: slowly circles the arena center
+inline mealkit::scene::VirtualCameraFields defaultMenuCamera() {
+    mealkit::scene::VirtualCameraFields f;
+    f.body = mealkit::scene::CameraBody::Orbit;
+    f.distance = 28.8f;
+    f.yaw = 45.8f;
+    f.pitch = 31.5f;
+    f.orbitSpeed = 4.6f;
+    return f;
+}
+
 MEALKIT_STRUCT(CameraTuning) {
-    MEALKIT_FIELD(f32, fovDegrees, 60.0f, "세로 시야각 (도)");
     MEALKIT_FIELD(f32, orbitSensitivity, 0.005f, "회전 감도 (rad/픽셀)");
     MEALKIT_FIELD(f32, zoomStep, 2.0f, "휠 한 칸 줌 (m)");
-    MEALKIT_FIELD(f32, startDistance, 18.0f, "처음 거리 (m)");
-    MEALKIT_FIELD(f32, minDistance, 4.0f, "가장 가까운 거리 (m)");
-    MEALKIT_FIELD(f32, maxDistance, 80.0f, "가장 먼 거리 (m)");
-    MEALKIT_FIELD(f32, startYaw, 0.8f, "처음 방향 (rad)");
-    MEALKIT_FIELD(f32, startPitch, 0.55f, "처음 높이 각 (rad)");
-    MEALKIT_FIELD(f32, minPitch, -0.1f, "가장 낮은 높이 각 (rad)");
-    MEALKIT_FIELD(f32, maxPitch, 1.45f, "가장 높은 높이 각 (rad)");
-    MEALKIT_FIELD(f32, focusHeight, 0.8f, "캐릭터 위 바라보는 높이 (m)");
     MEALKIT_FIELD(f32, nearPlane, 0.1f, "가까운 자르기 면 (m)");
     MEALKIT_FIELD(f32, farPlane, 1000.0f, "먼 자르기 면 (m)");
+    MEALKIT_FIELD(mealkit::scene::VirtualCameraFields, fallback, defaultFollowCamera(), "기본 카메라 (씬에 가상 카메라가 없을 때)");
+    MEALKIT_FIELD(mealkit::scene::VirtualCameraFields, menu, defaultMenuCamera(), "메뉴 뒤 카메라");
+    MEALKIT_FIELD(std::string, introCutscene, "intro", "카운트다운 컷신 (tables/cutscenes.table 행, 비면 없음)");
+    MEALKIT_FIELD(std::string, resultsCamera, "results", "결과 화면 가상 카메라 (씬 물체 이름)");
 };
 
 // Character appearance (a combination of boxes. Switch to a model when model assets exist)
@@ -81,7 +97,6 @@ MEALKIT_STRUCT(ViewTuning) {
                                 Color::rgb(20, 184, 166), Color::rgb(249, 115, 22)}),
                   "플레이어 색");
     MEALKIT_FIELD(f32, nameTagHeight, 2.1f, "이름표 높이 (캐릭터 발 위, m)");
-    MEALKIT_FIELD(f32, menuOrbitSpeed, 0.08f, "메뉴 뒤 카메라가 도는 속도 (rad/s)");
     MEALKIT_FIELD(f32, resultsSeconds, 20.0f, "결과 화면 뒤 방장이 자동으로 로비로 돌아가기까지 (초)");
     MEALKIT_FIELD(f32, chatShowSeconds, 8.0f, "매치 중 새 채팅 줄을 보여 주는 시간 (초)");
     MEALKIT_FIELD(mealkit::u32, badPingMs, 150, "핑을 나쁨(빨강)으로 보이는 왕복 시간 (ms)");

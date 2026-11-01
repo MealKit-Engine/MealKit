@@ -17,6 +17,7 @@
 #include <imgui.h>
 #endif
 
+#include <algorithm>
 #include <cstring>
 
 using namespace mealkit;
@@ -52,6 +53,8 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     m_sim.start(options, game::tickDt(), [&](World& world, u32 physicsThreads) {
         Headless::startWorld(world, match, tuning, m_scene, ctx.models, physicsThreads); // same match start as headless
     });
+    m_camera.load(m_scene, ctx.viewTuning<ViewTuning>().camera); // the scene's virtual cameras, assets/tables/cutscenes.table
+    m_lastPhase = MatchPhase::Waiting;
     m_input.clearLatches();
     m_prediction.reset();
     m_effects = {};
@@ -102,25 +105,24 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     }
 
     const bool menuOpen = m_flow.blocksInput(); // during pause/chat/results: the character stands still and the camera stays
-    if (!menuOpen) {
+    if (!menuOpen && !m_camera.brain.blocksInput()) {
         m_camera.control(ctx.window, ctx.actions, look.camera);
         m_input.poll(ctx.actions);
         // Debug cheats don't modify state directly; they're sent as confirmed commands (all peers process them on the same tick)
         if (ctx.actions.pressed("debug.shockwave")) sim::sendCommand(session, DebugShockwave{});
         if (ctx.actions.pressed("menu.settings")) ctx.settings.open(); // standard settings screen (the HUD's [Settings] button calls settings.open directly from the .ui)
-    } else {
-        ctx.window.setCursorCaptured(false);
-        m_camera.orbiting = false;
-    }
+    } else
+        m_camera.release(ctx.window);
     const bool hitStop = ctx.feedback.hitStop(); // freezes only the view: view clock/effects/camera focus (the simulation continues)
     if (!hitStop) m_viewTime += dt;
     m_view.animStates.poll(dt); // edits to animation.table apply while playing
+    m_camera.cutscenes.poll(dt);
     m_effects.prune(m_viewTime, look.shockwave);
 
     // Every confirmed tick: build and send local input, and move tick events into view effects
     auto sample = [&](u32 tick) {
         GameInput gi = m_input.sample(ctx.actions, m_camera);
-        if (m_flow.blocksInput()) gi = GameInput{};
+        if (m_flow.blocksInput() || m_camera.brain.blocksInput()) gi = GameInput{}; // cutscenes block only input, never the simulation
         m_input.clearLatches();
         if (m_options.bot) {
             Headless::botCommands(tick, session.localPlayer(), session);
@@ -140,6 +142,15 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
             ctx.feedback.trigger(e, session.localPlayer()); // sound/shake/flash/hitstop are decided by the feedback table
         }
         if (saveNow) game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
+        // Staging from simulation phases: every peer sees the same tick, so shared cutscenes start together
+        const MatchPhase phase = world.state.flow.phase;
+        if (phase != m_lastPhase) {
+            if (phase == MatchPhase::Countdown && !look.camera.introCutscene.empty())
+                m_camera.brain.playCutscene(m_camera.cutscenes, look.camera.introCutscene);
+            if (phase == MatchPhase::Playing) m_camera.brain.stopCutscene(); // the countdown can be shorter than the clip
+            m_camera.brain.setActive(look.camera.resultsCamera, phase == MatchPhase::Results); // game code only switches cameras on/off
+            m_lastPhase = phase;
+        }
     };
     if (!m_flow.pausesSimulation()) m_sim.update(session, dt, sample, onTick); // pause in solo play halts the match
 
@@ -186,13 +197,14 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     const bool started = m_sim.started();
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     if (!started) { // behind the menu/lobby: slowly circles and shows the arena
-        CameraTuning camera = look.camera;
-        camera.fovDegrees = ctx.settings.values().display.fov;
-        OrbitCamera menuCamera;
-        menuCamera.yaw = look.camera.startYaw + static_cast<f32>(now) * look.menuOrbitSpeed;
-        menuCamera.pitch = look.camera.startPitch;
-        menuCamera.distance = look.camera.startDistance * 1.6f;
-        menuCamera.apply(Vec3{0.0f, look.camera.focusHeight, 0.0f}, ctx.viewport, camera, frame);
+        camera::Brain& menu = m_menuCamera.brain;
+        menu.setFallback(look.camera.menu);
+        camera::BrainInput in;
+        in.dt = static_cast<f32>(std::clamp(now - m_menuTime, 0.0, 0.1));
+        in.defaultFov = ctx.settings.values().display.fov;
+        m_menuTime = now;
+        menu.update(in);
+        menu.apply(ctx.viewport, look.camera.nearPlane, look.camera.farPlane, frame);
         applyEnvironment(m_scene.environment, ctx.models, frame);
         applyProbes(m_scene, ctx.models, m_probes, frame);
         applyLights(m_scene, m_view, m_viewTime, m_lights, frame);
@@ -212,18 +224,24 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     const f32 alpha = m_frozen ? m_frozenAlpha : m_sim.alpha();
 
     // The camera follows the Pawn I possess. While waiting to respawn it stays at the last spot (spectating).
+    const Pawn* mine = nullptr;
+    Vec3 target;
     if (localPlayer < current.playerCount) {
         const Controller* c = current.controllers.get(current.slots[localPlayer].controller);
-        const Pawn* pawn = c ? current.pawns.get(c->pawn) : nullptr;
-        if (pawn) {
+        mine = c ? current.pawns.get(c->pawn) : nullptr;
+        if (mine) {
             const Pawn* before = previous.pawns.get(c->pawn);
-            m_focus = lerp(before ? before->position : pawn->position, pawn->position, alpha) + m_prediction.offset +
-                      Vec3{0, look.camera.focusHeight, 0};
+            target = lerp(before ? before->position : mine->position, mine->position, alpha) + m_prediction.offset;
         }
     }
-    CameraTuning camera = look.camera;
-    camera.fovDegrees = ctx.settings.values().display.fov; // field of view is a player setting
-    m_camera.apply(m_focus + ctx.feedback.cameraShake(m_focus), ctx.viewport, camera, frame); // shake comes from the feedback table
+    const f32 dt = static_cast<f32>(std::clamp(now - m_cameraTime, 0.0, 0.1)); // first frame / stalls: no jumps
+    m_cameraTime = now;
+    m_cameraEvents.clear();
+    const Vec3 shake = ctx.feedback.cameraShake(mine ? target : m_camera.brain.pose().position); // impulses come from the feedback table
+    m_camera.update(m_sim.world(), mine, mine ? &target : nullptr, hitStop ? 0.0f : dt, ctx.settings.values().display.fov, shake,
+                    m_cameraEvents);
+    m_camera.apply(ctx.viewport, look.camera, frame);
+    for (const std::string& row : m_cameraEvents) ctx.feedback.play(row, frame.cameraPos); // cutscene events
     applyEnvironment(m_scene.environment, ctx.models, frame);
     applyProbes(m_scene, ctx.models, m_probes, frame);
     applyLights(m_scene, m_view, m_viewTime, m_lights, frame);
