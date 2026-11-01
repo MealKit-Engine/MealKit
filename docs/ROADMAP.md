@@ -41,7 +41,8 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 |---|---|
 | v0.4 | Stage 0: editor, hot reload, determinism checks, debugging tools. When the template changed while finishing stage 1 items, 0.4.x was bumped |
 | v0.5 (now 0.5.0, 2026-10-19) | Stage 1: features to ship one game end to end (platform layer, data separation, sound, UI, input, menus, saves). The reference sample runs end to end from title to results screen. When the template changes while finishing stage 2 items, 0.5.x is bumped |
-| v0.6 / v0.7 / v0.8 | Graphics (RHI: DX12 + Vulkan) / stronger multiplayer / gameplay framework and tools |
+| v0.6 / v0.7 (now 0.7.0, 2026-11-01) | Graphics (RHI: DX12 + Vulkan) / stronger multiplayer. Stage 2 finished while the version stayed 0.5.x, so the version went 0.5.4 → 0.7.0 when stage 3 finished (no 0.6.0 release) |
+| v0.8 | Gameplay framework and tools |
 | v0.9 | Stage 5 tier 1: Linux/Steam Deck and macOS shipping and editors, crossplay between tier 1 (EOS). Tier 2 (mobile, web, consoles) follows in order and doesn't block v1.0 |
 | **v1.0** | After v0.9, the version where **all reference samples pass Export and determinism checks (`mp_test`, including cross-platform) on tier 1 platforms** and **contracts are frozen**: the `GameInstance` API, file formats (`.scene`, `.tuning`, `.table`, `.ui`, `mealkit.project`, saves), `sim/` rules (SimCheck) |
 | v1.x and later | Frozen contracts aren't broken. If one truly must break, the major version (v2.0) is bumped and the upgrade tool migrates |
@@ -185,7 +186,7 @@ Features that must not be missing to actually ship a game. Most are independent 
 
 ---
 
-## Stage 2 (v0.6): looking good (graphics)
+## Stage 2 (v0.6): looking good (graphics) — done
 
 Everything goes in as **a toggleable option**, with the integrated graphics preset as the default.
 **Every graphics item finishes on both the DX12 and Vulkan backends** ("RHI layer" below). An item done on only one side isn't `[x]`.
@@ -291,7 +292,7 @@ All of it is editor-only, unrelated to determinism and the shipping exe. It does
 
 - [x] Editor asset browser ([Assets] window: `assets/` folder tree and files, dragging models into the scene view, renaming/moving with references fixed together, a list of this scene's broken model references) — 2026-10-28, details in `docs/CHANGELOG.md`
 
-## Stage 3 (v0.7): making multiplayer solid
+## Stage 3 (v0.7): making multiplayer solid — done (2026-11-01, v0.7.0)
 
 The actual order was replays → desync diagnosis → mid-match joining → bug reports → host migration → EOS part 1. **Remaining order (re-decided 2026-10-28)**: ~~crash reports (pulled from stage 4)~~ → v0.7.
 The rest of EOS needs two PCs and Epic portal setup (Steam provider) (two processes on the same PC share a device ID), so it's done when the user is ready and doesn't block v0.7. Local multiplayer on one PC when the first game genre fits.

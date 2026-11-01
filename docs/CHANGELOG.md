@@ -3,7 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
-## After v0.5.4 — stage 3 in progress (same engine version, no template changes)
+## v0.7.0 — stage 3 done (2026-11-01)
+
+Finished the last v0.7-blocking item of stage 3 (crash reports) and bumped to v0.7 (ROADMAP "Versions": v0.n = the engine that finished stage n). Stage 2 (v0.6) had finished while the version stayed 0.5.x, so there is no 0.6.0; the version goes 0.5.4 → 0.7.0.
+- **Stage 3 contents** (entries below): saved replays, desync diagnosis, late join/reconnect (v0.5.4), bug report bundles, host migration, EOS backend part 1, crash reports.
+- **Passed over since they don't block v0.7**: EOS measurements (two PCs + portal setup), external library review follow-ups, local multiplayer on one PC. They remain in the ROADMAP stage 3 section.
+- **Impact**: no template or file format changes; existing projects only get the new engine version from `tools\upgrade_project.ps1`. Docs repo `ENGINE_VERSION` 0.7. Modules made for engine 0.5 (`cooldown`) still build, but `module.ps1` warns until a version for 0.7 is in the registry.
+
+### Stage 3 items (finished between v0.5.4 and v0.7.0)
 
 ### [x] Stage 3: Crash reports (done 2026-11-01)
 - **At the crash** (`platform/System.h` `installCrashHandler`): Windows `SetUnhandledExceptionFilter` + `abort`/`std::terminate`/pure call/invalid parameter turned into an exception (CRT abort dialog off) → `crash/pending/crash.txt` (exception code, address, thread) + `crash.dmp` (`MiniDumpWithIndirectlyReferencedMemory`, about 300 KB; `dbghelp.dll` loaded at install, no import lib). POSIX: fatal signals write `crash.txt` only. Not installed under a debugger. Then the game hook (`game/BugReport.cpp` `onCrash`) writes `info.txt` (same lines as bug reports + tick/players at the crash, kept current by `updateCrashReport` every frame), `log.txt` and `recording.txt` (path of the input recording, flushed every tick).
