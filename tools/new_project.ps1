@@ -34,7 +34,7 @@ foreach ($entry in (Get-RenderedTemplate $Name).GetEnumerator()) {
 }
 Write-TemplateManifest $dest $manifest
 
-# 2) Game code: copy the sample game's sim/ view/ app/ into source/ (namespace sandbox is left as is)
+# 2) Game code: copy the sample game's sim/ view/ app/ into source/ (namespace sandbox becomes the project name in lower case)
 foreach ($entry in (Get-SampleSource $Name).GetEnumerator()) { Write-TextFile (Join-Path $dest $entry.Key) $entry.Value }
 
 # 3) Assets: scenes, models, tuning (excluding autosave files)

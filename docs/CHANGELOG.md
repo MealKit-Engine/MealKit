@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.2 — project namespace cleanup (2026-11-01)
+
+### [x] Stage 4: Project namespace cleanup (done 2026-11-01)
+- **New projects** (`tools\project_common.ps1` `Get-SampleSource`): the sample's `namespace sandbox`, `// namespace sandbox` and `sandbox::` become the project namespace `Get-GameNamespace` = the name in lower case (`MyGame` → `mygame`; C++ keywords and `std`/`mealkit` get `_game`). Other uses of the word (comments, `sandbox_headless`) are left alone. `upgrade_project.ps1 -Source` uses the same copy, so it also moves old `sandbox` projects to their own namespace.
+- **Renaming** (`rename_project.ps1`): also renames the namespace from the old name's to the new name's (`Rename-GameNamespace`). Projects made before 0.7.2 still use `sandbox`, which renaming leaves as is.
+- **Checked**: created `Class` (→ `class_game`), renamed it to `MyGame` (→ `mygame`, no `sandbox`/`class_game` left) and built `MyGame.exe`/`MyGame_headless.exe`.
+- **Template**: project `CLAUDE.md` names the namespace rule (VERSION 0.7.2).
+
 ## v0.7.1 — scenario tests for game code (2026-11-01)
 
 ### [x] Stage 4: Scenario tests for game code (done 2026-11-01)

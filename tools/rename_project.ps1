@@ -4,6 +4,7 @@
 # - template files (CMakeLists.txt, build.bat, README.md, CLAUDE.md, .vscode): if unmodified, refilled with the new name;
 #   if modified, only the old name (where not surrounded by letters/digits) is replaced. Unmodified files also get new .mealkit-template hashes.
 # - source\ code: only where it was put when the project was created ("old name" strings, oldname.exe)
+#   and the game namespace (Get-GameNamespace: old name in lower case -> new name in lower case)
 # - deletes build\ (CMake cache and outputs contain the old name). export\<old name> is left as is
 param(
     [Parameter(Mandatory = $true)][string]$Project,
@@ -76,6 +77,7 @@ if (Test-Path $source) {
     Get-ChildItem $source -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | ForEach-Object {
         $text = [IO.File]::ReadAllText($_.FullName, $MealKitUtf8)
         $newText = [regex]::Replace($text, $stringOrComment, { param($m) [regex]::Replace($m.Value, $wordInCode, $Name) })
+        $newText = Rename-GameNamespace $newText (Get-GameNamespace $old) (Get-GameNamespace $Name)
         if ($newText -ne $text) {
             Write-TextFile $_.FullName $newText
             Write-Host ("  source\" + $_.FullName.Substring($source.Length + 1))

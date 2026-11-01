@@ -76,7 +76,27 @@ function Read-ProjectFile([string]$project) {
 }
 
 # Contents when moving the sample game code (sim/ view/ app/ of samples/sandbox) into the project's source/. Only names in the window title and help are changed.
+# C++ namespace for a project's game code: the project name in lower case ("MyGame" -> mygame), "_game" added if that is a keyword
+function Get-GameNamespace([string]$name) {
+    $ns = $name.ToLowerInvariant()
+    $keywords = "alignas alignof and asm auto bitand bitor bool break case catch char class compl concept const consteval constexpr constinit " +
+        "continue co_await co_return co_yield decltype default delete do double else enum explicit export extern false float for friend goto " +
+        "if inline int long mutable namespace new noexcept not nullptr operator or private protected public register requires return short " +
+        "signed sizeof static struct switch template this throw true try typedef typeid typename union unsigned using virtual void volatile " +
+        "while xor std mealkit"
+    if (($keywords -split " ") -contains $ns) { $ns += "_game" }
+    return $ns
+}
+
+# Renames namespace $from to $to in C++ code: "namespace x", "// namespace x" and "x::" (other uses of the word are left alone)
+function Rename-GameNamespace([string]$text, [string]$from, [string]$to) {
+    $f = [regex]::Escape($from)
+    $text = [regex]::Replace($text, '(?<=\bnamespace\s+)' + $f + '(?![A-Za-z0-9_])', $to)
+    return [regex]::Replace($text, '(?<![A-Za-z0-9_:])' + $f + '(?=::)', $to)
+}
+
 function Get-SampleSource([string]$name) {
+    $ns = Get-GameNamespace $name
     $sample = Join-Path $MealKitEngine "samples\sandbox"
     $files = [ordered]@{}
     foreach ($dir in "sim", "view", "app") {
@@ -84,6 +104,7 @@ function Get-SampleSource([string]$name) {
         Get-ChildItem $from -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | Sort-Object FullName | ForEach-Object {
             $text = [IO.File]::ReadAllText($_.FullName, $MealKitUtf8)
             $text = $text.Replace("MealKit Sandbox", $name).Replace("sandbox.exe", "$name.exe")
+            $text = Rename-GameNamespace $text "sandbox" $ns
             $files["source\$dir\" + $_.FullName.Substring($from.Length + 1)] = $text
         }
     }
