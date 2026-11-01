@@ -114,7 +114,14 @@ void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha,
                               ? pl.hitFlash * (1.0f - static_cast<f32>(sinceHit) / pl.hitFlashSeconds)
                               : 0.0f;
         const u32 flags = render::instanceFlash(0, flash);
-        if (figure) { // skinned character: the state table picks clips from movement parameters (assets/tables/animation.table)
+        if (b.mover.mode == sim::MoveMode::Ragdoll) { // active ragdoll: each part as a box from its own body
+            const sim::Ragdoll& ra = a.mover.mode == sim::MoveMode::Ragdoll ? a.mover.ragdoll : b.mover.ragdoll;
+            const sim::Ragdoll& rb = b.mover.ragdoll;
+            const Vec3 offset = player == localPlayer ? localOffset : Vec3{};
+            for (u32 i = 0; i < sim::kRagdollParts; ++i)
+                out.add(box, {lerp(ra.partPositions[i], rb.partPositions[i], alpha) + offset, color.value,
+                              nlerp(ra.partRotations[i], rb.partRotations[i], alpha), sim::ragdollPartSize(i, rb.height), flags});
+        } else if (figure) { // skinned character: the state table picks clips from movement parameters (assets/tables/animation.table)
             WorldView::Anim& anim = view.anims[id.slot];
             if (!before) anim.instance = {};
             anim.params.set("speed", std::sqrt(b.velocity.x * b.velocity.x + b.velocity.z * b.velocity.z));

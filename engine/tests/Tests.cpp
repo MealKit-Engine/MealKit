@@ -2100,7 +2100,7 @@ TEST_CASE(sim, movement_modes) {
         std::vector<u64> hashes;
         for (int t = from; t < from + ticks; ++t) {
             sim::MoveIntent intent;
-            intent.wish = {0.0f, 0.0f, t < 60 ? 0.0f : 1.0f}; // stand, then walk onto the step
+            intent.wish = {0.0f, 0.0f, t >= 60 && t < 120 ? 1.0f : 0.0f}; // stand, walk for 2 s, stand onto the step
             intent.jump = t == 40;
             for (sim::Mover& m : r.movers) sim::move(r.w, m, intent, tuning, 1.0f, {0.0f, -20.0f, 0.0f}, 1.0f / 30.0f);
             r.w.step(1.0f / 30.0f, 2);
@@ -2142,6 +2142,98 @@ TEST_CASE(sim, movement_modes) {
     run(c, 0, 35);
     for (u32 i = 0; i < 3; ++i) b.movers[i] = c.movers[i];
     TEST_CHECK(run(b, 35, 60) == first);
+}
+
+// Active ragdoll: 4 ragdolls stand up, walk, get knocked down and get up again; a snapshot as bytes (with a ragdoll
+// created and destroyed after it, which reorders joints) restores the same per-tick hashes, and thread count doesn't matter
+TEST_CASE(sim, ragdoll_movement) {
+    struct Run {
+        physics::PhysicsWorld w;
+        sim::Mover movers[4];
+    };
+    const sim::MoveTuning tuning;
+    const Vec3 gravity{0.0f, -20.0f, 0.0f};
+    const f32 dt = 1.0f / 30.0f;
+    auto build = [&](Run& r, u32 threads) {
+        r.w.init(1024, threads);
+        r.w.setGravity(gravity);
+        physics::BodyDesc ground;
+        ground.motion = physics::Motion::Static;
+        ground.position = {0.0f, -0.5f, 0.0f};
+        r.w.createBox({30.0f, 0.5f, 30.0f}, ground);
+        for (u32 i = 0; i < 4; ++i) {
+            sim::MoverShape shape;
+            shape.position = {static_cast<f32>(i) * 2.0f, 0.95f, 0.0f};
+            shape.group = i + 1;
+            r.movers[i] = sim::createMover(r.w, sim::MoveMode::Ragdoll, shape, tuning);
+        }
+    };
+    f64 stepSeconds = 0.0;
+    auto run = [&](Run& r, int from, int ticks) {
+        std::vector<u64> hashes;
+        for (int t = from; t < from + ticks; ++t) {
+            sim::MoveIntent intent;
+            intent.wish = {0.0f, 0.0f, t >= 60 && t < 120 ? 1.0f : 0.0f}; // stand, walk for 2 s, stand
+            if (t == 150) sim::knockRagdoll(r.w, r.movers[1], 30, {6.0f, 4.0f, 0.0f});
+            const f64 start = nowSeconds();
+            for (sim::Mover& m : r.movers) sim::move(r.w, m, intent, tuning, 1.0f, gravity, dt);
+            r.w.step(dt, 2);
+            Vec3 p, v;
+            for (sim::Mover& m : r.movers) sim::senseMover(r.w, m, tuning, p, v);
+            stepSeconds += nowSeconds() - start;
+            Hasher h;
+            r.w.hashState(h);
+            hashes.push_back(h.value);
+        }
+        return hashes;
+    };
+    auto upright = [](const physics::PhysicsWorld& w, const sim::Mover& m) {
+        return rotate(w.rotation(m.body), Vec3{0.0f, 1.0f, 0.0f}).y; // 1 = pelvis level
+    };
+    Run a;
+    build(a, 2);
+    TEST_CHECK(a.w.jointCount() == 4 * sim::kRagdollJoints);
+    run(a, 0, 60);
+    Vec3 p, v;
+    for (sim::Mover& m : a.movers) {
+        sim::senseMover(a.w, m, tuning, p, v);
+        TEST_CHECK(m.grounded == 1u);
+        TEST_CHECK(p.y > 0.8f && p.y < 1.2f); // standing capsule center ~0.9 m
+        TEST_CHECK(upright(a.w, m) > 0.95f);
+    }
+    run(a, 60, 90);
+    sim::senseMover(a.w, a.movers[0], tuning, p, v);
+    TEST_CHECK(p.z > 6.0f);                          // walked forward
+    TEST_CHECK(upright(a.w, a.movers[0]) > 0.9f);
+    const f64 perTick = stepSeconds / 150.0 * 1000.0;
+    std::printf("  4 ragdolls (44 bodies, 40 joints): %.3f ms per tick\n", perTick);
+
+    physics::PhysicsSnapshot snap, received;
+    a.w.save(snap);
+    std::vector<u8> bytes;
+    snap.write(bytes);
+    TEST_CHECK(received.read(bytes.data(), bytes.size()));
+    const sim::Mover saved[4] = {a.movers[0], a.movers[1], a.movers[2], a.movers[3]};
+    // After the snapshot: an extra ragdoll comes and goes (Jolt swap-removes its joints), then the knockdown
+    sim::MoverShape extraShape;
+    extraShape.position = {-4.0f, 0.95f, 0.0f};
+    extraShape.group = 9;
+    sim::Mover extra = sim::createMover(a.w, sim::MoveMode::Ragdoll, extraShape, tuning);
+    a.w.destroyJoint(extra.ragdoll.joints[3]); // out of order on purpose
+    sim::destroyMover(a.w, extra);
+    TEST_CHECK(a.w.restore(snap)); // back to the snapshot in the same world
+    for (u32 i = 0; i < 4; ++i) a.movers[i] = saved[i];
+    const std::vector<u64> first = run(a, 150, 60);
+    TEST_CHECK(a.movers[1].ragdoll.limpTicks == 0u);
+    sim::senseMover(a.w, a.movers[1], tuning, p, v);
+    TEST_CHECK(upright(a.w, a.movers[1]) > 0.8f); // got up again within a second after the knockdown
+
+    Run b;
+    build(b, 4); // other thread count, restored from bytes
+    b.w.clearBodies();
+    TEST_CHECK(b.w.restore(received));
+    for (u32 i = 0; i < 4; ++i) b.movers[i] = saved[i];
+    TEST_CHECK(run(b, 150, 60) == first);
 }
 
 // Contact events: the same list (sort order) even with different physics thread counts, and the same hash

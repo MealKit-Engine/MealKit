@@ -30,6 +30,7 @@ MEALKIT_STRUCT(Tuning) {
     MEALKIT_FIELD(mealkit::f32, pushRadius, 7.0f, "밀치기 범위 (m)");
     MEALKIT_FIELD(mealkit::f32, pushSpeed, 18.0f, "밀치기 수평 속도 (m/s)");
     MEALKIT_FIELD(mealkit::f32, pushLift, 7.0f, "밀치기 위로 속도 (m/s)");
+    MEALKIT_FIELD(mealkit::Ticks, knockdown, mealkit::Ticks::seconds(1.2f), "래그돌이 밀려 넘어져 있는 시간 (초)");
     MEALKIT_FIELD(mealkit::f32, pushSpin, 8.0f, "밀치기 회전 (rad/s)");
     // Respawn/AI
     MEALKIT_FIELD(mealkit::Ticks, respawn, mealkit::Ticks::seconds(1.5f), "리스폰 대기 (초)");

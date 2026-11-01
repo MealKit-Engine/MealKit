@@ -152,6 +152,7 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/sim/TickTimer.h
     src/mealkit/sim/MatchFlow.h
     src/mealkit/sim/Movement.h
+    src/mealkit/sim/Ragdoll.h
     src/mealkit/sim/NavGrid.h
     src/mealkit/sim/Table.h
     src/mealkit/sim/Commands.h

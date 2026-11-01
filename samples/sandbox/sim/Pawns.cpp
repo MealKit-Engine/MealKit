@@ -114,6 +114,22 @@ void drawNav(const World& world) {
     }
 }
 
+// Pushing knocks nearby ragdoll Pawns down (other movement modes aren't pushed, as before). The pusher itself is at distance 0
+void knockRagdolls(World& world, const Vec3& center) {
+    const Tuning& t = world.tuning;
+    for (auto [id, other] : world.state.pawns) { // Pawn slot order
+        if (other.mover.mode != mealkit::sim::MoveMode::Ragdoll) continue;
+        const Vec3 d = other.position - center;
+        const f32 dist2 = mealkit::lengthSq(d);
+        if (dist2 <= 1e-4f || dist2 >= t.pushRadius * t.pushRadius) continue; // const-ok: the pusher itself
+        const f32 dist = std::sqrt(dist2);
+        const f32 strength = 1.0f - dist / t.pushRadius;
+        const Vec3 dir = d / dist;
+        mealkit::sim::knockRagdoll(world.physics, other.mover, t.knockdown.value,
+                                   Vec3{dir.x, 0.0f, dir.z} * (t.pushSpeed * strength) + Vec3{0.0f, t.pushLift * strength, 0.0f});
+    }
+}
+
 void movePawn(World& world, Pawn& p, const Intent& intent, u8 player) {
     const Tuning& t = world.tuning;
     const BodyKind* body = bodyOf(world, player);
@@ -123,6 +139,7 @@ void movePawn(World& world, Pawn& p, const Intent& intent, u8 player) {
 
     if (intent.push && cooldown::tryUse(p.push, world.state.tick, t.pushCooldown.value)) {
         pushProps(world, p.position);
+        knockRagdolls(world, p.position);
         world.events.push(makeEvent(EventKind::Push, player, p.position, t.pushRadius));
     }
 }
@@ -168,18 +185,20 @@ void createControllers(World& world) {
     }
 }
 
-// A capsule moved by the body kind's movement mode (engine mealkit/sim/Movement.h). Every mode pushes boxes away.
+// A capsule (or an active ragdoll) moved by the body kind's movement mode (engine mealkit/sim/Movement.h). Every mode pushes boxes away.
 Id<Pawn> spawnPawn(World& world, const Vec3& position, const BodyKind* body) {
+    Pawn p;
+    p.position = position;
+    const Id<Pawn> id = world.state.pawns.create(p);
     mealkit::sim::MoverShape shape;
     shape.position = position;
     shape.halfHeight = world.tuning.pawnHalfHeight;
     shape.radius = world.tuning.pawnRadius;
     shape.mass = world.tuning.pawnMass * (body ? body->massScale : 1.0f);
-    Pawn p;
-    p.position = position;
-    p.mover = mealkit::sim::createMover(world.physics, body ? body->movement : mealkit::sim::MoveMode::Capsule, shape,
-                                        world.tuning.move);
-    return world.state.pawns.create(p);
+    shape.group = id.slot + 1; // ragdoll parts: unique among living Pawns
+    world.state.pawns.get(id)->mover = mealkit::sim::createMover(
+        world.physics, body ? body->movement : mealkit::sim::MoveMode::Capsule, shape, world.tuning.move);
+    return id;
 }
 
 void possess(World& world, Id<Controller> controller, Id<Pawn> pawn) {
