@@ -196,11 +196,18 @@ bool resolve(const TypeInfo& type, void* data, const char* path, const ValueInfo
     const ValueInfo* v = field->value;
     void* p = at(data, field->offset);
     while (*end == '[') {
-        if (v->kind != Kind::Array) return false;
+        if (v->kind != Kind::Array && v->kind != Kind::Container) return false;
         char* close = nullptr;
         const unsigned long index = std::strtoul(end + 1, &close, 10);
-        if (!close || *close != ']' || index >= v->count) return false;
-        p = at(p, static_cast<u32>(index) * v->element->size);
+        if (!close || *close != ']') return false;
+        if (v->kind == Kind::Array) {
+            if (index >= v->count) return false;
+            p = at(p, static_cast<u32>(index) * v->element->size);
+        } else { // pool slot: only live items
+            const u32 slot = static_cast<u32>(index);
+            if (index >= v->ops->capacity(p) || !v->ops->live(p, slot)) return false;
+            p = const_cast<void*>(v->ops->item(p, slot));
+        }
         v = v->element;
         end = close + 1;
     }
@@ -459,6 +466,11 @@ bool setFromText(const TypeInfo& type, void* data, const std::string& path, cons
     if (!resolve(type, data, path.c_str(), v, p)) return false;
     if (v->kind == Kind::Struct || v->kind == Kind::Array || v->kind == Kind::Container) return false;
     return parseScalar(*v, p, text);
+}
+
+bool parseValue(const ValueInfo& value, void* data, const std::string& text) {
+    if (value.kind == Kind::Struct || value.kind == Kind::Array || value.kind == Kind::Container) return false;
+    return parseScalar(value, data, text);
 }
 
 void fromText(const TypeInfo& type, void* data, const TextFields& fields, std::string* warnings) {

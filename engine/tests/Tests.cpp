@@ -35,6 +35,7 @@
 #include "mealkit/render/SceneLights.h"
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/game/FrameStats.h"
+#include "mealkit/game/Scenario.h"
 #include "mealkit/live/Server.h"
 #include "mealkit/render/Culling.h"
 #include "mealkit/settings/Settings.h"
@@ -575,6 +576,49 @@ TEST_CASE(data, tables) {
     TestItem c;
     reflect::ByteReader r(w.data().data(), w.data().size());
     TEST_CHECK(reflect::loadStruct(reflect::typeOf<TestItem>(), &c, r) && c.kind.id == "heavy" && c.kind.index == 5);
+}
+
+MEALKIT_ENUM(ScenarioPhase, u8, Waiting, Playing);
+MEALKIT_STRUCT(ScenarioSlot) {
+    MEALKIT_FIELD(u32, falls, 0, "");
+    MEALKIT_FIELD(bool, connected, false, "");
+};
+MEALKIT_STRUCT(ScenarioState) {
+    MEALKIT_FIELD(ScenarioPhase, phase, ScenarioPhase::Waiting, "");
+    MEALKIT_FIELD(f32, height, 0.0f, "");
+    MEALKIT_ARRAY(ScenarioSlot, 2, slots, "");
+    MEALKIT_FIELD(sim::Pool<ScenarioSlot>, pool, {}, "");
+};
+
+TEST_CASE(game, scenario) {
+    const std::string path = executableDirectory() + "/test.scenario";
+    TEST_CHECK(writeTextFile(path, "# comment\nseed 9\ntick 1 phase == Playing\ntick 1 slots[1].falls == 2\n"
+                                   "tick 1 height < 1.5\ntick 1 pool[1].falls != 0\ntick 1 pool[0].falls == 3\n"
+                                   "tick 5 phase == Playing\n"));
+    game::Scenario sc;
+    std::string error;
+    TEST_CHECK(game::loadScenario(path, sc, error) && sc.seed == 9 && sc.checks.size() == 6);
+    ScenarioState state;
+    state.phase = ScenarioPhase::Playing;
+    state.height = 1.25f;
+    state.slots[1].falls = 2;
+    state.pool.init(4);
+    state.pool.create();
+    ScenarioSlot four;
+    four.falls = 4;
+    state.pool.create(four);
+    game::ScenarioRun run(sc, reflect::typeOf<ScenarioState>(), false);
+    TEST_CHECK(run.lastCheckTick() == 5);
+    run.afterTick(1, &state);
+    // pool[0].falls == 3 fails (0) and tick 5 is never reached
+    TEST_CHECK(run.finish(1) == game::kScenarioFailedExit);
+    game::ScenarioRun update(sc, reflect::typeOf<ScenarioState>(), true);
+    for (u32 t = 0; t <= 5; ++t) update.afterTick(t, &state);
+    TEST_CHECK(update.finish(5) == 0);
+    TEST_CHECK(game::loadScenario(path, sc, error) && sc.checks[4].expected == "0");
+    TEST_CHECK(writeTextFile(path, "tick 1 phase ~ Playing\n") && !game::loadScenario(path, sc, error));
+    TEST_CHECK(writeTextFile(path, "seed 1\n") && !game::loadScenario(path, sc, error)); // no checks
+    removeFile(path);
 }
 
 TEST_CASE(game, input_record) {

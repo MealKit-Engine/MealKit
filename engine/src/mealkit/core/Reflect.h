@@ -243,7 +243,9 @@ void toText(const TypeInfo& type, const void* data, TextFields& out);
 bool setFromText(const TypeInfo& type, void* data, const std::string& path, const std::string& text);
 // Reads multiple lines, appending failed paths to warnings.
 void fromText(const TypeInfo& type, void* data, const TextFields& fields, std::string* warnings = nullptr);
-// One value at path "a.b[2].c" (into structs/arrays). false if missing.
+// Reads text into one scalar value (data points at a value of that kind). false for structs/arrays/containers or a bad value.
+bool parseValue(const ValueInfo& value, void* data, const std::string& text);
+// One value at path "a.b[2].c" (into structs/arrays, pools[slot] for live pool slots). false if missing.
 bool resolvePath(const TypeInfo& type, void* data, const std::string& path, const ValueInfo*& outValue, void*& outData);
 // id and row index of a RowRef value (data of Kind::RowRef)
 struct RowRefView {

@@ -1,0 +1,9 @@
+# 4 players from the committed recording: everyone connected, fall counts at the end (--update-expected after rule changes)
+inputs ../replays/arena_4p_seed7.rec
+tick 0 playerCount == 4
+tick 0 slots[3].connected == true
+tick 20s phase == Playing
+tick 20s slots[0].falls == 0
+tick 20s slots[1].falls == 0
+tick 20s slots[2].falls == 0
+tick 20s slots[3].falls == 0

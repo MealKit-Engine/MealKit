@@ -138,6 +138,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/game/Headless.cpp
     src/mealkit/game/InputRecord.h
     src/mealkit/game/InputRecord.cpp
+    src/mealkit/game/Scenario.h
+    src/mealkit/game/Scenario.cpp
     src/mealkit/game/ProjectSettings.h
     src/mealkit/game/ProjectSettings.cpp
     src/mealkit/game/Save.h

@@ -343,7 +343,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 - **Source modules moved out of stage 4 (changed 2026-10-29)**: the module system itself (①~⑧) is done; the remaining modules (⑨) come after stage 5 (cross-platform), added one at a time. See "Modules" below.
 - After that, the original order as is. Crash reports sit in the same place as bug report bundles, so they were pulled into stage 3.
 
-### [ ] Scenario tests for game code (moved from stage 1)
+### [x] Scenario tests for game code (moved from stage 1) — v0.7.1, details in `docs/CHANGELOG.md`
 - **Why**: the biggest advantage of a deterministic engine is that the same input gives the same result. The engine uses this to check `mp_test` and fixed recordings, but game developers have no way to automatically check their own rules ("pushing makes the opponent fall").
 - **Approach**: scenario files in the project's `tests/` (scene, seed, input recording or bot, state fields and expected values to check per tick: `tick 300 players[1].falls == 1`). The headless executable runs them with `--test <file>`, and state field names are found via the `MEALKIT_FIELD` declarations (the same paths as the editor [State] panel). A button in editor play saving the current inputs as a scenario; `check.ps1` and project CI run all of `tests/`. A tool that regenerates expected values when simulation results are changed on purpose (like `record_replay.ps1`).
 - **Modules**: module repos' `tests/` can use the same format (run by the registry's shared CI `module.yml`).

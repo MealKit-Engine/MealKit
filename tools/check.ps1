@@ -46,7 +46,7 @@ $pathRules = @(
     @('^engine/tests/golden/', 'render'), @('^engine/tests/', 'unit-all'),
     @('^engine/tools/SimCheck', 'editor project'), @('^engine/tools/', 'game'), @('^engine/res/', 'editor'),
     @('^third_party/mkaudio/', 'folder:audio'), @('^third_party/', 'full'),
-    @('^samples/[^/]+/(sim|replays)/', 'det! game editor'), @('^samples/', 'game editor'),
+    @('^samples/[^/]+/(sim|replays|tests)/', 'det! game editor'), @('^samples/', 'game editor'),
     @('^assets/sounds', 'folder:audio'), @('^assets/ui/', 'folder:ui'), @('^assets/strings/', 'folder:loc'),
     @('^assets/(game\.tuning|scenes/|models/|tables/)', 'det game editor render'), @('^assets/', 'game editor'),
     @('^mealkit\.project$', 'det game editor'),
@@ -184,6 +184,7 @@ function Get-DetKey {
     $content = @(@("mealkit.project", "assets\game.tuning") | ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path $_ })
     $content += @(Get-ChildItem (Join-Path $root "assets") -Recurse -File -Include *.scene, *.glb, *.gltf, *.table -ErrorAction SilentlyContinue | ForEach-Object FullName)
     $content += @(Get-ChildItem (Join-Path $root "samples") -Recurse -File -Filter *.rec | ForEach-Object FullName)
+    $content += @(Get-ChildItem (Join-Path $root "samples") -Recurse -File -Filter *.scenario | ForEach-Object FullName)
     foreach ($f in ($content | Sort-Object)) { $parts += $f.Substring($root.Length + 1) + " " + (Get-FileHash $f -Algorithm SHA256).Hash }
     $sha = [Security.Cryptography.SHA256]::Create()
     return [BitConverter]::ToString($sha.ComputeHash([Text.Encoding]::UTF8.GetBytes($parts -join "`n"))).Replace("-", "").Substring(0, 16)
@@ -306,6 +307,20 @@ Invoke-Check det "Committed replays (samples/*/replays)" {
         $exe = Join-Path $release "$($rec.Directory.Parent.Name)_headless.exe"
         $code = Run "$log.$($rec.BaseName)" $exe "--replay-inputs `"$($rec.FullName)`""
         if ($code -ne 0 -or -not (Has "$log.$($rec.BaseName)" "^REPLAY ok")) { return "$($rec.Name) differs - re-record if intended" }
+    }
+    return $true
+}
+
+# Scenario tests (samples/*/tests/*.scenario, game/Scenario.h): game rules checked on the headless World.
+# If results change on purpose: <sample>_headless --test <file> --update-expected
+Invoke-Check det "Scenario tests (samples/*/tests)" {
+    param($log)
+    $files = @(Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Filter *.scenario | Where-Object { $_.Directory.Name -eq "tests" })
+    if ($files.Count -eq 0) { return "no scenarios" }
+    foreach ($f in $files) {
+        $exe = Join-Path $release "$($f.Directory.Parent.Name)_headless.exe"
+        $code = Run "$log.$($f.BaseName)" $exe "--test `"$($f.FullName)`""
+        if ($code -ne 0 -or -not (Has "$log.$($f.BaseName)" "^SCENARIO ok")) { return "$($f.Name) failed (see $log.$($f.BaseName))" }
     }
     return $true
 }

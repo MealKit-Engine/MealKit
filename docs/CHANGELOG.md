@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.1 — scenario tests for game code (2026-11-01)
+
+### [x] Stage 4: Scenario tests for game code (done 2026-11-01)
+- **Format** (`game/Scenario.h`): `tests/*.scenario` text: `seed`, `scene`, `inputs <rec next to the file>` (else the solo bot), `ticks`, and `tick <n|seconds s> <path> <op> <value>` checks on the state after that tick. Paths are `WorldState` field paths like the [State] panel; `reflect::resolvePath` now also walks live `Pool` slots (`pool[slot]`). `==`/`!=` read the value with the file parser (`reflect::parseValue`, new) and compare bytes; `< <= > >=` compare numbers.
+- **Running**: `<game>_headless --test <file>` (and `--headless --test`): the solo offline bot run, or the recording replayed (recorded hash differences are only logged, since rules may change on purpose). `SCENARIO ok <file> checks=N` / `SCENARIO FAIL <file>:<line> ...`, exit code 6. `--update-expected` rewrites the `==` values with the current results (the `record_replay.ps1` counterpart).
+- **Editor**: [Save Scenario] in the play bar (solo play keeping replays, not while viewing the past): copies `current.rec` to `tests/scenarioN.rec` and writes `tests/scenarioN.scenario` with one `==` check per top-level scalar state field. Not tried by clicking in the editor yet (built; the same file format is tested from the command line).
+- **Checks**: `check.ps1` det group "Scenario tests (samples/*/tests)" and `ci_test.ps1` run every `samples/*/tests/*.scenario`; scenario files are in the determinism key and `samples/*/tests/` forces the group. Unit test `game/scenario`. Sandbox scenarios: `match_flow` (countdown → playing by seconds), `bot_falls` (bot 900 ticks), `arena_4p` (the committed 4-player recording).
+- **Template**: project `CLAUDE.md` mentions `tests/` (VERSION 0.7.1). Modules' `tests/` use the same format (registry CI later). Bot scenarios are solo only; multiplayer scenarios use a recording.
+
 ## v0.7.0 — stage 3 done (2026-11-01)
 
 Finished the last v0.7-blocking item of stage 3 (crash reports) and bumped to v0.7 (ROADMAP "Versions": v0.n = the engine that finished stage n). Stage 2 (v0.6) had finished while the version stayed 0.5.x, so there is no 0.6.0; the version goes 0.5.4 → 0.7.0.

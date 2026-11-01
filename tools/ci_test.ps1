@@ -58,6 +58,21 @@ if (-not $NoHeadless) {
         if ($code -ne 0 -or -not ($text -match "^REPLAY ok")) { $failed += "replay $id ($text)" }
     }
 
+    # --- Scenario tests (samples/*/tests/*.scenario): state checks on the headless World
+    $scenarios = Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Filter *.scenario |
+        Where-Object { $_.Directory.Name -eq "tests" } | Sort-Object FullName
+    foreach ($file in $scenarios) {
+        $sample = $file.Directory.Parent.Name
+        $headless = Join-Path $Bin "${sample}_headless$exeSuffix"
+        $id = "$sample-$($file.BaseName)"
+        $log = Join-Path $Out "$id.scenario.log"
+        $code = Run-Exe $headless @("--test", $file.FullName) $log
+        $line = Select-String -Path $log -Pattern "^SCENARIO (ok|FAIL) .* (checks|failed)=" | Select-Object -Last 1
+        $text = if ($line) { $line.Line } else { "(no SCENARIO line)" }
+        Write-Host "scenario ${id}: $text"
+        if ($code -ne 0 -or -not ($text -match "^SCENARIO ok")) { $failed += "scenario $id ($text)" }
+    }
+
     # --- Headless mp_test: host 1 + clients 3 within this runner, with different physics thread counts
     $mpExe = Join-Path $Bin "sandbox_headless$exeSuffix"
     $log = Join-Path $Out "mp_test.log"

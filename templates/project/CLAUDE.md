@@ -19,6 +19,7 @@ Talk with the user in Korean. Code comments, log messages, and scene file keys a
   State that persists across ticks is declared with `MEALKIT_FIELD` inside `WorldState`. Once declared, it automatically goes into the hash, snapshots, and the editor [State] panel.
   SimCheck checks at build time, and violations stop the build with `error SIMnnn` (it tells you what to use instead). The reasoning behind the rules is in the engine's `docs/CODING_MODEL.md`.
   After changing simulation code, confirm there are no desyncs with the determinism test.
+- Rule tests: `tests/*.scenario` (seed or input recording + `tick 300 slots[1].falls == 1` checks on `WorldState` fields) run with `build\Release\bin\@NAME@_headless.exe --test tests\x.scenario` (`--update-expected` after changing results on purpose). Editor play bar [Save Scenario] makes one from solo play.
 - Game code folders: `source/sim/` (rules: one file per system; system functions take only `World&` and `World::step()` calls them in order),
   `source/view/` (camera, local input, drawing; only reads sim state), `source/app/` (`GameSession` = the `mealkit::game::GameInstance` implementation, `MEALKIT_GAME_MAIN` in `main.cpp` (shipping exe; main, window, and session are in the engine's `mealkit/game/GameMain.h`), `MEALKIT_GAME_MODULE` in `GameModule.cpp`).
   In `sim/`, objects created/destroyed during a match use `mealkit::sim::Pool<T>`, "N ticks later" uses `TickTimer`, and things to tell the view go through `world.events` (`TickEvents`).
