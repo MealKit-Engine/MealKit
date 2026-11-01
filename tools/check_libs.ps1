@@ -36,7 +36,8 @@ foreach ($lib in $dirs) {
                 if ($inc -match '^mealkit/' -or $inc -match 'engine/src') { $problems += "${rel}:${n}: includes $inc (engine header)" }
                 elseif ($inc -match '^\.\./\.\./|^\.\./(?!src/|include/)') { $problems += "${rel}:${n}: includes $inc (outside the library)" }
             }
-            if ($code -match '\bMEALKIT_\w+') { $problems += "${rel}:${n}: uses $($Matches[0]) (engine macro)" }
+            # String contents don't count (environment variable names like "MEALKIT_USER_DIR" are part of the tool contract)
+            if (($code -replace '"(\\.|[^"\\])*"', '""') -match '\bMEALKIT_\w+') { $problems += "${rel}:${n}: uses $($Matches[0]) (engine macro)" }
         }
     }
 }

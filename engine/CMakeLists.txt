@@ -336,6 +336,20 @@ endif()
 # The PUBLIC settings below live on the core target (the Game build's mealkit inherits them by linking the core PUBLIC)
 target_include_directories(${mealkit_core_target} PUBLIC src)
 target_include_directories(${mealkit_core_target} SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf)
+# Contract between tools: mkcontract (separate repo MealKit-Contract, version-pinned in third_party/mkcontract). Text format lines, live connection info,
+# the editor's tool/project/module lists. Only the library without the client (the engine is the live server; sockets stay in platform/).
+# When editing together with the contract: -DMEALKIT_MKCONTRACT_DIR=<MealKit-Contract checkout> (pull it in with tools\update_mkcontract.ps1 when done)
+set(MEALKIT_MKCONTRACT_DIR "" CACHE PATH "Local MealKit-Contract checkout (empty uses third_party/mkcontract)")
+if(MEALKIT_MKCONTRACT_DIR)
+    set(mealkit_mkcontract_dir ${MEALKIT_MKCONTRACT_DIR})
+    message(STATUS "MealKit: tool contract from ${MEALKIT_MKCONTRACT_DIR} (local checkout)")
+else()
+    set(mealkit_mkcontract_dir ${MEALKIT_THIRD_PARTY}/mkcontract)
+endif()
+set(MKCONTRACT_BUILD_TESTS OFF)
+add_subdirectory(${mealkit_mkcontract_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkcontract)
+target_link_libraries(${mealkit_core_target} PRIVATE mkcontract)
+target_include_directories(${mealkit_core_target} PUBLIC $<BUILD_INTERFACE:${mealkit_mkcontract_dir}/include>)
 if(NOT MEALKIT_HEADLESS_ONLY)
     target_include_directories(mealkit PRIVATE ${MEALKIT_SHADER_OUT})
     # Sound: the mkaudio runtime (separate repo MealKit-Audio, version-pinned in third_party/mkaudio; miniaudio + stb_vorbis are the engine's)
@@ -619,7 +633,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/CodeLink.cpp
         src/mealkit/editor/Strings.h
         src/mealkit/editor/Strings.cpp)
-    target_link_libraries(mealkit_editor PUBLIC mealkit)
+    target_link_libraries(mealkit_editor PUBLIC mealkit PRIVATE mkcontract) # mealkit.dll exports only its own objects, not mkcontract's
     target_compile_definitions(mealkit_editor PUBLIC MEALKIT_EDITOR=1)
 
     add_executable(MealKitEditor src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)
