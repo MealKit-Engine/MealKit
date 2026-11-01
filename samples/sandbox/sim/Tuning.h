@@ -3,6 +3,7 @@
 #include "mealkit/core/Math.h"
 #include "mealkit/core/Reflect.h"
 #include "mealkit/sim/Movement.h"
+#include "mealkit/sim/NavGrid.h"
 
 // Game tuning values: assets/game.tuning (edited in the editor [Tuning] panel). The World copies it at match start and reads it as world.tuning.
 // In multiplayer it's fixed at match start and goes into the content hash (peers using different values are rejected).
@@ -39,6 +40,10 @@ MEALKIT_STRUCT(Tuning) {
     MEALKIT_FIELD(mealkit::f32, aiTargetMax, 14.0f, "AI 목표 지점 최대 거리 (m)");
     MEALKIT_FIELD(mealkit::u32, aiJumpOneIn, 4, "AI가 목표를 바꿀 때 점프할 확률 (1/N)");
     MEALKIT_FIELD(mealkit::u32, aiPushOneIn, 3, "AI가 목표를 바꿀 때 밀칠 확률 (1/N)");
+    MEALKIT_FIELD(mealkit::sim::NavBakeSettings, nav, {}, "AI 길찾기 그리드");
+    MEALKIT_FIELD(mealkit::u32, aiPathsPerTick, 2, "틱당 AI 길찾기 수 (컨트롤러 순서)");
+    MEALKIT_FIELD(mealkit::u32, aiPathExpand, 4096, "길찾기 한 번에 살펴보는 최대 칸 수");
+    MEALKIT_FIELD(bool, navDebug, false, "길찾기 그리드와 AI 경로 그리기 (디버그)");
     // Character bodies
     MEALKIT_FIELD(mealkit::f32, pawnHalfHeight, 0.9f, "캐릭터 반 높이 (m)");
     MEALKIT_FIELD(mealkit::f32, pawnRadius, 0.45f, "캐릭터 반지름 (m)");

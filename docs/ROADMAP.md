@@ -365,11 +365,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ### [x] Virtual cameras (Cinemachine style) + cutscenes — v0.7.6, details in `docs/CHANGELOG.md`
 
-### [ ] AI pathfinding (grid / waypoints)
-- **Why**: AI controllers need paths to go around obstacles.
-- **Approach**: bake a 2D grid (including height layers) from scene collision data in the editor or place waypoints, and search with A* in the simulation. No new external library. Results are checked with editor debug drawing.
-- **Determinism**: baked data goes into the content hash. A* tie-breaking is fixed by node number, and the number of paths searched per tick is limited and processed in order.
-- See the `docs/DECISIONS.md` deferred table for **Recast navmesh**.
+### [x] AI pathfinding (grid / waypoints) — v0.7.7, details in `docs/CHANGELOG.md`
 
 ### [ ] Prefabs
 - Save bundles of several objects to a file and place them in a scene multiple times. Extends the editor's duplicate.
@@ -568,7 +564,7 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 2. ~~RHI layer (DX12 + Vulkan)~~ (later graphics items on both backends together) → ~~benchmark mode (+ GPU budget, memory numbers)~~ → ~~shader hot reload~~ → ~~frustum culling~~ → ~~asset hot reload~~ → ~~Blender add-on~~ → ~~asset budget warnings~~ → ~~graphics regression tests~~ → ~~GPU capture/view modes~~ → ~~textures/materials part 1 (texture cache, glTF PBR)~~ → ~~style presets~~ → ~~look dev~~ → ~~sky HDRI/ambient light~~ → ~~reflection probes~~ → ~~point lights~~ → ~~shadows~~ → ~~skeletal animation (+ pose sampling for the simulation)~~ → ~~particles (own runtime)~~ → ~~post-processing (uber pass + LUT)~~ → ~~dynamic resolution~~ **(v0.6 done)**
 - Editor polish (after stage 2, before stage 3): layout → log console → notifications → command palette → preferences/F1 → scene tree search → multi-select → viewport toolbar → snapping → camera controls → inspector conveniences → performance panel → jump to code → debug drawing → multiple scenes → play from here → asset browser **(v0.6.x)**
 3. ~~Replays~~ → ~~desync diagnosis~~ → ~~mid-match joining~~ → ~~bug report bundles~~ → ~~host migration~~ → ~~EOS backend part 1~~ → ~~crash reports (pulled from stage 4)~~ **(v0.7)**. Not blocking v0.7: EOS measurements (two PCs, portal setup). If the first game genre fits: local multiplayer on one PC
-4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → character movement modes (kinematic → floating → active ragdoll) → ~~virtual cameras + cutscenes~~ → AI pathfinding → prefabs → terrain (+ scatter brush) → Job System → spatial audio/interactive music → achievements/leaderboards (online services) → asset cooking + pack files → multiple project templates → cookbook **(v0.8)**
+4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → character movement modes (kinematic → floating → active ragdoll) → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → prefabs → terrain (+ scatter brush) → Job System → spatial audio/interactive music → achievements/leaderboards (online services) → asset cooking + pack files → multiple project templates → cookbook **(v0.8)**
 5. Cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v0.9)** → contracts frozen **(v1.0)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
 - Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects → health/damage → procedural generation → inventory → minimap → ai)
 - Tool suite (separate from stages, start decided by the user): ~~contract between tools~~ → ~~Audio 1 (layer split inside the engine)~~ → ~~Audio 2 (separate repo)~~ → ~~Audio 3 (authoring tool)~~ → ~~contract library~~ → UI 1 (layer split inside the engine) → next tool. UI 2 (separate repo) when a use appears

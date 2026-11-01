@@ -8,6 +8,7 @@
 #include "mealkit/scene/Scene.h"
 #include "mealkit/sim/MatchFlow.h"
 #include "mealkit/sim/Movement.h"
+#include "mealkit/sim/NavGrid.h"
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
@@ -56,6 +57,7 @@ static_assert(sizeof(GameInput) == mealkit::net::kInputBytes);
 using mealkit::sim::Id;
 using mealkit::sim::TickTimer;
 struct Controller;
+inline constexpr u32 kAiPathPoints = 16; // waypoints kept per AI (a longer path is re-searched from its end)
 struct Pawn;
 
 enum class PawnKind : u8 { Runner }; // the movement mode comes from the body kind (tables/bodies.table movement)
@@ -78,6 +80,10 @@ MEALKIT_STRUCT(Controller) {
     MEALKIT_FIELD(TickTimer, respawn, {}, "리스폰");
     MEALKIT_FIELD(Vec3, aiTarget, {}, "AI 목표 지점");
     MEALKIT_FIELD(TickTimer, aiThink, {}, "AI 다음 판단");
+    MEALKIT_FIELD(bool, aiRepath, false, "AI 길찾기 대기"); // set when the target changes, searched within the per-tick limit
+    MEALKIT_ARRAY(Vec3, kAiPathPoints, aiPath, "AI 경로 지점");
+    MEALKIT_FIELD(u32, aiPathCount, 0, "AI 경로 지점 수");
+    MEALKIT_FIELD(u32, aiPathNext, 0, "AI 다음 경로 지점");
 };
 
 MEALKIT_STRUCT(PlayerSlot) {
@@ -184,6 +190,8 @@ struct World {
     mealkit::sim::MatchRules rules; // from tuning (sim/Match.cpp matchRules)
     mealkit::sim::Table<PropKind> propKinds; // box kinds (a table that goes into the content hash)
     mealkit::sim::Table<BodyKind> bodyKinds; // character body kinds (a player slot's body is the row index)
+    mealkit::sim::NavGrid nav;          // AI pathfinding grid baked from the scene's static bodies at reset (same on every peer, not state)
+    mealkit::sim::NavSearch navSearch;  // A* scratch memory (not state)
 
     // State
     WorldState state;

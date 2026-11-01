@@ -111,6 +111,8 @@ void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tun
 
     // Fixed body creation order: scene → Pawns → boxes. The scene must be read first to know the box count (= Pool capacity, physics body count).
     loadScene(*this, scene, models);
+    // Only static scene bodies exist now, so the nav grid sees just the level (from the death height up to the area top)
+    nav = mealkit::sim::bakeNavGrid(physics, arenaMin, arenaMax, tuning.nav);
     if (propOverride) overridePropCount(propSpawns, propOverride);
     u32 propCount = 0;
     for (const PropSpawn& s : propSpawns) propCount += s.count;

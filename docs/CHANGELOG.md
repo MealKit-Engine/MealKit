@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.7 — AI pathfinding (2026-11-02)
+
+### [x] Stage 4: AI pathfinding (grid) (done 2026-11-02)
+- **Engine** `mealkit/sim/NavGrid.h` (header only): `NavBakeSettings` (cell size, agent height/radius, step height, layers per column), `bakeNavGrid(physics, min, max, settings)` walks rays down every cell column (several floors per column; a ray starting inside a solid steps down), keeps floors with agent-height headroom, then drops nodes within the agent radius of walls, drops and the area edge. `findPath` is A* over 8 neighbors (no corner cutting, neighbors within the step height), integer costs 10/14, open list keyed by (cost, node number), `maxExpand` limit; returns `Found`/`Partial` (closest node reached)/`None` and waypoints with straight runs merged. `NavSearch` is reused scratch memory (stamped, not state). `NavGrid::hash` for checks.
+- **Not baked in the editor** (the roadmap's plan): the grid is baked at match start from the static scene bodies, see `docs/DECISIONS.md` 2026-11-02. Waypoints are not used.
+- **Sandbox**: `World::nav` baked in `reset` right after `loadScene` over the match area. Controllers keep `aiRepath`, `aiPath[16]`, `aiPathCount`, `aiPathNext`; a new AI target asks for a search, `controlPawns` runs at most `aiPathsPerTick` searches per tick in controller order, the AI walks the waypoints and searches again at the end of a cut-short path. Tuning `nav`, `aiPathsPerTick`, `aiPathExpand`, `navDebug` (draws walkable cells near each AI and their paths). Replays regenerated.
+- **Checked**: Release build, headless run, a bot capture with `navDebug`.
+
 ## v0.7.6 — virtual cameras + cutscenes (2026-11-01)
 
 ### [x] Tool suite: contract library (done 2026-11-01)
