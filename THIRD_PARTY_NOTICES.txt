@@ -198,7 +198,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ==============================================================================
-miniaudio 0.11.25
+miniaudio 0.11.25+1df46ae (upstream fix for CVE-2026-32837, WAV BEXT out-of-bounds read)
 ==============================================================================
 This software is available as a choice of the following licenses. Choose
 whichever you prefer.

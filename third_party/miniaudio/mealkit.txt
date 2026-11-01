@@ -1,7 +1,7 @@
 # MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
 # THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
 name miniaudio
-version 0.11.25
+version 0.11.25+1df46ae (upstream fix for CVE-2026-32837, WAV BEXT out-of-bounds read)
 license MIT-0
 licenseFile LICENSE
 source https://github.com/mackron/miniaudio
