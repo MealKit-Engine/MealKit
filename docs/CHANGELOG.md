@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.3 — game flow framework (2026-11-01)
+
+### [x] Stage 4: Game flow framework (done 2026-11-01)
+- **Engine** (`sim/MatchFlow.h`, header only): `MatchFlow` state (`phase` Waiting/Countdown/Playing/RoundEnd/Results, `phaseEnd`, `round`, `roundWinner`, `matchWinner`, `roundWins[side]`), `MatchRules` (minPlayers, countdown, roundLength, roundEndDelay, rounds = best of N, scoreLimit, elimination, teamCount), `MatchPlayer` (present, alive, score; built by the game each tick). `advanceMatch()` returns one `FlowEvent` per tick (CountdownStart, RoundStart, RoundEnd, MatchEnd); `startMatchFlow()` at match start. Side = slot % teamCount, or the slot for free for all. Round end: score limit → elimination (at most one side alive; with one side, none alive) → time up (highest score, tie = draw `kNoSide`). The match ends after a side has more than half of `rounds`, or after `rounds` rounds. Unit test `sim/match_flow`.
+- **Sandbox**: `WorldState.flow` replaces `phase`/`phaseEnd` (`MatchPhase` is now an alias of `FlowPhase`, `Finished` → `Results`). Tuning `matchLength` → `roundLength`, new `roundEndDelay` (3 s), `rounds`, `scoreLimit`, `lives`, `teams`, `minPlayers`. `PlayerSlot.score` (+1 to every player of another side when someone falls during play) and `lives` (0 = unlimited; out players don't respawn until the next round). `onRoundStart` clears scores, refills lives and, from round 2, respawns everyone at the spawn points; new tick event `RoundEnd` (value = winning side or -1). Defaults keep the old one-round, 120 s match, now with a 3 s round-end pause before results.
+- **Checked**: unit test, the three scenarios (paths now `flow.phase`, `flow.round`), a temporary 3-round/2-lives tuning run headless and with `--shadow`; replay `arena_4p_seed7.rec` re-recorded (simulation results changed).
+- **Not yet**: lobby team choice (loadouts), HUD round/score display and a round-result screen (screens still show falls; `flow.round`/`roundWinner` are there to read).
+- **Template**: sample `sim/` code is the new-project code (VERSION 0.7.3); project `CLAUDE.md` mentions the match flow.
+
 ## v0.7.2 — project namespace cleanup (2026-11-01)
 
 ### [x] Stage 4: Project namespace cleanup (done 2026-11-01)

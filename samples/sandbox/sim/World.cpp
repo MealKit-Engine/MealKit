@@ -99,6 +99,7 @@ void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tun
     tickRate = tickRateValue ? tickRateValue : 30u;
     tickDt = 1.0f / static_cast<f32>(tickRate);
     tuning = tuningValue;
+    rules = matchRules(tuning);
     propKinds = propKindTable;
     bodyKinds = bodyKindTable;
     physics.setContactEvents(tuning.impactSpeed, tuning.impactsPerTick); // collision sounds (view notifications)
@@ -136,6 +137,7 @@ void World::reset(u64 seed, u32 playerCount, u32 propOverride, const Tuning& tun
 
 void World::setTuning(const Tuning& value) {
     tuning = value;
+    rules = matchRules(tuning);
     physics.setGravity(tuning.gravity);
 }
 
@@ -145,7 +147,7 @@ void World::step(const mealkit::net::TickInputs& tickInputs) {
     events.clear();
 
     applyCommands(*this, tickInputs); // confirmed commands (debug cheats etc.): player index → send order
-    updateMatch(*this);               // countdown → playing → finished
+    updateMatch(*this);               // waiting → countdown → playing → round end → results
     respawnPawns(*this);
     controlPawns(*this);
     usePads(*this);

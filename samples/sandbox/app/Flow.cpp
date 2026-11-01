@@ -338,7 +338,7 @@ void Flow::updateMatch(game::GameContext& ctx, const World& world, HudVm& hud, u
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
 
     // Results: when the simulation says it's over (on the same tick for everyone)
-    if (world.state.phase == MatchPhase::Finished && !m_ids.results) {
+    if (world.state.flow.phase == MatchPhase::Results && !m_ids.results) {
         if (m_ids.pause) ctx.ui.close(m_ids.pause);
         m_ids.pause = 0;
         m_paused = m_chatOpen = false;

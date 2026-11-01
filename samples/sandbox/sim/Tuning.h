@@ -13,7 +13,13 @@ namespace sandbox {
 MEALKIT_STRUCT(Tuning) {
     // Match
     MEALKIT_FIELD(mealkit::Ticks, countdown, mealkit::Ticks::seconds(3.0f), "시작 카운트다운 (초, 0이면 없음)");
-    MEALKIT_FIELD(mealkit::Ticks, matchLength, mealkit::Ticks::seconds(120.0f), "경기 시간 (초, 0이면 끝나지 않음)");
+    MEALKIT_FIELD(mealkit::Ticks, roundLength, mealkit::Ticks::seconds(120.0f), "라운드 시간 (초, 0이면 끝나지 않음)");
+    MEALKIT_FIELD(mealkit::Ticks, roundEndDelay, mealkit::Ticks::seconds(3.0f), "라운드 결과를 보여 주는 시간 (초)");
+    MEALKIT_FIELD(mealkit::u32, rounds, 1, "라운드 수 (과반을 이기면 매치 끝)");
+    MEALKIT_FIELD(mealkit::u32, scoreLimit, 0, "이 점수에 닿으면 라운드 승리 (0이면 없음)");
+    MEALKIT_FIELD(mealkit::u32, lives, 0, "목숨 (0이면 무한, 있으면 모두 잃은 쪽이 탈락)");
+    MEALKIT_FIELD(mealkit::u32, teams, 0, "팀 수 (0·1이면 개인전, 슬롯 번호 % 팀 수)");
+    MEALKIT_FIELD(mealkit::u32, minPlayers, 1, "이만큼 모일 때까지 대기");
     // Movement
     MEALKIT_FIELD(mealkit::f32, playerSpeed, 7.0f, "이동 속도 (m/s)");
     MEALKIT_FIELD(mealkit::f32, groundAccel, 12.0f, "지상 가속 (1/s)");

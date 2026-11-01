@@ -6,6 +6,7 @@
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/scene/Scene.h"
+#include "mealkit/sim/MatchFlow.h"
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
@@ -84,6 +85,8 @@ MEALKIT_STRUCT(PlayerSlot) {
     MEALKIT_FIELD(u32, body, 0, "몸 종류 (bodies.table 행 번호, 매치 시작 데이터)");
     MEALKIT_FIELD(u32, team, 0, "팀");
     MEALKIT_FIELD(u32, falls, 0, "떨어진 횟수");
+    MEALKIT_FIELD(u32, score, 0, "라운드 점수"); // +1 when another side's player falls
+    MEALKIT_FIELD(u32, lives, 0, "남은 목숨 (tuning lives가 0이면 안 씀)");
     MEALKIT_FIELD(Id<Controller>, controller, {}, "컨트롤러");
 };
 
@@ -107,7 +110,7 @@ MEALKIT_STRUCT(Pad) {
 
 // Simulation → view notifications (sound/effects/shake). sim/ only writes them and never reads.
 // It's a field declaration, so the editor [Feedback] panel shows kind names and fields, and the feedback table (assets/feedback.table) chooses feedback by kind name.
-MEALKIT_ENUM(EventKind, u8, Push, Bounce, Spawn, Fall, Jump, Impact, Countdown, MatchStart, MatchEnd);
+MEALKIT_ENUM(EventKind, u8, Push, Bounce, Spawn, Fall, Jump, Impact, Countdown, MatchStart, MatchEnd, RoundEnd);
 inline constexpr u8 kNoPlayer = 0xFF;
 
 MEALKIT_STRUCT(GameEvent) {
@@ -127,15 +130,14 @@ inline GameEvent makeEvent(EventKind kind, u8 player, Vec3 position, f32 value) 
 }
 inline constexpr u32 kMaxEventsPerTick = 64;
 
-// Match phase (sim/Match.cpp): nobody moves during the countdown and after the end. The screen flow opens the results screen when Finished
-MEALKIT_ENUM(MatchPhase, u8, Countdown, Playing, Finished);
+// Match phase (engine mealkit/sim/MatchFlow.h, driven by sim/Match.cpp): nobody moves outside Playing. The screen flow opens the results screen at Results
+using MatchPhase = mealkit::sim::FlowPhase;
 
 // The whole simulation state (the real state of physics bodies is inside PhysicsWorld; positions/rotations are copied here every tick).
 // The view draws by interpolating the WorldState of the previous tick and this tick.
 MEALKIT_STRUCT(WorldState) {
     MEALKIT_FIELD(u32, tick, 0, "틱");
-    MEALKIT_FIELD(MatchPhase, phase, MatchPhase::Countdown, "매치 단계");
-    MEALKIT_FIELD(TickTimer, phaseEnd, {}, "단계가 끝나는 틱 (카운트다운, 경기 시간)");
+    MEALKIT_FIELD(mealkit::sim::MatchFlow, flow, {}, "매치 흐름 (단계, 라운드, 승자)");
     MEALKIT_FIELD(u32, playerCount, 0, "플레이어 수");
     MEALKIT_ARRAY(PlayerSlot, mealkit::net::kMaxPlayers, slots, "플레이어 슬롯");
     MEALKIT_FIELD(mealkit::sim::Pool<Controller>, controllers, {}, "컨트롤러");
@@ -179,6 +181,7 @@ struct World {
     std::vector<PropSpawn> propSpawns;
     Vec3 arenaMin, arenaMax; // match area (MatchArea): width/depth = AI/box range, bottom = death, top = dropping boxes again
     Tuning tuning;
+    mealkit::sim::MatchRules rules; // from tuning (sim/Match.cpp matchRules)
     mealkit::sim::Table<PropKind> propKinds; // box kinds (a table that goes into the content hash)
     mealkit::sim::Table<BodyKind> bodyKinds; // character body kinds (a player slot's body is the row index)
 

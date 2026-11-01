@@ -1,4 +1,4 @@
-# MealKit UI (hand-written): results after the simulation ends the match (MatchPhase::Finished). View model: ResultsVm
+# MealKit UI (hand-written): results after the simulation ends the match (MatchPhase::Results). View model: ResultsVm
 # (samples/sandbox/app/Screens.h). The host goes back to the lobby with the button or after a few seconds. Text: assets/strings.
 @format ui 1
 board results 1920 1080

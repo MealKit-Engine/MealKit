@@ -1,8 +1,9 @@
 # Match phases: countdown (tuning countdown 3 s) -> playing, the solo bot in its slot
 seed 7
-tick 0 phase == Countdown
+tick 0 flow.phase == Countdown
 tick 0 playerCount == 1
 tick 0 slots[0].connected == true
-tick 2.9s phase == Countdown
-tick 3.1s phase == Playing
+tick 2.9s flow.phase == Countdown
+tick 3.1s flow.phase == Playing
+tick 3.1s flow.round == 1
 tick 3.1s controllers[0].slot == 0

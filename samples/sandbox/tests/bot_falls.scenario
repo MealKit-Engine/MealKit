@@ -3,4 +3,4 @@ seed 7
 ticks 900
 tick 899 slots[0].falls == 0
 tick 899 slots[0].falls < 100
-tick 899 phase == Playing
+tick 899 flow.phase == Playing

@@ -144,7 +144,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     const u8 me = session.localPlayer();
     m_prediction.begin();
     m_sim.forEachPendingInput([&](u32, const net::PlayerInput& in) { m_prediction.addInput(world, me, in); });
-    m_prediction.update(static_cast<f32>(dt), look.prediction, world.state.phase == MatchPhase::Playing && playerPawn(world.state, me));
+    m_prediction.update(static_cast<f32>(dt), look.prediction, world.state.flow.phase == MatchPhase::Playing && playerPawn(world.state, me));
 
     // Game screen UI: state → view model, button actions (changes to the simulation go through confirmed commands)
     std::array<std::string, net::kMaxPlayers> names;
@@ -252,7 +252,7 @@ void GameSession::debugUi(game::GameContext& ctx) {
     ImGui::SetNextWindowPos(ImVec2(ctx.viewport.x + 10.0f, ctx.viewport.y + 10.0f), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Sandbox", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {
         ImGui::Text("tick %u | player %u of %u | phase %u", state.tick, ctx.session.localPlayer() + 1, state.playerCount,
-                    static_cast<u32>(state.phase));
+                    static_cast<u32>(state.flow.phase));
         ImGui::Text("pawns %u | boxes %u | moving bodies %u", state.pawns.count(), state.props.count(), world.activeBodies());
         for (u32 i = 0; i < state.playerCount; ++i) ImGui::Text("P%u falls %u", i + 1, state.slots[i].falls);
         if (ImGui::Button("Shockwave (F8)")) sim::sendCommand(ctx.session, DebugShockwave{});

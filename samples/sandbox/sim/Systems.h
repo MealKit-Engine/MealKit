@@ -23,9 +23,12 @@ void sensePawns(World& world);        // physics results → position, velocity,
 void setPresence(World& world, const mealkit::sim::Presence& presence); // connect/disconnect mid-match (engine command)
 
 // Match.cpp
-void startMatch(World& world);         // match start: countdown (World::reset)
+mealkit::sim::MatchRules matchRules(const Tuning& tuning); // tuning → flow rules (World::reset, setTuning)
+void startMatch(World& world);         // match start: waiting/countdown (World::reset)
 void updateMatch(World& world);        // phase changes (at the start of step, after commands)
 bool matchPlaying(const World& world); // in play (input/AI/scoring only then)
+bool slotOut(const World& world, u32 slot); // out of lives this round (no respawn)
+void onPlayerFell(World& world, u32 slot);  // scoring and lives (removeFallenPawns)
 
 // Commands.cpp
 inline constexpr u32 kMaxShockwavePushes = 8; // number of pushes one debug command can do (so a bad value doesn't stall)

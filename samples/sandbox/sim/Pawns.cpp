@@ -159,6 +159,7 @@ void respawnPawns(World& world) {
     for (auto [id, c] : s.controllers) {
         if (s.pawns.alive(c.pawn) || !c.respawn.ready(s.tick)) continue;
         if (c.kind == ControllerKind::Player && !s.slots[c.slot].connected) continue; // disconnected players wait until they rejoin
+        if (c.kind == ControllerKind::Player && slotOut(world, c.slot)) continue;     // out of lives: spectate until the next round
         const Vec3 at = spawnPosition(world, c.spawnIndex);
         const u8 player = c.kind == ControllerKind::Player ? static_cast<u8>(c.slot) : kNoPlayer;
         const BodyKind* body = bodyOf(world, player);
@@ -212,7 +213,7 @@ void removeFallenPawns(World& world) {
             c->respawn.start(s.tick, world.tuning.respawn);
             unpossess(world, p.owner);
         }
-        if (player != kNoPlayer && matchPlaying(world)) ++s.slots[player].falls; // score only during play
+        if (player != kNoPlayer && matchPlaying(world)) onPlayerFell(world, player); // score only during play
         world.events.push(makeEvent(EventKind::Fall, player, p.position, 0.0f));
         s.pawns.destroy(pawnId); // the body is deleted at the end of the tick (World::step)
     }

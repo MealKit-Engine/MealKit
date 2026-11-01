@@ -2,7 +2,7 @@
 inputs ../replays/arena_4p_seed7.rec
 tick 0 playerCount == 4
 tick 0 slots[3].connected == true
-tick 20s phase == Playing
+tick 20s flow.phase == Playing
 tick 20s slots[0].falls == 0
 tick 20s slots[1].falls == 0
 tick 20s slots[2].falls == 0
