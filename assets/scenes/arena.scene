@@ -343,3 +343,16 @@ field active false
 field lookAt Platform
 field blendSeconds 1.5
 end
+
+entity
+id 30
+name Echo Corner
+kind reverb_zone
+position 0 4 50
+rotation 0 0 0 1
+scale 40 8 20
+color FFB48CFF
+flags 0
+field roomSize 0.8
+field wet 0.45
+end

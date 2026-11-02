@@ -25,6 +25,7 @@
 #include "mealkit/net/Socket.h"
 #include "mealkit/core/Reflect.h"
 #include "mealkit/core/TextFormat.h"
+#include "mealkit/audio/Audio.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/platform/Input.h"
 #include "mealkit/platform/Paths.h"
@@ -2436,6 +2437,45 @@ TEST_CASE(scene, scene_hierarchy) {
         return s.contentHash();
     }());
     removeFile(path);
+}
+
+// Audio glue: the smallest reverb zone around the listener is picked (rotated boxes too). Skipped without an output device
+TEST_CASE(audio, audio_reverb_zones) {
+    audio::Engine engine;
+    if (!engine.init({4, true})) return;
+    std::vector<audio::ReverbZone> zones(2);
+    zones[0].center = {0.0f, 0.0f, 0.0f};
+    zones[0].half = {20.0f, 5.0f, 20.0f};
+    zones[1].center = {10.0f, 0.0f, 0.0f};
+    zones[1].rotation = quatFromAxisAngle({0.0f, 1.0f, 0.0f}, 0.7853982f); // 45 degrees: a diamond seen from above
+    zones[1].half = {2.0f, 2.0f, 2.0f};
+    engine.setReverbZones(zones);
+    const auto zoneAt = [&](Vec3 p) {
+        engine.setListener(p, {0.0f, 0.0f, 1.0f});
+        engine.update(1.0 / 60.0);
+        return engine.spatialStats().zone;
+    };
+    TEST_CHECK(zoneAt({0.0f, 0.0f, 0.0f}) == "0");
+    TEST_CHECK(zoneAt({10.0f, 0.0f, 2.5f}) == "1");   // inside the diamond (outside the unrotated box)
+    TEST_CHECK(zoneAt({12.2f, 0.0f, 2.2f}) == "0");   // the unrotated box's corner, outside the diamond
+    TEST_CHECK(zoneAt({30.0f, 0.0f, 0.0f}).empty());
+    engine.resetMatch();
+    TEST_CHECK(zoneAt({0.0f, 0.0f, 0.0f}).empty());
+}
+
+// Reverb zones are view-only areas: fields read back, and adding one doesn't change the content hash (multiplayer peers may differ)
+TEST_CASE(scene, scene_reverb_zone) {
+    scene::Scene s;
+    s.add(scene::kTypeSolid, "floor");
+    const u64 before = s.contentHash();
+    scene::Entity& zone = s.add(scene::kTypeReverbZone, "hall");
+    zone.fields = {{"roomSize", "0.9"}, {"wet", "0.5"}};
+    TEST_CHECK(s.contentHash() == before);
+    const reflect::TypeInfo* type = scene::findType(scene::kTypeReverbZone, nullptr);
+    TEST_CHECK(type && (type->flags & reflect::kObjectArea) && (type->flags & reflect::kObjectCosmetic));
+    const scene::ReverbZoneFields f = scene::readObject<scene::ReverbZoneFields>(s.entities[1]);
+    TEST_CHECK(f.roomSize == 0.9f && f.wet == 0.5f && f.damping == 0.5f && f.fade == 0.8f);
+    TEST_CHECK(!scene::visibleInGame(s.entities[1], nullptr));
 }
 
 TEST_CASE(scene, scene_prefab) {

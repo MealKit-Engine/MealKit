@@ -56,6 +56,8 @@ public:
     bool finished() const override { return m_sim.finished(); }
     bool captureDue() override { return m_sim.captureDue(); }
     mealkit::f64 takeSimMsPerTick() override { return m_sim.takeSimMsPerTick(); }
+    // Sound occlusion rays read the match's physics (between ticks)
+    const mealkit::physics::PhysicsWorld* physics() const override { return m_sim.started() ? &m_sim.world().physics : nullptr; }
     void setTuning(const void* tuning) override;
     mealkit::reflect::View stateView() const override {
         if (!m_sim.started()) return {};
@@ -86,7 +88,6 @@ private:
     mealkit::f64 m_cameraTime = 0.0, m_menuTime = 0.0; // last buildFrame times (camera dt)
     Effects m_effects;              // tick events → view effects
     mealkit::f64 m_viewTime = 0.0;  // clock for view effects (sum of update dt)
-    mealkit::audio::Handle m_music; // background music (during the match)
     // Game screen UI (assets/ui): HUD and name tags above characters (world-space UI)
     mealkit::u32 m_hud = 0, m_nameTag = 0;
     HudVm m_hudVm;

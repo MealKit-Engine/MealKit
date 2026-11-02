@@ -1,5 +1,26 @@
-# MealKit audio events. Edit them in MealKit Audio or by hand: "event <name>" or "bus <name>", then "key value" lines.
-@format audio-events 1
+# MealKit audio events. Edit them in MealKit Audio or by hand: "event|mixbus|snapshot|music <name>", then "key value" lines.
+@format audio-events 2
+
+mixbus music
+duckBy voice
+duckVolume 0.35
+duckRelease 1.2
+
+mixbus sfx
+reverb true
+
+snapshot pause
+fade 0.25
+volume music 0.6
+lowpass music 1500
+volume sfx 0.7
+lowpass sfx 900
+
+music arena
+stems sounds/music_bass.wav sounds/music_drums.wav sounds/music_arp.wav
+stemParam tension
+stemFade 2
+volume 0.45
 
 event hit
 clips sounds/hit_1.wav sounds/hit_2.wav sounds/hit_3.wav
@@ -66,16 +87,13 @@ priority 60
 maxInstances 3
 subtitle sub.fall
 
-event music
-clips sounds/music_loop.wav
-volume 0.45
+event stinger
+clips sounds/stinger.wav
+volume 0.7
 spatial false
-bus music
-loop true
-stream true
-priority 100
+bus voice
+priority 95
 maxInstances 1
-steal none
 
 event ui_click
 clips sounds/ui_click.wav

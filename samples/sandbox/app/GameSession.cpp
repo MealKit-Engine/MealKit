@@ -62,8 +62,9 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     m_view.animTime = -1.0;
     m_view.animStates.load(); // assets/tables/animation.table (character animation states)
     m_hudVm = {};
-    ctx.audio.stop(m_music);
-    m_music = ctx.audio.play2D("music");
+    // Music (assets/sounds.events "music arena"): bass alone until the round starts, the tension parameter brings in drums and arpeggio
+    ctx.audio.setGlobalParam("tension", 0.0f);
+    ctx.audio.playMusic("arena");
     loadSave(ctx.userFolder);
     ++m_save.matchesStarted;
     game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
@@ -75,7 +76,8 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
 // Match end (back to lobby, left, disconnected): discard the World and close match screens. The save remains
 void GameSession::stop(game::GameContext& ctx) {
     m_sim.stop();
-    ctx.audio.stop(m_music);
+    ctx.audio.stopMusic(1.0f);
+    ctx.audio.setSnapshot("pause", false);
     if (m_hud) ctx.ui.close(m_hud);
     if (m_nameTag) ctx.ui.close(m_nameTag);
     m_hud = m_nameTag = 0;
@@ -149,10 +151,14 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
                 m_camera.brain.playCutscene(m_camera.cutscenes, look.camera.introCutscene);
             if (phase == MatchPhase::Playing) m_camera.brain.stopCutscene(); // the countdown can be shorter than the clip
             m_camera.brain.setActive(look.camera.resultsCamera, phase == MatchPhase::Results); // game code only switches cameras on/off
+            // Music follows the phase: full while playing, half at round end/results (with a stinger on the next bar, which ducks the music)
+            ctx.audio.setGlobalParam("tension", phase == MatchPhase::Playing ? 1.0f : phase >= MatchPhase::RoundEnd ? 0.5f : 0.0f);
+            if (phase == MatchPhase::RoundEnd) ctx.audio.stinger("stinger", audio::Quantize::Bar);
             m_lastPhase = phase;
         }
     };
     if (!m_flow.pausesSimulation()) m_sim.update(session, dt, sample, onTick); // pause in solo play halts the match
+    ctx.audio.setSnapshot("pause", m_flow.blocksInput()); // menus over the match: music and effects muffled (snapshot "pause")
 
     // Moving my character ahead: by my movement inputs sent but not yet executed (view only, only during play)
     const World& world = m_sim.world();

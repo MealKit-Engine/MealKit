@@ -2,7 +2,7 @@
 # THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
 # Update with tools\update_mkaudio.ps1 -From <MealKit-Audio checkout>; work on both with -DMEALKIT_MKAUDIO_DIR=<checkout>.
 name mkaudio (MealKit Audio runtime)
-version v0.2.0 (0914bba)
+version v0.3.0 (1fc353b)
 license MIT
 licenseFile LICENSE
 source https://github.com/MealKit-Engine/MealKit-Audio

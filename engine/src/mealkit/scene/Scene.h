@@ -24,6 +24,7 @@ inline constexpr const char* kAnimField = "anim";             // looping view cl
 inline constexpr const char* kTypePointLight = "point_light"; // point light (view only, only the light is visible in the game, fields are PointLightFields)
 inline constexpr const char* kTypeVirtualCamera = "virtual_camera"; // virtual camera (view only, invisible in the game, fields are VirtualCameraFields, camera/Brain.h)
 inline constexpr const char* kTypeScatter = "scatter"; // scatter brush layer (view only, fields are ScatterFields, asset/Scatter.h; the object's own transform isn't used)
+inline constexpr const char* kTypeReverbZone = "reverb_zone"; // reverb area (view only, size = box, fields are ReverbZoneFields; audio::Engine::setReverbZones)
 inline constexpr const char* kTypeTerrain = "terrain"; // heightmap terrain (colliding, fields are TerrainFields, asset/Terrain.h). size = the box the heights fill
 
 // Fields of point light objects (a built-in kind, but edited with inspector/field lines like game kinds). Read with readObject<PointLightFields>(e)
@@ -31,6 +32,15 @@ MEALKIT_STRUCT(PointLightFields) {
     MEALKIT_FIELD(Color, color, (Color::rgb(255, 214, 160)), "Light color");
     MEALKIT_FIELD(f32, intensity, 3.0f, "Intensity");
     MEALKIT_FIELD(f32, range, 6.0f, "Range (m)");
+};
+
+// Fields of reverb zones: while the listener is inside the box (the smallest one if several), buses with reverb use these values
+MEALKIT_STRUCT(ReverbZoneFields) {
+    MEALKIT_FIELD(f32, roomSize, 0.6f, "Room size (0..1)");
+    MEALKIT_FIELD(f32, damping, 0.5f, "Damping (0..1, high sounds die faster)");
+    MEALKIT_FIELD(f32, wet, 0.35f, "Reverb amount (0..1)");
+    MEALKIT_FIELD(f32, width, 1.0f, "Stereo width (0..1)");
+    MEALKIT_FIELD(f32, fade, 0.8f, "Change time on entering/leaving (s)");
 };
 
 // Fields of terrain objects. The heightmap is a 16-bit grayscale PNG relative to assets (square, any size from 2 samples per side):

@@ -20,8 +20,16 @@
 // Layers (docs/DECISIONS.md 2026-10-26 audio runtime): mixing, voices, buses, containers, and the event file format are done by the runtime mkaudio
 // (separate repo MealKit-Audio, third_party/mkaudio), and this folder is the glue layer: finding and reloading files, clip asset paths, logging,
 // profile markers, live connection service audio/ (the authoring tool plays in a running game and sees state).
+// Spatial glue (docs/ROADMAP.md "Spatial audio and interactive music"): occlusion rays through the match's physics world (setOcclusionWorld) and
+// scene reverb zones (setReverbZones) become the runtime's per-voice occlusion and reverb values. Both only read; nothing here touches the simulation.
 namespace mealkit::live {
 class Server;
+}
+namespace mealkit::physics {
+class PhysicsWorld;
+}
+namespace mealkit::scene {
+struct Scene;
 }
 
 namespace mealkit::audio {
@@ -38,6 +46,27 @@ using CullInfo = mkaudio::CullInfo; // reason is an English word from the runtim
 using BusInfo = mkaudio::BusInfo;
 using Subtitle = mkaudio::Subtitle; // a sound with a subtitle played (same keys merge into one line and extend the time)
 using Stats = mkaudio::Stats;
+using Quantize = mkaudio::Quantize;   // where a music switch or stinger lands: Immediate, Beat, Bar
+using MusicInfo = mkaudio::MusicInfo;
+using SnapshotInfo = mkaudio::SnapshotInfo;
+using ReverbParams = mkaudio::ReverbParams;
+
+inline constexpr u32 kOcclusionRaysPerFrame = 4; // mixed 3D voices checked per frame (in turn)
+
+// Reverb zone in world coordinates (scene reverb_zone object)
+struct ReverbZone {
+    Vec3 center;
+    Quat rotation;
+    Vec3 half; // half size
+    ReverbParams reverb;
+    f32 fade = 0.8f;
+};
+
+struct SpatialStats {
+    u32 rays = 0;         // occlusion rays this frame
+    u32 occluded = 0;     // mixed 3D voices currently behind something
+    std::string zone;     // reverb zone the listener is in (index as text, empty if none)
+};
 
 struct EngineDesc {
     u32 maxVoices = 32; // number of actually mixed voices (project setting audioVoices)
@@ -64,8 +93,28 @@ public:
     void stop(Handle handle, f32 fadeSeconds = 0.0f);
     void stopAll();
     bool playing(Handle handle) const;
-    // Value used when an event looks up an unknown parameter (e.g. "music_intensity")
+    // Value used when an event looks up an unknown parameter (e.g. "music_intensity"); also music stem parameters (e.g. "tension")
     void setGlobalParam(std::string_view name, f32 value);
+
+    // Music (assets/sounds.events "music <name>"): switches at the track's transition point (next bar by default) with a short crossfade
+    void playMusic(std::string_view track);
+    void playMusic(std::string_view track, Quantize at);
+    void stopMusic(f32 fadeSeconds = 1.0f);
+    Handle stinger(std::string_view event, Quantize at = Quantize::Beat, std::initializer_list<Param> params = {}); // 2D, on the music's beat
+    MusicInfo music() const;
+    // Snapshots ("snapshot <name>": bus volume/lowpass sets, e.g. "pause"), faded in/out
+    void setSnapshot(std::string_view name, bool on);
+    bool snapshot(std::string_view name) const;
+
+    // Occlusion: the match's physics world (nullptr = off). The engine sets it every frame from GameInstance::physics() after the game's update,
+    // and update() casts up to kOcclusionRaysPerFrame rays from the listener to mixed 3D voices (blocked = muffled and quieter, eased by the runtime)
+    void setOcclusionWorld(const physics::PhysicsWorld* world);
+    // Reverb zones from a scene's reverb_zone objects (world boxes). Empty scene = none (reverb fades out)
+    void setReverbZones(const scene::Scene& scene);
+    void setReverbZones(std::vector<ReverbZone> zones);
+    const SpatialStats& spatialStats() const;
+    // After a match (editor play stop): music stops, snapshots go off, no occlusion world or reverb zones
+    void resetMatch();
 
     void setListener(Vec3 position, Vec3 forward); // listener = camera (the engine calls this every frame via FrameParams)
     Vec3 listener() const;
@@ -88,6 +137,7 @@ public:
     void voices(std::vector<VoiceInfo>& out) const;
     const std::deque<CullInfo>& culls() const;
     void buses(std::vector<BusInfo>& out) const;
+    void snapshots(std::vector<SnapshotInfo>& out) const;
     const Stats& stats() const;
 
 private:
@@ -98,7 +148,7 @@ private:
 // Live connection service audio/ (used by MealKit Audio, dev build games and the editor):
 //   POST audio/play     body "event=<name>&p.<param>=<value>..." → play at the listener
 //   POST audio/reload   reload the event file now
-//   GET  audio/state    {"file","events","stats":{...},"voices":[...],"buses":[...]}
+//   GET  audio/state    {"file","events","stats":{...},"voices":[...],"buses":[...],"music":{...},"snapshots":[...]}
 // engine() is called per request and returns the audio currently in use (nullptr if none → 503)
 void addLiveService(live::Server& server, std::function<Engine*()> engine);
 

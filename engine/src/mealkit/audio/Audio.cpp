@@ -3,7 +3,9 @@
 #include "mealkit/core/Log.h"
 #include "mealkit/core/Profile.h"
 #include "mealkit/live/Server.h"
+#include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/platform/Paths.h"
+#include "mealkit/scene/Scene.h"
 
 #include <mkaudio/Events.h>
 
@@ -16,6 +18,7 @@ namespace mealkit::audio {
 namespace {
 
 constexpr f64 kFileCheckSeconds = 0.25;
+constexpr f32 kOcclusionNear = 1.5f; // the ray stops this far before the sound: the body making it (a character, a crate) doesn't hide it
 
 mkaudio::Vec3 toMk(Vec3 v) { return {v.x, v.y, v.z}; }
 
@@ -47,6 +50,56 @@ struct Engine::Impl {
     unsigned long long fileTime = 0;
     bool oldTable = false;
     Vec3 listener;
+    const physics::PhysicsWorld* world = nullptr;
+    u32 rayCursor = 0;
+    std::vector<mkaudio::Emitter> emitters;
+    std::vector<ReverbZone> zones;
+    i32 zone = -2; // zone the listener is in (-1 none, -2 not decided yet)
+    SpatialStats spatial;
+
+    // A few mixed 3D voices per frame, in turn: a ray from the listener to the sound, stopping short of it
+    void occlusion() {
+        spatial.rays = spatial.occluded = 0;
+        mixer.emitters(emitters);
+        for (const mkaudio::Emitter& e : emitters) spatial.occluded += e.occlusion > 0.5f ? 1u : 0u;
+        if (!world || emitters.empty()) return;
+        const u32 n = std::min<u32>(kOcclusionRaysPerFrame, static_cast<u32>(emitters.size()));
+        for (u32 i = 0; i < n; ++i) {
+            const mkaudio::Emitter& e = emitters[(rayCursor + i) % emitters.size()];
+            const Vec3 to = Vec3{e.position.x, e.position.y, e.position.z} - listener;
+            const f32 distance = length(to);
+            f32 amount = 0.0f;
+            if (distance > kOcclusionNear * 2.0f) {
+                physics::RayHit hit;
+                amount = world->castRay(listener, to * ((distance - kOcclusionNear) / distance), hit) ? 1.0f : 0.0f;
+                ++spatial.rays;
+            }
+            mixer.setOcclusion(e.handle, amount);
+        }
+        rayCursor = (rayCursor + n) % static_cast<u32>(emitters.size());
+    }
+
+    // The smallest zone containing the listener sets the reverb (none: back to dry)
+    void reverbZone() {
+        i32 best = -1;
+        f32 bestVolume = 0.0f;
+        for (size_t i = 0; i < zones.size(); ++i) {
+            const ReverbZone& z = zones[i];
+            const Quat inv{-z.rotation.x, -z.rotation.y, -z.rotation.z, z.rotation.w};
+            const Vec3 p = rotate(inv, listener - z.center);
+            if (std::fabs(p.x) > z.half.x || std::fabs(p.y) > z.half.y || std::fabs(p.z) > z.half.z) continue;
+            const f32 volume = z.half.x * z.half.y * z.half.z;
+            if (best < 0 || volume < bestVolume) {
+                best = static_cast<i32>(i);
+                bestVolume = volume;
+            }
+        }
+        if (best == zone) return;
+        const f32 fade = best >= 0 ? zones[static_cast<size_t>(best)].fade : zone >= 0 && zone < static_cast<i32>(zones.size()) ? zones[static_cast<size_t>(zone)].fade : 0.8f;
+        mixer.setReverb(best >= 0 ? zones[static_cast<size_t>(best)].reverb : ReverbParams{}, fade);
+        zone = best;
+        spatial.zone = best >= 0 ? std::to_string(best) : std::string();
+    }
 
     std::string findFile(bool& old) const {
         old = false;
@@ -83,7 +136,10 @@ struct Engine::Impl {
         });
         mixer.setBuses(file.buses);
         mixer.setEvents(file.events);
-        MEALKIT_INFO("Audio: %zu sound event(s) from %s", file.events.size(), path.empty() ? "(no sounds.events)" : path.c_str());
+        mixer.setSnapshots(file.snapshots);
+        mixer.setMusic(file.music);
+        MEALKIT_INFO("Audio: %zu sound event(s), %zu music track(s), %zu snapshot(s) from %s", file.events.size(), file.music.size(),
+                     file.snapshots.size(), path.empty() ? "(no sounds.events)" : path.c_str());
     }
 
     void pollFile() {
@@ -143,6 +199,49 @@ bool Engine::playing(Handle h) const { return m->mixer.playing(h); }
 
 void Engine::setGlobalParam(std::string_view name, f32 value) { m->mixer.setGlobalParam(name, value); }
 
+void Engine::playMusic(std::string_view track) { m->mixer.playMusic(track); }
+
+void Engine::playMusic(std::string_view track, Quantize at) { m->mixer.playMusic(track, at); }
+
+void Engine::stopMusic(f32 fadeSeconds) { m->mixer.stopMusic(fadeSeconds); }
+
+Handle Engine::stinger(std::string_view event, Quantize at, std::initializer_list<Param> params) { return m->mixer.stinger(event, at, params); }
+
+MusicInfo Engine::music() const { return m->mixer.music(); }
+
+void Engine::setSnapshot(std::string_view name, bool on) { m->mixer.setSnapshot(name, on); }
+
+bool Engine::snapshot(std::string_view name) const { return m->mixer.snapshot(name); }
+
+void Engine::setOcclusionWorld(const physics::PhysicsWorld* world) { m->world = world; }
+
+void Engine::setReverbZones(const scene::Scene& scene) {
+    std::vector<ReverbZone> zones;
+    for (const scene::Entity& e : scene.entities) {
+        if (!e.is(scene::kTypeReverbZone)) continue;
+        const scene::Transform t = scene::worldTransform(scene, e);
+        const scene::ReverbZoneFields f = scene::readObject<scene::ReverbZoneFields>(e);
+        zones.push_back({t.position, t.rotation, t.scale * 0.5f, {f.roomSize, f.damping, f.wet, f.width}, f.fade});
+    }
+    setReverbZones(std::move(zones));
+}
+
+void Engine::setReverbZones(std::vector<ReverbZone> zones) {
+    m->zones = std::move(zones);
+    m->zone = -2; // old indices mean nothing now: decided again next update
+}
+
+const SpatialStats& Engine::spatialStats() const { return m->spatial; }
+
+void Engine::resetMatch() {
+    m->world = nullptr;
+    setReverbZones(std::vector<ReverbZone>{});
+    m->mixer.stopMusic(0.0f);
+    std::vector<SnapshotInfo> snapshots;
+    m->mixer.snapshots(snapshots);
+    for (const SnapshotInfo& s : snapshots) m->mixer.setSnapshot(s.name, false);
+}
+
 void Engine::setListener(Vec3 position, Vec3 forward) {
     m->listener = position;
     m->mixer.setListener(toMk(position), toMk(forward));
@@ -163,7 +262,9 @@ void Engine::update(f64 dt) {
     MEALKIT_ZONE("Audio");
     m->time += dt;
     m->pollFile();
+    m->reverbZone();
     m->mixer.update(dt);
+    m->occlusion();
 }
 
 const std::vector<Subtitle>& Engine::subtitles() const { return m->mixer.subtitles(); }
@@ -183,6 +284,8 @@ void Engine::voices(std::vector<VoiceInfo>& out) const { m->mixer.voices(out); }
 const std::deque<CullInfo>& Engine::culls() const { return m->mixer.culls(); }
 
 void Engine::buses(std::vector<BusInfo>& out) const { m->mixer.buses(out); }
+
+void Engine::snapshots(std::vector<SnapshotInfo>& out) const { m->mixer.snapshots(out); }
 
 const Stats& Engine::stats() const { return m->mixer.stats(); }
 
@@ -269,14 +372,27 @@ void addLiveService(live::Server& server, std::function<Engine*()> engineOf) {
             for (size_t i = 0; i < voices.size(); ++i)
                 out += std::string(i ? "," : "") + "{\"event\":" + live::jsonString(voices[i].event) + ",\"virtual\":" +
                        (voices[i].virtualVoice ? "true" : "false") + ",\"loop\":" + (voices[i].loop ? "true" : "false") +
-                       ",\"audibility\":" + number(voices[i].audibility) + ",\"distance\":" + number(voices[i].distance) + "}";
+                       ",\"audibility\":" + number(voices[i].audibility) + ",\"distance\":" + number(voices[i].distance) +
+                       ",\"occlusion\":" + number(voices[i].occlusion) + "}";
             out += "],\"buses\":[";
             std::vector<BusInfo> buses;
             engine.buses(buses);
             for (size_t i = 0; i < buses.size(); ++i)
                 out += std::string(i ? "," : "") + "{\"name\":" + live::jsonString(buses[i].name) + ",\"volume\":" + number(buses[i].volume) +
-                       ",\"mix\":" + number(buses[i].mix) + ",\"peak\":" + number(buses[i].peak) + "}";
-            r.body = out + "]}";
+                       ",\"mix\":" + number(buses[i].mix) + ",\"peak\":" + number(buses[i].peak) + ",\"duck\":" + number(buses[i].duck) +
+                       ",\"snapshot\":" + number(buses[i].snapshot) + "}";
+            const MusicInfo music = engine.music();
+            out += "],\"music\":{\"track\":" + live::jsonString(music.track) + ",\"next\":" + live::jsonString(music.next) +
+                   ",\"bar\":" + std::to_string(music.bar) + ",\"beat\":" + number(music.beat) + "},\"snapshots\":[";
+            std::vector<SnapshotInfo> snapshots;
+            engine.snapshots(snapshots);
+            for (size_t i = 0; i < snapshots.size(); ++i)
+                out += std::string(i ? "," : "") + "{\"name\":" + live::jsonString(snapshots[i].name) + ",\"on\":" + (snapshots[i].on ? "true" : "false") +
+                       ",\"weight\":" + number(snapshots[i].weight) + "}";
+            const SpatialStats& sp = engine.spatialStats();
+            out += "],\"spatial\":{\"rays\":" + std::to_string(sp.rays) + ",\"occluded\":" + std::to_string(sp.occluded) +
+                   ",\"zone\":" + live::jsonString(sp.zone) + "}";
+            r.body = out + "}";
             return r;
         }
         r.status = 404;

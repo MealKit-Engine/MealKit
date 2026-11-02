@@ -147,12 +147,13 @@ for i in range(n):
     out.append(square(2 * math.pi * f * t) * 0.5 * env(i, n, 0.002, 0.07))
 write("ui_back.wav", lowpass(out, 3500), peak=0.6)
 
-# ---- Music: 120 BPM, 8 bar (16 second) loop. Bass (triangle) + arpeggio (square) + hi-hat (noise)
+# ---- Music: 120 BPM, 8 bar (16 second) loop in three stems played together (sounds.events "music arena"): bass (triangle),
+# drums (hi-hat noise), arpeggio (square). The game's tension parameter brings in drums, then the arpeggio
 bpm = 120
 beat = 60.0 / bpm
 bars = 8
 total = seconds(bars * 4 * beat)
-music = [0.0] * total
+stems = {"bass": [0.0] * total, "drums": [0.0] * total, "arp": [0.0] * total}
 chords = [(57, 60, 64), (53, 57, 60), (48, 52, 55), (55, 59, 62)]  # Am F C G (MIDI)
 
 
@@ -160,7 +161,7 @@ def midi(n):
     return 440.0 * 2 ** ((n - 69) / 12)
 
 
-def add_note(start, length, freq, shape, volume, decay):
+def add_note(music, start, length, freq, shape, volume, decay):
     s0 = seconds(start)
     n = seconds(length)
     for i in range(n):
@@ -175,20 +176,35 @@ for bar in range(bars):
     t0 = bar * 4 * beat
     for b in range(4):  # bass: root on every beat, an octave up on beats 2 and 4
         root = chord[0] - 24 + (12 if b % 2 else 0)
-        add_note(t0 + b * beat, beat * 0.9, midi(root), triangle, 0.5, beat * 0.6)
+        add_note(stems["bass"], t0 + b * beat, beat * 0.9, midi(root), triangle, 0.5, beat * 0.6)
     for step in range(16):  # arpeggio: sixteenth notes
         note = chord[step % 3] + (12 if (step // 3) % 2 else 0)
-        add_note(t0 + step * beat / 4, beat / 4 * 0.8, midi(note), square, 0.12, beat * 0.12)
+        add_note(stems["arp"], t0 + step * beat / 4, beat / 4 * 0.8, midi(note), square, 0.12, beat * 0.12)
     for step in range(8):  # hi-hat: eighth notes
         s0 = seconds(t0 + step * beat / 2)
         n = seconds(0.04)
         hat = highpass(noise(n), 6000)
         for i in range(n):
             if s0 + i < total:
-                music[s0 + i] += hat[i] * 0.15 * math.exp(-i / RATE / 0.012)
-# Loop seam: blends the last 10 ms with the start
+                stems["drums"][s0 + i] += hat[i] * 0.15 * math.exp(-i / RATE / 0.012)
+# Loop seam: blends the last 10 ms with the start. Stems keep their mix levels (one shared peak scale)
 fade = seconds(0.01)
-for i in range(fade):
-    a = i / fade
-    music[total - fade + i] = music[total - fade + i] * (1 - a) + music[i] * a
-write("music_loop.wav", lowpass(music, 7000), peak=0.8)
+for music in stems.values():
+    for i in range(fade):
+        a = i / fade
+        music[total - fade + i] = music[total - fade + i] * (1 - a) + music[i] * a
+mixed = [b + d + a for b, d, a in zip(stems["bass"], stems["drums"], stems["arp"])]
+scale = 0.8 / max(max(abs(v) for v in mixed), 1e-9)
+for name, music in stems.items():
+    filtered = lowpass(music, 7000)
+    write(f"music_{name}.wav", [v * scale for v in filtered], peak=max(abs(v) * scale for v in filtered))
+
+# ---- Stinger: rising A major arpeggio with a held top note (round end, played on the next bar)
+n = seconds(1.6)
+out = [0.0] * n
+for k, note in enumerate((69, 73, 76, 81)):
+    s0 = seconds(k * beat / 4)
+    for i in range(n - s0):
+        t = i / RATE
+        out[s0 + i] += (square(2 * math.pi * midi(note) * t) * 0.3 + math.sin(2 * math.pi * midi(note) * t)) * math.exp(-t / (0.9 if k == 3 else 0.25))
+write("stinger.wav", lowpass(out, 5000), peak=0.8)

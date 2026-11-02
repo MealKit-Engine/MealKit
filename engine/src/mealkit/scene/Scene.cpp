@@ -108,8 +108,16 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         t.flags = b.flags;
         return t;
     }();
-    static const std::vector<const reflect::TypeInfo*> list{&solid,         &decoration, &spawn,  &probe,
-                                                            &pointLight,    &virtualCamera, &terrain, &scatter};
+    static const reflect::TypeInfo reverbZone = [] {
+        reflect::TypeInfo t = reflect::typeOf<ReverbZoneFields>();
+        const reflect::TypeInfo b = makeBuiltin(kTypeReverbZone, "Reverb zone", reflect::kObjectArea | reflect::kObjectCosmetic); // size = box
+        t.name = b.name;
+        t.label = b.label;
+        t.flags = b.flags;
+        return t;
+    }();
+    static const std::vector<const reflect::TypeInfo*> list{&solid,      &decoration,    &spawn,   &probe,   &pointLight,
+                                                            &reverbZone, &virtualCamera, &terrain, &scatter};
     return list;
 }
 
