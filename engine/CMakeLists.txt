@@ -490,9 +490,9 @@ if(MEALKIT_IS_ENGINE)
     target_compile_definitions(mealkit_tests PRIVATE MEALKIT_ENGINE_DIR="${MEALKIT_ENGINE_DIR}") # Penpot plugin expected files
     if(NOT MEALKIT_HEADLESS_ONLY AND NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
         target_link_libraries(mealkit_tests PRIVATE mealkit) # game screen UI layout tests (no window)
-        target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1)
+        target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1 MEALKIT_TEST_FRONT=1)
     elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
-        target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1)
+        target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1 MEALKIT_TEST_FRONT=1)
     endif()
 endif()
 

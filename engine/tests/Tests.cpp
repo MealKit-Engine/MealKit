@@ -10,7 +10,9 @@
 #include "mealkit/core/Random.h"
 #include "mealkit/data/Tables.h"
 #include "mealkit/game/InputRecord.h"
+#if MEALKIT_TEST_FRONT // front end (bug reports, audio): not in the Linux/macOS headless build
 #include "mealkit/game/BugReport.h"
+#endif
 #include "mealkit/core/Zip.h"
 #include "mealkit/game/Loadout.h"
 #include "mealkit/game/ProjectSettings.h"
@@ -25,7 +27,9 @@
 #include "mealkit/net/Socket.h"
 #include "mealkit/core/Reflect.h"
 #include "mealkit/core/TextFormat.h"
+#if MEALKIT_TEST_FRONT // front end (bug reports, audio): not in the Linux/macOS headless build
 #include "mealkit/audio/Audio.h"
+#endif
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/platform/Input.h"
 #include "mealkit/platform/Pack.h"
@@ -857,6 +861,7 @@ TEST_CASE(asset, cooked_assets) {
 }
 #endif
 
+#if MEALKIT_TEST_FRONT // front end (bug reports, audio): not in the Linux/macOS headless build
 TEST_CASE(game, bug_report) {
     // Bundle = input recording + info + log (screenshot omitted if absent). The editor extracts replay.rec and plays it
     const std::string user = executableDirectory() + "/test_bugreports";
@@ -915,6 +920,7 @@ TEST_CASE(game, crash_report) {
     removeFile(extracted);
     removeFile(rec);
 }
+#endif
 
 MEALKIT_STRUCT(TestSaveV1) {
     MEALKIT_FIELD(u32, coins, 0, "코인");
@@ -2588,6 +2594,7 @@ TEST_CASE(scene, scene_hierarchy) {
     removeFile(path);
 }
 
+#if MEALKIT_TEST_FRONT // front end (bug reports, audio): not in the Linux/macOS headless build
 // Audio glue: the smallest reverb zone around the listener is picked (rotated boxes too). Skipped without an output device
 TEST_CASE(audio, audio_reverb_zones) {
     audio::Engine engine;
@@ -2611,6 +2618,7 @@ TEST_CASE(audio, audio_reverb_zones) {
     engine.resetMatch();
     TEST_CHECK(zoneAt({0.0f, 0.0f, 0.0f}).empty());
 }
+#endif
 
 // Reverb zones are view-only areas: fields read back, and adding one doesn't change the content hash (multiplayer peers may differ)
 TEST_CASE(scene, scene_reverb_zone) {
