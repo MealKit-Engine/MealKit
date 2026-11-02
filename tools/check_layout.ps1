@@ -148,6 +148,41 @@ function Check-ThirdParty([string]$root, [bool]$game) {
 }
 Check-ThirdParty (Join-Path $Project "third_party") (-not $isEngine)
 
+# ---------------------------------------------------------------- Asset path case
+# Asset references must match the file name's case exactly: Windows finds "Models/Crate.glb" anyway, Linux/macOS (case-sensitive) don't.
+# Asset paths as the engine resolves them (platform/Paths.h assetFilePath): relative to assets/, "modules/<name>/<kind>/..." → modules/<name>/assets/<kind>/...
+$assetFiles = @{} # lower-case asset path → actual
+function Add-AssetFiles([string]$root, [string]$prefix) {
+    if (-not (Test-Path $root)) { return }
+    foreach ($f in Get-ChildItem -Path $root -Recurse -File) {
+        $rel = $prefix + $f.FullName.Substring($root.Length + 1).Replace("\", "/")
+        $assetFiles[$rel.ToLowerInvariant()] = $rel
+    }
+}
+Add-AssetFiles (Join-Path $Project "assets") ""
+if (Test-Path (Join-Path $Project "modules")) {
+    foreach ($m in Get-ChildItem -Path (Join-Path $Project "modules") -Directory) { Add-AssetFiles (Join-Path $m.FullName "assets") "modules/$($m.Name)/" }
+}
+$assetExts = @($kinds.Values | ForEach-Object { $_ } | ForEach-Object { $_.TrimStart(".") } | Sort-Object -Unique)
+$refPattern = "[A-Za-z0-9_./-]+\.(?:" + ($assetExts -join "|") + ")(?![A-Za-z0-9_])"
+$textExts = @(".scene", ".prefab", ".ui", ".table", ".tuning", ".bindings", ".events", ".cpp", ".h", ".hpp")
+$scanRoots = @("assets", "source", "sim", "view", "app", "modules") | ForEach-Object { Join-Path $Project $_ } | Where-Object { Test-Path $_ }
+foreach ($root in $scanRoots) {
+    foreach ($f in Get-ChildItem -Path $root -Recurse -File | Where-Object { $textExts -contains $_.Extension.ToLowerInvariant() }) {
+        $text = [IO.File]::ReadAllText($f.FullName, $utf8)
+        $reported = @{}
+        foreach ($match in [regex]::Matches($text, $refPattern)) {
+            $ref = $match.Value
+            if ($ref.StartsWith("assets/")) { $ref = $ref.Substring(7) }
+            $actual = $assetFiles[$ref.ToLowerInvariant()]
+            if ($actual -and $actual -cne $ref -and -not $reported.ContainsKey($ref)) {
+                $reported[$ref] = $true
+                Err $f.FullName "'$ref' differs in case from the file '$actual' (case-sensitive file systems on Linux/macOS won't find it)"
+            }
+        }
+    }
+}
+
 foreach ($w in $warnings) { Write-Host $w -ForegroundColor Yellow }
 foreach ($e in $errors) { Write-Host $e -ForegroundColor Red }
 if ($errors.Count) {

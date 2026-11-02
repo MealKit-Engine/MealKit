@@ -262,7 +262,7 @@ set(MEALKIT_FRONT_SOURCES
     ${MEALKIT_SHADER_HEADERS})
 
 # Platform layer implementations (docs/CODING_MODEL.md "Graphics APIs and OS features"): OS APIs are called only inside platform/<os>/.
-# posix/ has only what headless (Linux/macOS) needs (time, files, UDP, logging). Window, input, DLL, dialogs, images are Windows only (stage 5).
+# posix/ has what headless (Linux/macOS) needs (time, files, UDP, logging) and dynamic libraries. Window, input, dialogs, images are Windows only (stage 5).
 if(WIN32)
     list(APPEND MEALKIT_CORE_SOURCES
         src/mealkit/platform/win32/Clock.cpp
@@ -282,6 +282,7 @@ else()
         src/mealkit/platform/posix/Paths.cpp
         src/mealkit/platform/posix/Socket.cpp
         src/mealkit/platform/posix/System.cpp)
+    list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/platform/posix/DynamicLibrary.cpp)
 endif()
 
 # RHI backend (MEALKIT_RHI, cmake/MealKit.cmake): graphics APIs are called only inside rhi/<api>/ (tools\check_platform.ps1)
@@ -342,7 +343,11 @@ endif()
 # mealkit.dll: exports all engine functions and classes (no __declspec markup). Enough as long as game code doesn't access engine globals directly.
 # The def is generated the same way as CMake's WINDOWS_EXPORT_ALL_SYMBOLS (__create_def), but the bad lines ("==") left by
 # MSVC CRT weak aliases are removed before linking (WINDOWS_EXPORT_ALL_SYMBOLS as-is fails with LNK2001).
-if(MEALKIT_BUILD_KIND STREQUAL "Editor")
+# Clang/GCC on Linux/macOS get the same result with default symbol visibility: libmealkit.so/.dylib exports everything, no def file
+if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT WIN32)
+    set_target_properties(mealkit PROPERTIES CXX_VISIBILITY_PRESET default VISIBILITY_INLINES_HIDDEN OFF)
+    target_link_libraries(mealkit PRIVATE ${CMAKE_DL_LIBS}) # dlopen (platform/posix/DynamicLibrary.cpp)
+elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
     set(mealkit_def ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.def)
     set(mealkit_objs ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.objs)
     file(GENERATE OUTPUT ${mealkit_objs} CONTENT "$<JOIN:$<TARGET_OBJECTS:mealkit>;$<TARGET_OBJECTS:mealkit_imgui>,\n>\n")

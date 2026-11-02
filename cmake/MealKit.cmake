@@ -62,6 +62,8 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     # Dynamic CRT so the editor and game DLL share a heap with the engine (mealkit.dll). Link-time optimization is off (faster game DLL rebuilds).
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+    # Linux/macOS: the static libraries linked into libmealkit.so/.dylib (Jolt, ImGui, mkcontract ...) must be position independent
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 else()
     # Static CRT: runs without a redistributable, and every PC runs the same CRT code, which also helps determinism.
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
@@ -424,6 +426,8 @@ function(mealkit_add_game name)
     if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         # Game code loaded by the editor. The engine comes from mealkit.dll.
         add_library(${name}_game SHARED ${ARG_MODULE} ${game_sources})
+        # <name>_game.dll/.so/.dylib next to the editor (no "lib" prefix; shared libraries go to bin/ on every OS)
+        set_target_properties(${name}_game PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
         target_link_libraries(${name}_game PRIVATE mealkit ${game_libs})
         target_include_directories(${name}_game PRIVATE ${source_dir} ${module_includes})
         target_include_directories(${name}_game SYSTEM PRIVATE ${game_lib_includes})

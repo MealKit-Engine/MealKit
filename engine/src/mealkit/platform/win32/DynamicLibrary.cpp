@@ -20,4 +20,6 @@ void freeLibrary(void* library) {
     if (library) FreeLibrary(static_cast<HMODULE>(library));
 }
 
+const char* libraryExtension() { return ".dll"; }
+
 } // namespace mealkit

@@ -91,12 +91,9 @@ jobs:
       - name: Install tools (macOS)
         if: runner.os == 'macOS'
         run: brew install ninja || true
-      - name: Configure
-        run: >
-          cmake -S . -B build/Headless -G Ninja -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++
       - name: Build (sandbox_headless, mealkit_tests)
-        run: cmake --build build/Headless --target sandbox_headless mealkit_tests -- -k 0 # see all errors at once
+        shell: pwsh
+        run: ./build.ps1 Headless -Target sandbox_headless, mealkit_tests # the same build script as Windows (tools/build.ps1, clang)
       - name: Test
         shell: pwsh
         run: tools/ci_test.ps1 -Bin build/Headless/bin -Name ${{ matrix.name }} -Out ci-out/${{ matrix.name }}
