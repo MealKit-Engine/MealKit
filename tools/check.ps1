@@ -1,6 +1,6 @@
 ﻿# MealKit engine verification: prints PASS/FAIL and elapsed time per item, exit code 1 if any fail.
-#   powershell -ExecutionPolicy Bypass -File tools\check.ps1            everything (when finishing a ROADMAP item, before committing)
-#   ... -Changed           only the groups matching modified files (git working tree, and since that commit with -Base <commit>). Use this while working
+#   powershell -ExecutionPolicy Bypass -File tools\check.ps1            everything (about 5 minutes; only when the user asks for it)
+#   ... -Changed           only the groups matching modified files (git working tree, and since that commit with -Base <commit>). The default, also before committing
 #   ... -Quick             build + unit tests + determinism tests only
 #   ... -Only det,render   only those groups ($allGroups below)
 #   ... -DryRun            only shows the groups it would pick and stops (with -Changed)
