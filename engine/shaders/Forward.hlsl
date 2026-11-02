@@ -83,6 +83,9 @@ struct PushConstants
     uint debugView;      // render::DebugView: 0 none, 1 wireframe, 2 normals, 3 LOD, 4 overdraw, 5 budget, 6 material features
     uint lightOffset;    // ring offset of 8 point light indices per instance (bytes, 0xFF = end)
     uint paletteOffset;  // skinned mesh: ring offset of the joint palette (three rows per joint = 48 bytes)
+    uint2 pad;
+    float4 boxCenter;    // mesh quantization box: position = boxCenter + snorm * boxExtent (Renderer.cpp GpuVertex)
+    float4 boxExtent;
 };
 [[vk::push_constant]] ConstantBuffer<PushConstants> pc : register(b0);
 
@@ -160,8 +163,8 @@ Instance loadInstance(uint index)
 
 struct VSInput
 {
-    float3 position : POSITION;
-    float3 normal : NORMAL;
+    float4 position : POSITION; // snorm in the mesh box (pc.boxCenter/boxExtent)
+    float2 normal : NORMAL;     // octahedral snorm
     float4 color : COLOR; // vertex color (sRGB, glTF COLOR_0). Alpha is wind strength
     float2 uv : TEXCOORD;
     uint2 material : MATERIAL; // x = material table index
@@ -190,6 +193,15 @@ float3 rotateByQuat(float4 q, float3 v)
 {
     float3 t = 2.0 * cross(q.xyz, v);
     return v + q.w * t + cross(q.xyz, t);
+}
+
+// Octahedral normal (Renderer.cpp quantize): unfold the lower half
+float3 decodeOctahedral(float2 e)
+{
+    float3 n = float3(e, 1.0 - abs(e.x) - abs(e.y));
+    if (n.z < 0.0)
+        n.xy = (1.0 - abs(n.yx)) * float2(n.x >= 0.0 ? 1.0 : -1.0, n.y >= 0.0 ? 1.0 : -1.0);
+    return normalize(n);
 }
 
 float3 unpackAlbedo(uint c)
@@ -224,7 +236,7 @@ VSOutput transformVertex(VSInput input, bool outline)
     Instance inst = loadInstance(input.instanceId);
     FrameConstants frame = loadFrame();
     Material mat = loadMaterial(frame, input.material.x);
-    float3 local = input.position, localNormal = input.normal;
+    float3 local = pc.boxCenter.xyz + input.position.xyz * pc.boxExtent.xyz, localNormal = decodeOctahedral(input.normal);
 #if SKINNED
     // Skin: weighted sum of the four joints' palette matrices (CPU asset::skinPalette, MealKit coordinates). Normals use the same matrix (assumes no non-uniform scale)
     {
