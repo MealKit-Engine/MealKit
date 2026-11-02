@@ -3,6 +3,16 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.21 — Empty project template (2026-11-02)
+
+### [x] Stage 4: Empty project template (done 2026-11-02)
+- **`templates/empty/`** (`source/` + `assets/`): one capsule per player (`sim/Players.cpp`, engine `Movement.h`) on a 40 m floor with four spawn points, the engine match flow (`sim/Match.cpp`: countdown, 120 s round, results), respawn below `fallHeight`, mid-match join/leave (`Presence`), a follow camera (camera brain fallback), a time/countdown/chat HUD, a small `input.bindings`. No tables, modules, props, AI or cutscenes. Written in namespace `sandbox` like the sample, so the same rename turns both into the project's namespace.
+- **Shared screen flow**: `samples/sandbox/app/Flow.*` and `Screens.h` no longer include sandbox game types. `FlowGame` (filled by `GameSession::update`) carries player colors, results/chat times, lobby choice keys + a reader for other players' choices, and the results scores (`score`, `lowestFirst`). View model/UI renames: `LobbyVm.body` → `choice` (+ `hasChoice`, hides the select box), `ResultRowVm.falls` → `score` (string key `results.score`), sandbox `SaveData.body` → `lobbyChoice`, string key `lobby.body` → `lobby.choice`.
+- **Tools**: `new_project.ps1 -Template arena|empty` (default arena). The empty template copies its own files, the shared flow code and screens (`ui/` flow screens, settings, subtitles, theme, fonts), and writes `strings/en.txt`/`ko.txt` with only the engine lines it uses (its `.ui` keys, string literals in its code, its input actions, engine prefixes) and `game.title` = project name. `mealkit.project` gets `templateName` (new read-only project setting), and `upgrade_project.ps1 -Source` takes code and missing assets from that template (arena for older projects). Fixed on the way: `-Source` built relative paths from the project path, so a project under an 8.3 short path (TEMP) had every source file reported as removed and re-added. `templates/project` gains `assets/probes/` (the layout check wanted it in projects that weren't copies of the sample).
+- **Editor**: the project manager's Create New Project window has a Template combo (arena, empty) with a one-line description each. MealKit Manager still creates arena projects (no `-Template` yet).
+- **Check** (`check.ps1` project group): "Empty template builds and plays" creates an empty project, runs `upgrade_project.ps1 -Source` (0 changes) and the layout check, builds its game DLL against the engine's Editor build and plays 2 bot players in the editor. Changes to the shared flow files, `assets/ui/` and `assets/strings/` now select the project group.
+- **Verified by hand**: the empty project's Release exe goes title → solo lobby (no choice box) → match; `mp_test -Headless -Clients 2 -Ticks 600` PASS on it; sandbox lobby unchanged.
+
 ## v0.7.20 — Frame allocation check (2026-11-02)
 
 ### [x] Stage 4: Optimization candidate 9, frame allocation check (done 2026-11-02)

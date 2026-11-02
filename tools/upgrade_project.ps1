@@ -7,8 +7,8 @@
 #   the new content is left as <file>.new to show the difference. -Force replaces edited files too.
 # - mealkit.project only gets its engine and engineVersion lines changed (name/start scene/game items unchanged, line format unchanged too).
 # - Files from before the change are kept in .upgrade_backup\<time>\.
-# - -Source: replaces source/ game code with the engine sample code (samples/sandbox). Used to move projects that didn't edit the template code
-#   to a new engine structure. source/sim/view/app files not in the sample are deleted (backed up). Only missing files are added to assets/ (no overwriting).
+# - -Source: replaces source/ game code with the code of the template the project was made from (mealkit.project "templateName": arena = samples/sandbox,
+#   empty = templates/empty + the shared screen flow). Used to move projects that didn't edit the template code to a new engine structure. source/sim/view/app files not in the sample are deleted (backed up). Only missing files are added to assets/ (no overwriting).
 param(
     [Parameter(Mandatory = $true)][string]$Project,
     [switch]$DryRun,
@@ -137,12 +137,14 @@ if ((Test-Path $oldSounds) -and -not (Test-Path $newSounds)) {
 
 # ---------------------------------------------------------------- Game code (-Source)
 if ($Source) {
-    $sample = Get-SampleSource $name
+    $template = Get-ProjectTemplate $Project
+    $sample = Get-SampleSource $name $template
     foreach ($dir in "sim", "view", "app") {
         $folder = Join-Path $Project "source\$dir"
         if (-not (Test-Path $folder)) { continue }
+        $base = (Get-Item $folder).FullName # long form: TEMP paths may be 8.3 short paths, FullName below is always long
         Get-ChildItem $folder -Recurse -File | ForEach-Object {
-            $rel = $_.FullName.Substring($Project.Length + 1)
+            $rel = "source\$dir\" + $_.FullName.Substring($base.Length + 1)
             if (-not $sample.Contains($rel)) {
                 Report "removed" $rel Yellow
                 if (-not $DryRun) { Backup $rel; Remove-Item $_.FullName -Force }
@@ -161,7 +163,7 @@ if ($Source) {
     }
     # Adds source modules used by the sample that the project lacks (existing modules are updated with tools\module.ps1 update)
     $engineModules = Join-Path $MealKitEngine "modules"
-    if (Test-Path $engineModules) {
+    if ($template -eq "arena" -and (Test-Path $engineModules)) {
         foreach ($m in Get-ChildItem $engineModules -Directory) {
             $target = Join-Path $Project "modules\$($m.Name)"
             if (Test-Path $target) { continue }
@@ -170,16 +172,15 @@ if ($Source) {
             $changed++
         }
     }
-    # Adds only assets used by the sample that the project lacks (e.g. assets/game.tuning)
-    $assets = Join-Path $MealKitEngine "assets"
-    Get-ChildItem $assets -Recurse -File | Where-Object { $_.Extension -ne ".autosave" } | ForEach-Object {
-        $rel = "assets\" + $_.FullName.Substring($assets.Length + 1)
+    # Adds only template assets that the project lacks (e.g. assets/game.tuning)
+    foreach ($entry in (Get-SampleAssets $template).GetEnumerator()) {
+        $rel = $entry.Key
         $target = Join-Path $Project $rel
         if (-not (Test-Path $target)) {
             Report "added" $rel Green
             if (-not $DryRun) {
                 New-Item -ItemType Directory -Force (Split-Path -Parent $target) | Out-Null
-                Copy-Item $_.FullName $target
+                Copy-Item $entry.Value $target
             }
             $changed++
         }

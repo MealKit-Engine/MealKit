@@ -1,5 +1,5 @@
 # MealKit UI (hand-written): lobby before a match (solo, hosted room, joined room, Steam lobby). View model: LobbyVm
-# (samples/sandbox/app/Screens.h). Inputs: ready (toggle), body (select), chatDraft (text input, chat.send).
+# (samples/sandbox/app/Screens.h). Inputs: ready (toggle), choice (select, shown when hasChoice), chatDraft (text input, chat.send).
 # Actions: lobby.start (host), lobby.leave, lobby.invite (Steam), chat.send. Text: assets/strings.
 @format ui 1
 board lobby 1920 1080
@@ -65,8 +65,9 @@ board lobby 1920 1080
             fontSize 20
             color $accent
           end
-          text body
-            content {body}
+          text choice
+            content {choice}
+            visible choice
             fontSize 22
             color $textDim
           end
@@ -102,13 +103,15 @@ board lobby 1920 1080
         align center
         gap 12
         visible !connecting
-        text bodyLabel
-          key lobby.body
+        text choiceLabel
+          key lobby.choice
+          visible hasChoice
           fontSize 22
           color $textDim
         end
-        frame bodyChoice
+        frame choice
           size 260 52
+          visible hasChoice
           layout row
           justify center
           align center
@@ -116,7 +119,7 @@ board lobby 1920 1080
           fill $button
           stroke 1 $panelStroke
           radius 10
-          select body body.normal,body.light,body.heavy
+          select choice body.normal,body.light,body.heavy
           on hover fill $buttonHover
           text arrowLeft
             content <

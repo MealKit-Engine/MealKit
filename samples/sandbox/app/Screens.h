@@ -8,7 +8,7 @@
 #include <string>
 
 // View models of the screen flow (title → menu → join → lobby → loading → match (pause, results) → lobby). assets/ui/*.ui binds by field name.
-// Which screen to open and button handling are in app/Flow.cpp. Screens only read these values; only input widgets (name, address, chat, ready, body) write their own fields.
+// Which screen to open and button handling are in app/Flow.cpp. Screens only read these values; only input widgets (name, address, chat, ready, choice) write their own fields.
 namespace sandbox {
 
 MEALKIT_VIEWMODEL(TitleVm) {
@@ -38,7 +38,7 @@ MEALKIT_VIEWMODEL(JoinVm) {
 
 MEALKIT_STRUCT(LobbyRowVm) {
     MEALKIT_FIELD(std::string, name, {}, "이름");
-    MEALKIT_FIELD(std::string, body, {}, "고른 몸");
+    MEALKIT_FIELD(std::string, choice, {}, "로비에서 고른 것 (비면 없음)");
     MEALKIT_FIELD(bool, ready, false, "준비");
     MEALKIT_FIELD(bool, host, false, "방장");
     MEALKIT_FIELD(bool, you, false, "나");
@@ -53,7 +53,8 @@ MEALKIT_VIEWMODEL(LobbyVm) {
     MEALKIT_FIELD(bool, offline, false, "혼자 하기");
     MEALKIT_FIELD(bool, online, false, "Steam 로비 (친구 초대)");
     MEALKIT_FIELD(bool, ready, false, "내 준비 (토글)");
-    MEALKIT_FIELD(mealkit::u32, body, 0, "내 몸 (선택, tables/bodies.table 행)");
+    MEALKIT_FIELD(bool, hasChoice, false, "로비에서 고를 것이 있다 (FlowGame::choices)");
+    MEALKIT_FIELD(mealkit::u32, choice, 0, "내가 고른 것 (선택, FlowGame::choices 번호)");
     MEALKIT_FIELD(bool, canStart, false, "시작할 수 있다 (모두 준비)");
     MEALKIT_FIELD(bool, waiting, false, "방장이 시작하기를 기다린다");
     MEALKIT_FIELD(bool, needReady, false, "방장: 모두 준비하기를 기다린다");
@@ -72,7 +73,7 @@ MEALKIT_VIEWMODEL(PauseVm) {
 MEALKIT_STRUCT(ResultRowVm) {
     MEALKIT_FIELD(mealkit::u32, rank, 1, "순위");
     MEALKIT_FIELD(std::string, name, {}, "이름");
-    MEALKIT_FIELD(mealkit::u32, falls, 0, "떨어진 횟수");
+    MEALKIT_FIELD(mealkit::u32, score, 0, "점수 (게임이 정한 수, FlowGame::score)");
     MEALKIT_FIELD(bool, you, false, "나");
     MEALKIT_FIELD(bool, winner, false, "1위");
     MEALKIT_FIELD(mealkit::Color, color, {}, "플레이어 색");

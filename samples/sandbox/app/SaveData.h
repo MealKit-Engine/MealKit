@@ -16,7 +16,7 @@ MEALKIT_STRUCT(SaveData) {
     MEALKIT_FIELD(mealkit::u32, falls, 0, "내가 떨어진 횟수 (모든 매치)");
     MEALKIT_FIELD(mealkit::u32, pushes, 0, "내 밀치기 수 (모든 매치)");
     MEALKIT_FIELD(mealkit::f32, playSeconds, 0.0f, "플레이 시간 (초)");
-    MEALKIT_FIELD(mealkit::u32, body, 0, "고른 몸 종류 (bodies.table 행 번호, 다음 매치의 로드아웃)");
+    MEALKIT_FIELD(mealkit::u32, lobbyChoice, 0, "로비에서 고른 몸 종류 (bodies.table 행 번호, 다음 매치의 로드아웃)");
     MEALKIT_FIELD(std::string, playerName, {}, "로비에 보이는 내 이름 (비어 있으면 계정·사용자 이름)");
 };
 

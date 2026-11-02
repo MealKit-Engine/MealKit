@@ -1,0 +1,63 @@
+# MealKit scene
+@format scene 2
+
+sun 0.400000006 0.800000012 0.300000012
+sunColor 1 0.949999988 0.850000024
+sky 0.300000012 0.379999995 0.5
+groundColor 0.200000003 0.170000002 0.140000001
+fog 0.5 0.620000005 0.779999971 0.00800000038
+
+entity
+id 1
+name Ground
+kind solid
+position 0 -0.5 0
+rotation 0 0 0 1
+scale 40 1 40
+color FF609676
+flags 1
+end
+
+entity
+id 2
+name Spawn 1
+kind spawn
+position -3 0.899999976 -3
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 3
+name Spawn 2
+kind spawn
+position 3 0.899999976 -3
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 4
+name Spawn 3
+kind spawn
+position -3 0.899999976 3
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 5
+name Spawn 4
+kind spawn
+position 3 0.899999976 3
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end

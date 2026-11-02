@@ -95,18 +95,95 @@ function Rename-GameNamespace([string]$text, [string]$from, [string]$to) {
     return [regex]::Replace($text, '(?<![A-Za-z0-9_:])' + $f + '(?=::)', $to)
 }
 
-function Get-SampleSource([string]$name) {
-    $ns = Get-GameNamespace $name
-    $sample = Join-Path $MealKitEngine "samples\sandbox"
+# Project templates (tools\new_project.ps1 -Template): arena = the sample game (samples/sandbox + the engine's assets/),
+# empty = templates/empty (source/ + assets/) plus the screen flow shared with the sample ($MealKitSharedFlow*).
+$MealKitTemplates = @("arena", "empty")
+$MealKitSharedFlowSource = @("app\Flow.h", "app\Flow.cpp", "app\Screens.h")
+$MealKitSharedFlowAssets = @("ui\title.ui", "ui\menu.ui", "ui\join.ui", "ui\lobby.ui", "ui\loading.ui", "ui\pause.ui", "ui\results.ui",
+    "ui\message.ui", "ui\settings.ui", "ui\subtitles.ui", "ui\theme.ui", "fonts")
+
+# The template a project was made from (mealkit.project "templateName", arena for projects made before it was written)
+function Get-ProjectTemplate([string]$project) {
+    $info = Read-ProjectFile $project
+    if ($info.Contains("templateName") -and $MealKitTemplates -contains $info["templateName"]) { return $info["templateName"] }
+    return "arena"
+}
+
+function Convert-GameSource([string]$text, [string]$name) {
+    $text = $text.Replace("MealKit Sandbox", $name).Replace("sandbox.exe", "$name.exe")
+    return Rename-GameNamespace $text "sandbox" (Get-GameNamespace $name)
+}
+
+# Game code of a template: project-relative path ("source\sim\World.h") → text. Template code is written in namespace sandbox like the sample
+function Get-SampleSource([string]$name, [string]$template = "arena") {
     $files = [ordered]@{}
+    $sample = Join-Path $MealKitEngine "samples\sandbox"
+    if ($template -eq "empty") {
+        $root = Join-Path $MealKitEngine "templates\empty\source"
+        Get-ChildItem $root -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | Sort-Object FullName | ForEach-Object {
+            $files["source\" + $_.FullName.Substring($root.Length + 1)] = Convert-GameSource ([IO.File]::ReadAllText($_.FullName, $MealKitUtf8)) $name
+        }
+        foreach ($rel in $MealKitSharedFlowSource) {
+            $files["source\$rel"] = Convert-GameSource ([IO.File]::ReadAllText((Join-Path $sample $rel), $MealKitUtf8)) $name
+        }
+        return $files
+    }
     foreach ($dir in "sim", "view", "app") {
         $from = Join-Path $sample $dir
         Get-ChildItem $from -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | Sort-Object FullName | ForEach-Object {
-            $text = [IO.File]::ReadAllText($_.FullName, $MealKitUtf8)
-            $text = $text.Replace("MealKit Sandbox", $name).Replace("sandbox.exe", "$name.exe")
-            $text = Rename-GameNamespace $text "sandbox" $ns
-            $files["source\$dir\" + $_.FullName.Substring($from.Length + 1)] = $text
+            $files["source\$dir\" + $_.FullName.Substring($from.Length + 1)] = Convert-GameSource ([IO.File]::ReadAllText($_.FullName, $MealKitUtf8)) $name
         }
+    }
+    return $files
+}
+
+# Assets of a template: project-relative path ("assets\scenes\main.scene") → source file. Text files that are generated (strings) aren't here
+function Get-SampleAssets([string]$template = "arena") {
+    $files = [ordered]@{}
+    $engineAssets = Join-Path $MealKitEngine "assets"
+    $add = {
+        param($root, $item)
+        Get-ChildItem $item -Recurse -File | Where-Object { $_.Extension -ne ".autosave" } | Sort-Object FullName | ForEach-Object {
+            $files["assets\" + $_.FullName.Substring($root.Length + 1)] = $_.FullName
+        }
+    }
+    if ($template -eq "empty") {
+        $own = Join-Path $MealKitEngine "templates\empty\assets"
+        & $add $own $own
+        foreach ($rel in $MealKitSharedFlowAssets) { & $add $engineAssets (Join-Path $engineAssets $rel) }
+    } else {
+        & $add $engineAssets $engineAssets
+    }
+    return $files
+}
+
+# The empty template's strings/<lang>.txt: the engine's lines whose keys the project uses (its .ui files, string literals in its code,
+# its input actions) or the engine itself reads (settings., language., title., sub., game.), with game.title set to the project name
+function Get-TemplateStrings([string]$name, [Collections.IDictionary]$source, [Collections.IDictionary]$assets) {
+    $used = @{}
+    foreach ($path in $assets.Values) {
+        if ([IO.Path]::GetExtension($path) -ne ".ui") { continue }
+        foreach ($line in [IO.File]::ReadAllLines($path, $MealKitUtf8)) {
+            if ($line -match '^\s*(key|placeholder)\s+(\S+)') { $used[$Matches[2]] = $true }
+            if ($line -match '^\s*select\s+\S+\s+(\S+)') { foreach ($k in $Matches[1] -split ",") { $used[$k] = $true } }
+        }
+    }
+    foreach ($text in $source.Values) { foreach ($m in [regex]::Matches($text, '"([a-z]+(?:\.[A-Za-z]+)+)"')) { $used[$m.Groups[1].Value] = $true } }
+    $bindings = $assets["assets\input.bindings"]
+    if ($bindings) { foreach ($line in [IO.File]::ReadAllLines($bindings, $MealKitUtf8)) { if ($line -match '^row\s+(\S+)') { $used["action." + $Matches[1]] = $true } } }
+    $files = [ordered]@{}
+    foreach ($lang in "en", "ko") {
+        $out = [Collections.Generic.List[string]]::new()
+        foreach ($line in [IO.File]::ReadAllLines((Join-Path $MealKitEngine "assets\strings\$lang.txt"), $MealKitUtf8)) {
+            if ($line -match '^\s*([A-Za-z0-9_.]+)\s*=') {
+                $key = $Matches[1]
+                if ($key -eq "game.title") { $out.Add("game.title = $name"); continue }
+                if (-not ($used.Contains($key) -or $key -match '^(settings|language|title|sub|reject|content)\.')) { continue }
+            }
+            $out.Add($line)
+        }
+        $text = ($out -join "`r`n") -replace "(`r`n){3,}", "`r`n`r`n"
+        $files["assets\strings\$lang.txt"] = $text.TrimEnd() + "`r`n"
     }
     return $files
 }

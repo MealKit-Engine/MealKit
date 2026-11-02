@@ -23,6 +23,18 @@
 using namespace mealkit;
 
 namespace sandbox {
+namespace {
+
+// Lobby body choice: string keys in tables/bodies.table row order (the same keys as the select box in ui/lobby.ui)
+constexpr const char* kBodyKeys[] = {"body.normal", "body.light", "body.heavy"};
+
+u32 memberBody(const net::LobbyMember& member) {
+    Loadout l;
+    game::readLobbyLoadout(member, l);
+    return l.body;
+}
+
+} // namespace
 
 void GameSession::loadSave(const std::string& userFolder) {
     if (m_saveLoaded) return;
@@ -38,7 +50,7 @@ void GameSession::lobby(net::LockstepSession& session, const game::PlayOptions& 
     }
     loadSave(userFolder);
     Loadout l;
-    l.body = m_save.body;
+    l.body = m_save.lobbyChoice;
     game::setLoadout(session, l);
 }
 
@@ -96,7 +108,21 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     loadSave(ctx.userFolder);
     // Screen flow: opens screens matching the session phase and handles buttons (menu/lobby/pause/results/chat)
-    m_flow.update(ctx, m_sim.started() ? &m_sim.world() : nullptr, m_save, m_hudVm, m_hud, dt);
+    FlowGame flow;
+    flow.playerColors = look.playerColors;
+    flow.resultsSeconds = look.resultsSeconds;
+    flow.chatShowSeconds = look.chatShowSeconds;
+    flow.choices = kBodyKeys;
+    flow.memberChoice = memberBody;
+    if (m_sim.started()) {
+        const WorldState& s = m_sim.world().state;
+        flow.inMatch = true;
+        flow.results = s.flow.phase == MatchPhase::Results;
+        flow.playerCount = s.playerCount;
+        for (u32 i = 0; i < s.playerCount; ++i) flow.score[i] = s.slots[i].falls;
+        flow.lowestFirst = true; // fewest falls wins
+    }
+    m_flow.update(ctx, flow, m_save, m_hudVm, m_hud, dt);
     if (m_flow.takeSaveChanged()) game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
     if (!m_sim.started()) {
         if (ctx.scene && ctx.scene != m_sceneSource) { // arena shown behind the menu

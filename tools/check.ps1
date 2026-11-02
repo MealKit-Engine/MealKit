@@ -48,8 +48,9 @@ $pathRules = @(
     @('^engine/tests/golden/', 'render'), @('^engine/tests/perf/', 'game'), @('^engine/tests/', 'unit-all'),
     @('^engine/tools/SimCheck', 'editor project'), @('^engine/tools/', 'game'), @('^engine/res/', 'editor'),
     @('^third_party/mkaudio/', 'folder:audio'), @('^third_party/', 'full'),
-    @('^samples/[^/]+/(sim|replays|tests)/', 'det! game editor'), @('^samples/', 'game editor'),
-    @('^assets/sounds', 'folder:audio'), @('^assets/ui/', 'folder:ui'), @('^assets/strings/', 'folder:loc'),
+    @('^samples/[^/]+/(sim|replays|tests)/', 'det! game editor'), @('^samples/sandbox/app/(Flow|Screens)', 'game editor project'),
+    @('^samples/', 'game editor'),
+    @('^assets/sounds', 'folder:audio'), @('^assets/ui/', 'folder:ui project'), @('^assets/strings/', 'folder:loc project'),
     @('^assets/(game\.tuning|scenes/|models/|tables/)', 'det game editor render'), @('^assets/', 'game editor'),
     @('^mealkit\.project$', 'det game editor'),
     @('^(templates/|VERSION$|tools/(new|upgrade|rename)_project|tools/project_common|tools/module\.ps1$)', 'project'),
@@ -646,6 +647,29 @@ if (-not $Quick) {
         $ok = (Test-Path "$projects\CheckGame\.mealkit-template") -and (($output -match "^Done: 0 change").Count -gt 0) -and $layoutOk -and $simOk
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
         return $ok
+    }
+    Invoke-Check project "Empty template builds and plays" {
+        param($log)
+        # tools\new_project.ps1 -Template empty: its own sim/view/app + the screen flow shared with samples/sandbox. Builds the game DLL against
+        # the engine's Editor build, plays 2 bot players in the editor (shadow simulation on), then checks upgrade and layout
+        if (-not (Test-Path "$root\build\Editor\MealKitTargets.cmake")) { return "SKIP: no Editor build (build.bat Editor)" }
+        $projects = Join-Path $env:TEMP "mealkit-check-empty" # must be outside the engine folder
+        Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
+        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\new_project.ps1" -Name EmptyCheck -Path $projects -Template empty 2>&1
+        $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\upgrade_project.ps1" -Project "$projects\EmptyCheck" -Source 2>&1
+        $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layout.ps1" -Project "$projects\EmptyCheck" 2>&1
+        $output | Out-File -Encoding utf8 $log
+        $created = ($output -match "empty template").Count -gt 0 -and ($output -match "^Done: 0 change").Count -gt 0 -and
+                   ($output -match "^OK layout: .* \(0 warning").Count -gt 0
+        $build = "$log.build.txt"
+        $code = Run $build "$projects\EmptyCheck\build.bat" "Editor"
+        $built = $code -eq 0 -and (Has $build "Build OK")
+        $play = "$log.play.txt"
+        if ($built) { Run $play $editor "--project `"$projects\EmptyCheck`" --play --players 2 --bot --frames 300" | Out-Null }
+        $played = $built -and (Has $play "Game module 'EmptyCheck' loaded") -and (Has $play "Match 1 started with 2") -and -not (Has $play "ERROR|desync")
+        Get-Content $build, $play -ErrorAction SilentlyContinue | Add-Content $log
+        if ($created -and $played) { Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue }
+        return $created -and $played
     }
     Invoke-Check project "Module tool (add / update / remove)" {
         param($log)

@@ -1,8 +1,5 @@
 #include "app/Flow.h"
 
-#include "sim/Loadout.h"
-#include "view/ViewTuning.h"
-
 #include "mealkit/core/Version.h"
 #include "mealkit/game/Loadout.h"
 #include "mealkit/game/MatchService.h"
@@ -23,12 +20,6 @@ namespace {
 constexpr i32 kMenuLayer = 10;
 constexpr i32 kResultsLayer = 15;
 constexpr i32 kPauseLayer = 20;
-
-// Body kind names (row order of tables/bodies.table, same keys as the lobby's select box)
-const char* bodyKey(u32 body) {
-    static const char* keys[] = {"body.normal", "body.light", "body.heavy"};
-    return body < 3 ? keys[body] : keys[0];
-}
 
 } // namespace
 
@@ -98,7 +89,7 @@ void Flow::stop(game::GameContext& ctx) {
     m_paused = m_chatOpen = false;
 }
 
-void Flow::update(game::GameContext& ctx, const World* world, SaveData& save, HudVm& hud, ui::ScreenId hudScreen, f64 dt) {
+void Flow::update(game::GameContext& ctx, const FlowGame& game, SaveData& save, HudVm& hud, ui::ScreenId hudScreen, f64 dt) {
     m_time += dt;
     net::LockstepSession& session = ctx.session;
     if (!m_nameLoaded) { // first time: the name from the save (or the engine's default name: account/user name)
@@ -117,7 +108,7 @@ void Flow::update(game::GameContext& ctx, const World* world, SaveData& save, Hu
     case game::MatchPhase::Opening:
     case game::MatchPhase::Connecting:
     case game::MatchPhase::Lobby: target = Screen::Lobby; break;
-    case game::MatchPhase::Running: target = world ? Screen::Match : Screen::Loading; break;
+    case game::MatchPhase::Running: target = game.inMatch ? Screen::Match : Screen::Loading; break;
     case game::MatchPhase::Ended: target = Screen::Message; break;
     }
     if (target != m_screen) show(ctx, target);
@@ -134,9 +125,9 @@ void Flow::update(game::GameContext& ctx, const World* world, SaveData& save, Hu
     }
     case Screen::Menu: updateMenu(ctx, save); break;
     case Screen::Join: updateJoin(ctx); break;
-    case Screen::Lobby: updateLobby(ctx, save); break;
+    case Screen::Lobby: updateLobby(ctx, game, save); break;
     case Screen::Match:
-        if (world) updateMatch(ctx, *world, hud, hudScreen, dt);
+        if (game.inMatch) updateMatch(ctx, game, hud, hudScreen);
         break;
     case Screen::Message:
         m_message.text = endText(ctx);
@@ -230,9 +221,8 @@ void Flow::updateJoin(game::GameContext& ctx) {
     }
 }
 
-void Flow::updateLobby(game::GameContext& ctx, SaveData& save) {
+void Flow::updateLobby(game::GameContext& ctx, const FlowGame& game, SaveData& save) {
     net::LockstepSession& session = ctx.session;
-    const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     const game::MatchPhase phase = ctx.match.phase();
     m_lobby.connecting = phase != game::MatchPhase::Lobby;
     m_lobby.isHost = session.isHost() && !m_lobby.connecting;
@@ -244,13 +234,15 @@ void Flow::updateLobby(game::GameContext& ctx, SaveData& save) {
                                                      : "lobby.joined");
     if (m_lobby.connecting) m_lobby.title = ctx.strings.get("lobby.connecting");
 
-    // My ready/body (the body stays in the save and becomes the next match's loadout: GameSession::lobby)
+    // My ready/choice (the choice stays in the save and becomes the next match's loadout: GameSession::lobby)
     session.setLocalReady(m_lobby.ready);
-    if (m_lobby.body != save.body) {
-        save.body = std::min<u32>(m_lobby.body, 2);
+    const u32 choices = static_cast<u32>(game.choices.size());
+    m_lobby.hasChoice = choices > 0;
+    if (choices > 0 && m_lobby.choice != save.lobbyChoice) {
+        save.lobbyChoice = std::min<u32>(m_lobby.choice, choices - 1);
         m_saveChanged = true;
     }
-    m_lobby.body = save.body;
+    m_lobby.choice = save.lobbyChoice;
 
     const std::vector<net::LobbyMember>& members = session.lobbyMembers();
     m_lobby.playersCount = std::min<u32>(static_cast<u32>(members.size()), net::kMaxPlayers);
@@ -262,10 +254,9 @@ void Flow::updateLobby(game::GameContext& ctx, SaveData& save) {
         row.ready = m.ready;
         row.host = m.host;
         row.you = m.player == session.localPlayer();
-        row.color = look.playerColors[i % look.playerColors.size()];
-        Loadout l;
-        game::readLobbyLoadout(m, l);
-        row.body = ctx.strings.get(bodyKey(l.body));
+        row.color = game.playerColors.empty() ? Color{} : game.playerColors[i % game.playerColors.size()];
+        row.choice.clear();
+        if (choices > 0 && game.memberChoice) row.choice = ctx.strings.get(game.choices[std::min(game.memberChoice(m), choices - 1)]);
         row.ping = m.host || !ctx.settings.values().gameplay.showNetwork
                        ? std::string()
                        : ctx.strings.format("hud.ping", {{"ping", std::to_string(m.pingMs)}});
@@ -307,38 +298,36 @@ void Flow::fillChat(const net::LockstepSession& session, ChatLineVm* lines, u32&
     }
 }
 
-void Flow::fillResults(game::GameContext& ctx, const World& world) {
-    const WorldState& s = world.state;
-    const ViewTuning& look = ctx.viewTuning<ViewTuning>();
+void Flow::fillResults(game::GameContext& ctx, const FlowGame& game) {
     std::array<u32, net::kMaxPlayers> order{};
-    const u32 count = std::min<u32>(s.playerCount, net::kMaxPlayers);
+    const u32 count = std::min<u32>(game.playerCount, net::kMaxPlayers);
     for (u32 i = 0; i < count; ++i) order[i] = i;
-    // In order of fewest falls (player index order on ties)
-    std::stable_sort(order.begin(), order.begin() + count, [&](u32 a, u32 b) { return s.slots[a].falls < s.slots[b].falls; });
+    // Best score first (player index order on ties)
+    std::stable_sort(order.begin(), order.begin() + count, [&](u32 a, u32 b) {
+        return game.lowestFirst ? game.score[a] < game.score[b] : game.score[a] > game.score[b];
+    });
     m_results.rowsCount = count;
     for (u32 i = 0; i < count; ++i) {
         const u32 slot = order[i];
         ResultRowVm& row = m_results.rows[i];
-        row.rank = i > 0 && s.slots[slot].falls == s.slots[order[i - 1]].falls ? m_results.rows[i - 1].rank : i + 1;
+        row.rank = i > 0 && game.score[slot] == game.score[order[i - 1]] ? m_results.rows[i - 1].rank : i + 1;
         row.name = playerName(ctx.session, slot);
-        row.falls = s.slots[slot].falls;
+        row.score = game.score[slot];
         row.you = slot == ctx.session.localPlayer();
         row.winner = row.rank == 1;
-        row.color = look.playerColors[slot];
+        row.color = game.playerColors.empty() ? Color{} : game.playerColors[slot % game.playerColors.size()];
     }
     m_results.isHost = ctx.session.isHost();
-    const f64 left = std::max(0.0, static_cast<f64>(look.resultsSeconds) - (m_time - m_resultsTime));
+    const f64 left = std::max(0.0, static_cast<f64>(game.resultsSeconds) - (m_time - m_resultsTime));
     m_results.secondsLeft = static_cast<u32>(left + 0.999);
     if (m_results.isHost && left <= 0.0) ctx.match.returnToLobby(); // host: everyone back to the lobby shortly
 }
 
-void Flow::updateMatch(game::GameContext& ctx, const World& world, HudVm& hud, ui::ScreenId hudScreen, f64 dt) {
-    (void)dt;
+void Flow::updateMatch(game::GameContext& ctx, const FlowGame& game, HudVm& hud, ui::ScreenId hudScreen) {
     net::LockstepSession& session = ctx.session;
-    const ViewTuning& look = ctx.viewTuning<ViewTuning>();
 
     // Results: when the simulation says it's over (on the same tick for everyone)
-    if (world.state.flow.phase == MatchPhase::Results && !m_ids.results) {
+    if (game.results && !m_ids.results) {
         if (m_ids.pause) ctx.ui.close(m_ids.pause);
         m_ids.pause = 0;
         m_paused = m_chatOpen = false;
@@ -346,7 +335,7 @@ void Flow::updateMatch(game::GameContext& ctx, const World& world, HudVm& hud, u
         m_ids.results = ctx.ui.open("ui/results.ui", kResultsLayer);
         ctx.ui.bind(m_ids.results, m_results);
     }
-    if (m_ids.results) fillResults(ctx, world);
+    if (m_ids.results) fillResults(ctx, game);
 
     // Pause: Esc (menu.pause). When open, the screen's back (ui.back) closes it
     const bool pauseWasOpen = m_paused;
@@ -370,7 +359,7 @@ void Flow::updateMatch(game::GameContext& ctx, const World& world, HudVm& hud, u
     const std::vector<net::ChatMessage>& log = session.chatLog();
     if (!log.empty() && log.back().serial != m_lastChatSerial) {
         m_lastChatSerial = log.back().serial;
-        m_chatShownUntil = m_time + look.chatShowSeconds;
+        m_chatShownUntil = m_time + game.chatShowSeconds;
     }
     fillChat(session, hud.chat.data(), hud.chatCount, 5);
     if (!m_chatOpen && m_time > m_chatShownUntil) hud.chatCount = 0;
