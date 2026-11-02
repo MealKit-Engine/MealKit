@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.12 — Job System (2026-11-02)
+
+### [x] Stage 4: Job System (done 2026-11-02)
+- **Engine** `jobs/Jobs.h` (new folder `jobs`, right after `core`/`platform` in the layer order; core sources, so headless/Linux/macOS have it): one shared worker pool = Jolt's `JobSystemThreadPool` (no new library; decided with the user, `docs/DECISIONS.md` 2026-11-02). Reference-counted `acquire`/`release` (core count - 1 workers, at most 6; explicit so no thread is joined during DLL unload), `parallelFor(count, minChunk, fn)` (the calling thread takes the first chunk and helps through the barrier), `run(fn)` → `Task` polled with `isReady()`, `joltJobSystem()` for physics.
+- **Physics**: `PhysicsWorld::init(maxBodies, 0)` (the default) steps on the shared pool, so shadow/rewind worlds no longer each start their own threads; an explicit thread count still makes a private pool (thread count tests). Results don't depend on the pool (Jolt `CROSS_PLATFORM_DETERMINISTIC`).
+- **Render**: `render::cullInstances` (DrawList.h) culls all buckets in parallel per instance (balanced when one bucket, e.g. scatter grass, holds most instances) and compacts in bucket order, so draws are identical to the serial loop. Used by `DrawList::submit` (main view) and `Renderer::drawShadows` (each cascade). The renderer holds the pool from `init` to `shutdown`.
+- **Checked**: unit test `jobs/jobs_parallel_for` (each index once, inline without a pool, Task); `check.ps1 -Changed` (43 groups incl. determinism, shadow/rewind, golden DX12/Vulkan).
+- **Not yet**: animation poses are still sampled one by one in `asset::addModel` as the game calls it (parallel poses need a batched add API; goes with "Animation LOD" in the optimization candidates); no `--benchmark` before/after numbers yet (the performance baseline item).
+
 ## v0.7.11 — Scatter brush (2026-11-02)
 
 ### [x] Stage 4: Heightmap terrain, part 2: scatter brush (done 2026-11-02)

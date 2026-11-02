@@ -10,6 +10,7 @@ $engineSrc = Join-Path $root "engine\src\mealkit"
 # Front to back. Multiple folders in one slot may include each other (only the base core/platform)
 $layers = @(
     @("core", "platform"), # base
+    @("jobs"), # shared worker pool (Jolt JobSystemThreadPool), used by physics and the view side
     @("net"), @("physics"), @("sim"), @("data"), # simulation side (used by headless)
     @("live"), # dev tool connection (live connection server, tool contract)
     @("loc"), @("scene"), @("rhi"), @("render"), @("asset"), @("online"), @("debug"), # view side

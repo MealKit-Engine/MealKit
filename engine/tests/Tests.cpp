@@ -2,6 +2,8 @@
 //   mealkit_tests.exe          all tests, PASS or FAILED at the end
 //   mealkit_tests.exe --only net,physics   only tests of those areas (engine folder names)
 //   The "detmath-bits <hash>" line in the output is a hash of deterministic math result bits. It must match across build configurations.
+#include <atomic>
+
 #include "mealkit/core/DetMath.h"
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
@@ -15,6 +17,7 @@
 #include "mealkit/game/Save.h"
 #include "mealkit/game/Simulation.h"
 #include "mealkit/input/Actions.h"
+#include "mealkit/jobs/Jobs.h"
 #include "mealkit/loc/Strings.h"
 #include "mealkit/core/Clock.h"
 #include "mealkit/net/Lockstep.h"
@@ -2087,6 +2090,30 @@ std::vector<u64> runPhysics(physics::PhysicsWorld& w, std::vector<physics::BodyI
         hashes.push_back(h.value);
     }
     return hashes;
+}
+
+TEST_CASE(jobs, jobs_parallel_for) {
+    // Without a pool everything runs inline; with one each index is visited exactly once
+    std::vector<u32> hits(10000, 0);
+    const auto visit = [&](u32 begin, u32 end) {
+        for (u32 i = begin; i < end; ++i) hits[i] += 1;
+    };
+    jobs::parallelFor(static_cast<u32>(hits.size()), 64, visit);
+    jobs::acquire();
+    TEST_CHECK(jobs::workerCount() >= 1);
+    jobs::parallelFor(static_cast<u32>(hits.size()), 64, visit);
+    jobs::parallelFor(3, 64, visit); // smaller than one chunk: inline
+    bool ok = true;
+    for (size_t i = 0; i < hits.size(); ++i) ok = ok && hits[i] == (i < 3 ? 3u : 2u);
+    TEST_CHECK(ok);
+    std::atomic<u32> done{0};
+    {
+        jobs::Task task = jobs::run([&] { done = 7; });
+        task.wait();
+        TEST_CHECK(task.isReady() && done == 7);
+    } // Tasks end before the pool's last release
+    jobs::release();
+    TEST_CHECK(jobs::workerCount() == 0);
 }
 
 TEST_CASE(physics, physics_snapshot) {

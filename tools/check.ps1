@@ -32,7 +32,7 @@ $allGroups = @("static", "unit", "det", "game", "tools", "render", "editor", "pr
 # Groups that run when an engine folder (engine/src/mealkit/<folder>) is modified. core/platform (and folders not in the table) run everything except export.
 # Unit tests run only the area with the same name (TEST_CASE(area, ...)). "det!" = the determinism group regardless of the determinism key
 $folderGroups = @{
-    net = "unit det game editor"; physics = "unit det game editor"; sim = "unit det game editor"; data = "unit det game editor"
+    jobs = "unit det game editor render"; net = "unit det game editor"; physics = "unit det game editor"; sim = "unit det game editor"; data = "unit det game editor"
     scene = "unit det game editor render"; asset = "unit det game render"; game = "unit det! game editor project"
     live = "unit game tools"; loc = "unit game editor"; input = "unit game editor"; settings = "unit game"; ui = "unit game tools editor"
     rhi = "unit game render"; render = "unit game render"; online = "game"; debug = "game editor"; audio = "game"; feedback = "game editor"

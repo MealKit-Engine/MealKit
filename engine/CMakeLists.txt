@@ -160,6 +160,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/input/Actions.cpp
     src/mealkit/loc/Strings.h
     src/mealkit/loc/Strings.cpp
+    src/mealkit/jobs/Jobs.h
+    src/mealkit/jobs/Jobs.cpp
     src/mealkit/physics/PhysicsWorld.h
     src/mealkit/physics/PhysicsWorld.cpp
     src/mealkit/platform/Paths.h
