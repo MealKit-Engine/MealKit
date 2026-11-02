@@ -72,6 +72,14 @@ if defined EDITOR_KIND if /I not "%PROJECT_DIR%"=="%MEALKIT_ROOT%" (
     )
 )
 
+rem Export cooks the assets with the development Release exe (game/Cook.h), so bring that up to date first
+if /I "%CONFIG%"=="Export" (
+    call "%~f0" "%PROJECT_DIR%" Release || (
+        echo [MealKit] The Release build used for cooking failed.
+        exit /b 1
+    )
+)
+
 set BUILD_DIR=%PROJECT_DIR%\build\%BUILD_NAME%
 rem Editor builds are rebuilt often (hot reload): configure only once, Ninja re-runs CMake when CMakeLists change.
 if defined EDITOR_KIND if exist "%BUILD_DIR%\build.ninja" if exist "%BUILD_DIR%\CMakeCache.txt" goto build

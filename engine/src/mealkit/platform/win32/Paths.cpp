@@ -1,6 +1,8 @@
 // Windows part of files/folders: executable location, opening UTF-8 paths, atomic replace-writes, file times, user folder.
 #include "mealkit/platform/Paths.h"
 
+#include "mealkit/platform/Pack.h"
+
 #include <filesystem>
 #include <share.h>
 #include <windows.h>
@@ -48,6 +50,7 @@ std::string executableDirectory() {
 }
 
 FILE* openFile(const std::string& path, const char* mode) {
+    if (FILE* packed = pack::open(path, mode)) return packed;
     // Readable/writable even when opened elsewhere (like POSIX): bug reports read the input recording being written
     return _wfsopen(fromUtf8(path).c_str(), widen(mode).c_str(), _SH_DENYNO);
 }
@@ -69,11 +72,13 @@ bool writeTextFile(const std::string& path, const std::string& text) {
 }
 
 unsigned long long fileWriteTime(const std::string& path) {
+    if (const unsigned long long t = pack::writeTime(path)) return t;
     unsigned long long t = 0;
     return fileTimes(path, nullptr, &t) ? t : 0;
 }
 
 unsigned long long fileCreationTime(const std::string& path) {
+    if (const unsigned long long t = pack::writeTime(path)) return t;
     unsigned long long t = 0;
     return fileTimes(path, &t, nullptr) ? t : 0;
 }

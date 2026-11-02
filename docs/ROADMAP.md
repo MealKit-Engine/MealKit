@@ -116,7 +116,7 @@ Features that must not be missing to actually ship a game. Most are independent 
 - [x] Minimum spec hardware measurement and cross-PC determinism — v0.4.3, GPU checks, `--system-info`, clang-cl comparison. **Hardware and Intel↔AMD tests weren't run and are assumed passed** (decided 2026-10-18), details in `docs/CHANGELOG.md`
 
 - [x] Real Steam verification — **actual connection tests weren't run and are assumed passed** (decided 2026-10-18), details in `docs/CHANGELOG.md`
-- [x] Online service layer (`mealkit/online/`, Steam and none backends) — v0.4.3, details in `docs/CHANGELOG.md`. Achievements, stats, and leaderboards are a stage 4 item, cloud saves are in the "Saves" item, and enabling several backends together is added with stage 3 EOS
+- [x] Online service layer (`mealkit/online/`, Steam and none backends) — v0.4.3, details in `docs/CHANGELOG.md`. Achievements, stats, and leaderboards are after v1.0, cloud saves are in the "Saves" item, and enabling several backends together is added with stage 3 EOS
 
 - [x] Platform layer (`mealkit/platform/`, OS implementations in `win32/`, `posix/`, `check_platform.ps1`) — v0.4.3, details in `docs/CHANGELOG.md`. SDL3 evaluation moved to the audio/gamepad items (decided 2026-10-18)
 
@@ -371,19 +371,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ### [x] Spatial audio and interactive music — v0.7.13 (MealKit-Audio v0.3.0), details in `docs/CHANGELOG.md`
 
-### [ ] Achievements, leaderboards, stats (online service layer)
-- The game defines achievement conditions as simulation events (round wins, kill counts), and the view side reads the events and records them to the online service layer (Steam / EOS / console trophies). The achievement list is one piece of data, exported for each service's registration. Without a service, it's kept only in stats in the user data folder.
-- **Determinism**: no effect (only reads results).
-
-### [ ] Asset cooking + pack files
-- **Why**: currently the game parses glTF and builds optimizations/LODs with meshoptimizer on every run. Source assets are also exposed as is in the shipping folder.
-- **Approach**: at shipping build time, models, scenes, and textures are converted to engine-specific binaries and put into one pack file (`<name>.pak`). The editor keeps using the sources.
-- **What goes in**: starting from the start scene and the scene list in project settings, follow references (scenes → models/prefabs, tuning/`.ui`/feedback table → sounds/effects/images) and include **only what's reached**. There's no way to include whole folders like Unity's Resources.
-  Assets opened only via path strings in code can't be followed by references, so they're listed in the project settings' "always include" list (the shipping build warns if missed).
-- **Effect**: near-instant loading, and cgltf/meshoptimizer removed from the shipping exe.
-- **Caution**: physics hull points must be extracted from the original vertices before optimization (determinism). The content hash is computed from the cooked results, and there's an option to run editor play on the cooked version too, to prevent "works in the editor but differs in the game" bugs.
-- **Build stamp**: Export writes engine version, git commit, and content hash into `build.txt` next to the exe; bug reports and `--help` show it.
-- **Async loading** stays deferred; its shape when it comes is in `docs/DECISIONS.md` 2026-10-29.
+### [x] Asset cooking + pack files — v0.7.14, details in `docs/CHANGELOG.md`
 
 ### [ ] Performance baseline check
 - `check.ps1` runs `--benchmark` on a fixed scene and compares frame/GPU times and memory against `engine/tests/perf/baseline.txt` with a tolerance. **Warning only** (CI machines differ); `-UpdatePerf` rewrites the baseline on the measuring PC.
@@ -543,6 +531,7 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 - [ ] UI features after v1.0 (one at a time as games need them, each checked against the 11th gen Xe budget): keyframe timeline animation (deferred table, when state transitions aren't enough), virtualized long lists (only visible rows laid out), right-to-left and complex-script shaping (when such a language is added), per-player focus for local multiplayer (with "Local multiplayer on one PC"), optional blur (deferred table), UI cost numbers (quads, layout ms) in the benchmark budget
 
 - [ ] Audio features after v1.0 (in MealKit-Audio, runtime + tool together, one at a time): bus effect chains (EQ, compressor/limiter, delay) and sidechain compression in place of volume-only ducking, master limiter + loudness meter (LUFS) in the tool, clip sets loaded/unloaded per scene with a memory budget warning, offline-render golden tests for events (the deviceless `render` already exists), a voice/profiler timeline in the tool over the live `audio/` state, dialogue lines (queue, priority, tied to subtitles), Steam Audio HRTF (deferred table, when headphone positioning is core)
+- [ ] Achievements, leaderboards, stats after v1.0 (moved from stage 4 on 2026-11-02, `docs/DECISIONS.md`): reviewed again once the platform SDK work (Steam, EOS, console trophies) is confirmed. Plan as it stood: the game defines achievement conditions as simulation events, the view side reads them and records them through the online service layer, the achievement list is one piece of data exported for each service's registration, and without a service stats are kept in the user data folder. No effect on determinism (only reads results)
 
 ---
 
@@ -553,7 +542,7 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 2. ~~RHI layer (DX12 + Vulkan)~~ (later graphics items on both backends together) → ~~benchmark mode (+ GPU budget, memory numbers)~~ → ~~shader hot reload~~ → ~~frustum culling~~ → ~~asset hot reload~~ → ~~Blender add-on~~ → ~~asset budget warnings~~ → ~~graphics regression tests~~ → ~~GPU capture/view modes~~ → ~~textures/materials part 1 (texture cache, glTF PBR)~~ → ~~style presets~~ → ~~look dev~~ → ~~sky HDRI/ambient light~~ → ~~reflection probes~~ → ~~point lights~~ → ~~shadows~~ → ~~skeletal animation (+ pose sampling for the simulation)~~ → ~~particles (own runtime)~~ → ~~post-processing (uber pass + LUT)~~ → ~~dynamic resolution~~ **(v0.6 done)**
 - Editor polish (after stage 2, before stage 3): layout → log console → notifications → command palette → preferences/F1 → scene tree search → multi-select → viewport toolbar → snapping → camera controls → inspector conveniences → performance panel → jump to code → debug drawing → multiple scenes → play from here → asset browser **(v0.6.x)**
 3. ~~Replays~~ → ~~desync diagnosis~~ → ~~mid-match joining~~ → ~~bug report bundles~~ → ~~host migration~~ → ~~EOS backend part 1~~ → ~~crash reports (pulled from stage 4)~~ **(v0.7)**. Not blocking v0.7: EOS measurements (two PCs, portal setup). If the first game genre fits: local multiplayer on one PC
-4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → ~~character movement modes (kinematic → floating → active ragdoll)~~ → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → ~~prefabs~~ → ~~terrain (+ scatter brush)~~ → ~~Job System~~ → ~~spatial audio/interactive music~~ → achievements/leaderboards (online services) → asset cooking + pack files → multiple project templates → cookbook **(v0.8)**
+4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → ~~character movement modes (kinematic → floating → active ragdoll)~~ → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → ~~prefabs~~ → ~~terrain (+ scatter brush)~~ → ~~Job System~~ → ~~spatial audio/interactive music~~ → ~~asset cooking + pack files~~ → multiple project templates → cookbook **(v0.8)**
 5. Cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v0.9)** → contracts frozen **(v1.0)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
 - Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects → health/damage → procedural generation → inventory → minimap → ai)
 - Tool suite (separate from stages, start decided by the user): ~~contract between tools~~ → ~~Audio 1 (layer split inside the engine)~~ → ~~Audio 2 (separate repo)~~ → ~~Audio 3 (authoring tool)~~ → ~~contract library~~ → UI 1 (layer split inside the engine) → next tool. UI 2 (separate repo, earliest after v1.0) when a use appears, UI 3 (preview tool) when a designer appears. UI/Audio features after v1.0

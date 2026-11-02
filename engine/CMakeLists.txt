@@ -166,6 +166,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/physics/PhysicsWorld.cpp
     src/mealkit/platform/Paths.h
     src/mealkit/platform/Paths.cpp
+    src/mealkit/platform/Pack.h
+    src/mealkit/platform/Pack.cpp
     src/mealkit/platform/System.h
     src/mealkit/platform/System.cpp
     src/mealkit/platform/Input.h   # header only (key/mouse state, read by input actions)
@@ -177,6 +179,9 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/asset/ModelCache.h
     src/mealkit/asset/Environment.h # declarations only (baking in Environment.cpp is front end, called by the ModelCache::setRenderer inline)
     src/mealkit/asset/ModelCache.cpp
+    src/mealkit/asset/Cooked.h
+    src/mealkit/asset/Cooked.cpp
+    src/mealkit/asset/ModelImport.cpp # glTF import, only with MEALKIT_ASSET_IMPORT (empty in shipping builds)
     src/mealkit/asset/Terrain.h
     src/mealkit/asset/Scatter.h
     src/mealkit/asset/Scatter.cpp
@@ -242,6 +247,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/game/GameMain.cpp
     src/mealkit/game/BugReport.h
     src/mealkit/game/BugReport.cpp
+    src/mealkit/game/Cook.h
+    src/mealkit/game/Cook.cpp
     src/mealkit/render/Renderer.cpp
     src/mealkit/asset/TextureCache.cpp
     src/mealkit/asset/Environment.cpp
@@ -387,6 +394,13 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     endif()
 endif()
 
+# Asset import (asset/Cooked.h): glTF reading (cgltf) and mesh optimization (meshoptimizer) only in builds that load source assets:
+# dev builds, the editor, headless. The shipping exe (Export, no debug UI) reads cooked assets from the pack only, so those aren't linked into it
+if(MEALKIT_DEBUG_UI OR MEALKIT_HEADLESS_ONLY)
+    target_compile_definitions(${mealkit_core_target} PUBLIC MEALKIT_ASSET_IMPORT=1)
+else()
+    target_compile_definitions(${mealkit_core_target} PUBLIC MEALKIT_ASSET_IMPORT=0)
+endif()
 target_compile_definitions(${mealkit_core_target} PUBLIC
     MEALKIT_VERSION="${MEALKIT_VERSION}"
     MEALKIT_DOCS_URL="${MEALKIT_DOCS_URL}"

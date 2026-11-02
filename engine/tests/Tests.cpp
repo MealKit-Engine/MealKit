@@ -28,6 +28,7 @@
 #include "mealkit/audio/Audio.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/platform/Input.h"
+#include "mealkit/platform/Pack.h"
 #include "mealkit/platform/Paths.h"
 #include "mealkit/scene/Scene.h"
 #include "mealkit/sim/Commands.h"
@@ -38,6 +39,7 @@
 #include "mealkit/sim/TickTimer.h"
 #if MEALKIT_TEST_UI
 #include "mealkit/asset/AnimStates.h"
+#include "mealkit/asset/Cooked.h"
 #include "mealkit/asset/Cutscene.h"
 #include "mealkit/camera/Brain.h"
 #include "mealkit/asset/Environment.h"
@@ -746,6 +748,84 @@ TEST_CASE(core, zip_files) {
     removeFile(path);
     TEST_CHECK(!readZip(path, out, error));
 }
+
+TEST_CASE(platform, pack_files) {
+    // Writer → mount: paths under the pack's folder read from the pack, findAsset sees only the pack, unmount restores the disk
+    const std::string dir = executableDirectory() + "/test_pack";
+    createDirectories(dir);
+    PackWriter w;
+    const std::string big(5000, 'x');
+    w.add("assets/ui/a.ui", "hello");
+    w.add("assets/ui/deep/b.txt", big);           // compresses
+    w.add("assets/sounds/c.wav", "RIFF", false); // stored
+    w.add("mealkit.project", "name packed\n");
+    w.add("assets/ui/a.ui", "hello again");       // same path: last wins
+    TEST_CHECK(w.count() == 4);
+    const u64 hash = w.contentHash();
+    std::string error;
+    TEST_CHECK(w.write(dir + "/game.pak", error));
+    TEST_CHECK(!mountPack(dir + "/missing.pak", error) && !packsMounted());
+    TEST_CHECK(mountPack(dir + "/game.pak", error) && packsMounted() && mountedPackHash() == hash);
+    std::string text;
+    TEST_CHECK(readTextFile(dir + "/assets/ui/a.ui", text) && text == "hello again");
+    TEST_CHECK(readTextFile(dir + "\\assets\\ui\\deep\\b.txt", text) && text == big);
+    TEST_CHECK(fileExists(dir + "/assets/sounds/c.wav") && directoryExists(dir + "/assets/ui/deep") && !fileExists(dir + "/assets/x"));
+    const std::string root = packRoot(); // dir with '/' separators
+    TEST_CHECK(findAssetFile("ui/a.ui") == root + "/assets/ui/a.ui" && findAsset("assets/nope.ui").empty());
+    TEST_CHECK(findAsset(game::kProjectFileName) == root + "/mealkit.project");
+    TEST_CHECK((listFiles(dir + "/assets/ui") == std::vector<std::string>{"a.ui"}) &&
+               (listFiles(dir + "/assets/ui/deep", ".txt") == std::vector<std::string>{"b.txt"}) &&
+               (listDirectories(dir + "/assets") == std::vector<std::string>{"sounds", "ui"}));
+    TEST_CHECK(fileWriteTime(dir + "/assets/ui/a.ui") == fileWriteTime(dir + "/game.pak") && fileWriteTime(dir + "/assets/ui/a.ui") != 0);
+    if (FILE* f = openFile(dir + "/assets/sounds/c.wav", "rb")) {
+        char buf[8] = {};
+        TEST_CHECK(fread(buf, 1, sizeof(buf), f) == 4 && std::string(buf) == "RIFF");
+        fclose(f);
+    } else TEST_CHECK(false);
+    unmountPacks();
+    TEST_CHECK(!packsMounted() && !fileExists(dir + "/assets/ui/a.ui"));
+    removeFile(dir + "/game.pak");
+}
+
+#if MEALKIT_ASSET_IMPORT
+TEST_CASE(asset, cooked_assets) {
+    // Import → cooked bytes → read back gives the same model (shipping reads only this), and the loaded model matches the source path
+    asset::CookedModel cooked;
+    std::string error;
+    const std::string file = asset::ModelCache::resolve("models/characters/rig_figure.glb");
+    TEST_CHECK(asset::importModel(file, cooked, nullptr, error));
+    const std::string bytes = asset::writeCookedModel(cooked);
+    asset::CookedModel back;
+    TEST_CHECK(asset::readCookedModel(bytes, back, error));
+    TEST_CHECK(back.fileHash == cooked.fileHash && back.hullPoints.size() == cooked.hullPoints.size() &&
+               std::memcmp(back.hullPoints.data(), cooked.hullPoints.data(), back.hullPoints.size() * sizeof(Vec3)) == 0);
+    TEST_CHECK(back.skeleton.joints.size() == 8 && back.skeleton.joints[0].name == "root" && back.clips.size() == 3 &&
+               back.clips[0].poses.size() == cooked.clips[0].poses.size() && back.lods.size() == cooked.lods.size() &&
+               back.lods[0].indices == cooked.lods[0].indices && back.lods[0].skin.size() == back.lods[0].vertices.size() &&
+               back.materials.size() == cooked.materials.size());
+    TEST_CHECK(!asset::readCookedModel(bytes.substr(0, bytes.size() - 1), back, error));
+    TEST_CHECK(!asset::readCookedModel("junk", back, error));
+
+    std::vector<asset::CameraClip> clips, clipsBack;
+    TEST_CHECK(asset::loadCameraClips(findAssetFile("models/cutscenes/intro.glb"), clips, error) && !clips.empty());
+    TEST_CHECK(asset::readCameraClips(asset::writeCameraClips(clips), clipsBack, error) && clipsBack.size() == clips.size() &&
+               clipsBack[0].keys.size() == clips[0].keys.size() && clipsBack[0].duration == clips[0].duration);
+
+    // A cooked file next to a missing source loads like the source (pack files put only cooked files in)
+    const std::string dir = executableDirectory() + "/test_cooked";
+    createDirectories(dir + "/assets/models");
+    PackWriter w;
+    w.add("assets/models/rig.glb" + std::string(asset::kCookedModelSuffix), bytes);
+    TEST_CHECK(w.write(dir + "/c.pak", error) && mountPack(dir + "/c.pak", error));
+    {
+        asset::ModelCache models;
+        const asset::Model* m = models.get("models/rig.glb");
+        TEST_CHECK(m && m->skinned() && m->bones == 8 && m->fileHash == cooked.fileHash && m->lodCount == cooked.lods.size());
+    }
+    unmountPacks();
+    removeFile(dir + "/c.pak");
+}
+#endif
 
 TEST_CASE(game, bug_report) {
     // Bundle = input recording + info + log (screenshot omitted if absent). The editor extracts replay.rec and plays it

@@ -4,3 +4,4 @@ name sandbox
 scene scenes/arena.scene
 game.defaultPort 27015
 game.defaultMaxPlayers 4
+packInclude models/characters/rig_figure.glb

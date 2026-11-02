@@ -1,6 +1,8 @@
 // Parts of files/folders that std::filesystem can do (common to all platforms). OS calls are in win32/Paths.cpp and posix/Paths.cpp.
 #include "mealkit/platform/Paths.h"
 
+#include "mealkit/platform/Pack.h"
+
 #include <algorithm>
 #include <filesystem>
 #include <string_view>
@@ -28,6 +30,10 @@ const std::string& projectRoot() { return projectRootStorage(); }
 std::string findAsset(const std::string& relative) {
     std::error_code ec;
     const fs::path rel = fromUtf8(relative);
+    if (packsMounted()) { // only what's in a pack (platform/Pack.h): missing files show up the same in every build
+        const std::string candidate = packRoot() + "/" + relative;
+        return pack::isFile(candidate) || pack::isDirectory(candidate) ? candidate : std::string();
+    }
     if (!projectRoot().empty()) {
         const fs::path candidate = fromUtf8(projectRoot()) / rel;
         return fs::exists(candidate, ec) ? toUtf8(candidate) : std::string();
@@ -58,11 +64,13 @@ std::string assetFilePath(const std::string& assetPath) {
 std::string findAssetFile(const std::string& assetPath) { return findAsset(assetFilePath(assetPath)); }
 
 bool fileExists(const std::string& path) {
+    if (pack::isFile(path)) return true;
     std::error_code ec;
     return fs::is_regular_file(fromUtf8(path), ec);
 }
 
 bool directoryExists(const std::string& path) {
+    if (pack::isDirectory(path)) return true;
     std::error_code ec;
     return fs::is_directory(fromUtf8(path), ec);
 }
@@ -72,6 +80,7 @@ std::string fileName(const std::string& path) { return toUtf8(fromUtf8(path).fil
 std::string parentDirectory(const std::string& path) { return toUtf8(fromUtf8(path).parent_path()); }
 
 bool readTextFile(const std::string& path, std::string& out) {
+    if (pack::read(path, out)) return true;
     FILE* f = openFile(path, "rb");
     if (!f) return false;
     out.clear();
@@ -103,6 +112,7 @@ bool moveFile(const std::string& from, const std::string& to) {
 
 std::vector<std::string> listFiles(const std::string& directory, const char* extension) {
     std::vector<std::string> out;
+    if (pack::list(directory, false, extension, out)) return out;
     std::error_code ec;
     for (const auto& entry : fs::directory_iterator(fromUtf8(directory), ec)) {
         if (!entry.is_regular_file(ec)) continue;
@@ -115,6 +125,7 @@ std::vector<std::string> listFiles(const std::string& directory, const char* ext
 
 std::vector<std::string> listDirectories(const std::string& directory) {
     std::vector<std::string> out;
+    if (pack::list(directory, true, nullptr, out)) return out;
     std::error_code ec;
     for (const auto& entry : fs::directory_iterator(fromUtf8(directory), ec))
         if (entry.is_directory(ec)) out.push_back(toUtf8(entry.path().filename()));

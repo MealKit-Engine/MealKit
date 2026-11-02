@@ -1,6 +1,8 @@
 // POSIX part of files/folders (Linux/macOS headless): executable location, atomic replace-writes, file times, user folder.
 #include "mealkit/platform/Paths.h"
 
+#include "mealkit/platform/Pack.h"
+
 #include <cstdlib>
 #include <ctime>
 #include <filesystem>
@@ -35,7 +37,10 @@ std::string executableDirectory() {
     return ec ? std::string(".") : exe.parent_path().string();
 }
 
-FILE* openFile(const std::string& path, const char* mode) { return std::fopen(path.c_str(), mode); }
+FILE* openFile(const std::string& path, const char* mode) {
+    if (FILE* packed = pack::open(path, mode)) return packed;
+    return std::fopen(path.c_str(), mode);
+}
 
 bool writeTextFile(const std::string& path, const std::string& text) {
     const std::string temp = path + ".tmp";
@@ -54,6 +59,7 @@ bool writeTextFile(const std::string& path, const std::string& text) {
 
 // Times are Unix time in nanoseconds
 unsigned long long fileWriteTime(const std::string& path) {
+    if (const unsigned long long t = pack::writeTime(path)) return t;
     struct stat st{};
     if (stat(path.c_str(), &st) != 0) return 0;
 #if defined(__APPLE__)
@@ -64,6 +70,7 @@ unsigned long long fileWriteTime(const std::string& path) {
 }
 
 unsigned long long fileCreationTime(const std::string& path) {
+    if (const unsigned long long t = pack::writeTime(path)) return t;
 #if defined(__APPLE__)
     struct stat st{};
     if (stat(path.c_str(), &st) != 0) return 0;

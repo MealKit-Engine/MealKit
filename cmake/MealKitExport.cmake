@@ -1,6 +1,6 @@
 # Build the shipping folder (run by the game_export target via cmake -P).
-# Input: GAME_EXE, ASSETS_DIR, PROJECT_FILE, OUT_DIR, STEAM_DLL/EOS_DLL (empty if absent), STEAM_APP_ID, NOTICES (merged notices), EXE_BUDGET_MB
-foreach(var GAME_EXE ASSETS_DIR PROJECT_FILE OUT_DIR NOTICES)
+# Input: GAME_EXE, PACK (cooked by <game>.exe --cook, game/Cook.h), PROJECT_FILE, ENGINE_VERSION, OUT_DIR, STEAM_DLL/EOS_DLL (empty if absent), STEAM_APP_ID, NOTICES (merged notices), EXE_BUDGET_MB
+foreach(var GAME_EXE PACK PROJECT_FILE OUT_DIR NOTICES)
     if(NOT ${var})
         message(FATAL_ERROR "MealKitExport: ${var} is not set")
     endif()
@@ -22,47 +22,36 @@ file(REMOVE_RECURSE "${OUT_DIR}")
 file(MAKE_DIRECTORY "${OUT_DIR}")
 
 file(COPY "${GAME_EXE}" DESTINATION "${OUT_DIR}")
-if(EXISTS "${ASSETS_DIR}")
-    file(COPY "${ASSETS_DIR}" DESTINATION "${OUT_DIR}"
-        PATTERN "*.autosave" EXCLUDE
-        PATTERN ".gitkeep" EXCLUDE)
-else()
-    message(WARNING "MealKitExport: no assets folder at ${ASSETS_DIR}")
+# Game data: one pack (platform/Pack.h) holding the cooked assets the game reaches and mealkit.project. No assets folder or caches
+if(NOT EXISTS "${PACK}")
+    message(FATAL_ERROR "MealKitExport: no pack at ${PACK} (the cook step failed, see above)")
 endif()
-get_filename_component(project_dir "${PROJECT_FILE}" DIRECTORY)
-# Source module assets (docs/MODULES.md): modules/<name>/assets/ → shipping folder modules/<name>/assets/ (asset path "modules/<name>/...")
-file(GLOB module_asset_dirs LIST_DIRECTORIES true "${project_dir}/modules/*/assets")
-foreach(dir IN LISTS module_asset_dirs)
-    get_filename_component(module_dir "${dir}" DIRECTORY)
-    get_filename_component(module_name "${module_dir}" NAME)
-    file(COPY "${dir}" DESTINATION "${OUT_DIR}/modules/${module_name}"
-        PATTERN "*.autosave" EXCLUDE
-        PATTERN ".gitkeep" EXCLUDE)
-endforeach()
-# Model texture cache (asset/TextureCache.h): shipping builds don't compress, they only read BC files in cache/textures next to the exe.
-# The cache is made when the editor or a dev build loads a model (if missing, that texture shows white and is logged)
-# Same for the sky HDRI cache (asset/Environment.h): shipping builds don't bake, they only read cache/environments next to the exe
-file(REMOVE_RECURSE "${OUT_DIR}/cache")
-foreach(cache textures environments)
-    if(EXISTS "${project_dir}/build/cache/${cache}")
-        file(COPY "${project_dir}/build/cache/${cache}" DESTINATION "${OUT_DIR}/cache")
-    endif()
-endforeach()
+get_filename_component(exe_stem "${GAME_EXE}" NAME_WE)
+file(COPY_FILE "${PACK}" "${OUT_DIR}/${exe_stem}.pak")
 file(COPY "${NOTICES}" DESTINATION "${OUT_DIR}")
 
-# Project settings (the game reads the start scene etc.). The engine/engineVersion lines containing dev PC paths are removed.
-if(EXISTS "${PROJECT_FILE}")
-    file(STRINGS "${PROJECT_FILE}" project_lines ENCODING UTF-8)
-    set(project_text "")
-    foreach(line IN LISTS project_lines)
-        if(NOT line MATCHES "^[ \t]*(engine|engineVersion)([ \t=]|$)")
-            string(APPEND project_text "${line}\n")
-        endif()
-    endforeach()
-    file(WRITE "${OUT_DIR}/mealkit.project" "${project_text}")
-else()
-    message(WARNING "MealKitExport: no project file at ${PROJECT_FILE} - the game uses the default project settings")
+# Build stamp: engine version, git commit of the project, content hash of the pack. --help and bug reports show it
+get_filename_component(project_dir "${PROJECT_FILE}" DIRECTORY)
+set(content "unknown")
+if(EXISTS "${PACK}.txt")
+    file(STRINGS "${PACK}.txt" content_line REGEX "^content " ENCODING UTF-8)
+    string(REGEX REPLACE "^content " "" content "${content_line}")
 endif()
+execute_process(COMMAND git -C "${project_dir}" rev-parse --short HEAD OUTPUT_VARIABLE commit OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET RESULT_VARIABLE git_result)
+if(NOT git_result EQUAL 0 OR NOT commit)
+    set(commit "unknown")
+else()
+    execute_process(COMMAND git -C "${project_dir}" status --porcelain OUTPUT_VARIABLE dirty ERROR_QUIET)
+    if(dirty)
+        string(APPEND commit "+")
+    endif()
+endif()
+string(TIMESTAMP built "%Y-%m-%d %H:%M")
+file(WRITE "${OUT_DIR}/build.txt" "engine ${ENGINE_VERSION}
+commit ${commit}
+content ${content}
+built ${built}
+")
 
 if(EOS_DLL)
     file(COPY "${EOS_DLL}" DESTINATION "${OUT_DIR}")

@@ -518,15 +518,20 @@ function(mealkit_add_game name)
             set(export_dir "${project_dir}/export/${name}-${export_version}")
         endif()
     endif()
+    # Cook step (game/Cook.h): the dev Release exe (build_project.bat Export builds it first) packs the reached assets into one pack
+    set(export_cooker "${project_dir}/build/Release/bin/${name}${CMAKE_EXECUTABLE_SUFFIX}")
+    set(export_pack "${project_dir}/build/cook/${name}.pak")
     add_custom_target(game_export
         COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/check_layout.ps1"
             -Project "${project_dir}"
+        COMMAND "${export_cooker}" --cook "${export_pack}"
         COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/gen_notices.ps1"
             -Project "${project_dir}" -Out "${export_notices}"
         COMMAND ${CMAKE_COMMAND}
             -DGAME_EXE=$<TARGET_FILE:${name}>
-            -DASSETS_DIR=${project_dir}/assets
+            -DPACK=${export_pack}
             -DPROJECT_FILE=${project_dir}/mealkit.project
+            -DENGINE_VERSION=${MEALKIT_VERSION}
             -DOUT_DIR=${export_dir}
             -DSTEAM_DLL=${MEALKIT_STEAM_DLL}
             -DEOS_DLL=${MEALKIT_EOS_DLL}

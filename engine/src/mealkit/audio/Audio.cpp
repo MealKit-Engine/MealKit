@@ -4,6 +4,7 @@
 #include "mealkit/core/Profile.h"
 #include "mealkit/live/Server.h"
 #include "mealkit/physics/PhysicsWorld.h"
+#include "mealkit/platform/Pack.h"
 #include "mealkit/platform/Paths.h"
 #include "mealkit/scene/Scene.h"
 
@@ -122,7 +123,9 @@ struct Engine::Impl {
             MEALKIT_WARN("Audio: %s is the old format - tools\\upgrade_project.ps1 converts it to assets/%s (MealKit Audio edits that)",
                          path.c_str(), kEventsFile);
         } else if (!path.empty()) {
-            mkaudio::loadEventFile(path, file, &messages);
+            std::string text; // through readTextFile so it also comes from a pack (platform/Pack.h)
+            readTextFile(path, text);
+            mkaudio::parseEvents(text, file, &messages);
         }
         for (const mkaudio::ParseMessage& msg : messages)
             MEALKIT_WARN("%s:%u: %s%s", path.c_str(), msg.line, msg.error ? "" : "(warning) ", msg.text.c_str());
@@ -168,6 +171,14 @@ bool Engine::init(const EngineDesc& desc) {
         if (level == mkaudio::LogLevel::Warn) MEALKIT_WARN("Audio: %s", text.c_str());
         else MEALKIT_INFO("Audio: %s", text.c_str());
     };
+    // With a pack mounted (shipping, platform/Pack.h) clips are read from it; otherwise miniaudio opens the loose files (and streams music)
+    if (packsMounted())
+        d.readFile = [](const std::string& file, std::vector<uint8_t>& out) {
+            std::string bytes;
+            if (!readTextFile(file, bytes)) return false;
+            out.assign(bytes.begin(), bytes.end());
+            return true;
+        };
     if (!m->mixer.init(d)) return false;
     m->loadEvents();
     MEALKIT_INFO("Audio: %u Hz, %u channel(s), up to %u voices", m->mixer.sampleRate(), m->mixer.channels(), m->mixer.maxVoices());
