@@ -3,6 +3,17 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.15 — Performance baseline check (2026-11-02)
+
+### [x] Stage 4: Performance baseline check (done 2026-11-02)
+- **Check item** (`tools/check.ps1`, `game` group, "Performance baseline"): runs `sandbox.exe --benchmark 10 --mute` (fixed seed, bots, vsync off, 3 s warmup), reads the `BENCHMARK` line and the report's GPU adapter, and compares avg/p99 frame, sim ms per tick, GPU frame ms and peak process/GPU memory with `engine/tests/perf/baseline.txt` (`key value` lines: `adapter`, `tolerance` in %, then the values). Flagged when over `baseline * (1 + tolerance)` and over an absolute slack (0.5 ms, 32 MB), so tiny values don't warn on noise. `worst` frame isn't compared (one hitch decides it).
+- **Warning only**: a new `WARN: reason` result (yellow, counted as passed; the summary prints `warned`). A baseline from another adapter gives `SKIP`, so CI and other PCs don't compare. Each run's report is `build\checkenchmark.txt`, the per-value comparison is in the step log.
+- **`-UpdatePerf`**: adds the `game` group and writes this run as the baseline (`WARN: baseline updated`). Path rule `engine/tests/perf/` → `game`.
+- **`BENCHMARK` line**: adds `mem=<MB> gpumem=<MB>` (peak process/GPU memory).
+- **Baseline** (this PC, Intel(R) Graphics, 1280×720 default window): avg 2.33 ms, p99 4.12 ms, sim 1.2 ms, GPU 2.17 ms, 255 MB, GPU 75 MB. Two repeat runs stayed within 3 % (avg 2.27/2.29, GPU 2.18/2.17); one run during other PC load reached avg 3.07 ms / p99 10.5 ms, which is why it only warns.
+- **Docs**: docs repo "Working on the engine > Testing" > "Performance baseline" (English/Korean).
+- **Not yet**: the baseline is not the minimum-spec 11th gen Xe measurement unless run there; no Vulkan baseline; no per-pass GPU comparison (the report has it).
+
 ## v0.7.14 — Asset cooking + pack files (2026-11-02)
 
 ### [x] Stage 4: Asset cooking + pack files (done 2026-11-02)

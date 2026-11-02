@@ -4,6 +4,7 @@
 #   ... -Quick             build + unit tests + determinism tests only
 #   ... -Only det,render   only those groups ($allGroups below)
 #   ... -DryRun            only shows the groups it would pick and stops (with -Changed)
+#   ... -UpdatePerf        rewrites the performance baseline (engine\tests\perf\baseline.txt) with this PC's --benchmark numbers (run on the measuring PC)
 #   ... -UpdateGolden      replaces the graphics regression test reference images (engine\tests\golden) with this run's images (when images were changed on purpose)
 # Groups: static (check scripts) unit (unit tests) det (determinism/multiplayer) game (game window) tools (tool connections) render (graphics/Vulkan)
 #       editor (editor play/hot reload) project (new project/upgrade) export (shipping build)
@@ -17,6 +18,7 @@ param(
     [string]$Base = "",
     [string[]]$Only = @(),
     [switch]$UpdateGolden,
+    [switch]$UpdatePerf,
     [switch]$DryRun
 )
 $ErrorActionPreference = "Stop"
@@ -43,7 +45,7 @@ $pathRules = @(
     @('\.md$', ''), @('^docs/', ''), @('^\.github/', ''), @('^\.claude/', ''), @('^\.git(ignore|attributes)$', ''),
     @('^art/ui/preview/', 'tools'), @('^art/', ''),
     @('^engine/src/mealkit/([^/]+)/', 'folder:$1'), @('^engine/shaders/', 'folder:render'),
-    @('^engine/tests/golden/', 'render'), @('^engine/tests/', 'unit-all'),
+    @('^engine/tests/golden/', 'render'), @('^engine/tests/perf/', 'game'), @('^engine/tests/', 'unit-all'),
     @('^engine/tools/SimCheck', 'editor project'), @('^engine/tools/', 'game'), @('^engine/res/', 'editor'),
     @('^third_party/mkaudio/', 'folder:audio'), @('^third_party/', 'full'),
     @('^samples/[^/]+/(sim|replays|tests)/', 'det! game editor'), @('^samples/', 'game editor'),
@@ -114,6 +116,7 @@ if ($Only.Count -gt 0) {
     $detForced = $true
 }
 if ($groups["unit"] -and $null -ne $unitAreas -and $unitAreas.Count -eq 0) { $groups.Remove("unit") }
+if ($UpdatePerf) { $groups["game"] = $true }
 function Selected([string]$group) { return [bool]$groups[$group] }
 $needRelease = (Selected "unit") -or (Selected "det") -or (Selected "game") -or (Selected "project") -or (Selected "export")
 $needEditor = (Selected "unit") -or (Selected "tools") -or (Selected "render") -or (Selected "editor")
@@ -137,17 +140,18 @@ function Invoke-Check([string]$group, [string]$name, [scriptblock]$body) {
     try {
         $r = & $body $log
         if ($r -is [array]) { $r = $r[-1] }
-        if ($r -is [string]) { $detail = $r; $ok = $r.StartsWith("SKIP") } # "SKIP: reason" = can't be done on this PC (not a failure)
+        # "SKIP: reason" = can't be done on this PC, "WARN: reason" = worth a look (neither is a failure)
+        if ($r -is [string]) { $detail = $r; $ok = $r.StartsWith("SKIP") -or $r.StartsWith("WARN") }
         else { $ok = [bool]$r }
     } catch {
         $detail = $_.Exception.Message
         Add-Content -Path $log -Value $detail
     }
     $watch.Stop()
-    $status = if ($detail.StartsWith("SKIP")) { "SKIP" } elseif ($ok) { "PASS" } else { "FAIL" }
-    $color = if ($status -eq "SKIP") { "Yellow" } elseif ($ok) { "Green" } else { "Red" }
+    $status = if ($detail.StartsWith("SKIP")) { "SKIP" } elseif ($detail.StartsWith("WARN")) { "WARN" } elseif ($ok) { "PASS" } else { "FAIL" }
+    $color = if ($status -eq "SKIP" -or $status -eq "WARN") { "Yellow" } elseif ($ok) { "Green" } else { "Red" }
     Write-Host ("{0,-4} {1,-34} {2,7:N1}s  {3}" -f $status, $name, $watch.Elapsed.TotalSeconds, $detail) -ForegroundColor $color
-    $script:results += [pscustomobject]@{ Group = $group; Name = $name; Ok = $ok; Skipped = ($status -eq "SKIP"); Seconds = $watch.Elapsed.TotalSeconds; Log = $log }
+    $script:results += [pscustomobject]@{ Group = $group; Name = $name; Ok = $ok; Skipped = ($status -eq "SKIP"); Warned = ($status -eq "WARN"); Seconds = $watch.Elapsed.TotalSeconds; Log = $log }
 }
 
 # Runs a program and logs stdout/stderr (cmd sends them to the file directly). Returns the exit code.
@@ -344,6 +348,47 @@ if (-not $Quick) {
         $png = Join-Path $out "game.png"
         $code = Run $log $game "--bot --mute --seed 7 --exit-tick 300 --capture `"$png`" 240"
         return $code -eq 0 -and (Test-Path $png)
+    }
+    # Performance baseline (ROADMAP "Performance baseline check"): --benchmark on the fixed bot match vs engine\tests\perf\baseline.txt.
+    # Warning only (machines differ; a baseline from another GPU is not compared). -UpdatePerf rewrites it on the measuring PC
+    Invoke-Check game "Performance baseline" {
+        param($log)
+        $report = Join-Path $out "benchmark.txt"
+        $code = Run $log $game "--benchmark 10 --mute --benchmark-out `"$report`""
+        $m = [regex]::Match((Get-Content $log -Raw), 'BENCHMARK frames=\d+ avg=([\d.]+)ms p99=([\d.]+)ms worst=[\d.]+ms sim=([\d.]+)ms gpu=([\d.]+)ms mem=(\d+)MB gpumem=(\d+)MB')
+        if ($code -ne 0 -or -not $m.Success -or -not (Test-Path $report)) { return $false }
+        $now = [ordered]@{ avg = [double]$m.Groups[1].Value; p99 = [double]$m.Groups[2].Value; sim = [double]$m.Groups[3].Value
+            gpu = [double]$m.Groups[4].Value; mem = [double]$m.Groups[5].Value; gpumem = [double]$m.Groups[6].Value }
+        $adapter = ((Select-String -Path $report -Pattern '^gpu\s+(.+?) \|').Matches[0].Groups[1].Value).Trim()
+        $baseFile = Join-Path $root "engine\tests\perf\baseline.txt"
+        if ($UpdatePerf) {
+            New-Item -ItemType Directory -Force (Split-Path $baseFile) | Out-Null
+            $lines = @("# Performance baseline for tools\check.ps1 (sandbox.exe --benchmark 10, fixed seed + bots). Rewrite with check.ps1 -UpdatePerf on the measuring PC",
+                "# Values over baseline * (1 + tolerance %) (and over the absolute slack: 0.5 ms for times, 32 MB for memory) are warnings",
+                "adapter $adapter", "tolerance 20")
+            foreach ($k in $now.Keys) { $lines += "$k $($now[$k])" }
+            [IO.File]::WriteAllLines($baseFile, $lines)
+            return "WARN: baseline updated ($adapter)"
+        }
+        if (-not (Test-Path $baseFile)) { return "WARN: no baseline (run check.ps1 -UpdatePerf on the measuring PC)" }
+        $base = @{}
+        foreach ($line in Get-Content $baseFile) {
+            if ($line -match '^\s*(#|$)') { continue }
+            $i = $line.IndexOf(" "); $base[$line.Substring(0, $i)] = $line.Substring($i + 1).Trim()
+        }
+        if ($base["adapter"] -ne $adapter) { return "SKIP: baseline is from '$($base["adapter"])', this PC is '$adapter'" }
+        $tol = [double]$base["tolerance"] / 100.0
+        $over = @()
+        foreach ($k in $now.Keys) {
+            if (-not $base.ContainsKey($k)) { continue }
+            $b = [double]$base[$k]
+            $slack = if ($k -like "*mem") { 32.0 } else { 0.5 }
+            $unit = if ($k -like "*mem") { "MB" } else { "ms" }
+            Add-Content -Path $log -Value ("perf {0,-7} {1,9} (baseline {2})" -f $k, $now[$k], $b)
+            if ($now[$k] -gt [Math]::Max($b * (1 + $tol), $b + $slack)) { $over += "$k $($now[$k])$unit > $b$unit" }
+        }
+        if ($over.Count -gt 0) { return "WARN: over baseline +$($base["tolerance"])%: $($over -join ', ')" }
+        return $true
     }
     # Crash report (ROADMAP "Crash reports"): crash on purpose → crash/pending/ (minidump, info, log) → the next run bundles crash/<time>.zip with replay.rec
     Invoke-Check game "Crash report" {
@@ -658,8 +703,9 @@ if ($detKey -and $detResults.Count -gt 0 -and @($detResults | Where-Object { -no
     Set-Content -Path $detKeyFile -Value $detKey -Encoding ASCII
 }
 $skipped = @($results | Where-Object { $_.Skipped })
+$warned = @($results | Where-Object { $_.Warned })
 $total = ($results | Measure-Object -Property Seconds -Sum).Sum
-Write-Host ("{0} passed, {1} skipped, {2} failed, {3:N0}s total" -f ($results.Count - $failed.Count - $skipped.Count), $skipped.Count, $failed.Count, $total) `
+Write-Host ("{0} passed, {1} warned, {2} skipped, {3} failed, {4:N0}s total" -f ($results.Count - $failed.Count - $skipped.Count - $warned.Count), $warned.Count, $skipped.Count, $failed.Count, $total) `
     -ForegroundColor $(if ($failed.Count -eq 0) { "Green" } else { "Red" })
 if ($failed.Count -gt 0) { exit 1 }
 exit 0

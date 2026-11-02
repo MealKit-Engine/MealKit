@@ -1,0 +1,10 @@
+# Performance baseline for tools\check.ps1 (sandbox.exe --benchmark 10, fixed seed + bots). Rewrite with check.ps1 -UpdatePerf on the measuring PC
+# Values over baseline * (1 + tolerance %) (and over the absolute slack: 0.5 ms for times, 32 MB for memory) are warnings
+adapter Intel(R) Graphics
+tolerance 20
+avg 2.33
+p99 4.12
+sim 1.2
+gpu 2.17
+mem 255
+gpumem 75
