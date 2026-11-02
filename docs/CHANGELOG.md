@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.19 — Vertex quantization (2026-11-02)
+
+### [x] Stage 4: Optimization candidate 2, vertex quantization (done 2026-11-02)
+- **`GpuVertex`** (`Renderer.cpp`, 24 bytes; was 36): position `Snorm16x4` relative to the mesh's box, normal octahedral `Snorm16x2`, color, UV (half2), material, padding. Skinned vertices 44 → 32 bytes. `createMesh` computes the box (a flat axis gets extent 1) and packs on upload; the CPU `Vertex`, hull points and cooked models are unchanged.
+- **RHI**: `VertexFormat::Snorm16x4`/`Snorm16x2` (DX12 `R16G16B16A16_SNORM`/`R16G16_SNORM`, Vulkan the same).
+- **Shader** (`Forward.hlsl`): `ForwardPush` gains `boxCenter`/`boxExtent` (64 bytes), set per draw by `GpuMesh::setBox` in the forward, shadow and skinned paths; `decodeOctahedral` for the normal.
+- **Measured** (`--benchmark`, Intel(R) Graphics): GPU 2.12 → 2.15/2.19 ms, GPU memory 75 MB unchanged (both noise level); golden images (DX12/Vulkan) pass. Kept for bandwidth-bound min-spec integrated graphics, not yet measured there (`docs/DECISIONS.md` 2026-11-02).
+
 ## v0.7.18 — Pipeline cache on disk (2026-11-02)
 
 ### [x] Stage 4: Optimization candidate 4, pipeline cache on disk (done 2026-11-02)
