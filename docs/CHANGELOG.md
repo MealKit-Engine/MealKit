@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.20 — Frame allocation check (2026-11-02)
+
+### [x] Stage 4: Optimization candidate 9, frame allocation check (done 2026-11-02)
+- **Counter** (`debug/AllocCount.h`): the dev game exe replaces the global `operator new`/`delete` (all forms, same `malloc`/`_aligned_malloc` heap as the CRT) with one that counts per thread (`alloc::threadCount()`). Only compiled with `MEALKIT_ALLOC_COUNT` for the static dev exe (`MEALKIT_DEBUG_UI` and not the Editor build), so `mealkit.dll` and Export builds are unchanged; there `alloc::counting()` is false.
+- **Benchmark**: the game loop counts the main thread's allocations from `buildFrame` to `renderer.endFrame()` (render + UI). The report gets an `allocations` line (avg per frame, max, frames with any) and the `BENCHMARK` line ` allocs=<avg>/<max>`.
+- **Check** (`check.ps1` "Performance baseline"): `allocs` in `engine/tests/perf/baseline.txt`; a rise over the baseline (+1) warns. Allocation counts don't depend on the PC, so this is compared even when the adapter differs (the timing values still SKIP). `-UpdatePerf` writes it too.
+- **Found**: 112.9 allocations per frame (max 197), all in game UI drawing (`ui::System::render`): `resolveText` builds the bound text with new strings each frame (`substr`, `formatValue`, `"no field"` paths), plus the screen `order` vector. `DrawList`/`Renderer` allocate nothing. The baseline is 113 for now, so the check catches new allocations; making the UI path allocation-free is a follow-up (goal 0, as ROADMAP says).
+
 ## v0.7.19 — Vertex quantization (2026-11-02)
 
 ### [x] Stage 4: Optimization candidate 2, vertex quantization (done 2026-11-02)

@@ -302,10 +302,16 @@ endif()
 if(MEALKIT_DEBUG_UI)
     list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/debug/ImGuiLayer.h src/mealkit/debug/ImGuiLayer.cpp
         src/mealkit/debug/DebugDraw.h src/mealkit/debug/DebugDrawRender.h src/mealkit/debug/DebugDraw.cpp
+        src/mealkit/debug/AllocCount.h src/mealkit/debug/AllocCount.cpp
         src/mealkit/platform/ImGuiPlatform.h src/mealkit/platform/win32/ImGuiPlatform.cpp
         ${mealkit_rhi_imgui}
         # Texture compression (asset/TextureCache.cpp): dev builds only create it; shipping builds only read the compressed cache
         ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp)
+endif()
+
+# Frame allocation counter (debug/AllocCount.h): replaces operator new only in the dev game exe (static), not in mealkit.dll
+if(MEALKIT_DEBUG_UI AND NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
+    set_source_files_properties(src/mealkit/debug/AllocCount.cpp PROPERTIES COMPILE_DEFINITIONS MEALKIT_ALLOC_COUNT=1)
 endif()
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")

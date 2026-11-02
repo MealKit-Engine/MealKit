@@ -355,10 +355,13 @@ if (-not $Quick) {
         param($log)
         $report = Join-Path $out "benchmark.txt"
         $code = Run $log $game "--benchmark 10 --mute --benchmark-out `"$report`""
-        $m = [regex]::Match((Get-Content $log -Raw), 'BENCHMARK frames=\d+ avg=([\d.]+)ms p99=([\d.]+)ms worst=[\d.]+ms sim=([\d.]+)ms gpu=([\d.]+)ms mem=(\d+)MB gpumem=(\d+)MB')
+        $m = [regex]::Match((Get-Content $log -Raw), 'BENCHMARK frames=\d+ avg=([\d.]+)ms p99=([\d.]+)ms worst=[\d.]+ms sim=([\d.]+)ms gpu=([\d.]+)ms mem=(\d+)MB gpumem=(\d+)MB(?: allocs=([\d.]+)/(\d+))?')
         if ($code -ne 0 -or -not $m.Success -or -not (Test-Path $report)) { return $false }
         $now = [ordered]@{ avg = [double]$m.Groups[1].Value; p99 = [double]$m.Groups[2].Value; sim = [double]$m.Groups[3].Value
             gpu = [double]$m.Groups[4].Value; mem = [double]$m.Groups[5].Value; gpumem = [double]$m.Groups[6].Value }
+        # Frame allocations (ROADMAP optimization 9, debug/AllocCount.h): main thread heap allocations per frame in render + UI.
+        # The same on every PC, so compared even when the adapter differs; any rise over the baseline (+1 for rounding) warns. The goal is 0
+        $allocs = if ($m.Groups[7].Success) { [double]$m.Groups[7].Value } else { -1 }
         $adapter = ((Select-String -Path $report -Pattern '^gpu\s+(.+?) \|').Matches[0].Groups[1].Value).Trim()
         $baseFile = Join-Path $root "engine\tests\perf\baseline.txt"
         if ($UpdatePerf) {
@@ -367,6 +370,7 @@ if (-not $Quick) {
                 "# Values over baseline * (1 + tolerance %) (and over the absolute slack: 0.5 ms for times, 32 MB for memory) are warnings",
                 "adapter $adapter", "tolerance 20")
             foreach ($k in $now.Keys) { $lines += "$k $($now[$k])" }
+            if ($allocs -ge 0) { $lines += "allocs $allocs" }
             [IO.File]::WriteAllLines($baseFile, $lines)
             return "WARN: baseline updated ($adapter)"
         }
@@ -376,9 +380,17 @@ if (-not $Quick) {
             if ($line -match '^\s*(#|$)') { continue }
             $i = $line.IndexOf(" "); $base[$line.Substring(0, $i)] = $line.Substring($i + 1).Trim()
         }
-        if ($base["adapter"] -ne $adapter) { return "SKIP: baseline is from '$($base["adapter"])', this PC is '$adapter'" }
-        $tol = [double]$base["tolerance"] / 100.0
         $over = @()
+        if ($allocs -ge 0 -and $base.ContainsKey("allocs")) {
+            $ba = [double]$base["allocs"]
+            Add-Content -Path $log -Value ("perf {0,-7} {1,9} (baseline {2})" -f "allocs", $allocs, $ba)
+            if ($allocs -gt $ba + 1.0) { $over += "allocs $allocs/frame > $ba (render + UI heap allocations, see benchmark.txt)" }
+        }
+        if ($base["adapter"] -ne $adapter) {
+            if ($over.Count -gt 0) { return "WARN: $($over -join ', ')" }
+            return "SKIP: baseline is from '$($base["adapter"])', this PC is '$adapter'"
+        }
+        $tol = [double]$base["tolerance"] / 100.0
         foreach ($k in $now.Keys) {
             if (-not $base.ContainsKey($k)) { continue }
             $b = [double]$base[$k]
