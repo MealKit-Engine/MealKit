@@ -220,13 +220,8 @@ set(MEALKIT_FRONT_SOURCES
     src/mealkit/feedback/Feedback.cpp
     src/mealkit/camera/Brain.h
     src/mealkit/camera/Brain.cpp
-    src/mealkit/ui/Atlas.h
-    src/mealkit/ui/Atlas.cpp
     src/mealkit/ui/Document.h
-    src/mealkit/ui/Document.cpp
     src/mealkit/ui/Ui.h
-    src/mealkit/ui/Text.h
-    src/mealkit/ui/Text.cpp
     src/mealkit/ui/Ui.cpp
     src/mealkit/ui/StbImpl.cpp
     src/mealkit/settings/Settings.h
@@ -395,6 +390,12 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     add_subdirectory(${mealkit_mkaudio_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkaudio)
     target_link_libraries(mealkit PRIVATE mkaudio)
     target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${mealkit_mkaudio_dir}/include>)
+    # Game UI: the mkui runtime (engine/libs/mkui, no engine headers; ROADMAP "UI 1") is wrapped by mealkit/ui/ (glue layer).
+    # mealkit/ui/Ui.h uses mkui value types (Action, ScreenInfo ...), so only the include path is passed on.
+    set(MKUI_STB_DIR ${MEALKIT_THIRD_PARTY}/stb)
+    add_subdirectory(libs/mkui ${CMAKE_CURRENT_BINARY_DIR}/mkui)
+    target_link_libraries(mealkit PRIVATE mkui)
+    target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/mkui/include>)
     # Disable warnings for external code implementation files
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb
                                ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp

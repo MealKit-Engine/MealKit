@@ -1,15 +1,34 @@
-#include "mealkit/ui/Document.h"
+#include "mkui/Document.h"
 
-#include "mealkit/core/Log.h"
-#include "mealkit/core/TextFormat.h"
-#include "mealkit/platform/Paths.h"
-#include "mealkit/render/Renderer.h"
+#include "mkui/Host.h"
+
+#include "mkcontract/Text.h"
 
 #include <cstdlib>
 #include <cstring>
 
-namespace mealkit::ui {
+namespace mkui {
 namespace {
+
+constexpr u32 kFormatVersion = 1; // "@format ui 1" (only version 1 for now, so no migrate)
+
+// Format line: true if the line is one (warns about other kinds/newer versions/wrong shapes through the host)
+bool formatLine(const std::string& line, const std::string& path, Host& host) {
+    mkcontract::FormatLine f;
+    switch (mkcontract::parseFormatLine(line, f)) {
+    case mkcontract::FormatParse::NotFormat: return false;
+    case mkcontract::FormatParse::Malformed:
+        host.log(LogLevel::Warn, path + ": expected \"@format <kind> <version>\", got \"" + line + "\" (ignored)");
+        return true;
+    case mkcontract::FormatParse::Ok: break;
+    }
+    if (f.kind != "ui")
+        host.log(LogLevel::Warn, path + ": this is a '" + f.kind + "' file, expected 'ui'");
+    else if (f.version > kFormatVersion)
+        host.log(LogLevel::Warn, path + ": written in ui format " + std::to_string(f.version) + ", this engine reads up to " +
+                                     std::to_string(kFormatVersion) + " - unknown keys are ignored (update the engine)");
+    return true;
+}
 
 std::vector<std::string> split(const std::string& s) {
     std::vector<std::string> out;
@@ -73,7 +92,7 @@ bool parseColor(const std::string& s, ColorValue& out) {
         if (hi < 0 || lo < 0) return false;
         c[i] = static_cast<u8>(hi * 16 + lo);
     }
-    out.rgba = render::rgba(c[0], c[1], c[2], c[3]);
+    out.rgba = rgba(c[0], c[1], c[2], c[3]);
     return true;
 }
 
@@ -177,11 +196,11 @@ bool Theme::number(const std::string& name, f32& out) const {
     return false;
 }
 
-bool loadTheme(Theme& out, std::vector<std::string>* errors) {
+bool loadTheme(Theme& out, Host& host, std::vector<std::string>* errors) {
     out = {};
-    const std::string path = findAsset(std::string("assets/") + kThemeFile);
+    const std::string path = std::string("assets/") + kThemeFile;
     std::string text;
-    if (path.empty() || !readTextFile(path, text)) return false;
+    if (!host.readFile(kThemeFile, text)) return false;
     u32 lineNo = 0;
     size_t pos = 0;
     while (pos < text.size()) {
@@ -191,8 +210,7 @@ bool loadTheme(Theme& out, std::vector<std::string>* errors) {
         pos = end + 1;
         ++lineNo;
         if (line.empty() || line[0] == '#') continue;
-        u32 version = 1; // only version 1 for now, so no migrate
-        if (text::readFormatLine(line, text::kUi, path, version)) continue;
+        if (formatLine(line, path, host)) continue;
         const std::vector<std::string> t = split(line);
         bool ok = t.size() == 3;
         if (ok && t[0] == "color") {
@@ -498,10 +516,11 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
 
 namespace {
 
-bool loadNested(const std::string& assetPath, Document& out, const Theme* theme, u32 depth);
+bool loadNested(const std::string& assetPath, Document& out, Host& host, const Theme* theme, u32 depth);
 
 struct Parser {
     Document& doc;
+    Host& host;
     const Theme* theme;
     std::string file;
     std::vector<i32> stack;
@@ -536,8 +555,7 @@ struct Parser {
             ++lineNo;
             if (lineNo == 1 && line.rfind("# MealKit UI exported from Penpot", 0) == 0) doc.exported = true;
             if (line.empty() || line[0] == '#') continue;
-            u32 version = 1; // only version 1 for now, so no migrate
-            if (text::readFormatLine(line, text::kUi, "assets/" + doc.path, version)) continue;
+            if (formatLine(line, "assets/" + doc.path, host)) continue;
             const std::vector<std::string> t = split(line);
             const std::string& k = t[0];
             if (k == "board") {
@@ -605,7 +623,7 @@ struct Parser {
     // Component: puts that file's board here as a frame
     i32 include(const std::string& name, const std::string& path, u32 line) {
         Document sub;
-        if (includeDepth >= 8 || !loadNested(path, sub, theme, includeDepth + 1)) { // stops at mutually referencing components
+        if (includeDepth >= 8 || !loadNested(path, sub, host, theme, includeDepth + 1)) { // stops at mutually referencing components
             error(line, "cannot use component " + path);
             for (const std::string& e : sub.errors) doc.errors.push_back(e); // why it couldn't be used (not found, syntax error)
             return open(NodeKind::Frame, name, line);
@@ -637,36 +655,35 @@ void computeEnds(Document& doc) {
     for (size_t i : open) doc.nodes[i].end = static_cast<u32>(doc.nodes.size());
 }
 
-bool parseNested(const std::string& text, const std::string& assetPath, Document& out, const Theme* theme, u32 depth) {
+bool parseNested(const std::string& text, const std::string& assetPath, Document& out, Host& host, const Theme* theme, u32 depth) {
     out = {};
     out.path = assetPath;
-    Parser p{out, theme, assetPath, {}, depth};
+    Parser p{out, host, theme, assetPath, {}, depth};
     const bool ok = p.parse(text);
     if (out.nodes.empty()) out.errors.push_back(assetPath + ": no board");
     computeEnds(out);
     return ok && !out.nodes.empty();
 }
 
-bool loadNested(const std::string& assetPath, Document& out, const Theme* theme, u32 depth) {
-    const std::string path = findAssetFile(assetPath);
+bool loadNested(const std::string& assetPath, Document& out, Host& host, const Theme* theme, u32 depth) {
     std::string text;
-    if (path.empty() || !readTextFile(path, text)) {
+    if (!host.readFile(assetPath, text)) {
         out = {};
         out.path = assetPath;
-        out.errors.push_back(assetFilePath(assetPath) + " not found");
+        out.errors.push_back("assets/" + assetPath + " not found");
         return false;
     }
-    return parseNested(text, assetPath, out, theme, depth);
+    return parseNested(text, assetPath, out, host, theme, depth);
 }
 
 } // namespace
 
-bool parseDocument(const std::string& text, const std::string& assetPath, Document& out, const Theme* theme) {
-    return parseNested(text, assetPath, out, theme, 0);
+bool parseDocument(const std::string& text, const std::string& assetPath, Document& out, Host& host, const Theme* theme) {
+    return parseNested(text, assetPath, out, host, theme, 0);
 }
 
-bool loadDocument(const std::string& assetPath, Document& out, const Theme* theme) {
-    return loadNested(assetPath, out, theme, 0);
+bool loadDocument(const std::string& assetPath, Document& out, Host& host, const Theme* theme) {
+    return loadNested(assetPath, out, host, theme, 0);
 }
 
-} // namespace mealkit::ui
+} // namespace mkui

@@ -1,6 +1,7 @@
 ﻿# Tool suite runtime boundary check (docs/DECISIONS.md 2026-10-26 audio runtime). Called by check.ps1.
 #   powershell -ExecutionPolicy Bypass -File tools\check_libs.ps1 [-Path <folder>]     exit code 1 on problems
-# Targets: third_party/<lib>/ whose mealkit.txt source is a MealKit-Engine repo (runtime pieces we made, currently mkaudio),
+# Targets: engine/libs/<lib>/ (runtimes split inside the engine before getting their own repo, currently mkui),
+# third_party/<lib>/ whose mealkit.txt source is a MealKit-Engine repo (runtime pieces we made, currently mkaudio and mkcontract),
 # and the folder given with -Path (a local checkout being edited together, MEALKIT_MKAUDIO_DIR). This code lives in repos outside the engine, so:
 # - doesn't include MealKit headers (#include "mealkit/..." / <mealkit/...>) or engine/src paths
 # - doesn't use MEALKIT_ macros (logging/profiling/asserts)
@@ -10,6 +11,8 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
 $dirs = @()
+$engineLibs = Join-Path $root "engine\libs"
+if (Test-Path $engineLibs) { $dirs += Get-ChildItem -Path $engineLibs -Directory }
 foreach ($d in Get-ChildItem -Path (Join-Path $root "third_party") -Directory) {
     $meta = Join-Path $d.FullName "mealkit.txt"
     if ((Test-Path $meta) -and (Select-String -Path $meta -Pattern '^source https://github\.com/MealKit-Engine/' -Quiet)) { $dirs += $d }

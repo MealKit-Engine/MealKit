@@ -1,19 +1,17 @@
 #pragma once
 
-#include "mealkit/core/Types.h"
+#include "mkui/Types.h"
 
 #include <string>
 
-namespace mealkit::render {
-class Renderer;
-}
-
-// UI fonts and images (mealkit/ui/). Uploaded to the renderer's two UI atlases (render::UiAtlas).
+// UI fonts and images. Uploaded to the host's two UI atlases (AtlasKind).
 //   Fonts: .ttf/.otf in assets/fonts found by file name ("Pretendard-Medium"). Only glyphs in use are baked to SDF at runtime with stb_truetype.
 //         One font file per weight/italic. Baked at one size (kBakePixels) and used for all sizes.
-//   Images: PNGs relative to assets (stb_image). Read on first use and put into the image atlas.
+//   Images: PNGs relative to assets (decoded by the host). Read on first use and put into the image atlas.
 // When an atlas fills up, it's cleared and rebaked (warning). View-side only, so unrelated to determinism.
-namespace mealkit::ui {
+namespace mkui {
+
+class Host;
 
 inline constexpr f32 kBakePixels = 40.0f; // glyph size for baking SDFs (em pixels)
 inline constexpr i32 kSdfPadding = 6;     // padding around glyphs (baked pixels)
@@ -42,7 +40,7 @@ public:
     Atlas(const Atlas&) = delete;
     Atlas& operator=(const Atlas&) = delete;
 
-    void setRenderer(render::Renderer* renderer); // renderer to upload atlases to (without one, only bakes: layout tests)
+    void setHost(Host* host); // where fonts/images are read from and atlases uploaded to (clears both atlases)
 
     // Font name → index (first font if missing, -1 if there are no fonts at all)
     i32 font(const std::string& name);
@@ -63,4 +61,4 @@ private:
     Impl* m;
 };
 
-} // namespace mealkit::ui
+} // namespace mkui

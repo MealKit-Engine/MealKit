@@ -1,10 +1,10 @@
-#include "mealkit/ui/Text.h"
+#include "mkui/Text.h"
 
-#include "mealkit/ui/Document.h"
+#include "mkui/Document.h"
 
 #include <algorithm>
 
-namespace mealkit::ui {
+namespace mkui {
 namespace {
 
 constexpr u32 kEllipsis = 0x2026; // …
@@ -16,9 +16,8 @@ bool isWide(u32 cp) { // characters broken per syllable (Hangul, Han, Kana, full
 
 } // namespace
 
-std::vector<u32> decodeUtf8(const std::string& s) {
-    std::vector<u32> out;
-    out.reserve(s.size());
+void decodeUtf8(const std::string& s, std::vector<u32>& out) {
+    out.clear();
     for (size_t i = 0; i < s.size();) {
         const u8 c = static_cast<u8>(s[i]);
         u32 cp = 0xFFFD;
@@ -36,7 +35,12 @@ std::vector<u32> decodeUtf8(const std::string& s) {
         out.push_back(cp);
         i += n;
     }
-    return out;
+}
+
+u32 utf8Length(const std::string& s) {
+    u32 n = 0;
+    for (const char c : s) n += (static_cast<u8>(c) & 0xC0) != 0x80 ? 1u : 0u;
+    return n;
 }
 
 namespace {
@@ -51,7 +55,10 @@ u32 transformCp(u32 cp, TextTransform t) {
 
 // Resolves tags (<1>…</1>) into styles and decides font/size/width per glyph
 void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& out) {
-    out = {};
+    out.runs.clear(); // clear keeps capacity: reshaping changed text allocates nothing once warm
+    out.glyphs.clear();
+    out.lines.clear();
+    out.width = out.height = 0.0f;
     TextRun base;
     base.font = atlas.font(d.text.font);
     base.size = d.text.size;
@@ -59,8 +66,11 @@ void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& o
     base.underline = d.text.underline;
     base.strike = d.text.strike;
     out.runs.push_back(base);
-    std::vector<u16> stack{0};
-    const std::vector<u32> cps = decodeUtf8(text);
+    constexpr size_t kMaxNesting = 16; // deeper tags keep the outer style
+    u16 stack[kMaxNesting] = {0};
+    size_t depth = 1;
+    decodeUtf8(text, out.codepoints);
+    const std::vector<u32>& cps = out.codepoints;
     for (size_t i = 0; i < cps.size(); ++i) {
         const u32 cp = cps[i];
         if (cp == '<') { // <n> or </n>
@@ -72,9 +82,9 @@ void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& o
             while (j < cps.size() && cps[j] >= '0' && cps[j] <= '9' && digits < 4) tag = tag * 10 + (cps[j++] - '0'), ++digits;
             if (digits > 0 && j < cps.size() && cps[j] == '>') {
                 if (closing) {
-                    if (stack.size() > 1) stack.pop_back();
+                    if (depth > 1) --depth;
                 } else {
-                    TextRun r = out.runs[stack.back()];
+                    TextRun r = out.runs[stack[depth - 1]];
                     for (size_t s = 0; s < d.spans.size(); ++s) {
                         const SpanStyle& sp = d.spans[s];
                         if (sp.tag != tag) continue;
@@ -86,7 +96,7 @@ void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& o
                         if (sp.hasColor) r.span = static_cast<i32>(s);
                     }
                     out.runs.push_back(r);
-                    stack.push_back(static_cast<u16>(out.runs.size() - 1));
+                    if (depth < kMaxNesting) stack[depth++] = static_cast<u16>(out.runs.size() - 1);
                 }
                 i = j;
                 continue;
@@ -94,7 +104,7 @@ void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& o
         }
         ShapedGlyph g;
         g.cp = transformCp(cp, d.text.transform);
-        g.run = stack.back();
+        g.run = stack[depth - 1];
         const TextRun& r = out.runs[g.run];
         g.font = r.font;
         if (g.cp != '\n') {
@@ -217,4 +227,4 @@ void breakLines(const Node& d, Shaped& s, f32 wrapWidth, f32 maxHeight, Atlas& a
     }
 }
 
-} // namespace mealkit::ui
+} // namespace mkui

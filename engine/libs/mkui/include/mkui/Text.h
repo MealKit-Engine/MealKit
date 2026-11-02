@@ -1,14 +1,14 @@
 #pragma once
 
-#include "mealkit/core/Types.h"
-#include "mealkit/ui/Atlas.h"
+#include "mkui/Types.h"
+#include "mkui/Atlas.h"
 
 #include <string>
 #include <vector>
 
 // UI text shaping (used only inside ui::System): UTF-8 → glyphs, style span tags (<1>…</1>), kerning, line breaking, ellipsis.
 // Results are in logical units. Drawing is done by Ui.cpp.
-namespace mealkit::ui {
+namespace mkui {
 
 struct Node;
 
@@ -39,12 +39,14 @@ struct Shaped {
     std::vector<ShapedGlyph> glyphs;
     std::vector<ShapedLine> lines;
     f32 width = 0.0f, height = 0.0f;
+    std::vector<u32> codepoints; // decoded text (kept so reshaping allocates nothing once warm)
 };
 
-std::vector<u32> decodeUtf8(const std::string& s);
+void decodeUtf8(const std::string& s, std::vector<u32>& out); // replaces out
+u32 utf8Length(const std::string& s);                          // code point count
 // Resolves tags (<1>…</1>) into styles and decides font/size/width per glyph
 void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& out);
 // Line breaking (across run boundaries in one pass). If wrapWidth < 0, only at newline characters. If maxHeight < 0, no height limit
 void breakLines(const Node& d, Shaped& s, f32 wrapWidth, f32 maxHeight, Atlas& atlas);
 
-} // namespace mealkit::ui
+} // namespace mkui

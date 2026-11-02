@@ -8,4 +8,4 @@ sim 1.2
 gpu 2.17
 mem 255
 gpumem 75
-allocs 113
+allocs 5

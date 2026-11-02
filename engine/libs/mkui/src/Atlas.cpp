@@ -1,10 +1,7 @@
-#include "mealkit/ui/Atlas.h"
+#include "mkui/Atlas.h"
 
-#include "mealkit/core/Log.h"
-#include "mealkit/platform/Paths.h"
-#include "mealkit/render/Renderer.h"
+#include "mkui/Host.h"
 
-#include "stb_image.h"
 #include "stb_truetype.h"
 
 #include <algorithm>
@@ -12,10 +9,10 @@
 #include <cstring>
 #include <unordered_map>
 
-namespace mealkit::ui {
+namespace mkui {
 namespace {
 
-constexpr u32 kSize = render::kUiAtlasSize;
+constexpr u32 kSize = kAtlasSize;
 constexpr f32 kOnEdge = 128.0f;
 constexpr f32 kDistScale = kOnEdge / static_cast<f32>(kSdfPadding); // SDF value per baked pixel
 
@@ -51,8 +48,8 @@ struct Shelves {
 };
 
 struct FontFile {
-    std::string name, path;
-    unsigned long long time = 0;
+    std::string name, path; // path: asset path
+    u64 time = 0;
     std::vector<u8> data;
     stbtt_fontinfo info{};
     f32 scale = 0.0f; // font units → baked pixels
@@ -61,14 +58,14 @@ struct FontFile {
 
 struct Image {
     std::string path;
-    unsigned long long time = 0;
+    u64 time = 0;
     ImageInfo info;
 };
 
 } // namespace
 
 struct Atlas::Impl {
-    render::Renderer* renderer = nullptr;
+    Host* host = nullptr;
     bool fontsScanned = false;
     std::vector<FontFile> fonts;
     std::unordered_map<u64, Glyph> glyphs;
@@ -81,27 +78,26 @@ struct Atlas::Impl {
     void scanFonts() {
         fontsScanned = true;
         fonts.clear();
-        const std::string dir = findAsset("assets/fonts");
-        if (dir.empty()) return;
+        if (!host) return;
         for (const char* ext : {".ttf", ".otf", ".ttc"})
-            for (const std::string& file : listFiles(dir, ext)) {
+            for (const std::string& file : host->listFiles("fonts", ext)) {
                 FontFile f;
                 f.name = file.substr(0, file.size() - 4);
-                f.path = dir + "/" + file;
+                f.path = "fonts/" + file;
                 if (!loadFont(f)) continue;
                 fonts.push_back(std::move(f));
             }
-        if (fonts.empty()) MEALKIT_WARN("UI: no fonts in assets/fonts - text is not drawn");
+        if (fonts.empty()) host->log(LogLevel::Warn, "UI: no fonts in assets/fonts - text is not drawn");
     }
 
     bool loadFont(FontFile& f) {
         std::string bytes;
-        if (!readTextFile(f.path, bytes)) return false;
+        if (!host->readFile(f.path, bytes)) return false;
         f.data.assign(bytes.begin(), bytes.end());
-        f.time = fileWriteTime(f.path);
+        f.time = host->fileTime(f.path);
         const int offset = stbtt_GetFontOffsetForIndex(f.data.data(), 0);
         if (offset < 0 || !stbtt_InitFont(&f.info, f.data.data(), offset)) {
-            MEALKIT_WARN("UI: cannot read font %s", f.path.c_str());
+            host->log(LogLevel::Warn, "UI: cannot read font assets/" + f.path);
             return false;
         }
         f.scale = stbtt_ScaleForMappingEmToPixels(&f.info, kBakePixels);
@@ -201,11 +197,11 @@ struct Atlas::Impl {
             }
         u32 ax = 0, ay = 0;
         if (!glyphShelves.place(static_cast<u32>(w), static_cast<u32>(h), ax, ay)) {
-            MEALKIT_WARN("UI: glyph atlas full (%zu glyphs) - rebaking", glyphs.size());
+            if (host) host->log(LogLevel::Warn, "UI: glyph atlas full (" + std::to_string(glyphs.size()) + " glyphs) - rebaking");
             resetGlyphs();
             glyphShelves.place(static_cast<u32>(w), static_cast<u32>(h), ax, ay);
         }
-        if (renderer) renderer->updateUiAtlas(render::UiAtlas::Glyphs, ax, ay, static_cast<u32>(w), static_cast<u32>(h), sdf.data());
+        if (host) host->uploadAtlas(AtlasKind::Glyphs, ax, ay, static_cast<u32>(w), static_cast<u32>(h), sdf.data());
         g.x0 = static_cast<f32>(xoff) * em;
         g.y0 = static_cast<f32>(yoff) * em;
         g.x1 = static_cast<f32>(xoff + w) * em;
@@ -221,9 +217,10 @@ struct Atlas::Impl {
 Atlas::Atlas() : m(new Impl()) {}
 Atlas::~Atlas() { delete m; }
 
-void Atlas::setRenderer(render::Renderer* renderer) {
-    m->renderer = renderer;
-    m->resetGlyphs(); // a new renderer's atlas is empty
+void Atlas::setHost(Host* host) {
+    m->host = host;
+    m->fontsScanned = false;
+    m->resetGlyphs(); // a new host's atlas is empty
     m->imageShelves.clear();
     m->images.clear();
 }
@@ -273,44 +270,41 @@ ImageInfo Atlas::image(const std::string& assetPath) {
         if (i.path == assetPath) return i.info;
     Image img;
     img.path = assetPath;
-    const std::string file = findAssetFile(assetPath);
-    img.time = file.empty() ? 0 : fileWriteTime(file);
+    if (!m->host) return m->noImage;
+    Host& host = *m->host;
+    img.time = host.fileTime(assetPath);
     std::string bytes;
-    int w = 0, h = 0, channels = 0;
-    u8* pixels = nullptr;
-    if (!file.empty() && readTextFile(file, bytes))
-        pixels = stbi_load_from_memory(reinterpret_cast<const stbi_uc*>(bytes.data()), static_cast<int>(bytes.size()), &w, &h,
-                                       &channels, 4);
-    if (!pixels) {
-        MEALKIT_WARN("UI: cannot load image assets/%s", assetPath.c_str());
+    u32 w = 0, h = 0;
+    std::vector<u8> pixels;
+    if (!host.readFile(assetPath, bytes) || !host.decodeImage(bytes, w, h, pixels)) {
+        host.log(LogLevel::Warn, "UI: cannot load image assets/" + assetPath);
     } else {
         u32 x = 0, y = 0;
-        if (m->imageShelves.place(static_cast<u32>(w), static_cast<u32>(h), x, y)) {
-            if (m->renderer)
-                m->renderer->updateUiAtlas(render::UiAtlas::Images, x, y, static_cast<u32>(w), static_cast<u32>(h), pixels);
-            img.info = {true, static_cast<u32>(w), static_cast<u32>(h), static_cast<f32>(x) / kSize, static_cast<f32>(y) / kSize,
-                        static_cast<f32>(x + static_cast<u32>(w)) / kSize, static_cast<f32>(y + static_cast<u32>(h)) / kSize};
+        if (m->imageShelves.place(w, h, x, y)) {
+            host.uploadAtlas(AtlasKind::Images, x, y, w, h, pixels.data());
+            img.info = {true, w, h, static_cast<f32>(x) / kSize, static_cast<f32>(y) / kSize, static_cast<f32>(x + w) / kSize,
+                        static_cast<f32>(y + h) / kSize};
         } else {
-            MEALKIT_WARN("UI: image atlas full - assets/%s is not shown", assetPath.c_str());
+            host.log(LogLevel::Warn, "UI: image atlas full - assets/" + assetPath + " is not shown");
         }
-        stbi_image_free(pixels);
     }
     m->images.push_back(std::move(img));
     return m->images.back().info;
 }
 
 void Atlas::reloadChanged() {
+    if (!m->host) return;
+    Host& host = *m->host;
     bool fontsChanged = false;
     for (FontFile& f : m->fonts)
-        if (fileWriteTime(f.path) != f.time) fontsChanged = true;
+        if (host.fileTime(f.path) != f.time) fontsChanged = true;
     if (fontsChanged) {
-        MEALKIT_INFO("UI: fonts changed - reloading");
+        host.log(LogLevel::Info, "UI: fonts changed - reloading");
         m->scanFonts();
         m->resetGlyphs();
     }
     for (size_t i = 0; i < m->images.size(); ++i) {
-        const std::string file = findAssetFile(m->images[i].path);
-        if ((file.empty() ? 0 : fileWriteTime(file)) != m->images[i].time) {
+        if (host.fileTime(m->images[i].path) != m->images[i].time) {
             m->images.erase(m->images.begin() + static_cast<std::ptrdiff_t>(i)); // reread on next use (the atlas space is abandoned)
             --i;
         }
@@ -319,4 +313,4 @@ void Atlas::reloadChanged() {
 
 u32 Atlas::glyphCount() const { return static_cast<u32>(m->glyphs.size()); }
 
-} // namespace mealkit::ui
+} // namespace mkui
