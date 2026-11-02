@@ -1,6 +1,7 @@
 # Generate the build info header (mealkit_add_game calls this every build): cmake -DOUT=... -DLIST=... -DPROJECT_FILE=... -DPROJECT_DIR=... -DENGINE_DIR=... -P BuildInfo.cmake
 #   MEALKIT_BUILD_GAME_VERSION  version from mealkit.project
 #   MEALKIT_BUILD_COMMIT        git commit of the project folder (short hash, + at the end if files are modified)
+#   MEALKIT_BUILD_PROJECT_DIR   project folder for dev builds (DEV_PROJECT_DIR), empty for shipping builds
 #   MEALKIT_BUILD_SIM_VERSION   simulation version: game version + hash of the sources that touch the simulation (files in LIST).
 #                               Line endings are normalized to LF and paths hashed relative, so the same source gives the same value across OSes/compilers (crossplay).
 # If the content is the same, the file is not rewritten (to avoid recompiling).
@@ -49,7 +50,7 @@ if(GIT_FOUND)
     endif()
 endif()
 
-set(text "// Generated file (cmake/BuildInfo.cmake, every build). Don't edit.\n#pragma once\n#define MEALKIT_BUILD_GAME_VERSION \"${version}\"\n#define MEALKIT_BUILD_COMMIT \"${commit}\"\n#define MEALKIT_BUILD_SIM_VERSION 0x${sim}ull\n")
+set(text "// Generated file (cmake/BuildInfo.cmake, every build). Don't edit.\n#pragma once\n#define MEALKIT_BUILD_GAME_VERSION \"${version}\"\n#define MEALKIT_BUILD_COMMIT \"${commit}\"\n#define MEALKIT_BUILD_SIM_VERSION 0x${sim}ull\n#define MEALKIT_BUILD_PROJECT_DIR \"${DEV_PROJECT_DIR}\"\n")
 set(old "")
 if(EXISTS "${OUT}")
     file(READ "${OUT}" old)

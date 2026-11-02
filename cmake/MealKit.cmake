@@ -196,7 +196,8 @@ function(mealkit_add_game name)
     if(NOT ARG_STEAM_APP_ID)
         set(ARG_STEAM_APP_ID 480)
     endif()
-    set(project_dir ${CMAKE_SOURCE_DIR})
+    # Project folder = the folder whose CMakeLists.txt calls this (a game project's root, or samples/<name> in the engine repo)
+    set(project_dir ${CMAKE_CURRENT_SOURCE_DIR})
 
     # Game libraries (docs/CODING_MODEL.md "Placing external libraries"). The engine repo's third_party/ holds engine libraries, so it isn't scanned here.
     set(game_libs "")
@@ -367,9 +368,15 @@ function(mealkit_add_game name)
     list(APPEND build_info_sources "${ARG_HEADLESS}" ${engine_sim_sources})
     string(REPLACE ";" "\n" build_info_list "${build_info_sources}")
     file(CONFIGURE OUTPUT "${build_info_dir}/sim_sources.txt" CONTENT "${build_info_list}\n" @ONLY)
+    # Dev builds remember the project folder so an exe built outside it (the engine repo's samples) still finds its assets; shipping builds don't
+    set(dev_project_dir "")
+    if(MEALKIT_LIVE)
+        set(dev_project_dir "${project_dir_abs}")
+    endif()
     add_custom_target(${name}_buildinfo
         COMMAND ${CMAKE_COMMAND} "-DOUT=${build_info_dir}/mealkit_build_info.h" "-DLIST=${build_info_dir}/sim_sources.txt"
             "-DPROJECT_FILE=${project_dir}/mealkit.project" "-DPROJECT_DIR=${project_dir_abs}" "-DENGINE_DIR=${MEALKIT_ENGINE_DIR}"
+            "-DDEV_PROJECT_DIR=${dev_project_dir}"
             -P "${MEALKIT_ENGINE_DIR}/cmake/BuildInfo.cmake"
         BYPRODUCTS "${build_info_dir}/mealkit_build_info.h"
         COMMENT "Build info ${name}: version, commit, simulation version"
@@ -500,7 +507,7 @@ function(mealkit_add_game name)
 
     # Pre-ship checks: folder layout (tools/check_layout.ps1, fails on violation) → merge notices (MealKit + engine libraries in the game exe + game libraries + fonts)
     # → shipping folder (MealKitExport.cmake also checks the exe size budget)
-    set(export_notices "${CMAKE_BINARY_DIR}/export_notices/THIRD_PARTY_NOTICES.txt")
+    set(export_notices "${CMAKE_BINARY_DIR}/export_notices/${name}/THIRD_PARTY_NOTICES.txt")
     # Shipping folder: export/<name>, or export/<name>-<version> if mealkit.project's exportVersionFolder is on
     set(export_dir "${project_dir}/export/${name}")
     if(EXISTS "${project_file}")
@@ -518,10 +525,11 @@ function(mealkit_add_game name)
             set(export_dir "${project_dir}/export/${name}-${export_version}")
         endif()
     endif()
-    # Cook step (game/Cook.h): the dev Release exe (build_project.bat Export builds it first) packs the reached assets into one pack
-    set(export_cooker "${project_dir}/build/Release/bin/${name}${CMAKE_EXECUTABLE_SUFFIX}")
-    set(export_pack "${project_dir}/build/cook/${name}.pak")
-    add_custom_target(game_export
+    # Cook step (game/Cook.h): the dev Release exe (build_project.bat Export builds it first, next to this build folder) packs the reached assets into one pack
+    get_filename_component(build_root "${CMAKE_BINARY_DIR}" DIRECTORY)
+    set(export_cooker "${build_root}/Release/bin/${name}${CMAKE_EXECUTABLE_SUFFIX}")
+    set(export_pack "${build_root}/cook/${name}.pak")
+    add_custom_target(${name}_export
         COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/check_layout.ps1"
             -Project "${project_dir}"
         COMMAND "${export_cooker}" --cook "${export_pack}"
@@ -542,4 +550,9 @@ function(mealkit_add_game name)
         DEPENDS ${name}
         COMMENT "Exporting ${name}"
         VERBATIM)
+    # build_project.bat Export builds game_export: every game in this build (the engine repo has one per reference sample)
+    if(NOT TARGET game_export)
+        add_custom_target(game_export)
+    endif()
+    add_dependencies(game_export ${name}_export)
 endfunction()

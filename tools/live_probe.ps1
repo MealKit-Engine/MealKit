@@ -12,7 +12,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $engine = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
-if ($Project -eq "") { $Project = $engine }
+if ($Project -eq "") { $Project = Join-Path $engine "samples\sandbox" }
 $Project = (Resolve-Path $Project).Path.TrimEnd("\")
 $dir = Join-Path $Project "build\live"
 

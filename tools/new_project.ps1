@@ -58,7 +58,7 @@ if ($Template -eq "empty") {
 }
 
 # 4) Source modules: modules/<name>/ used by the sample game (including the module.files install record; update later with tools\module.ps1 update)
-$modules = Join-Path $engine "modules"
+$modules = Join-Path $engine "samples\sandbox\modules"
 if ($Template -eq "arena" -and (Test-Path $modules)) {
     New-Item -ItemType Directory -Force (Join-Path $dest "modules") | Out-Null
     Get-ChildItem $modules -Directory | ForEach-Object { Copy-Item $_.FullName (Join-Path $dest "modules") -Recurse -Force }

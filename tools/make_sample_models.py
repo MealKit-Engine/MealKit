@@ -15,7 +15,7 @@ import struct
 import zlib
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT_DIR = os.path.join(ROOT, "assets", "models")
+OUT_DIR = os.path.join(ROOT, "samples", "sandbox", "assets", "models")
 
 
 def sub(a, b):

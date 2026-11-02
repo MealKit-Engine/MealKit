@@ -140,7 +140,7 @@ function Get-SampleSource([string]$name, [string]$template = "arena") {
 # Assets of a template: project-relative path ("assets\scenes\main.scene") → source file. Text files that are generated (strings) aren't here
 function Get-SampleAssets([string]$template = "arena") {
     $files = [ordered]@{}
-    $engineAssets = Join-Path $MealKitEngine "assets"
+    $engineAssets = Join-Path $MealKitEngine "samples\sandbox\assets"
     $add = {
         param($root, $item)
         Get-ChildItem $item -Recurse -File | Where-Object { $_.Extension -ne ".autosave" } | Sort-Object FullName | ForEach-Object {
@@ -174,7 +174,7 @@ function Get-TemplateStrings([string]$name, [Collections.IDictionary]$source, [C
     $files = [ordered]@{}
     foreach ($lang in "en", "ko") {
         $out = [Collections.Generic.List[string]]::new()
-        foreach ($line in [IO.File]::ReadAllLines((Join-Path $MealKitEngine "assets\strings\$lang.txt"), $MealKitUtf8)) {
+        foreach ($line in [IO.File]::ReadAllLines((Join-Path $MealKitEngine "samples\sandbox\assets\strings\$lang.txt"), $MealKitUtf8)) {
             if ($line -match '^\s*([A-Za-z0-9_.]+)\s*=') {
                 $key = $Matches[1]
                 if ($key -eq "game.title") { $out.Add("game.title = $name"); continue }

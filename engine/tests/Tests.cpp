@@ -2731,6 +2731,7 @@ int main(int argc, char** argv) {
     if (argc > 1 && std::string(argv[1]) == "--write-asset-schema") // the Blender add-on's schema.json (asset_schema test)
         return writeTextFile(std::string(MEALKIT_ENGINE_DIR) + "/tools/blender-addon/mealkit/schema.json", asset::modelSchemaJson()) ? 0 : 1;
 #endif
+    setProjectRoot(std::string(MEALKIT_ENGINE_DIR) + "/samples/sandbox"); // sample assets the tests read (models, scenes, ui)
     std::string only;
     if (argc > 2 && std::string(argv[1]) == "--only") only = argv[2];
     return test::runAll(only);

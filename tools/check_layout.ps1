@@ -12,9 +12,10 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $engine = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
-if ($Project -eq "") { $Project = $engine }
+if ($Project -eq "") { $Project = Join-Path $engine "samples\sandbox" }
 $Project = (Resolve-Path $Project).Path.TrimEnd("\")
-$isEngine = $Project -ieq $engine
+# The engine repo's reference samples (samples\<name>): code is in sim/ view/ app/ next to assets/, libraries are the engine's
+$isEngine = (Split-Path -Parent $Project) -ieq (Join-Path $engine "samples")
 $utf8 = New-Object System.Text.UTF8Encoding $false
 
 # Kind folder → extensions (CODING_MODEL "Project folder layout")

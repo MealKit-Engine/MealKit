@@ -162,7 +162,7 @@ if ($Source) {
         $changed++
     }
     # Adds source modules used by the sample that the project lacks (existing modules are updated with tools\module.ps1 update)
-    $engineModules = Join-Path $MealKitEngine "modules"
+    $engineModules = Join-Path $MealKitEngine "samples\sandbox\modules"
     if ($template -eq "arena" -and (Test-Path $engineModules)) {
         foreach ($m in Get-ChildItem $engineModules -Directory) {
             $target = Join-Path $Project "modules\$($m.Name)"

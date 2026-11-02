@@ -1,4 +1,4 @@
-# Sample game of the engine repo (project folder = engine repo root, mealkit.project).
+# Reference sample of the engine repo (project folder = samples/sandbox: mealkit.project, assets/, art/, modules/).
 #   Game build:   sandbox.exe (shipping; used by the determinism test mp_test.ps1)
 #   Editor build: sandbox_game.dll (loaded by MealKitEditor)
 # Also the template for new game projects (tools/new_project.ps1 copies sim/ view/ app/ into the project's source/).

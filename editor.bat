@@ -15,4 +15,4 @@ start "" "%EXE%"
 exit /b 0
 
 :sample
-start "" "%EXE%" --project "%~dp0." %1 %2 %3 %4 %5 %6 %7 %8 %9
+start "" "%EXE%" --project "%~dp0samples\sandbox" %1 %2 %3 %4 %5 %6 %7 %8 %9

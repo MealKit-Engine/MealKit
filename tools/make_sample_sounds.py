@@ -9,7 +9,7 @@ import struct
 import wave
 
 RATE = 22050
-ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "sounds")
+ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "samples", "sandbox", "assets", "sounds")
 
 
 def write(name, samples, peak=0.9):

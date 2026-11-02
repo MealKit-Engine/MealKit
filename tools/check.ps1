@@ -24,6 +24,8 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $out = Join-Path $root "build\check"
+# Reference samples are projects in samples\<name> (their own mealkit.project and assets\); sandbox is the one most checks run
+$sandbox = Join-Path $root "samples\sandbox"
 New-Item -ItemType Directory -Force $out | Out-Null
 Get-ChildItem $out -File | Remove-Item -Force
 $stateDir = Join-Path $root "build\check-state"
@@ -43,16 +45,17 @@ $folderGroups = @{
 # Path rules (first match from the top). Values: group name, "folder:<engine folder>", "unit-all", "det!", "full" (everything except export), "" = no checks
 $pathRules = @(
     @('\.md$', ''), @('^docs/', ''), @('^\.github/', ''), @('^\.claude/', ''), @('^\.git(ignore|attributes)$', ''),
-    @('^art/ui/preview/', 'tools'), @('^art/', ''),
+    @('^samples/[^/]+/art/ui/preview/', 'tools'), @('^samples/[^/]+/art/', ''),
     @('^engine/src/mealkit/([^/]+)/', 'folder:$1'), @('^engine/shaders/', 'folder:render'),
     @('^engine/tests/golden/', 'render'), @('^engine/tests/perf/', 'game'), @('^engine/tests/', 'unit-all'),
     @('^engine/tools/SimCheck', 'editor project'), @('^engine/tools/', 'game'), @('^engine/res/', 'editor'),
     @('^third_party/mkaudio/', 'folder:audio'), @('^third_party/', 'full'),
     @('^samples/[^/]+/(sim|replays|tests)/', 'det! game editor'), @('^samples/sandbox/app/(Flow|Screens)', 'game editor project'),
+    @('^samples/[^/]+/assets/sounds', 'folder:audio'), @('^samples/[^/]+/assets/ui/', 'folder:ui project'),
+    @('^samples/[^/]+/assets/strings/', 'folder:loc project'),
+    @('^samples/[^/]+/assets/(game\.tuning|scenes/|models/|tables/)', 'det game editor render'),
+    @('^samples/[^/]+/mealkit\.project$', 'det game editor'),
     @('^samples/', 'game editor'),
-    @('^assets/sounds', 'folder:audio'), @('^assets/ui/', 'folder:ui project'), @('^assets/strings/', 'folder:loc project'),
-    @('^assets/(game\.tuning|scenes/|models/|tables/)', 'det game editor render'), @('^assets/', 'game editor'),
-    @('^mealkit\.project$', 'det game editor'),
     @('^(templates/|VERSION$|tools/(new|upgrade|rename)_project|tools/project_common|tools/module\.ps1$)', 'project'),
     @('^tools/(penpot-plugin|blender-addon)/', 'tools'),
     @('^tools/(mp_test|record_replay|ci_|desync_diff)', 'det!'), @('^tools/(live_probe|compare_images)', 'game render tools'),
@@ -186,8 +189,11 @@ function Get-DetKey {
         $parts += "$($h.Directory.Name) " + (Select-String -Path $h.FullName -Pattern "SIM_VERSION (\w+)").Matches[0].Groups[1].Value
     }
     if ($parts.Count -eq 0) { return "" }
-    $content = @(@("mealkit.project", "assets\game.tuning") | ForEach-Object { Join-Path $root $_ } | Where-Object { Test-Path $_ })
-    $content += @(Get-ChildItem (Join-Path $root "assets") -Recurse -File -Include *.scene, *.glb, *.gltf, *.table -ErrorAction SilentlyContinue | ForEach-Object FullName)
+    $content = @()
+    foreach ($sample in @(Get-ChildItem (Join-Path $root "samples") -Directory)) {
+        $content += @(@("mealkit.project", "assets\game.tuning") | ForEach-Object { Join-Path $sample.FullName $_ } | Where-Object { Test-Path $_ })
+        $content += @(Get-ChildItem (Join-Path $sample.FullName "assets") -Recurse -File -Include *.scene, *.glb, *.gltf, *.table -ErrorAction SilentlyContinue | ForEach-Object FullName)
+    }
     $content += @(Get-ChildItem (Join-Path $root "samples") -Recurse -File -Filter *.rec | ForEach-Object FullName)
     $content += @(Get-ChildItem (Join-Path $root "samples") -Recurse -File -Filter *.scenario | ForEach-Object FullName)
     foreach ($f in ($content | Sort-Object)) { $parts += $f.Substring($root.Length + 1) + " " + (Get-FileHash $f -Algorithm SHA256).Hash }
@@ -483,18 +489,18 @@ if (-not $Quick) {
     }
     Invoke-Check tools "Penpot screens = engine layout" {
         param($log)
-        $code = Run $log $editor "--project `"$root`" --ui-check --lang en"
+        $code = Run $log $editor "--project `"$sandbox`" --ui-check --lang en"
         return $code -eq 0 -and (Has $log "UI-CHECK .* -> ok") -and -not (Has $log "-> FAIL")
     }
     # Secondary: the board Penpot drew (art/ui/preview, half size) vs. the same screen drawn by the engine. Text rasterization/anti-aliasing differ, so it's loose
     # (pixels with channel difference over 48 at most 1%). Catches missing or badly misplaced nodes
     Invoke-Check tools "Penpot screens = engine pixels" {
         param($log)
-        $previews = @(Get-ChildItem (Join-Path $root "art\ui\preview") -Filter *.png -ErrorAction SilentlyContinue)
+        $previews = @(Get-ChildItem (Join-Path $sandbox "art\ui\preview") -Filter *.png -ErrorAction SilentlyContinue)
         if ($previews.Count -eq 0) { return "SKIP: no art/ui/preview images" }
         foreach ($p in $previews) {
             $png = Join-Path $out ("engine-" + $p.Name)
-            $code = Run "$log.render" $editor "--project `"$root`" --lang en --ui-render ui/$($p.BaseName).ui `"$png`""
+            $code = Run "$log.render" $editor "--project `"$sandbox`" --lang en --ui-render ui/$($p.BaseName).ui `"$png`""
             Get-Content "$log.render" | Add-Content $log
             if ($code -ne 0) { return $false }
             $diff = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $p.FullName -B $png -Threshold 48 -MaxBadPercent 1 -MaxDiff 255 2>&1
@@ -506,14 +512,14 @@ if (-not $Quick) {
     Invoke-Check editor "Editor capture (edit mode)" {
         param($log)
         $png = Join-Path $out "editor.png"
-        $code = Run $log $editor "--project `"$root`" --frames 60 --select 25 --capture `"$png`""
+        $code = Run $log $editor "--project `"$sandbox`" --frames 60 --select 25 --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]")
     }
     # Lookdev window (ROADMAP "Textures and materials part 3"): drawn to an offscreen target and shown in the window. No debug layer messages
     Invoke-Check render "Editor look dev (offscreen, DX12 debug layer)" {
         param($log)
         $png = Join-Path $out "editor-lookdev.png"
-        $code = Run $log $editor "--project `"$root`" assets\scenes\styles.scene --frames 60 --select 3 --lookdev --debug --capture `"$png`""
+        $code = Run $log $editor "--project `"$sandbox`" `"$sandbox\assets\scenes\styles.scene`" --frames 60 --select 3 --lookdev --debug --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]") -and -not (Has $log "\[D3D12\]")
     }
     # Graphics regression test (ROADMAP "Graphics regression tests"): draws fixed scenes (engine\tests\golden\shots.txt) without UI and compares with reference images.
@@ -521,7 +527,7 @@ if (-not $Quick) {
     $goldenDir = Join-Path $root "engine\tests\golden"
     function Compare-Golden([string]$log, [string]$exe, [string]$suffix) {
         $dir = Join-Path $out "golden$suffix"
-        $code = Run $log $exe "--project `"$root`" --render-golden `"$goldenDir\shots.txt`" `"$dir`""
+        $code = Run $log $exe "--project `"$sandbox`" --render-golden `"$goldenDir\shots.txt`" `"$dir`""
         if ($code -ne 0) { return "render failed" }
         $problems = @()
         foreach ($png in Get-ChildItem $dir -Filter *.png | Where-Object { $_.Name -notlike "*-diff.png" }) {
@@ -541,7 +547,7 @@ if (-not $Quick) {
     Invoke-Check editor "Editor play (solo, shadow)" {
         param($log)
         $png = Join-Path $out "editor-play.png"
-        $code = Run $log $editor "--project `"$root`" --frames 180 --play --bot --capture `"$png`""
+        $code = Run $log $editor "--project `"$sandbox`" --frames 180 --play --bot --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and (Has $log "Play mode") -and -not (Has $log "Shadow simulation diverged")
     }
     # RHI backends (ROADMAP stage 2 "RHI layer"): does the Vulkan editor draw the same scene the same as DX12, with no validation layer errors.
@@ -556,7 +562,7 @@ if (-not $Quick) {
         if (Test-Path $ini) { Copy-Item $ini $vkEditorBin -Force }
         $dx = Join-Path $out "backend-dx12.png"
         $vk = Join-Path $out "backend-vulkan.png"
-        $common = "--project `"$root`" --frames 60 --select 25 --capture"
+        $common = "--project `"$sandbox`" --frames 60 --select 25 --capture"
         if ((Run "$log.dx12" $editor "$common `"$dx`"") -ne 0 -or -not (Test-Path $dx)) { return "DX12 capture failed" }
         if ((Run "$log.vulkan" $vkEditor "$common `"$vk`"") -ne 0 -or -not (Test-Path $vk)) { return "Vulkan capture failed" }
         # The log lines (DLL path/port/token/time differ per run) and status bar are excluded. In the default 1600x900 layout the first log line starts at about y = 598
@@ -569,7 +575,7 @@ if (-not $Quick) {
     Invoke-Check render "Vulkan validation layer (play)" {
         param($log)
         $png = Join-Path $out "vulkan-play.png"
-        $code = Run $log $vkEditor "--project `"$root`" --frames 180 --play --bot --debug --capture `"$png`""
+        $code = Run $log $vkEditor "--project `"$sandbox`" --frames 180 --play --bot --debug --capture `"$png`""
         if (Has $log "validation layer unavailable") { return "SKIP: Vulkan SDK not installed (validation layer)" }
         if ($code -ne 0 -or -not (Has $log "Play mode")) { return "play failed" }
         $issues = @(Select-String -Path $log -Pattern "\[Vulkan\]")
@@ -579,7 +585,7 @@ if (-not $Quick) {
     Invoke-Check render "Vulkan validation layer (look dev)" {
         param($log)
         $png = Join-Path $out "vulkan-lookdev.png"
-        $code = Run $log $vkEditor "--project `"$root`" assets\scenes\styles.scene --frames 60 --select 3 --lookdev --debug --capture `"$png`""
+        $code = Run $log $vkEditor "--project `"$sandbox`" `"$sandbox\assets\scenes\styles.scene`" --frames 60 --select 3 --lookdev --debug --capture `"$png`""
         if (Has $log "validation layer unavailable") { return "SKIP: Vulkan SDK not installed (validation layer)" }
         if ($code -ne 0 -or -not (Test-Path $png)) { return "capture failed" }
         $issues = @(Select-String -Path $log -Pattern "\[Vulkan\]")
@@ -589,7 +595,7 @@ if (-not $Quick) {
     Invoke-Check editor "Editor play (3 players)" {
         param($log)
         $png = Join-Path $out "editor-3p.png"
-        $code = Run $log $editor "--project `"$root`" --frames 400 --play --players 3 --bot --capture `"$png`""
+        $code = Run $log $editor "--project `"$sandbox`" --frames 400 --play --players 3 --bot --capture `"$png`""
         return $code -eq 0 -and (Has $log "Play mode: 3 player") -and -not (Has $log "Play stopped")
     }
     # Build failure: putting forbidden code in sim/ makes SimCheck stop the build, and the editor must still be able to play with the previous DLL
@@ -603,7 +609,7 @@ if (-not $Quick) {
         }
         Invoke-Check editor "Editor keeps the old DLL on failure" {
             param($log)
-            Run $log $editor "--project `"$root`" --build-game --frames 30" | Out-Null
+            Run $log $editor "--project `"$sandbox`" --build-game --frames 30" | Out-Null
             return (Has $log "Build failed") -and (Has $log "Game module '.*' loaded")
         }
     } finally {
@@ -611,7 +617,7 @@ if (-not $Quick) {
     }
     Invoke-Check editor "Game code rebuild + load" {
         param($log)
-        Run $log $editor "--project `"$root`" --build-game --frames 30" | Out-Null
+        Run $log $editor "--project `"$sandbox`" --build-game --frames 30" | Out-Null
         return (Has $log "Game code build finished") -and (Has $log "Game module '.*' loaded") -and -not (Has $log "Build failed")
     }
     Invoke-Check project "New project + upgrade" {
@@ -722,11 +728,11 @@ if (-not $Quick) {
     }
     Invoke-Check export "Export build" {
         param($log)
-        $exe = Join-Path $root "export\sandbox\sandbox.exe"
+        $exe = Join-Path $sandbox "export\sandbox\sandbox.exe"
         if (-not ((Build $log "Export") -and (Test-Path $exe))) { return $false }
         # Shipping builds have no live connection server (MEALKIT_LIVE=0)
         $text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))
-        if ($text.Contains("Live server (")) { return "export\sandbox\sandbox.exe contains the live server (MEALKIT_LIVE should be 0)" }
+        if ($text.Contains("Live server (")) { return "samples\sandbox\export\sandbox\sandbox.exe contains the live server (MEALKIT_LIVE should be 0)" }
         return $true
     }
 }

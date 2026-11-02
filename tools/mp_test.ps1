@@ -59,6 +59,12 @@ $hostExtra = if ($ClientExe -ne "") { " --any-build" } else { "" }
 if ($HostLeave -and $Clients -lt 2) { Write-Error "-HostLeave needs -Clients 2 or more"; exit 1 }
 $procs = @()
 $started = Get-Date
+if ($DesyncTest -gt 0) {
+    # Dev builds dump into <project>\build\desync only when <project>\build exists (an engine repo sample may not have one yet)
+    $repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe))) # exe is <repo>\build\<config>\bin
+    $sampleDir = Join-Path $repo ("samples\" + [IO.Path]::GetFileNameWithoutExtension($exe).Replace("_headless", ""))
+    if (Test-Path $sampleDir) { New-Item -ItemType Directory -Force (Join-Path $sampleDir "build") | Out-Null }
+}
 $hostArgs = "--host $Port --local --players $maxPlayers --auto-start $players --match-data $Bodies --seed 12345$hostExtra $common"
 if ($HostLeave) { $hostArgs = $hostArgs -replace "--exit-tick $Ticks", "--exit-tick $([int]($Ticks / 4))" }
 $procs += Start-Process -FilePath $exe -PassThru -NoNewWindow `
@@ -112,8 +118,10 @@ foreach ($n in $names) {
 }
 
 if ($DesyncTest -gt 0) {
-    # Dumps go to build\desync in the executable's project folder (seed 12345 = 3039)
-    $dumpDir = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe))) "desync"
+    # Dumps go to build\desync in the executable's project folder (seed 12345 = 3039). The engine repo's samples are
+    # samples\<exe name> next to its build\ folder; their build\ is created when the test starts (see below)
+    $buildRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe)) # <project>\build
+    $dumpDir = if (Test-Path $sampleDir) { Join-Path $sampleDir "build\desync" } else { Join-Path $buildRoot "desync" }
     $dumps = @(Get-ChildItem $dumpDir -Filter "desync_0000000000003039_t*.txt" -ErrorAction SilentlyContinue |
         Where-Object { $_.LastWriteTime -ge $started })
     $desynced = @($finals | Where-Object { $_ -match "desync=1" }).Count

@@ -2,6 +2,9 @@
 /build/
 /out/
 /export/
+# Reference sample projects (samples/<name>): editor/play/cache output and Export folders
+/samples/*/build/
+/samples/*/export/
 .vs/
 # Only screenshots/captures (textures and icons are committed)
 /screenshot*.png

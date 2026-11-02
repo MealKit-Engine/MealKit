@@ -4,7 +4,7 @@ Standard library only. The image's top row is the +z edge (asset/Terrain.h)."""
 import math, os, struct, zlib
 
 N = 129
-root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "terrain")
+root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "samples", "sandbox", "assets", "terrain")
 
 def height(x, z):
     u, v = x / (N - 1) * 2 - 1, z / (N - 1) * 2 - 1
