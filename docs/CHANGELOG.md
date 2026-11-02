@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.17 — Small-object distance cull (2026-11-02)
+
+### [x] Stage 4: Optimization candidate 3, small-object distance cull (done 2026-11-02)
+- **`ModelCache::pickLod`**: the same screen size measure as LOD choice (bounding radius / distance) is compared with the model kind's `ModelBudget::cullSize`; below it, `pickLod` returns `render::kNoMesh`, which `DrawList::add`/`addSkinned` and `asset::addModel` skip. So scene objects, scatter layers and the editor view all use it.
+- **Project settings** `cullCharactersSize`, `cullPropsSize`, `cullEnvironmentSize` (passed with the model budgets, `game::modelBudgets`). Defaults: props 0.004 (about 2.5 px radius at 720p), characters and environment 0 (off).
+- **Measured** (`--benchmark`, Intel(R) Graphics): GPU 2.10 ms vs 2.12~2.19 before; the sample has few small props, so the gain shows in scatter-heavy scenes. Golden images unchanged.
+- **Not yet**: no dissolve fade at the cull distance (dissolve only works on dissolve materials), so objects pop; distance-culled instances aren't counted in the `culled` stat.
+
 ## v0.7.16 — Front-to-back draw order (2026-11-02)
 
 ### [x] Stage 4: Optimization candidate 1, front-to-back bucket order (done 2026-11-02)
