@@ -12,6 +12,11 @@
 #   and after the match starts a new client (late) joins an empty slot. PASS if all peers that reached the end have the same hash
 # Host migration test with -HostLeave (2+ clients): the host leaves normally at 1/4 of -Ticks (Handoff), and the successor
 #   client crashes at 1/2 (--abort-host-at, only whoever is host then). PASS if all remaining clients have the same hash to the end and it migrated twice
+# Peer on another device/platform with -Peer host|join (one process per device over the real network, ROADMAP stage 5 cross-platform determinism):
+#   device A: mp_test.ps1 -Peer host -Headless -Ticks 900          (listens on all interfaces at -Port, accepts other determinism groups)
+#   device B: mp_test.ps1 -Peer join -Remote <A's address> -Headless -Ticks 900
+#   Each writes build\mp_test\peer-<group>.hashes.txt ("<tick> <hash>" per tick). PASS if the run ended without a desync (lockstep
+#   compares state hashes in-band). Diffing the two hash logs shows the first diverged tick
 param(
     [int]$Clients = 1,
     [int]$Ticks = 900,
@@ -28,7 +33,9 @@ param(
     [switch]$Headless,
     [int]$DesyncTest = 0,
     [switch]$LateJoin,
-    [switch]$HostLeave
+    [switch]$HostLeave,
+    [ValidateSet("", "host", "join")][string]$Peer = "",
+    [string]$Remote = ""
 )
 
 if ($Exe -eq "") {
@@ -47,6 +54,41 @@ if ($ClientExe -ne "") {
 # Logs: <build folder>\mp_test (executables are in <build>\<Config>\bin)
 $logDir = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe))) "mp_test"
 New-Item -ItemType Directory -Force $logDir | Out-Null
+
+if ($Peer -ne "") {
+    # Two devices: this device runs one peer; the other device runs the other side
+    if ($Peer -eq "join" -and $Remote -eq "") { Write-Error "-Peer join needs -Remote <host address>"; exit 1 }
+    $common = "--bot --mute --vsync 0 --fps 120 --size 640 360 --exit-tick $Ticks"
+    if ($Headless) { $common = "--headless $common" }
+    if ($Lag -gt 0 -or $Jitter -gt 0 -or $Loss -gt 0) { $common += " --net-lag $Lag --net-jitter $Jitter --net-loss $Loss" }
+    $hashLog = Join-Path $logDir "peer.hashes.txt"
+    $peerArgs = if ($Peer -eq "host") { "--host $Port --players 2 --auto-start 2 --match-data $Bodies --seed 12345 --any-build" }
+                else { "--join ${Remote}:$Port" }
+    $peerArgs += " --hash-log `"$hashLog`" $common"
+    Write-Host "$Peer`: $exe $peerArgs"
+    $p = Start-Process -FilePath $exe -PassThru -NoNewWindow -ArgumentList $peerArgs `
+        -RedirectStandardOutput "$logDir\peer.txt" -RedirectStandardError "$logDir\peer_err.txt"
+    # The host waits for the other device, so allow time to start it by hand
+    $timeoutMs = [int](($Ticks / 30.0 + 120) * 1000 * (1 + ($Lag + $Jitter) / 100.0))
+    if (-not $p.WaitForExit($timeoutMs)) { $p.Kill(); Write-Warning "Peer timed out" }
+    $line = Select-String -Path "$logDir\peer.txt" -Pattern "^FINAL" | Select-Object -Last 1
+    # Build log line: "Build: version ..., simulation <hex>, <determinism group>"
+    $build = Select-String -Path "$logDir\peer.txt", "$logDir\peer_err.txt" -Pattern "simulation [0-9a-f]+, ([\w-]+)" | Select-Object -First 1
+    $group = if ($build) { $build.Matches[0].Groups[1].Value } else { "unknown" }
+    if (Test-Path $hashLog) {
+        $named = Join-Path $logDir "peer-$group.hashes.txt"
+        Move-Item -Force $hashLog $named
+        $hashLog = $named
+    }
+    Write-Host ("{0,-8} {1}" -f $Peer, $(if ($line) { $line.Line } else { "(no FINAL line)" }))
+    Write-Host "determinism group $group, hash log $hashLog"
+    if ($line -and $line.Line -match "desync=0" -and $line.Line -match "tick=$Ticks ") {
+        Write-Host "PASS: $Ticks ticks with a peer on another device, no desync" -ForegroundColor Green
+        exit 0
+    }
+    Write-Host "FAIL: see $logDir" -ForegroundColor Red
+    exit 1
+}
 
 $players = $Clients + 1
 $maxPlayers = if ($LateJoin) { $players + 1 } else { $players }

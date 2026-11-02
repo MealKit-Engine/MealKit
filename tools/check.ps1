@@ -661,6 +661,11 @@ if (-not $Quick) {
         $sim = & "$root\build\Release\tools\mealkit_simcheck.exe" "$projects\stamp" --third-party $lib "$projects\CheckGame\source\sim\ZzLib.cpp" 2>&1
         $output += $sim
         $simOk = ($sim -match "SIM011").Count -gt 0
+        # Platform branches in sim/ are SIM015 (crossplay: every platform runs the same simulation code)
+        Set-Content "$projects\CheckGame\source\sim\ZzPlatform.cpp" "#if defined(_WIN32) || __aarch64__`r`nint x;`r`n#endif`r`n" -Encoding UTF8
+        $psim = & "$root\build\Release\tools\mealkit_simcheck.exe" "$projects\stamp" "$projects\CheckGame\source\sim\ZzPlatform.cpp" 2>&1
+        $output += $psim
+        $simOk = $simOk -and ($psim -match "SIM015").Count -ge 2
         # Source modules: a module's sim/ including game source/ is SIM013, a module not in requires is SIM014 (docs/MODULES.md)
         $mod = "$projects\CheckGame\modules\checkmod"
         New-Item -ItemType Directory -Force "$mod\sim" | Out-Null

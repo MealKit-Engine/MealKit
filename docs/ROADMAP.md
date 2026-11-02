@@ -429,6 +429,7 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 - **Already done**: stage 1 CI compares per-tick hashes of the same input recording on every commit on Windows (MSVC, clang-cl), Linux x64, and macOS ARM64. This item adds on top tests connecting different devices over a real network, plus mobile, web (wasm), and console CPUs/compilers.
 - **Until passing**: put a "determinism group" (e.g. `msvc-x64`, `clang-arm64`) into the content hash and refuse connections from peers of other groups. Passing groups are merged into one over time.
 - **If it fails**: revisit "Fixed-point gameplay math" in the `docs/DECISIONS.md` deferred table.
+- **Progress (2026-11-02)**: done on Windows — SimCheck SIM015 (`#if`/`#ifdef`/`#elif` on platform, compiler or CPU macros in `sim/`; engine `physics`/`DetMath`/`sim` have none), `mp_test.ps1 -Peer host|join -Remote <address>` (one peer per device over the real network, other determinism groups accepted, per-tick hash log `build\mp_test\peer-<group>.hashes.txt`; checked with two processes on one PC: 900 ticks, `desync=0`). Left: running it between real devices (Windows ↔ Linux/Steam Deck, Windows ↔ macOS ARM64) and recording the results here, then merging the passing groups.
 
 ### [ ] Crossplay
 - **Conditions for the same match**:

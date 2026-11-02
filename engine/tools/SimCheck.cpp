@@ -46,6 +46,7 @@ struct Include {
 struct Lexed {
     std::vector<Token> tokens;
     std::vector<Include> includes;
+    std::vector<Token> conditionIdents; // identifiers in #if/#ifdef/#ifndef/#elif lines
     std::vector<int> constOkLines; // lines with a "// const-ok:" comment
 };
 
@@ -239,7 +240,22 @@ private:
             advance();
         }
         size_t i = text.find_first_not_of(" \t");
-        if (i == std::string::npos || text.compare(i, 7, "include") != 0) return;
+        if (i == std::string::npos) return;
+        if (text.compare(i, 2, "if") == 0 || text.compare(i, 4, "elif") == 0) {
+            size_t k = i;
+            while (k < text.size() && isIdentChar(static_cast<unsigned char>(text[k]))) ++k; // directive name
+            while (k < text.size()) {
+                if (isIdentStart(static_cast<unsigned char>(text[k]))) {
+                    const size_t start = k;
+                    while (k < text.size() && isIdentChar(static_cast<unsigned char>(text[k]))) ++k;
+                    out.conditionIdents.push_back({Tok::Ident, text.substr(start, k - start), line, col});
+                } else {
+                    ++k;
+                }
+            }
+            return;
+        }
+        if (text.compare(i, 7, "include") != 0) return;
         i = text.find_first_not_of(" \t", i + 7);
         if (i == std::string::npos) return;
         const char open = text[i];
@@ -287,6 +303,9 @@ constexpr const char* kMsgUsingStd = "write std:: explicitly so the check can se
 constexpr const char* kMsgModuleGame =
     "module code does not know the game. Take the module's own state as arguments and return results; the game calls "
     "the module from World::step() (docs/MODULES.md)";
+constexpr const char* kMsgPlatformMacro =
+    "the simulation must run the same code on every platform for crossplay. Move platform differences to view/ or app/ "
+    "(docs/CODING_MODEL.md \"Determinism rules\")";
 constexpr const char* kMsgModuleRequires = "add the module to 'requires' in this module's module.txt";
 
 enum class Qual {
@@ -397,6 +416,15 @@ constexpr IdentRule kIdentRules[] = {
     {"thread_local", Qual::Any, false, "SIM008", kMsgGlobal},
 };
 
+// Platform/compiler/CPU macros: a branch on these in sim/ makes peers on different platforms run different code
+constexpr const char* kPlatformMacros[] = {
+    "_WIN32",       "_WIN64",      "__linux__",  "__APPLE__",   "__MACH__",   "__ANDROID__", "__EMSCRIPTEN__",
+    "_MSC_VER",     "__clang__",   "__GNUC__",   "_M_X64",      "_M_IX86",    "_M_ARM64",    "__x86_64__",
+    "__i386__",     "__aarch64__", "__arm__",    "__wasm__",    "__SSE__",    "__SSE2__",    "__SSE4_2__",
+    "__AVX__",      "__AVX2__",    "__FMA__",    "__ARM_NEON",  "__ARM_FEATURE_FMA", "__unix__", "_XBOX_ONE",
+    "_GAMING_XBOX", "__ORBIS__",   "__PROSPERO__", "__NX__",    "__SWITCH__",
+};
+
 enum class Match {
     Exact,   // the whole path matches (case-insensitive)
     Prefix,  // the path starts with this
@@ -485,6 +513,9 @@ public:
 
     int run(const Lexed& lexed) {
         for (const Include& inc : lexed.includes) checkInclude(inc);
+        for (const Token& id : lexed.conditionIdents)
+            for (const char* macro : kPlatformMacros)
+                if (id.text == macro) report(id.line, id.col, "SIM015", "#if on " + id.text, kMsgPlatformMacro);
         m_t = &lexed.tokens;
         checkTokens();
         checkFloatLiterals(lexed.constOkLines);
