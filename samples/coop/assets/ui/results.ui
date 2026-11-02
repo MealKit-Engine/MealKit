@@ -1,0 +1,137 @@
+# MealKit UI (hand-written): results after the simulation ends the match (MatchPhase::Results). View model: ResultsVm
+# (samples/sandbox/app/Screens.h). The host goes back to the lobby with the button or after a few seconds. Text: assets/strings.
+@format ui 1
+board results 1920 1080
+  navigation
+  firstFocus lobby
+  frame dim
+    pos 0 0
+    size 1920 1080
+    constraints leftright topbottom
+    fill #05070CA0
+  end
+  frame panel
+    pos 560 160
+    size 800 hug
+    constraints center center
+    layout column
+    gap 14
+    padding 36 40
+    fill $panel
+    stroke 1 $panelStroke
+    radius 16
+    shadow 0 12 40 0 #000000AA
+    text title
+      size fill hug
+      key results.title
+      fontSize 48
+      color $text
+      textAlign center
+    end
+    frame rows
+      size fill hug
+      layout column
+      gap 8
+      list rows
+      frame row
+        size fill 60
+        layout row
+        align center
+        gap 16
+        padding 0 18
+        radius 10
+        fill #FFFFFF0A
+        text rank
+          size 70 hug
+          key results.rank
+          fontSize 28
+          color $textDim
+        end
+        frame swatch
+          size 18 18
+          radius 9
+          colorField color
+        end
+        text name
+          size fill hug
+          content {name}
+          fontSize 28
+          color $text
+          maxLines 1
+          overflow ellipsis
+        end
+        text you
+          key hud.you
+          visible you
+          fontSize 20
+          color $accent
+        end
+        text winner
+          key results.winner
+          visible winner
+          fontSize 22
+          color $accent
+        end
+        text score
+          key results.score
+          fontSize 22
+          color $textDim
+        end
+      end
+    end
+    text auto
+      size fill hug
+      key results.auto
+      visible isHost
+      fontSize 22
+      color $textDim
+      textAlign center
+    end
+    text wait
+      size fill hug
+      key results.wait
+      visible !isHost
+      fontSize 22
+      color $textDim
+      textAlign center
+    end
+    frame buttons
+      size fill hug
+      layout row
+      gap 12
+      frame lobby
+        size fill 60
+        layout row
+        justify center
+        align center
+        fill $accent
+        radius $radius
+        visible isHost
+        button results.lobby
+        on hover fill #FFD86A
+        text label
+          key results.lobby
+          fontSize 26
+          color #141922
+        end
+      end
+      frame leave
+        size fill 60
+        layout row
+        justify center
+        align center
+        fill $button
+        stroke 1 $panelStroke
+        radius $radius
+        button results.leave
+        on hover fill $buttonHover
+        on pressed fill $buttonPressed
+        text label
+          key results.leave
+          fontSize 26
+          color $text
+        end
+      end
+    end
+  end
+end

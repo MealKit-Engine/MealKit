@@ -200,6 +200,28 @@ TEST_CASE(sim, match_flow) {
     q[3].alive = false;
     TEST_CHECK(sim::advanceMatch(f, e, 2, q) == FlowEvent::RoundEnd && f.roundWinner == 0);
     TEST_CHECK(sim::advanceMatch(f, e, 2, q) == FlowEvent::MatchEnd && f.matchWinner == 0);
+
+    // Co-op: everyone is side 0. The game decides a win (finishRound), time running out or everyone out is a loss
+    sim::MatchRules c;
+    c.coop = true;
+    c.elimination = true;
+    c.roundLength = 10;
+    c.rounds = 3;
+    for (sim::MatchPlayer& x : q) x.alive = true;
+    TEST_CHECK(sim::matchSide(c, 3) == 0 && sim::matchSideCount(c) == 1);
+    TEST_CHECK(sim::startMatchFlow(f, c, 0, q) == FlowEvent::RoundStart);
+    q[0].alive = q[1].alive = q[2].alive = false;
+    TEST_CHECK(sim::advanceMatch(f, c, 1, q) == FlowEvent::None); // slot 3 still up
+    TEST_CHECK(sim::finishRound(f, c, 2, 0) == FlowEvent::RoundEnd && f.roundWinner == 0 && f.roundWins[0] == 1);
+    TEST_CHECK(sim::finishRound(f, c, 2, 0) == FlowEvent::None); // only while playing
+    TEST_CHECK(sim::advanceMatch(f, c, 2, q) == FlowEvent::CountdownStart); // no countdown time: the round starts on the next call
+    TEST_CHECK(sim::advanceMatch(f, c, 2, q) == FlowEvent::RoundStart && f.round == 2);
+    TEST_CHECK(sim::advanceMatch(f, c, 12, q) == FlowEvent::RoundEnd && f.roundWinner == sim::kNoSide); // time up: lost
+    TEST_CHECK(sim::advanceMatch(f, c, 12, q) == FlowEvent::CountdownStart);
+    TEST_CHECK(sim::advanceMatch(f, c, 12, q) == FlowEvent::RoundStart && f.round == 3);
+    q[3].alive = false;
+    TEST_CHECK(sim::advanceMatch(f, c, 13, q) == FlowEvent::RoundEnd && f.roundWinner == sim::kNoSide); // everyone out: lost
+    TEST_CHECK(sim::advanceMatch(f, c, 13, q) == FlowEvent::MatchEnd && f.matchWinner == sim::kNoSide); // 1 won, 2 lost
 }
 
 TEST_CASE(core, det_math) {

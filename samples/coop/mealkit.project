@@ -1,0 +1,7 @@
+# MealKit project: the engine repo reference sample coop (co-op third person: terrain, chasers on the nav grid, active ragdolls, revives). Open this folder in the editor.
+@format project 1
+name coop
+scene scenes/hills.scene
+game.defaultPort 27016
+game.defaultMaxPlayers 4
+packInclude models/characters/rig_figure.glb

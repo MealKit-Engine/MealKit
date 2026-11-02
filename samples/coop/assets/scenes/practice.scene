@@ -1,0 +1,198 @@
+# MealKit scene
+@format scene 2
+
+sun 0.400000006 0.800000012 0.300000012
+sunColor 1 0.949999988 0.850000024
+sky 0.300000012 0.379999995 0.5
+groundColor 0.200000003 0.170000002 0.140000001
+fog 0.5 0.620000005 0.779999971 0.00800000038
+
+entity
+id 1
+name Terrain
+kind terrain
+position 0 4 0
+rotation 0 0 0 1
+scale 96 16 96
+color FF6E9C76
+flags 0
+field heightmap terrain/hills.png
+end
+
+entity
+id 2
+name Spawn 1
+kind spawn
+position -36 0.96 -34
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 3
+name Spawn 2
+kind spawn
+position -34 1.15 -36
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 4
+name Spawn 3
+kind spawn
+position -38 1.61 -36
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 5
+name Spawn 4
+kind spawn
+position -36 1.78 -38
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+end
+
+entity
+id 6
+name Match Area
+kind MatchArea
+position 0 10 0
+rotation 0 0 0 1
+scale 96 60 96
+color FF50C8FF
+flags 0
+end
+
+entity
+id 7
+name Goal
+kind GoalArea
+position 28 8 37
+rotation 0 0 0 1
+scale 12 24 12
+color FFFFD65A
+flags 0
+end
+
+entity
+id 10
+name Tree 1
+kind solid
+position -12 -0.97 -20
+rotation 0 0 0 1
+scale 1.6 1.6 1.6
+model models/environment/tree.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 11
+name Tree 2
+kind solid
+position 8 0.27 -6
+rotation 0 0 0 1
+scale 1.8 1.8 1.8
+model models/environment/tree.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 12
+name Tree 3
+kind solid
+position -4 0.15 14
+rotation 0 0 0 1
+scale 1.5 1.5 1.5
+model models/environment/tree.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 13
+name Tree 4
+kind solid
+position 20 3.27 8
+rotation 0 0 0 1
+scale 1.7 1.7 1.7
+model models/environment/tree.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 14
+name Tree 5
+kind solid
+position 10 2.50 26
+rotation 0 0 0 1
+scale 1.6 1.6 1.6
+model models/environment/tree.glb
+color FFFFFFFF
+flags 0
+end
+
+entity
+id 15
+name Grass
+kind scatter
+position 0 0 0
+rotation 0 0 0 1
+scale 1 1 1
+color FF5AB45A
+flags 0
+field model models/props/style_grass.glb
+field file terrain/hills_grass.scatter
+field density 0.5
+field minScale 0.8
+field maxScale 1.2
+field randomYaw true
+field drawDistance 120
+end
+
+entity
+id 16
+name Rocks
+kind scatter
+position 0 0 0
+rotation 0 0 0 1
+scale 1 1 1
+color FF9A9A9A
+flags 0
+field model models/environment/rock.glb
+field file terrain/hills_rocks.scatter
+field density 0.5
+field minScale 0.8
+field maxScale 1.2
+field randomYaw true
+field drawDistance 120
+end
+
+entity
+id 17
+name results
+kind virtual_camera
+position 14 30 14
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+field body Fixed
+field priority 20
+field active false
+field lookAt Goal
+field blendSeconds 1.5
+end

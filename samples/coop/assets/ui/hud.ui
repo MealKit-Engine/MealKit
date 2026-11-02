@@ -1,0 +1,288 @@
+# MealKit UI (hand-written): co-op HUD. View model: HudVm (samples/coop/view/Hud.h). Text: assets/strings.
+@format ui 1
+board hud 1920 1080
+  frame scoreboard
+    pos 32 32
+    size 440 hug
+    layout column
+    padding 16 20
+    gap 8
+    fill $panel
+    stroke 1 $panelStroke
+    radius $radius
+    shadow 0 6 24 0 #00000066
+    text title
+      key hud.players
+      font Pretendard-Medium
+      fontSize 22
+      color $textDim
+    end
+    text record
+      key hud.record
+      fontSize 18
+      color $textDim
+    end
+    frame rows
+      size fill hug
+      layout column
+      gap 4
+      list players
+      frame row
+        size fill 40
+        layout row
+        align center
+        gap 12
+        padding 0 10
+        radius 8
+        frame swatch
+          size 16 16
+          radius 8
+          colorField color
+        end
+        text name
+          size fill hug
+          content {name}
+          fontSize 26
+          color $text
+          maxLines 1
+          overflow ellipsis
+        end
+        text you
+          key hud.you
+          fontSize 20
+          color $accent
+          visible you
+        end
+        text falls
+          key hud.falls
+          fontSize 22
+          color $textDim
+        end
+        text pingGood
+          key hud.ping
+          visible pingGood
+          fontSize 18
+          color #7CE38B
+        end
+        text pingBad
+          key hud.ping
+          visible pingBad
+          fontSize 18
+          color #FF8A80
+        end
+      end
+    end
+  end
+  frame timePanel
+    pos 840 24
+    size 240 hug
+    constraints center top
+    layout row
+    justify center
+    padding 8 16
+    fill $panel
+    radius $radius
+    text time
+      content {time:time}
+      fontSize 40
+      color $text
+    end
+  end
+  frame pushPanel
+    pos 720 952
+    size 480 hug
+    constraints center bottom
+    layout column
+    align center
+    gap 8
+    padding 10 20 14 20
+    fill $panel
+    radius $radius
+    text pushLabel
+      key hud.push
+      fontSize 20
+      color $textDim
+    end
+    frame pushBar
+      size fill 14
+      fill #FFFFFF22
+      radius 7
+      clip
+      frame fill
+        size fill fill
+        widthRatio pushReady
+        fill linear 0 0 1 0 #FF8A20 $accent
+        radius 7
+      end
+    end
+  end
+  frame shockwave
+    pos 1628 32
+    size 260 64
+    constraints right top
+    layout row
+    justify center
+    align center
+    fill $button
+    stroke 1 $panelStroke
+    radius $radius
+    button debug.shockwave
+    on hover fill $buttonHover
+    on pressed fill $buttonPressed
+    text label
+      key hud.shockwave
+      fontSize 24
+      color $text
+    end
+  end
+  frame settingsButton
+    pos 1628 108
+    size 260 56
+    constraints right top
+    layout row
+    justify center
+    align center
+    fill $button
+    stroke 1 $panelStroke
+    radius $radius
+    button settings.open
+    on hover fill $buttonHover
+    on pressed fill $buttonPressed
+    text label
+      key hud.settings
+      fontSize 22
+      color $text
+    end
+  end
+  text waiting
+    pos 560 110
+    size 800 hug
+    constraints center top
+    visible waiting
+    content {waiting}
+    fontSize 30
+    color #FF8A80
+    textAlign center
+  end
+  text countdown
+    pos 760 360
+    size 400 hug
+    constraints center center
+    visible countdown
+    content {countdown}
+    fontSize 180
+    color $accent
+    textAlign center
+  end
+  text go
+    pos 560 400
+    size 800 hug
+    constraints center center
+    visible go
+    key hud.go
+    fontSize 120
+    color $accent
+    textAlign center
+  end
+  frame chat
+    pos 32 600
+    size 620 hug
+    constraints left bottom
+    layout column
+    gap 8
+    frame chatLines
+      size fill hug
+      layout column
+      gap 4
+      list chat
+      frame line
+        size hug hug
+        layout row
+        gap 10
+        padding 4 12
+        fill #0A0D14A0
+        radius 8
+        text from
+          content {name}
+          fontSize 22
+          color $accent
+        end
+        text said
+          size hug hug
+          content {text}
+          fontSize 22
+          color $text
+          maxLines 2
+        end
+      end
+    end
+    frame chatBox
+      size fill 52
+      layout row
+      align center
+      padding 0 14
+      fill #0A0D14D0
+      stroke 1 $panelStroke
+      radius 10
+      visible chatOpen
+      text chatInput
+        size fill hug
+        textInput chatDraft chat.send
+        placeholder chat.placeholder
+        maxLength 80
+        fontSize 22
+        color $text
+        maxLines 1
+      end
+    end
+  end
+  text respawn
+    pos 460 500
+    size 1000 hug
+    constraints center center
+    visible !alive
+    key hud.respawn
+    fontSize 52
+    color $accent
+    textAlign center
+  end
+  text downed
+    pos 460 560
+    size 1000 hug
+    constraints center center
+    visible downed
+    key hud.downed
+    fontSize 30
+    color $accent
+    textAlign center
+  end
+  text won
+    pos 460 380
+    size 1000 hug
+    constraints center center
+    visible won
+    key hud.won
+    fontSize 72
+    color $accent
+    textAlign center
+  end
+  text lost
+    pos 460 380
+    size 1000 hug
+    constraints center center
+    visible lost
+    key hud.lost
+    fontSize 72
+    color $accent
+    textAlign center
+  end
+  text goal
+    pos 20 1040
+    size 600 hug
+    constraints left bottom
+    visible showGoal
+    key hud.goal
+    fontSize 26
+    color $text
+  end
+end

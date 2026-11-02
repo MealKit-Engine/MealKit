@@ -1,0 +1,109 @@
+# MealKit UI (hand-written): pause menu (Esc / Start during a match). View model: PauseVm (samples/sandbox/app/Screens.h).
+# Solo play stops the match while this is open; with other players the match keeps running. Text: assets/strings.
+@format ui 1
+board pause 1920 1080
+  navigation
+  firstFocus resume
+  back pause.resume
+  frame dim
+    pos 0 0
+    size 1920 1080
+    constraints leftright topbottom
+    fill #05070C99
+  end
+  frame panel
+    pos 710 300
+    size 500 hug
+    constraints center center
+    layout column
+    gap 14
+    padding 32 36
+    fill $panel
+    stroke 1 $panelStroke
+    radius 16
+    shadow 0 12 40 0 #000000AA
+    text title
+      size fill hug
+      key pause.title
+      visible offline
+      fontSize 40
+      color $text
+      textAlign center
+    end
+    text titleOnline
+      size fill hug
+      key pause.titleOnline
+      visible !offline
+      fontSize 30
+      color $text
+      textAlign center
+    end
+    frame resume
+      size fill 60
+      layout row
+      justify center
+      align center
+      fill $accent
+      radius $radius
+      button pause.resume
+      on hover fill #FFD86A
+      text label
+        key pause.resume
+        fontSize 26
+        color #141922
+      end
+    end
+    frame settings
+      size fill 60
+      layout row
+      justify center
+      align center
+      fill $button
+      stroke 1 $panelStroke
+      radius $radius
+      button settings.open
+      on hover fill $buttonHover
+      on pressed fill $buttonPressed
+      text label
+        key pause.settings
+        fontSize 26
+        color $text
+      end
+    end
+    frame lobby
+      size fill 60
+      layout row
+      justify center
+      align center
+      fill $button
+      stroke 1 $panelStroke
+      radius $radius
+      visible isHost
+      button pause.lobby
+      on hover fill $buttonHover
+      on pressed fill $buttonPressed
+      text label
+        key pause.lobby
+        fontSize 26
+        color $text
+      end
+    end
+    frame leave
+      size fill 60
+      layout row
+      justify center
+      align center
+      fill $button
+      stroke 1 $panelStroke
+      radius $radius
+      button pause.leave
+      on hover fill $buttonHover
+      on pressed fill $buttonPressed
+      text label
+        key pause.leave
+        fontSize 26
+        color $text
+      end
+    end
+  end
+end

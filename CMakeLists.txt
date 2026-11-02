@@ -6,3 +6,4 @@ project(MealKit LANGUAGES CXX)
 include(cmake/MealKit.cmake)
 
 add_subdirectory(samples/sandbox)
+add_subdirectory(samples/coop)

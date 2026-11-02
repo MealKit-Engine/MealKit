@@ -1,0 +1,28 @@
+# MealKit UI (hand-written): standard subtitles. The engine opens it while sounds with a subtitle key play
+# (sounds.table "subtitle", player setting gameplay.subtitles) and fills SubtitlesVm (mealkit/game/Frontend.h).
+@format ui 1
+board subtitles 1920 1080
+  frame lines
+    pos 460 800
+    size 1000 hug
+    constraints center bottom
+    layout column
+    align center
+    gap 6
+    list lines
+    frame line
+      size hug hug
+      layout row
+      align center
+      padding 6 18
+      fill #000000B0
+      radius 8
+      text text
+        content {text}
+        fontSize 30
+        color #FFFFFF
+        textAlign center
+      end
+    end
+  end
+end

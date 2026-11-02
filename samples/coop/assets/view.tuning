@@ -1,0 +1,31 @@
+# MealKit tuning (ViewTuning). Edit it in the editor's [Tuning] panel.
+@format tuning 1
+camera.orbitSensitivity 0.00499999989
+camera.zoomStep 2
+camera.nearPlane 0.100000001
+camera.farPlane 1000
+pawn.bodySize 0.800000012 1.79999995 0.800000012
+pawn.visorOffset 0 0.449999988 0.400000006
+pawn.visorSize 0.5 0.180000007 0.119999997
+pawn.visorColor #1E1E24
+pawn.aiColor #9696A0
+pawn.turnMinSpeed 0.5
+pawn.markerHeight 1.60000002
+pawn.markerSize 0.300000012
+pawn.markerSpin 3
+pawn.markerColor #FFE650
+shockwave.seconds 0.349999994
+shockwave.segments 16
+shockwave.startThickness 0.300000012
+shockwave.endThickness 0.0500000007
+shockwave.groundOffset 0.0500000007
+shockwave.spawnRadius 1.20000005
+shockwave.color #FFF0C8
+playerColors[0] #4287F5
+playerColors[1] #EB4034
+playerColors[2] #34C759
+playerColors[3] #FACC15
+playerColors[4] #A855F7
+playerColors[5] #EC4899
+playerColors[6] #14B8A6
+playerColors[7] #F97316

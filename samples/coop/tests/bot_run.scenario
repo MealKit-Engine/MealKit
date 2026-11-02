@@ -1,0 +1,8 @@
+# The solo bot heads for the goal: chasers catch it on the way, and alone nobody revives it, so the round is lost
+# (everyone down at once). Update with coop_headless --test <file> --update-expected when rules change.
+seed 7
+tick 0 flow.phase == Countdown
+tick 3.1s flow.phase == Playing
+tick 60s slots[0].downs == 1
+tick 60s flow.phase == Results
+tick 60s flow.roundWinner == 4294967295

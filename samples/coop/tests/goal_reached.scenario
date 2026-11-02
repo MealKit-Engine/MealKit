@@ -1,0 +1,9 @@
+# Practice scene (no chasers): the solo bot walks into the goal and holds it for goalHold, which wins the round (finishRound).
+seed 7
+scene scenes/practice.scene
+tick 3.1s flow.phase == Playing
+tick 20s flow.phase == Playing
+tick 40s flow.phase == Results
+tick 40s flow.roundWinner == 0
+tick 40s flow.matchWinner == 0
+tick 40s slots[0].downs == 0

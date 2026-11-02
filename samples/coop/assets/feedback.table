@@ -1,0 +1,86 @@
+# MealKit table (Reaction). Edit it in the editor's [Feedback] panel.
+@format table 1
+
+row Push
+sound push
+effect spark
+shake 0.12
+shakeSeconds 0.2
+shakeRange 14
+
+row Push.local
+players local
+shake 0.18
+shakeSeconds 0.18
+flash 0.06
+flashSeconds 0.08
+hitStop 0.05
+
+row Spawn
+sound spawn
+
+row Fall
+sound fall
+
+row Fall.local
+players local
+positionFrom
+flash 0.35
+flashSeconds 0.35
+flashColor #E04030
+
+row Jump
+sound jump
+
+row Impact
+strengthFrom value
+strengthFull 15
+sound hit
+soundParam speed
+shake 0.1
+shakeSeconds 0.15
+shakeFrequency 22
+shakeRange 8
+
+row Countdown
+sound ui_click
+
+row MatchStart
+sound ui_confirm
+flash 0.15
+flashSeconds 0.25
+flashColor #FFFFFF
+
+row MatchEnd
+sound ui_confirm
+
+row Caught
+sound fall
+effect dust
+shake 0.15
+shakeSeconds 0.25
+shakeRange 12
+
+row Caught.local
+players local
+flash 0.35
+flashSeconds 0.4
+flashColor #E04030
+hitStop 0.08
+
+row Revive
+sound spawn
+effect spark
+
+row Stunned
+sound bounce
+effect spark
+
+row RoundEnd
+sound ui_confirm
+
+row Footstep
+effect dust
+
+row CutsceneStart
+sound spawn

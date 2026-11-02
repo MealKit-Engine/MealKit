@@ -1,0 +1,12 @@
+# 3 bots from the committed recording: chasers catch them on the way, teammates nearby lift them up, and how the round ends
+# (update with coop_headless --test <file> --update-expected after rule changes, and re-record with tools\record_replay.ps1)
+inputs ../replays/hills_3p_seed7.rec
+tick 0 playerCount == 3
+tick 60s flow.phase == Playing
+tick 60s slots[0].downs == 1
+tick 60s slots[1].downs == 1
+tick 60s slots[2].downs == 0
+tick 60s slots[0].revives == 0
+tick 60s slots[1].revives == 0
+tick 60s slots[2].revives == 1
+tick 60s flow.roundWinner == 4294967295

@@ -1,0 +1,56 @@
+# MealKit UI (hand-written): the session ended (host left, connection lost, refused). View model: MessageVm
+# (samples/sandbox/app/Screens.h). message.ok leaves to the main menu. Text: assets/strings.
+@format ui 1
+board message 1920 1080
+  navigation
+  firstFocus ok
+  back message.ok
+  frame dim
+    pos 0 0
+    size 1920 1080
+    constraints leftright topbottom
+    fill #05070CC0
+  end
+  frame panel
+    pos 560 360
+    size 800 hug
+    constraints center center
+    layout column
+    align center
+    gap 20
+    padding 36 40
+    fill $panel
+    stroke 2 $accent
+    radius 16
+    shadow 0 12 40 0 #000000AA
+    text title
+      size fill hug
+      content {title}
+      fontSize 36
+      color $text
+      textAlign center
+    end
+    text reason
+      size fill hug
+      content {text}
+      fontSize 24
+      color $textDim
+      textAlign center
+    end
+    frame ok
+      size 240 56
+      layout row
+      justify center
+      align center
+      fill $accent
+      radius 10
+      button message.ok
+      on hover fill #FFD86A
+      text label
+        key message.ok
+        fontSize 24
+        color #141922
+      end
+    end
+  end
+end

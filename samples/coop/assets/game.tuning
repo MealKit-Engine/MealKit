@@ -1,0 +1,22 @@
+# MealKit tuning (Tuning). Edit it in the editor's [Tuning] panel.
+@format tuning 1
+countdown 3
+roundLength 180
+roundEndDelay 4
+goalHold 1
+move.speed 6.5
+move.jumpSpeed 8
+gravity 0 -20 0
+respawn 2
+shoveCooldown 1.5
+shoveRadius 3.5
+shoveStun 2.5
+catchRadius 1.1
+catchRest 4
+reviveRadius 2.5
+reviveTime 1.5
+chaserMove.speed 7
+chaserSpeedScale 0.72
+sightRadius 22
+aiThink 0.75
+wanderRadius 8

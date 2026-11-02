@@ -1,0 +1,8 @@
+# MealKit table (CutsceneRow). Edit it in the editor's [Tables] panel. One row per cutscene: a glTF camera animation (Blender export) played by the camera brain.
+@format table 1
+
+row intro
+file models/cutscenes/intro.glb
+blendIn 0
+blendOut 0.6
+events 0 CutsceneStart

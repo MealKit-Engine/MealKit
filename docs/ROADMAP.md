@@ -396,10 +396,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ### [x] Empty project template — v0.7.21, details in `docs/CHANGELOG.md`. Genre templates wait for 2~3 settled reference samples (deferred table "Genre project templates")
 
-### [ ] Second reference sample: co-op third person (changed 2026-11-02)
-- **Why**: stage 4 features (movement modes, active ragdoll, virtual cameras + cutscenes, AI pathfinding, terrain, animation state table) are each used in sandbox, but only in a small way inside a physics party versus game. A sample where they are the core of the game shows which APIs are awkward while they can still change before v1.0.
-- **Approach**: `samples/coop/` (name decided at start) with its own `mealkit.project`; sandbox moves to its own `samples/sandbox/mealkit.project` at the same time (rule in "Reference samples"). API problems found are fixed in the engine in this item, not worked around in the sample. It isn't a template yet.
-- Cookbook docs moved to right before contracts are frozen (stage 5, "Cookbook docs").
+### [x] Second reference sample: co-op third person — v0.7.22 (`samples/coop`, sandbox moved to `samples/sandbox/mealkit.project`), details in `docs/CHANGELOG.md`. Cookbook docs moved to right before contracts are frozen (stage 5, "Cookbook docs")
 
 ---
 

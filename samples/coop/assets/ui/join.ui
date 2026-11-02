@@ -1,0 +1,149 @@
+# MealKit UI (hand-written): join a room. View model: JoinVm (samples/sandbox/app/Screens.h). The LAN room list fills while
+# this screen is open (MatchService::setBrowsing). Actions: join.room (list item), join.address, join.back. Text: assets/strings.
+@format ui 1
+board join 1920 1080
+  navigation
+  back join.back
+  frame panel
+    pos 560 140
+    size 800 800
+    constraints center center
+    layout column
+    gap 16
+    padding 36 40
+    fill $panel
+    stroke 1 $panelStroke
+    radius 16
+    shadow 0 12 40 0 #000000AA
+    text title
+      key join.title
+      fontSize 40
+      color $text
+    end
+    text lanLabel
+      key join.lan
+      fontSize 22
+      color $textDim
+    end
+    frame rooms
+      size fill fill
+      layout column
+      gap 8
+      scroll
+      text searching
+        size fill hug
+        key join.searching
+        visible noRooms
+        fontSize 22
+        color $textDim
+      end
+      frame roomList
+        size fill hug
+        layout column
+        gap 8
+        list rooms
+        frame room
+          size fill 60
+          layout row
+          align center
+          gap 16
+          padding 0 18
+          fill $button
+          stroke 1 $panelStroke
+          radius 10
+          button join.room
+          disabled !compatible
+          on hover fill $buttonHover
+          on pressed fill $buttonPressed
+          on disabled opacity 0.45
+          text hostName
+            size fill hug
+            content {hostName}
+            fontSize 26
+            color $text
+            maxLines 1
+            overflow ellipsis
+          end
+          text incompatible
+            content {note}
+            visible note
+            fontSize 20
+            color #FF8A80
+          end
+          text players
+            content {players}
+            fontSize 22
+            color $textDim
+          end
+        end
+      end
+    end
+    text addressLabel
+      key join.address
+      fontSize 22
+      color $textDim
+    end
+    frame addressRow
+      size fill hug
+      layout row
+      gap 12
+      frame addressBox
+        size fill 56
+        layout row
+        align center
+        padding 0 16
+        fill #00000055
+        stroke 1 $panelStroke
+        radius 10
+        text address
+          size fill hug
+          textInput address join.address
+          placeholder join.addressPlaceholder
+          maxLength 64
+          fontSize 26
+          color $text
+          maxLines 1
+        end
+      end
+      frame connect
+        size 160 56
+        layout row
+        justify center
+        align center
+        fill $accent
+        radius 10
+        button join.address
+        on hover fill #FFD86A
+        text label
+          key join.connect
+          fontSize 24
+          color #141922
+        end
+      end
+    end
+    text error
+      size fill hug
+      content {error}
+      visible error
+      fontSize 20
+      color #FF8A80
+    end
+    frame back
+      size 200 52
+      layout row
+      justify center
+      align center
+      fill $button
+      stroke 1 $panelStroke
+      radius 10
+      button join.back
+      on hover fill $buttonHover
+      on pressed fill $buttonPressed
+      text label
+        key join.back
+        fontSize 22
+        color $text
+      end
+    end
+  end
+end

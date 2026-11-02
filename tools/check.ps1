@@ -26,6 +26,7 @@ $root = Split-Path -Parent $PSScriptRoot
 $out = Join-Path $root "build\check"
 # Reference samples are projects in samples\<name> (their own mealkit.project and assets\); sandbox is the one most checks run
 $sandbox = Join-Path $root "samples\sandbox"
+$coop = Join-Path $root "samples\coop" # co-op third person sample: its own determinism, capture, editor play and export checks
 New-Item -ItemType Directory -Force $out | Out-Null
 Get-ChildItem $out -File | Remove-Item -Force
 $stateDir = Join-Path $root "build\check-state"
@@ -129,6 +130,7 @@ $release = Join-Path $root "build\Release\bin"
 $editorBin = Join-Path $root "build\Editor\bin"
 $game = Join-Path $release "sandbox.exe"
 $headless = Join-Path $release "sandbox_headless.exe"
+$coopGame = Join-Path $release "coop.exe"
 $editor = Join-Path $editorBin "MealKitEditor.exe"
 $results = @()
 $step = 0
@@ -270,6 +272,14 @@ Invoke-Check det "Determinism (mp_test 1+3, 900 ticks)" {
     return ($output -match "^PASS").Count -gt 0
 }
 
+# Co-op sample: active ragdolls, chasers on the nav grid, terrain heightfield (headless 1+3, 1800 ticks = past the first catches and revives)
+Invoke-Check det "Determinism coop (mp_test 1+3 headless, 1800 ticks)" {
+    param($log)
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Exe $coopGame -Clients 3 -Ticks 1800 -Headless 2>&1
+    $output | Out-File -Encoding utf8 $log
+    return ($output -match "^PASS").Count -gt 0
+}
+
 # Headless: the same determinism tests without a window + replaying the input recording with another executable (sandbox.exe --headless) to check per-tick hashes match
 Invoke-Check det "Headless (mp_test, record + replay)" {
     param($log)
@@ -355,6 +365,12 @@ if (-not $Quick) {
         $png = Join-Path $out "game.png"
         $code = Run $log $game "--bot --mute --seed 7 --exit-tick 300 --capture `"$png`" 240"
         return $code -eq 0 -and (Test-Path $png)
+    }
+    Invoke-Check game "Game capture coop (shadow + rewind)" {
+        param($log)
+        $png = Join-Path $out "game-coop.png"
+        $code = Run $log $coopGame "--bot --mute --seed 7 --exit-tick 600 --shadow --rewind-test --vsync 0 --capture `"$png`" 400"
+        return $code -eq 0 -and (Test-Path $png) -and (Has $log "^SHADOW ok") -and (Has $log "^REWIND ok") -and -not (Has $log "\[(ERROR|WARN )\]")
     }
     # Performance baseline (ROADMAP "Performance baseline check"): --benchmark on the fixed bot match vs engine\tests\perf\baseline.txt.
     # Warning only (machines differ; a baseline from another GPU is not compared). -UpdatePerf rewrites it on the measuring PC
@@ -550,6 +566,12 @@ if (-not $Quick) {
         $code = Run $log $editor "--project `"$sandbox`" --frames 180 --play --bot --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and (Has $log "Play mode") -and -not (Has $log "Shadow simulation diverged")
     }
+    Invoke-Check editor "Editor play coop (2 players)" {
+        param($log)
+        $png = Join-Path $out "editor-play-coop.png"
+        $code = Run $log $editor "--project `"$coop`" --frames 300 --play --players 2 --bot --capture `"$png`""
+        return $code -eq 0 -and (Test-Path $png) -and (Has $log "Play mode") -and -not (Has $log "Shadow simulation diverged")
+    }
     # RHI backends (ROADMAP stage 2 "RHI layer"): does the Vulkan editor draw the same scene the same as DX12, with no validation layer errors.
     # The editor edit screen is the same every run (the game screen changes over time). The status bar (fps) is excluded.
     $vkEditorBin = Join-Path $root "build\VulkanEditor\bin"
@@ -728,11 +750,18 @@ if (-not $Quick) {
     }
     Invoke-Check export "Export build" {
         param($log)
-        $exe = Join-Path $sandbox "export\sandbox\sandbox.exe"
-        if (-not ((Build $log "Export") -and (Test-Path $exe))) { return $false }
-        # Shipping builds have no live connection server (MEALKIT_LIVE=0)
-        $text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))
-        if ($text.Contains("Live server (")) { return "samples\sandbox\export\sandbox\sandbox.exe contains the live server (MEALKIT_LIVE should be 0)" }
+        if (-not (Build $log "Export")) { return $false }
+        foreach ($name in "sandbox", "coop") { # every reference sample ships
+            $exe = Join-Path $root "samples\$name\export\$name\$name.exe"
+            if (-not (Test-Path $exe)) { return "$exe missing" }
+            # Shipping builds have no live connection server (MEALKIT_LIVE=0) and no dev project folder
+            $text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))
+            if ($text.Contains("Live server (")) { return "$exe contains the live server (MEALKIT_LIVE should be 0)" }
+            if ($text.Contains($root.Replace("\", "/"))) { return "$exe contains the dev project folder" }
+            # The shipped pack plays: the cooked game runs a bot match from export\ (no source assets)
+            $code = Run "$log.$name" $exe "--bot --mute --vsync 0 --exit-tick 120"
+            if ($code -ne 0 -or -not (Has "$log.$name" "^FINAL")) { return "$name export did not run (see $log.$name)" }
+        }
         return $true
     }
 }

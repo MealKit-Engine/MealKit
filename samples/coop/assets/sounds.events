@@ -1,0 +1,117 @@
+# MealKit audio events. Edit them in MealKit Audio or by hand: "event|mixbus|snapshot|music <name>", then "key value" lines.
+@format audio-events 2
+
+mixbus music
+duckBy voice
+duckVolume 0.35
+duckRelease 1.2
+
+mixbus sfx
+reverb true
+
+snapshot pause
+fade 0.25
+volume music 0.6
+lowpass music 1500
+volume sfx 0.7
+lowpass sfx 900
+
+music arena
+stems sounds/music_bass.wav sounds/music_drums.wav sounds/music_arp.wav
+stemParam tension
+stemFade 2
+volume 0.45
+
+event hit
+clips sounds/hit_1.wav sounds/hit_2.wav sounds/hit_3.wav
+container random
+param speed
+paramMin 3
+paramMax 15
+volume 0.9
+volumeRandom 0.15
+pitchRandom 0.08
+volumeAtMin 0.2
+volumeAtMax 1
+pitchAtMin 1.15
+pitchAtMax 0.9
+minDistance 3
+maxDistance 45
+priority 30
+maxInstances 6
+steal quietest
+
+event push
+clips sounds/push.wav
+pitchRandom 0.05
+minDistance 4
+maxDistance 50
+priority 70
+maxInstances 4
+subtitle sub.push
+
+event jump
+clips sounds/jump.wav
+volume 0.6
+pitchRandom 0.06
+minDistance 3
+maxDistance 35
+priority 60
+maxInstances 4
+cooldown 0.05
+
+event bounce
+clips sounds/bounce.wav
+volume 0.8
+minDistance 4
+maxDistance 50
+priority 60
+maxInstances 3
+subtitle sub.bounce
+
+event spawn
+clips sounds/spawn.wav
+volume 0.7
+minDistance 4
+maxDistance 50
+priority 50
+maxInstances 4
+subtitle sub.spawn
+
+event fall
+clips sounds/fall.wav
+volume 0.7
+minDistance 6
+maxDistance 80
+priority 60
+maxInstances 3
+subtitle sub.fall
+
+event stinger
+clips sounds/stinger.wav
+volume 0.7
+spatial false
+bus voice
+priority 95
+maxInstances 1
+
+event ui_click
+clips sounds/ui_click.wav
+spatial false
+bus ui
+priority 90
+maxInstances 2
+
+event ui_confirm
+clips sounds/ui_confirm.wav
+spatial false
+bus ui
+priority 90
+maxInstances 2
+
+event ui_back
+clips sounds/ui_back.wav
+spatial false
+bus ui
+priority 90
+maxInstances 2
