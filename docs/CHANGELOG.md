@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.18 — Pipeline cache on disk (2026-11-02)
+
+### [x] Stage 4: Optimization candidate 4, pipeline cache on disk (done 2026-11-02)
+- **`rhi::DeviceDesc::pipelineCache`** (folder, empty = off; `RendererDesc` passes it): DX12 keeps an `ID3D12PipelineLibrary1` in `pipelines.dx12`, Vulkan a `VkPipelineCache` in `pipelines.vulkan`, read on init and written on shutdown (temp file + rename). The game uses `%LOCALAPPDATA%\<game>\cache`, the editor `%LOCALAPPDATA%\MealKit Editor\cache`.
+- **Keys** (`rhi/PipelineCache.h`, `pipelineKey`): hash of both shaders' bytecode and every `PipelineDesc` field. The DX12 file starts with the list of stored keys, so only stored pipelines are looked up (a library miss is a debug layer warning).
+- **Other drivers/GPUs**: D3D12 refuses a library from another driver on creation (then an empty one is used); Vulkan's cache header (vendor, device, `pipelineCacheUUID`) is checked before use. Pipelines rebuilt by shader hot reload bypass the cache, so the file doesn't grow during development.
+- **Editor**: `GameModuleHost::olderThanEngine` ignores headers under `rhi/dx12`, `rhi/vulkan` (game code never includes them); before, editing a backend header made the other backend's editor rebuild game code on start.
+- **Measured** (Intel(R) Graphics): startup with `--frames 2` was about 700 ms with or without the file, because the driver's own shader cache was warm; the first run with a cold driver cache took 1026 ms. The gain is on first start after install or driver updates and on first use of a pipeline.
+
 ## v0.7.17 — Small-object distance cull (2026-11-02)
 
 ### [x] Stage 4: Optimization candidate 3, small-object distance cull (done 2026-11-02)
