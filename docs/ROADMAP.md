@@ -539,6 +539,27 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 
 ---
 
+## Repository publication, then QA, optimization and audio (decided 2026-11-02)
+
+Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then the next work is publishing the repos, and only after that the QA, optimization and audio items below (`docs/DECISIONS.md` 2026-11-02).
+
+### [ ] Publication preparation (before making the repos public)
+- `CONTRIBUTING.md` (DCO, `Signed-off-by`) in every repo, and CC0 notices in the sample asset folders (`samples/*/assets`, `samples/*/art`) — promised in `docs/DECISIONS.md` 2026-10-18 and not done yet.
+- `LICENSE` in `MealKit-Modules` (the only repo without one; `build_index.py` already asks it of every module).
+- A sweep of every repo's history for secrets and personal data (keys, local paths with user names, e-mail addresses other than the commit identity), and that Steamworks/EOS/console SDK files were never committed.
+- README of each repo says the engine is beta (v0.x, no compatibility promise) and links the docs.
+- Push the remaining local commits (engine, docs, Manager).
+
+### [ ] Publication (done by the user)
+- Order follows dependencies: `MealKit-Contract` → `MealKit-Audio` → `MealKit` → `MealKit-docs` → `MealKit-Manager`, `MealKit-QA` → `MealKit-Modules` (tag `v1`, Pages source set to Actions) → `module-cooldown` (tag `v0.1.0`).
+- After the first public CI runs: Read the Docs for `MealKit-docs`, the Windows on ARM runner (both waited on publication).
+- The first green public CI on Linux x64 and macOS ARM64 is recorded here; it is the only other-OS evidence until real devices are available.
+
+### [ ] After publication, in this order
+1. **Game QA 2** (MealKit-QA): running `tests/*.scenario` with results, turning a report's recording into a scenario, `mp_test` runs. First because it catches regressions in the work below.
+2. **Optimization** (stage 4 "Optimization candidates", measured before and after with `--benchmark`): the UI text allocation follow-up of #9 → #8 PGO for Export → #5 and #7 only if the co-op sample shows the cost → #6 last.
+3. **Audio** (MealKit-Audio): offline-render golden tests for events first (no API or format change). The other "Audio features after v1.0" stay after v1.0 unless a DECISIONS row moves one forward; a feature that changes `sounds.events` is the kind worth deciding before the freeze.
+
 ## Recommended order summary
 
 0. ~~General-purpose editor + game DLL hot reload~~ → ~~`sim/`/`view/` structure + determinism check~~ → ~~basic tools (Pool, tick events, tick timers, GameContext)~~ → ~~object types + inspector fields~~ → ~~tuning values as data~~ → ~~declaring state fields once~~ → ~~deterministic math utils~~ → ~~player/character separation (possession)~~ → ~~scene tree hierarchy~~ → ~~autosave~~ → ~~multiplayer play~~ → ~~shadow simulation~~ → ~~rewind~~ → ~~verification script~~ → ~~project upgrade + engine version~~ → ~~code formatting~~ **(v0.4 done)**
@@ -547,6 +568,7 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 - Editor polish (after stage 2, before stage 3): layout → log console → notifications → command palette → preferences/F1 → scene tree search → multi-select → viewport toolbar → snapping → camera controls → inspector conveniences → performance panel → jump to code → debug drawing → multiple scenes → play from here → asset browser **(v0.6.x)**
 3. ~~Replays~~ → ~~desync diagnosis~~ → ~~mid-match joining~~ → ~~bug report bundles~~ → ~~host migration~~ → ~~EOS backend part 1~~ → ~~crash reports (pulled from stage 4)~~ **(v0.7)**. Not blocking v0.7: EOS measurements (two PCs, portal setup). If the first game genre fits: local multiplayer on one PC
 4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → ~~character movement modes (kinematic → floating → active ragdoll)~~ → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → ~~prefabs~~ → ~~terrain (+ scatter brush)~~ → ~~Job System~~ → ~~spatial audio/interactive music~~ → ~~asset cooking + pack files~~ → ~~performance baseline check~~ → ~~empty project template~~ → second reference sample (co-op third person) **(v0.8)**
+4½. While other-OS devices are missing: publication preparation → repos made public (user) → Game QA 2 → optimization (measured) → audio golden tests
 5. Cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v0.9)** → cookbook docs → contracts frozen **(v1.0)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
 - Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects → health/damage → procedural generation → inventory → minimap → ai)
 - Tool suite (separate from stages, start decided by the user): ~~contract between tools~~ → ~~Audio 1 (layer split inside the engine)~~ → ~~Audio 2 (separate repo)~~ → ~~Audio 3 (authoring tool)~~ → ~~contract library~~ → ~~UI 1 (layer split inside the engine)~~ → next tool. UI 2 (separate repo, earliest after v1.0) when a use appears, UI 3 (preview tool) when a designer appears. UI/Audio features after v1.0
