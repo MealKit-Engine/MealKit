@@ -394,11 +394,14 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 - **Not proposed here** (already decided elsewhere): Job System (item above, parallel culling/instances/poses), GPU culling and ExecuteIndirect, Forward+, async loading, texture streaming, SIMD in `sim/` (would need determinism verification; Jolt already uses SIMD inside).
 - **Determinism**: none of 1~9 touches `sim/`. 8 changes the compiled code of `sim/`, so it is the only one that needs the determinism checks on its output.
 
-### [ ] Multiple project templates
-- Empty project, arena versus (the current sample), and genre templates like racing and co-op. Chosen in the editor's "New Project".
+### [ ] Empty project template (changed 2026-11-02, `docs/DECISIONS.md`)
+- A second project template next to arena versus (the current sample): one empty scene, an empty `WorldState`, the default screen flow, no sample content. Chosen in the editor's "New Project" and `tools\new_project.ps1`, and `tools\upgrade_project.ps1` upgrades projects made from either.
+- Genre templates (racing, co-op) and a genre list in "New Project" wait until there are 2~3 settled reference samples (deferred table "Genre project templates").
 
-### [ ] Cookbook docs
-- Common tasks done while keeping the determinism rules, like "making coins", "timers and rounds", "adding a new input", organized as short examples (docs repo `cookbook/`, English/Korean).
+### [ ] Second reference sample: co-op third person (changed 2026-11-02)
+- **Why**: stage 4 features (movement modes, active ragdoll, virtual cameras + cutscenes, AI pathfinding, terrain, animation state table) are each used in sandbox, but only in a small way inside a physics party versus game. A sample where they are the core of the game shows which APIs are awkward while they can still change before v1.0.
+- **Approach**: `samples/coop/` (name decided at start) with its own `mealkit.project`; sandbox moves to its own `samples/sandbox/mealkit.project` at the same time (rule in "Reference samples"). API problems found are fixed in the engine in this item, not worked around in the sample. It isn't a template yet.
+- Cookbook docs moved to right before contracts are frozen (stage 5, "Cookbook docs").
 
 ---
 
@@ -448,6 +451,10 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 - **Build scripts**: move `.bat` and Windows PowerShell 5.1 scripts to one that runs on every OS (candidate PowerShell 7 — current `.ps1` files can be used almost as is). The editor's [Build] menu and the project manager call it too.
 - **File paths**: asset paths use `/` and exact case. `check_layout` catches references with differing case as errors even on Windows (so they don't first surface on Linux).
 - **Exporting for other platforms**: for shipping builds that can't be made on the editor's OS (macOS/iOS only on macOS), decide then on handing off to remote builds or CI.
+
+### [ ] Cookbook docs (moved from stage 4 on 2026-11-02, after crossplay and before contracts are frozen)
+- Common tasks done while keeping the determinism rules, like "making coins", "timers and rounds", "adding a new input", organized as short examples (docs repo `cookbook/`, English/Korean).
+- Written right before v1.0 so the examples show the APIs that get frozen; each example is code from a reference sample, so it breaks visibly when the sample changes.
 
 ### [ ] Consoles (Xbox, PlayStation, Switch)
 - **Start conditions**: registration in each platform's developer program and dev kits.
@@ -542,8 +549,8 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 2. ~~RHI layer (DX12 + Vulkan)~~ (later graphics items on both backends together) → ~~benchmark mode (+ GPU budget, memory numbers)~~ → ~~shader hot reload~~ → ~~frustum culling~~ → ~~asset hot reload~~ → ~~Blender add-on~~ → ~~asset budget warnings~~ → ~~graphics regression tests~~ → ~~GPU capture/view modes~~ → ~~textures/materials part 1 (texture cache, glTF PBR)~~ → ~~style presets~~ → ~~look dev~~ → ~~sky HDRI/ambient light~~ → ~~reflection probes~~ → ~~point lights~~ → ~~shadows~~ → ~~skeletal animation (+ pose sampling for the simulation)~~ → ~~particles (own runtime)~~ → ~~post-processing (uber pass + LUT)~~ → ~~dynamic resolution~~ **(v0.6 done)**
 - Editor polish (after stage 2, before stage 3): layout → log console → notifications → command palette → preferences/F1 → scene tree search → multi-select → viewport toolbar → snapping → camera controls → inspector conveniences → performance panel → jump to code → debug drawing → multiple scenes → play from here → asset browser **(v0.6.x)**
 3. ~~Replays~~ → ~~desync diagnosis~~ → ~~mid-match joining~~ → ~~bug report bundles~~ → ~~host migration~~ → ~~EOS backend part 1~~ → ~~crash reports (pulled from stage 4)~~ **(v0.7)**. Not blocking v0.7: EOS measurements (two PCs, portal setup). If the first game genre fits: local multiplayer on one PC
-4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → ~~character movement modes (kinematic → floating → active ragdoll)~~ → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → ~~prefabs~~ → ~~terrain (+ scatter brush)~~ → ~~Job System~~ → ~~spatial audio/interactive music~~ → ~~asset cooking + pack files~~ → ~~performance baseline check~~ → multiple project templates → cookbook **(v0.8)**
-5. Cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v0.9)** → contracts frozen **(v1.0)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
+4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → ~~character movement modes (kinematic → floating → active ragdoll)~~ → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → ~~prefabs~~ → ~~terrain (+ scatter brush)~~ → ~~Job System~~ → ~~spatial audio/interactive music~~ → ~~asset cooking + pack files~~ → ~~performance baseline check~~ → empty project template → second reference sample (co-op third person) **(v0.8)**
+5. Cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v0.9)** → cookbook docs → contracts frozen **(v1.0)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
 - Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects → health/damage → procedural generation → inventory → minimap → ai)
 - Tool suite (separate from stages, start decided by the user): ~~contract between tools~~ → ~~Audio 1 (layer split inside the engine)~~ → ~~Audio 2 (separate repo)~~ → ~~Audio 3 (authoring tool)~~ → ~~contract library~~ → UI 1 (layer split inside the engine) → next tool. UI 2 (separate repo, earliest after v1.0) when a use appears, UI 3 (preview tool) when a designer appears. UI/Audio features after v1.0
 
