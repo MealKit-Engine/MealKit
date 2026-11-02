@@ -375,7 +375,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ### [x] Performance baseline check — v0.7.15, details in `docs/CHANGELOG.md`
 
-### [ ] Optimization candidates (proposed 2026-10-29) — 1~4 and 9 done, 8 measured and dropped, 5~7 wait for a measured bottleneck and don't block v0.8
+### [ ] Optimization candidates (proposed 2026-10-29) — 1~4 and 9 done, 8 measured and dropped, 5 and 7 measured on the co-op sample and not a cost yet, 5~7 wait for a measured bottleneck and don't block v0.8
 - **Why**: the techniques below are not in the engine yet and are not in the `docs/DECISIONS.md` deferred table (GPU-driven rendering, Forward+, mesh shaders, async loading are already there). Each one is small, view-side or build-side, and has **no effect on determinism**. None is done before a measurement shows the cost it removes: each is measured with `--benchmark` before and after (the "Performance baseline check" above), and an item that saves nothing measurable is dropped and moved to the deferred table.
 - **Order**: cheap and broad first (1~4), then the ones that need a game or a sample to show the bottleneck (5~9).
 
@@ -545,7 +545,7 @@ Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then
 
 ### [ ] Before publication, in this order
 1. [x] **Game QA 2** (MealKit-QA 0.2.0) — v0.8.3, details in `docs/CHANGELOG.md`
-2. **Optimization** (stage 4 "Optimization candidates", measured before and after with `--benchmark`): ~~#8 PGO for Export~~ (measured: no gain, deferred table; the #9 follow-up was already done in v0.8.2) → #5 and #7 only if the co-op sample shows the cost → #6 last.
+2. **Optimization** (stage 4 "Optimization candidates", measured before and after with `--benchmark`): ~~#8 PGO for Export~~ (measured: no gain, deferred table; the #9 follow-up was already done in v0.8.2) → #5 and #7 only if the co-op sample shows the cost (measured 2026-11-02 on `coop --benchmark 15`, hills scene: frame 2.29 ms, GPU-bound at 2.26 ms of the 8 ms budget, shadow pass 0.53 of 1.50 ms, simulation 0.26 ms/tick; skinned figures are one per player (at most 4), so neither is a bottleneck and both keep waiting, unimplemented) → #6 last.
 3. **Audio** (MealKit-Audio): offline-render golden tests for events first (no API or format change). The other "Audio features after v1.0" stay after v1.0 unless a DECISIONS row moves one forward; a feature that changes `sounds.events` is the kind worth deciding before the freeze.
 
 ### [ ] Publication preparation (after the items above)
