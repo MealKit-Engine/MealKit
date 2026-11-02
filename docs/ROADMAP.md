@@ -366,8 +366,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 ### [x] Prefabs — v0.7.8, details in `docs/CHANGELOG.md`
 
 ### [ ] Heightmap terrain
-- Heightmap + chunk LOD rendering, Jolt `HeightFieldShape` collision. Editor brushes (raise/lower/flatten).
-- 16-bit PNG heightmaps made in external terrain tools (Gaea, World Machine, etc.) can be imported. Refined with brushes after import. It's collision data, so it goes into the content hash.
+- [x] Heights, collision, chunk LOD, brushes, PNG import — v0.7.10, details in `docs/CHANGELOG.md`
 - **Scatter brush**: paints grass, rocks, and small props onto terrain or floors to place thousands (random ranges for density, size, rotation). View-only instances, unrelated to collision, determinism, and the content hash, culled in per-chunk groups. Large objects needing collision are placed as normal scene objects.
 
 ### [ ] Job System

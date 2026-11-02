@@ -45,6 +45,11 @@ void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3&
     const render::MeshId box = models.boxMesh();
     for (const scene::Entity& e : scene.entities) {
         if (!scene::visibleInGame(e, &reflect::moduleObjectTypes())) continue; // spawn points/areas are invisible in the game
+        if (e.is(scene::kTypeTerrain)) {
+            if (asset::Terrain* terrain = models.terrain(scene::terrainFile(e)))
+                models.addTerrain(out, *terrain, e.position, e.scale, e.color, e.flags, eye);
+            continue;
+        }
         const asset::Model* model = e.model.empty() ? nullptr : models.get(e.model);
         const render::MeshId mesh = model ? models.pickLod(*model, eye, e.position, e.scale) : box;
         if (model) asset::addModel(out, *model, mesh, {e.position, e.color, e.rotation, e.scale, e.flags}, scene::animField(e), viewTime);

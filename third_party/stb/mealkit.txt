@@ -1,11 +1,11 @@
 # MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
 # THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
-name stb (stb_vorbis, stb_truetype, stb_image)
-version 2c980bb (2026-08-02): stb_vorbis v1.22, stb_truetype v1.26, stb_image v2.30
+name stb (stb_vorbis, stb_truetype, stb_image, stb_image_write)
+version 2c980bb (2026-08-02): stb_vorbis v1.22, stb_truetype v1.26, stb_image v2.30, stb_image_write v1.16
 license MIT
 licenseFile LICENSE
 source https://github.com/nothings/stb
-usedIn engine (Ogg Vorbis music, UI fonts and images)
+usedIn engine (Ogg Vorbis music, UI fonts and images, terrain heightmaps)
 inGame yes
-kept stb_vorbis.c, stb_truetype.h, stb_image.h
-why single-file public domain / MIT decoders: Ogg Vorbis for streamed music (through miniaudio), TrueType glyphs baked at run time for UI text, PNG for UI images.
+kept stb_vorbis.c, stb_truetype.h, stb_image.h, stb_image_write.h
+why single-file public domain / MIT decoders: Ogg Vorbis for streamed music (through miniaudio), TrueType glyphs baked at run time for UI text, PNG for UI images and terrain heightmaps (decoded in the core for headless too); stb_image_write only for its deflate when the editor saves 16-bit heightmaps.

@@ -324,7 +324,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 
 ==============================================================================
-stb (stb_vorbis, stb_truetype, stb_image) 2c980bb (2026-08-02): stb_vorbis v1.22, stb_truetype v1.26, stb_image v2.30
+stb (stb_vorbis, stb_truetype, stb_image, stb_image_write) 2c980bb (2026-08-02): stb_vorbis v1.22, stb_truetype v1.26, stb_image v2.30, stb_image_write v1.16
 ==============================================================================
 This software is available under 2 licenses -- choose whichever you prefer.
 ------------------------------------------------------------------------------

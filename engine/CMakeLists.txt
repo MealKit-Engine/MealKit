@@ -175,6 +175,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/asset/ModelCache.h
     src/mealkit/asset/Environment.h # declarations only (baking in Environment.cpp is front end, called by the ModelCache::setRenderer inline)
     src/mealkit/asset/ModelCache.cpp
+    src/mealkit/asset/Terrain.h
+    src/mealkit/asset/Terrain.cpp # heightmap PNG decode/encode (static stb_image + stb_image_write copies, headless too)
     src/mealkit/asset/Animation.h
     src/mealkit/asset/Animation.cpp
     src/mealkit/asset/AnimStates.h
@@ -337,7 +339,7 @@ endif()
 
 # The PUBLIC settings below live on the core target (the Game build's mealkit inherits them by linking the core PUBLIC)
 target_include_directories(${mealkit_core_target} PUBLIC src)
-target_include_directories(${mealkit_core_target} SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf)
+target_include_directories(${mealkit_core_target} SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf ${MEALKIT_THIRD_PARTY}/stb)
 # Contract between tools: mkcontract (separate repo MealKit-Contract, version-pinned in third_party/mkcontract). Text format lines, live connection info,
 # the editor's tool/project/module lists. Only the library without the client (the engine is the live server; sockets stay in platform/).
 # When editing together with the contract: -DMEALKIT_MKCONTRACT_DIR=<MealKit-Contract checkout> (pull it in with tools\update_mkcontract.ps1 when done)
@@ -627,6 +629,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/LogPanel.cpp
         src/mealkit/editor/EditorCommands.cpp
         src/mealkit/editor/EditorAssets.cpp
+        src/mealkit/editor/EditorTerrain.cpp
         src/mealkit/editor/Preferences.h
         src/mealkit/editor/Preferences.cpp
         src/mealkit/editor/PerfPanel.h

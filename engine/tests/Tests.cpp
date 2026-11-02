@@ -39,6 +39,7 @@
 #include "mealkit/asset/Environment.h"
 #include "mealkit/render/SceneLights.h"
 #include "mealkit/asset/ModelCache.h"
+#include "mealkit/asset/Terrain.h"
 #include "mealkit/game/FrameStats.h"
 #include "mealkit/game/Scenario.h"
 #include "mealkit/live/Server.h"
@@ -1067,6 +1068,50 @@ TEST_CASE(asset, material_extras) {
 
 // Sky HDRI baking: RGB9E5 round trip, cube face directions, a uniform sky of brightness 1 gives 1 for ambient/reflection/sky
 // Color grading LUT (.cube): tables of other sizes are trilinearly resampled to 32 cells, DOMAIN is honored, 1D/short tables are rejected
+TEST_CASE(asset, terrain_heightmap) {
+    // PNG round trip (16-bit, rows flipped so the image top is +z)
+    asset::Heightmap map = asset::flatHeightmap(33, 1000);
+    for (u32 z = 0; z < 33; ++z)
+        for (u32 x = 0; x < 33; ++x) map.samples[z * 33 + x] = static_cast<u16>(x * 1900 + z * 7);
+    const std::vector<u8> png = asset::encodeHeightmap(map);
+    asset::Heightmap back;
+    std::string error;
+    TEST_CHECK(asset::decodeHeightmap(png.data(), png.size(), back, error));
+    TEST_CHECK(back.size == 33 && back.samples == map.samples && back.hash() == map.hash());
+
+    // Surface height matches the samples, and the physics height field agrees with it
+    const Vec3 center{10.0f, 5.0f, -4.0f}, size{64.0f, 20.0f, 64.0f};
+    f32 y = 0.0f;
+    TEST_CHECK(asset::terrainHeightAt(map, center, size, center.x - 32.0f, center.z - 32.0f, &y));
+    TEST_CHECK(std::fabs(y - (center.y - 10.0f + 20.0f * map.at(0, 0) / 65535.0f)) < 1e-3f);
+    TEST_CHECK(!asset::terrainHeightAt(map, center, size, center.x + 40.0f, center.z, &y));
+    physics::PhysicsWorld w;
+    w.init(64, 1);
+    std::vector<f32> heights;
+    asset::terrainHeights(map, size.y, heights);
+    physics::BodyDesc d;
+    d.position = center;
+    TEST_CHECK(w.createHeightField(heights.data(), map.size, size * -0.5f, size.x / 32.0f, size.z / 32.0f, d) != physics::kInvalidBody);
+    const f32 px = center.x + 7.3f, pz = center.z - 3.1f;
+    TEST_CHECK(asset::terrainHeightAt(map, center, size, px, pz, &y));
+    physics::RayHit hit;
+    TEST_CHECK(w.castRay({px, 100.0f, pz}, {0.0f, -200.0f, 0.0f}, hit));
+    TEST_CHECK(std::fabs((100.0f - 200.0f * hit.fraction) - y) < 0.05f); // Jolt quantizes heights slightly
+    const f32 t = asset::raycastTerrain(map, center, size, {px, 100.0f, pz}, {0.0f, -1.0f, 0.0f}, 1000.0f);
+    TEST_CHECK(std::fabs((100.0f - t) - y) < 0.01f);
+    w.shutdown();
+
+    // Chunks: 32 cells -> one chunk, LODs halve the grid; brushes only touch samples inside the radius
+    TEST_CHECK(asset::terrainChunks(map) == 1);
+    render::MeshData lod0, lod1;
+    asset::buildTerrainChunk(map, size, 0, 0, 0, lod0);
+    asset::buildTerrainChunk(map, size, 0, 0, 1, lod1);
+    TEST_CHECK(lod0.vertices.size() == 33 * 33 + 4 * 33 && lod1.vertices.size() == 17 * 17 + 4 * 17);
+    asset::Heightmap flat = asset::flatHeightmap(65, 20000);
+    const asset::SampleRect rect = asset::applyBrush(flat, {}, {64.0f, 10.0f, 64.0f}, asset::TerrainBrush::Raise, {0, 0, 0}, 4.0f, 0.1f, 0);
+    TEST_CHECK(!rect.empty && flat.at(32, 32) > 20000 && flat.at(0, 0) == 20000 && flat.at(40, 32) == 20000);
+}
+
 TEST_CASE(asset, cube_lut) {
     // 2-cell table: swaps red and blue (interpolation is linear, so it swaps exactly anywhere in the 32 cells)
     const std::string swap = "TITLE \"swap\"\n# comment\nLUT_3D_SIZE 2\n"

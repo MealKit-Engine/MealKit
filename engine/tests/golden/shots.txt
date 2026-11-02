@@ -27,3 +27,4 @@ anim_side       scenes/anim.scene   5 1.4 0.5  -90 -6
 # post: post-processing (all other scenes use defaults = AgX tone mapping + bloom + FXAA). post has exposure, LUT (lut/warm.cube), bloom, vignette, grain, chromatic aberration; post_off turns tone mapping off
 post_graded     scenes/post.scene      0.3 2.2 -4.6   0 -16
 post_off        scenes/post_off.scene  0.3 2.2 -4.6   0 -16
+terrain_hills   scenes/terrain.scene  -30 18 -40   35 -18

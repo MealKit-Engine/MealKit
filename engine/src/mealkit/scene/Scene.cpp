@@ -92,7 +92,15 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         t.flags = b.flags;
         return t;
     }();
-    static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn, &probe, &pointLight, &virtualCamera};
+    static const reflect::TypeInfo terrain = [] {
+        reflect::TypeInfo t = reflect::typeOf<TerrainFields>();
+        const reflect::TypeInfo b = makeBuiltin(kTypeTerrain, "Terrain", 0);
+        t.name = b.name;
+        t.label = b.label;
+        t.flags = b.flags;
+        return t;
+    }();
+    static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn, &probe, &pointLight, &virtualCamera, &terrain};
     return list;
 }
 
@@ -106,6 +114,16 @@ std::string animField(const Entity& e) {
     for (const auto& [key, value] : e.fields)
         if (key == kAnimField) return value;
     return {};
+}
+
+std::string terrainFile(const Entity& terrain) {
+    for (const auto& [key, value] : terrain.fields)
+        if (key == "heightmap") return value;
+    return {};
+}
+
+std::string terrainFileFor(const std::string& sceneName, const Entity& terrain) {
+    return "terrain/" + (sceneName.empty() ? std::string("scene") : sceneName) + "_" + std::to_string(terrain.id) + ".png";
 }
 
 std::string probeFileFor(const std::string& sceneName, const Entity& probe) {

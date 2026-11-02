@@ -23,12 +23,20 @@ inline constexpr const char* kProbeFileField = "bake";        // a reflection pr
 inline constexpr const char* kAnimField = "anim";             // looping view clip of a skinned model "<clip> [seconds offset]" (on any kind, excluded from the content hash)
 inline constexpr const char* kTypePointLight = "point_light"; // point light (view only, only the light is visible in the game, fields are PointLightFields)
 inline constexpr const char* kTypeVirtualCamera = "virtual_camera"; // virtual camera (view only, invisible in the game, fields are VirtualCameraFields, camera/Brain.h)
+inline constexpr const char* kTypeTerrain = "terrain"; // heightmap terrain (colliding, fields are TerrainFields, asset/Terrain.h). size = the box the heights fill
 
 // Fields of point light objects (a built-in kind, but edited with inspector/field lines like game kinds). Read with readObject<PointLightFields>(e)
 MEALKIT_STRUCT(PointLightFields) {
     MEALKIT_FIELD(Color, color, (Color::rgb(255, 214, 160)), "Light color");
     MEALKIT_FIELD(f32, intensity, 3.0f, "Intensity");
     MEALKIT_FIELD(f32, range, 6.0f, "Range (m)");
+};
+
+// Fields of terrain objects. The heightmap is a 16-bit grayscale PNG relative to assets (square, any size from 2 samples per side):
+// black = bottom of the object's box, white = top. The image's top row is the +z edge. Rotation is ignored (terrain stays axis-aligned).
+// Its samples go into the content hash with the model files (asset::ModelCache::hashModels)
+MEALKIT_STRUCT(TerrainFields) {
+    MEALKIT_FIELD(std::string, heightmap, {}, "Heightmap (16-bit PNG relative to assets)");
 };
 
 // Virtual camera body kinds (camera/Brain.h): how the camera position is decided from the follow target
@@ -172,6 +180,9 @@ std::string probeFile(const Entity& probe);
 std::string probeFileFor(const std::string& sceneName, const Entity& probe);
 // Looping view clip field (kAnimField, empty string if absent)
 std::string animField(const Entity& e);
+// Heightmap file of a terrain object (TerrainFields::heightmap, empty string if not set) / path the editor gives new terrains: terrain/<scene name>_<object id>.png
+std::string terrainFile(const Entity& terrain);
+std::string terrainFileFor(const std::string& sceneName, const Entity& terrain);
 
 // Reads the fields of a game kind. Fields not in the scene get the declaration's defaults.
 template <class T>

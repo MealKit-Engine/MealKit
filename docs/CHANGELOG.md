@@ -3,6 +3,19 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.10 — Heightmap terrain (2026-11-02)
+
+### [x] Stage 4: Heightmap terrain, part 1: heights, collision, chunk LOD, brushes (done 2026-11-02)
+- **Scene kind** `terrain` (`scene::kTypeTerrain`, field `heightmap` = 16-bit PNG relative to assets, new kind folder `assets/terrain/`). The heights fill the object's box: black = box bottom, white = top, the image's top row is the +z edge. Rotation is ignored (axis-aligned). Any square size from 2 samples.
+- **Engine** `asset/Terrain.h` (core, so headless servers load it too): PNG decode/encode with core-side static copies of stb_image and stb_image_write (only its deflate is used to write 16-bit grayscale), `terrainHeights`, `terrainHeightAt`/`raycastTerrain` (same triangle diagonal as Jolt), `buildTerrainChunk` (32-cell chunks, 3 LODs by distance, skirts against LOD cracks), `applyBrush` (raise/lower/flatten/smooth with smooth falloff).
+- **Collision**: `PhysicsWorld::createHeightField` (Jolt `HeightFieldShape`, padded to an even sample count with no-collision samples). The sandbox `loadScene` creates it for terrain objects; NavGrid bakes on it unchanged. **Content hash**: `ModelCache::hashModels` adds each terrain's sample hash (in-memory samples, so editor edits count too).
+- **View**: `ModelCache::terrain`/`addTerrain` build chunk meshes on first draw (existing Forward shader, no RHI or shader changes); the draw list culls per chunk. Brush edits rebuild only touched chunks via the new `Renderer::replaceMesh` + `rhi::Device::destroyBuffer` (DX12 and Vulkan; waits for the GPU, outside a frame, editor only in practice).
+- **Editor**: [+ Type...] > Terrain makes a flat 129-sample terrain (128 x 32 x 128 m, a quarter up) saved to `terrain/<scene>_<id>.png` on scene save. Inspector [Terrain]: info, Import PNG..., Brush toggle (Raise/Lower/Flatten/Smooth, radius, strength). Left drag paints with an outline on the surface, the gizmo hides while painting, a stroke is one undo step (snapshots carry terrain samples). Picking hits the surface, not the box. Externally re-exported PNGs reload (unless edited).
+- **Sample**: `assets/scenes/terrain.scene` + `assets/terrain/hills.png` (`tools/make_sample_terrain.py`), golden shot `terrain_hills`.
+- **Checked**: unit test `asset/terrain_heightmap` (PNG round trip, surface height = physics ray = terrain ray, chunk vertex counts per LOD, brush radius); bot play on the terrain scene (Pawns stand on the hills); editor capture; `check.ps1 -Changed`.
+- **Not yet**: scatter brush (next part), terrain materials/texture painting (one color + lighting), brush strokes are not tested automatically (only by hand).
+- **Template**: sample `sim/World.cpp`/`view/Draw.cpp` code is the new-project code (VERSION 0.7.10).
+
 ## v0.7.9 — active ragdoll movement mode (2026-11-02)
 
 ### [x] Stage 4: Active ragdoll movement mode (done 2026-11-02)

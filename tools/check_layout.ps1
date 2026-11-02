@@ -31,6 +31,7 @@ $kinds = [ordered]@{
     "strings"  = @(".txt")
     "lut"      = @(".cube")
     "probes"   = @(".mkprobe")
+    "terrain"  = @(".png")
 }
 $singleFiles = @("game.tuning", "view.tuning", "input.bindings", "feedback.table", "sounds.events")
 $sourceFormats = @(".blend", ".blend1", ".psd", ".psb", ".kra", ".xcf", ".penpot", ".fig", ".spp", ".sbs", ".sbsar",
