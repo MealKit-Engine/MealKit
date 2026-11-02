@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.8.0 — stage 4 done (2026-11-02)
+
+Finished the last v0.8-blocking item of stage 4 (the second reference sample) and bumped to v0.8 (ROADMAP "Versions": v0.n = the engine that finished stage n).
+- **Stage 4 contents** (entries below, v0.7.1 ~ v0.7.22): source modules, scenario tests, namespace cleanup, game flow, movement modes, active ragdoll, animation state table, virtual cameras + cutscenes, AI pathfinding, prefabs, heightmap terrain, Job System, spatial audio + interactive music, asset cooking + pack files, performance baseline, optimization candidates 1~4 and 9, empty project template, `samples/coop`.
+- **Passed over since they don't block v0.8**: optimization candidates 5~8 (static shadow caching, VRS, animation LOD, PGO), done when a measurement shows the cost. They remain in the ROADMAP stage 4 section.
+- **Impact**: no template or file format changes; existing projects only get the new engine version from `tools\upgrade_project.ps1`. Docs repo `ENGINE_VERSION` 0.8. The `cooldown` module (made for engine 0.5) still builds; `module.ps1` keeps warning until a version for 0.8 is in the registry.
+
 ## v0.7.22 — Second reference sample: co-op third person (2026-11-02)
 
 ### [x] Stage 4: Second reference sample, co-op third person (done 2026-11-02)

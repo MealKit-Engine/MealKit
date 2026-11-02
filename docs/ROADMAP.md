@@ -42,7 +42,7 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 | v0.4 | Stage 0: editor, hot reload, determinism checks, debugging tools. When the template changed while finishing stage 1 items, 0.4.x was bumped |
 | v0.5 (now 0.5.0, 2026-10-19) | Stage 1: features to ship one game end to end (platform layer, data separation, sound, UI, input, menus, saves). The reference sample runs end to end from title to results screen. When the template changes while finishing stage 2 items, 0.5.x is bumped |
 | v0.6 / v0.7 (now 0.7.0, 2026-11-01) | Graphics (RHI: DX12 + Vulkan) / stronger multiplayer. Stage 2 finished while the version stayed 0.5.x, so the version went 0.5.4 → 0.7.0 when stage 3 finished (no 0.6.0 release) |
-| v0.8 | Gameplay framework and tools |
+| v0.8 (now 0.8.0, 2026-11-02) | Stage 4: gameplay framework and tools (game flow, movement modes, active ragdoll, animation states, virtual cameras, AI pathfinding, prefabs, terrain, Job System, spatial audio, pack files), two reference samples (`samples/sandbox`, `samples/coop`) and an empty project template |
 | v0.9 | Stage 5 tier 1: Linux/Steam Deck and macOS shipping and editors, crossplay between tier 1 (EOS). Tier 2 (mobile, web, consoles) follows in order and doesn't block v1.0 |
 | **v1.0** | After v0.9, the version where **all reference samples pass Export and determinism checks (`mp_test`, including cross-platform) on tier 1 platforms** and **contracts are frozen**: the `GameInstance` API, file formats (`.scene`, `.tuning`, `.table`, `.ui`, `mealkit.project`, saves), `sim/` rules (SimCheck) |
 | v1.x and later | Frozen contracts aren't broken. If one truly must break, the major version (v2.0) is bumped and the upgrade tool migrates |
@@ -334,7 +334,7 @@ The rest of EOS needs two PCs and Epic portal setup (Steam provider) (two proces
 - **Approach**: one peer provides several player slots (session: local players per peer; tick input stays 8 bytes per player). It can mix with online (two people on each of two PCs). The view is a shared camera or split screen (several viewports, `buildFrame` per player), and UI has per-player focus. Input actions assign devices → local players.
 - **Determinism**: only the slot count changes; the tick input format stays the same. A "two players on one peer" scenario in `mp_test`. **Cost**: medium to large (session, local players in `GameContext`, splitting the screen).
 
-## Stage 4 (v0.8): gameplay framework and tools
+## Stage 4 (v0.8): gameplay framework and tools — done (2026-11-02, v0.8.0)
 
 In practice the source module system ①~⑧ was done first (2026-10-28). **Remaining order (re-decided 2026-10-28, same as the item order below)**:
 - **Scenario tests to the front** (moved from stage 1): the game flow, health, and movement modes coming next are all rules ("respawn 3 seconds after dying"), better verified with scenarios than unit tests. Module `tests/` also check simulation behavior in the same format.
@@ -375,7 +375,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ### [x] Performance baseline check — v0.7.15, details in `docs/CHANGELOG.md`
 
-### [ ] Optimization candidates (proposed 2026-10-29)
+### [ ] Optimization candidates (proposed 2026-10-29) — 1~4 and 9 done, 5~8 wait for a measured bottleneck and don't block v0.8
 - **Why**: the techniques below are not in the engine yet and are not in the `docs/DECISIONS.md` deferred table (GPU-driven rendering, Forward+, mesh shaders, async loading are already there). Each one is small, view-side or build-side, and has **no effect on determinism**. None is done before a measurement shows the cost it removes: each is measured with `--benchmark` before and after (the "Performance baseline check" above), and an item that saves nothing measurable is dropped and moved to the deferred table.
 - **Order**: cheap and broad first (1~4), then the ones that need a game or a sample to show the bottleneck (5~9).
 
