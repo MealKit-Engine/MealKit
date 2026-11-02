@@ -23,6 +23,7 @@ inline constexpr const char* kProbeFileField = "bake";        // a reflection pr
 inline constexpr const char* kAnimField = "anim";             // looping view clip of a skinned model "<clip> [seconds offset]" (on any kind, excluded from the content hash)
 inline constexpr const char* kTypePointLight = "point_light"; // point light (view only, only the light is visible in the game, fields are PointLightFields)
 inline constexpr const char* kTypeVirtualCamera = "virtual_camera"; // virtual camera (view only, invisible in the game, fields are VirtualCameraFields, camera/Brain.h)
+inline constexpr const char* kTypeScatter = "scatter"; // scatter brush layer (view only, fields are ScatterFields, asset/Scatter.h; the object's own transform isn't used)
 inline constexpr const char* kTypeTerrain = "terrain"; // heightmap terrain (colliding, fields are TerrainFields, asset/Terrain.h). size = the box the heights fill
 
 // Fields of point light objects (a built-in kind, but edited with inspector/field lines like game kinds). Read with readObject<PointLightFields>(e)
@@ -37,6 +38,17 @@ MEALKIT_STRUCT(PointLightFields) {
 // Its samples go into the content hash with the model files (asset::ModelCache::hashModels)
 MEALKIT_STRUCT(TerrainFields) {
     MEALKIT_FIELD(std::string, heightmap, {}, "Heightmap (16-bit PNG relative to assets)");
+};
+
+// Fields of scatter layers: one model painted many times. Instances are in file (written by the editor), not in the scene
+MEALKIT_STRUCT(ScatterFields) {
+    MEALKIT_FIELD(std::string, model, {}, "Model (glTF relative to assets, empty: small box)");
+    MEALKIT_FIELD(std::string, file, {}, "Instance file (.scatter relative to assets)");
+    MEALKIT_FIELD(f32, density, 0.5f, "Density (per m²)");
+    MEALKIT_FIELD(f32, minScale, 0.8f, "Smallest size");
+    MEALKIT_FIELD(f32, maxScale, 1.2f, "Largest size");
+    MEALKIT_FIELD(bool, randomYaw, true, "Random rotation");
+    MEALKIT_FIELD(f32, drawDistance, 120.0f, "Draw distance (m)");
 };
 
 // Virtual camera body kinds (camera/Brain.h): how the camera position is decided from the follow target
@@ -182,6 +194,7 @@ std::string probeFileFor(const std::string& sceneName, const Entity& probe);
 std::string animField(const Entity& e);
 // Heightmap file of a terrain object (TerrainFields::heightmap, empty string if not set) / path the editor gives new terrains: terrain/<scene name>_<object id>.png
 std::string terrainFile(const Entity& terrain);
+std::string scatterFileFor(const std::string& sceneName, const Entity& scatter); // terrain/<scene name>_<object id>.scatter
 std::string terrainFileFor(const std::string& sceneName, const Entity& terrain);
 
 // Reads the fields of a game kind. Fields not in the scene get the declaration's defaults.

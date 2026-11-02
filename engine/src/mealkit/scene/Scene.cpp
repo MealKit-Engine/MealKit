@@ -100,7 +100,16 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         t.flags = b.flags;
         return t;
     }();
-    static const std::vector<const reflect::TypeInfo*> list{&solid, &decoration, &spawn, &probe, &pointLight, &virtualCamera, &terrain};
+    static const reflect::TypeInfo scatter = [] {
+        reflect::TypeInfo t = reflect::typeOf<ScatterFields>();
+        const reflect::TypeInfo b = makeBuiltin(kTypeScatter, "Scatter layer", reflect::kObjectCosmetic);
+        t.name = b.name;
+        t.label = b.label;
+        t.flags = b.flags;
+        return t;
+    }();
+    static const std::vector<const reflect::TypeInfo*> list{&solid,         &decoration, &spawn,  &probe,
+                                                            &pointLight,    &virtualCamera, &terrain, &scatter};
     return list;
 }
 
@@ -124,6 +133,10 @@ std::string terrainFile(const Entity& terrain) {
 
 std::string terrainFileFor(const std::string& sceneName, const Entity& terrain) {
     return "terrain/" + (sceneName.empty() ? std::string("scene") : sceneName) + "_" + std::to_string(terrain.id) + ".png";
+}
+
+std::string scatterFileFor(const std::string& sceneName, const Entity& scatter) {
+    return "terrain/" + (sceneName.empty() ? std::string("scene") : sceneName) + "_" + std::to_string(scatter.id) + ".scatter";
 }
 
 std::string probeFileFor(const std::string& sceneName, const Entity& probe) {

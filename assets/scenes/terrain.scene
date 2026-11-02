@@ -73,3 +73,39 @@ scale 96 60 96
 color FF50C8FF
 flags 0
 end
+
+entity
+id 7
+name Grass
+kind scatter
+position 0 0 0
+rotation 0 0 0 1
+scale 1 1 1
+color FF5AB45A
+flags 0
+field model models/props/style_grass.glb
+field file terrain/hills_grass.scatter
+field density 0.5
+field minScale 0.8
+field maxScale 1.2
+field randomYaw true
+field drawDistance 120
+end
+
+entity
+id 8
+name Rocks
+kind scatter
+position 0 0 0
+rotation 0 0 0 1
+scale 1 1 1
+color FF9A9A9A
+flags 0
+field model models/rock.glb
+field file terrain/hills_rocks.scatter
+field density 0.5
+field minScale 0.8
+field maxScale 1.2
+field randomYaw true
+field drawDistance 120
+end

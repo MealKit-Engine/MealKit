@@ -1,4 +1,5 @@
-"""Writes the sample terrain heightmap assets/terrain/hills.png (16-bit grayscale PNG, 129 x 129) used by assets/scenes/terrain.scene.
+"""Writes the sample terrain heightmap assets/terrain/hills.png (16-bit grayscale PNG, 129 x 129) and the scatter layers
+hills_grass.scatter / hills_rocks.scatter used by assets/scenes/terrain.scene (terrain box: center y 4, size 96 x 16 x 96).
 Standard library only. The image's top row is the +z edge (asset/Terrain.h)."""
 import math, os, struct, zlib
 
@@ -26,4 +27,19 @@ png = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", N, N, 16, 0,
 os.makedirs(root, exist_ok=True)
 with open(os.path.join(root, "hills.png"), "wb") as f:
     f.write(png)
-print("wrote assets/terrain/hills.png")
+import random
+
+def layer(name, count, seed, smin, smax):
+    rng = random.Random(seed)
+    lines = ["# MealKit scatter layer: i x y z yaw scale (painted in the editor, view only)", "@format scatter 1"]
+    for _ in range(count):
+        x, z = rng.randrange(N), rng.randrange(N)  # on samples, so the height is exact
+        wx, wz = -48 + x * 96 / (N - 1), -48 + z * 96 / (N - 1)
+        wy = -4 + height(x, z) * 16
+        lines.append("i %.3f %.3f %.3f %.3f %.3f" % (wx, wy, wz, rng.uniform(0, 6.283), rng.uniform(smin, smax)))
+    with open(os.path.join(root, name), "w", newline="\n") as f:
+        f.write("\n".join(lines) + "\n")
+
+layer("hills_grass.scatter", 3000, 1, 0.6, 1.3)
+layer("hills_rocks.scatter", 120, 2, 0.4, 1.0)
+print("wrote assets/terrain/hills.png, hills_grass.scatter, hills_rocks.scatter")

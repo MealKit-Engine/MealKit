@@ -3,6 +3,16 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.7.11 — Scatter brush (2026-11-02)
+
+### [x] Stage 4: Heightmap terrain, part 2: scatter brush (done 2026-11-02)
+- **Scene kind** `scatter` (scatter layer, `kObjectCosmetic`: out of the content hash, collision and simulation). Fields `ScatterFields`: model, instance file, density (per m²), smallest/largest size, random rotation, draw distance. The layer object's own transform isn't used.
+- **Engine** `asset/Scatter.h`: instances (world position, yaw, uniform scale) in `assets/terrain/<scene>_<id>.scatter` (`@format scatter 1`, one `i x y z yaw scale` line each). `paintScatter` (random points in the circle that find floor, min spacing 0.75/√density), `eraseScatter`, `groupScatter` (32 m cells). `ModelCache::scatter`/`saveScatters`/`addScatter`: cells beyond the draw distance are skipped whole, the rest go per instance through the draw list (frustum culling, model LOD). Without a model a small box stands in.
+- **Editor**: [+ Type...] > Scatter layer (brush on), inspector [Scatter]: instance count, Brush, Paint/Erase (Shift inverts), radius, strength, Clear. Painting rays down onto everything in the scene (terrain surfaces and solid boxes/models), one stroke = one undo step (snapshots carry the instances), scene save writes the files. Layers have no gizmo and aren't picked in the viewport (scene tree).
+- **Sample**: `terrain.scene` gets grass (3000) and rock (120) layers written by `tools/make_sample_terrain.py`; golden shot `terrain_hills` updated.
+- **Checked**: unit test `asset/scatter_layer` (spacing, circle, floor only, grouping, file round trip, erase); bot play capture on the terrain scene; `check.ps1 -Changed`.
+- **Not yet**: painting by hand isn't tested automatically; per-instance tilt to the slope; GPU instancing beyond the current per-mesh batches (the draw list already draws one call per mesh).
+
 ## v0.7.10 — Heightmap terrain (2026-11-02)
 
 ### [x] Stage 4: Heightmap terrain, part 1: heights, collision, chunk LOD, brushes (done 2026-11-02)
@@ -13,7 +23,7 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 - **Editor**: [+ Type...] > Terrain makes a flat 129-sample terrain (128 x 32 x 128 m, a quarter up) saved to `terrain/<scene>_<id>.png` on scene save. Inspector [Terrain]: info, Import PNG..., Brush toggle (Raise/Lower/Flatten/Smooth, radius, strength). Left drag paints with an outline on the surface, the gizmo hides while painting, a stroke is one undo step (snapshots carry terrain samples). Picking hits the surface, not the box. Externally re-exported PNGs reload (unless edited).
 - **Sample**: `assets/scenes/terrain.scene` + `assets/terrain/hills.png` (`tools/make_sample_terrain.py`), golden shot `terrain_hills`.
 - **Checked**: unit test `asset/terrain_heightmap` (PNG round trip, surface height = physics ray = terrain ray, chunk vertex counts per LOD, brush radius); bot play on the terrain scene (Pawns stand on the hills); editor capture; `check.ps1 -Changed`.
-- **Not yet**: scatter brush (next part), terrain materials/texture painting (one color + lighting), brush strokes are not tested automatically (only by hand).
+- **Not yet**: scatter brush (v0.7.11), terrain materials/texture painting (one color + lighting), brush strokes are not tested automatically (only by hand).
 - **Template**: sample `sim/World.cpp`/`view/Draw.cpp` code is the new-project code (VERSION 0.7.10).
 
 ## v0.7.9 — active ragdoll movement mode (2026-11-02)

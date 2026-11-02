@@ -365,9 +365,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ### [x] Prefabs — v0.7.8, details in `docs/CHANGELOG.md`
 
-### [ ] Heightmap terrain
-- [x] Heights, collision, chunk LOD, brushes, PNG import — v0.7.10, details in `docs/CHANGELOG.md`
-- **Scatter brush**: paints grass, rocks, and small props onto terrain or floors to place thousands (random ranges for density, size, rotation). View-only instances, unrelated to collision, determinism, and the content hash, culled in per-chunk groups. Large objects needing collision are placed as normal scene objects.
+### [x] Heightmap terrain — v0.7.10 (heights, collision, LOD, brushes) + v0.7.11 (scatter brush), details in `docs/CHANGELOG.md`
 
 ### [ ] Job System
 - Parallelize render preparation (culling, filling instances, animation poses). Physics already uses Jolt's thread pool, so consider sharing the same workers.

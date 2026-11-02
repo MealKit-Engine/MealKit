@@ -45,6 +45,10 @@ void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3&
     const render::MeshId box = models.boxMesh();
     for (const scene::Entity& e : scene.entities) {
         if (!scene::visibleInGame(e, &reflect::moduleObjectTypes())) continue; // spawn points/areas are invisible in the game
+        if (e.is(scene::kTypeScatter)) { // view-only instances painted in the editor
+            models.addScatter(out, e, eye);
+            continue;
+        }
         if (e.is(scene::kTypeTerrain)) {
             if (asset::Terrain* terrain = models.terrain(scene::terrainFile(e)))
                 models.addTerrain(out, *terrain, e.position, e.scale, e.color, e.flags, eye);

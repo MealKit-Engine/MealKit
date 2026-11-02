@@ -176,6 +176,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/asset/Environment.h # declarations only (baking in Environment.cpp is front end, called by the ModelCache::setRenderer inline)
     src/mealkit/asset/ModelCache.cpp
     src/mealkit/asset/Terrain.h
+    src/mealkit/asset/Scatter.h
+    src/mealkit/asset/Scatter.cpp
     src/mealkit/asset/Terrain.cpp # heightmap PNG decode/encode (static stb_image + stb_image_write copies, headless too)
     src/mealkit/asset/Animation.h
     src/mealkit/asset/Animation.cpp
