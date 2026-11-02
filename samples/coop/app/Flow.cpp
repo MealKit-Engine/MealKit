@@ -159,6 +159,11 @@ std::string Flow::endText(game::GameContext& ctx) const {
     }
     case net::RejectReason::Full: return ctx.strings.get("reject.full");
     case net::RejectReason::InProgress: return ctx.strings.get("reject.started");
+    case net::RejectReason::Input: {
+        static constexpr const char* kInputKeys[] = {"lobby.inputKeyboard", "lobby.inputGamepad", "lobby.inputTouch"};
+        return ctx.strings.format("reject.input", {{"host", ctx.strings.get(kInputKeys[static_cast<u32>(r.hostInput)])}});
+    }
+    case net::RejectReason::Crossplay: return ctx.strings.format("reject.crossplay", {{"host", r.hostPlatform}});
     case net::RejectReason::None: break;
     }
     return ctx.match.error();
@@ -260,6 +265,8 @@ void Flow::updateLobby(game::GameContext& ctx, const FlowGame& game, SaveData& s
         row.ping = m.host || !ctx.settings.values().gameplay.showNetwork
                        ? std::string()
                        : ctx.strings.format("hud.ping", {{"ping", std::to_string(m.pingMs)}});
+        static constexpr const char* kInputKeys[] = {"lobby.inputKeyboard", "lobby.inputGamepad", "lobby.inputTouch"};
+        row.input = m_lobby.offline ? std::string() : ctx.strings.get(kInputKeys[static_cast<u32>(m.input)]);
         if (!m.host && !m.ready) allReady = false;
     }
     m_lobby.canStart = m_lobby.isHost && allReady;

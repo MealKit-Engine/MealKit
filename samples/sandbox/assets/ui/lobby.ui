@@ -71,6 +71,12 @@ board lobby 1920 1080
             fontSize 22
             color $textDim
           end
+          text input
+            content {input}
+            visible input
+            fontSize 20
+            color $textDim
+          end
           text ping
             content {ping}
             visible ping

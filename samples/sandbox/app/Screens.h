@@ -44,6 +44,7 @@ MEALKIT_STRUCT(LobbyRowVm) {
     MEALKIT_FIELD(bool, you, false, "나");
     MEALKIT_FIELD(mealkit::Color, color, {}, "플레이어 색");
     MEALKIT_FIELD(std::string, ping, {}, "호스트와의 왕복 시간 (\"45 ms\", 방장·혼자는 비어 있다)");
+    MEALKIT_FIELD(std::string, input, {}, "입력 장치 (키보드/마우스, 게임패드, 터치. 혼자는 비어 있다)");
 };
 
 MEALKIT_VIEWMODEL(LobbyVm) {

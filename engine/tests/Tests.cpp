@@ -2100,6 +2100,45 @@ TEST_CASE(net, join_reject_reasons) {
     TEST_CHECK(r.reason == net::RejectReason::None); // joins if identical
 }
 
+// Crossplay: input kinds travel in lobby signals, a same-input-only host rejects other kinds, and crossplay off still meets the same OS
+TEST_CASE(net, join_input_kind_crossplay) {
+    constexpr u16 kPort = 27941;
+    net::Address address;
+    net::startup();
+    TEST_CHECK(net::resolveAddress("127.0.0.1", kPort, address));
+    net::cleanup();
+    auto run = [&](bool sameInputOnly, net::InputKind clientInput, bool clientCrossplay, net::InputKind& seenByClient,
+                   net::InputKind& seenByHost) {
+        net::LockstepSession host, client;
+        host.setSameInputOnly(sameInputOnly);
+        host.setLocalInputKind(net::InputKind::Gamepad);
+        client.setLocalInputKind(clientInput);
+        client.setCrossplay(clientCrossplay);
+        TEST_CHECK(host.host(kPort, 2, 3, true) && client.join(address));
+        const f64 until = nowSeconds() + 5.0;
+        while (nowSeconds() < until && client.state() != net::SessionState::Ended &&
+               !(client.lobbyMembers().size() == 2 && host.lobbyMembers().size() == 2)) {
+            host.update(nowSeconds());
+            client.update(nowSeconds());
+            sleepSeconds(0.001);
+        }
+        if (client.lobbyMembers().size() == 2) seenByClient = client.lobbyMembers()[0].input;
+        if (host.lobbyMembers().size() == 2) seenByHost = host.lobbyMembers()[1].input;
+        net::RejectInfo info = client.rejectInfo();
+        client.shutdown();
+        host.shutdown();
+        return info;
+    };
+    net::InputKind byClient = net::InputKind::KeyboardMouse, byHost = net::InputKind::KeyboardMouse;
+    net::RejectInfo r = run(false, net::InputKind::Touch, false, byClient, byHost);
+    TEST_CHECK(r.reason == net::RejectReason::None); // crossplay off, same OS: joins
+    TEST_CHECK(byClient == net::InputKind::Gamepad && byHost == net::InputKind::Touch);
+    r = run(true, net::InputKind::KeyboardMouse, true, byClient, byHost);
+    TEST_CHECK(r.reason == net::RejectReason::Input && r.hostInput == net::InputKind::Gamepad);
+    r = run(true, net::InputKind::Gamepad, true, byClient, byHost);
+    TEST_CHECK(r.reason == net::RejectReason::None);
+}
+
 TEST_CASE(game, project_file) {
     const std::string path = executableDirectory() + "\\test.project";
     // Reads even with the old format (key=value) and new format (path value) mixed
