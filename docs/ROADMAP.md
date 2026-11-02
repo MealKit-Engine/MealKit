@@ -375,7 +375,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ### [x] Performance baseline check — v0.7.15, details in `docs/CHANGELOG.md`
 
-### [ ] Optimization candidates (proposed 2026-10-29) — 1~4 and 9 done, 5~8 wait for a measured bottleneck and don't block v0.8
+### [ ] Optimization candidates (proposed 2026-10-29) — 1~4 and 9 done, 8 measured and dropped, 5~7 wait for a measured bottleneck and don't block v0.8
 - **Why**: the techniques below are not in the engine yet and are not in the `docs/DECISIONS.md` deferred table (GPU-driven rendering, Forward+, mesh shaders, async loading are already there). Each one is small, view-side or build-side, and has **no effect on determinism**. None is done before a measurement shows the cost it removes: each is measured with `--benchmark` before and after (the "Performance baseline check" above), and an item that saves nothing measurable is dropped and moved to the deferred table.
 - **Order**: cheap and broad first (1~4), then the ones that need a game or a sample to show the bottleneck (5~9).
 
@@ -388,7 +388,7 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 | 5 | **Static shadow caching** | `Renderer::drawShadows` | Static scene objects are drawn into the cascade once and copied each frame while the sun and the cascade box do not move (texel snapping already keeps the box still while the camera moves within a texel); only moving bodies are drawn on top | One more depth target per cascade. Gain only when static objects are many (terrain, scatter) |
 | 6 | **Variable rate shading (tier 1)** | RHI + `Renderer` | Per-draw coarse shading (2×2) for the sky, distant LODs and fog-covered objects. Xe-LP has VRS tier 1 (DX12 `RSSetShadingRate`, Vulkan `VK_KHR_fragment_shading_rate`) | Toggleable option, off where the device lacks it. Checked against golden images with a tolerance |
 | 7 | **Animation LOD** | view-side pose update (`samplePose`, `skinPalette`) | Distant or small characters update their pose every 2nd/4th frame, and off-screen characters not at all (the simulation pose path is untouched) | Visible stepping up close; driven by the same screen size as mesh LOD |
-| 8 | **Profile-guided optimization for Export** | `cmake/MealKit.cmake`, `build.bat Export` | MSVC `/GENPROFILE` build runs `--benchmark` and a headless bot match, then `/USEPROFILE` (LTO is already on). Typically 5~15 % CPU on branchy code (simulation, UI layout); the exe often gets smaller | Export takes longer; profile data per compiler version. Results must stay bit-identical: `mp_test` and detmath checks run on the PGO exe (compilers may not change float results, but it is checked, not assumed) |
+| 8 | ~~**Profile-guided optimization for Export**~~ measured 2026-11-02: no gain, moved to the `docs/DECISIONS.md` deferred table | `cmake/MealKit.cmake`, `build.bat Export` | MSVC `/GENPROFILE` build runs `--benchmark` and a headless bot match, then `/USEPROFILE` (LTO is already on). Typically 5~15 % CPU on branchy code (simulation, UI layout); the exe often gets smaller | Export takes longer; profile data per compiler version. Results must stay bit-identical: `mp_test` and detmath checks run on the PGO exe (compilers may not change float results, but it is checked, not assumed) |
 | 9 | ~~**Frame allocation check**~~ done v0.7.20 (UI text still allocates about 113 per frame: follow-up) | `check.ps1`, debug builds | Count heap allocations per frame in a steady benchmark frame (a counting `operator new` in dev builds) and warn above 0 for render and UI paths. Keeps "a steady frame allocates nothing" (`DrawList`) true as features grow | Dev builds only; the shipping exe is unchanged |
 
 - **Not proposed here** (already decided elsewhere): Job System (item above, parallel culling/instances/poses), GPU culling and ExecuteIndirect, Forward+, async loading, texture streaming, SIMD in `sim/` (would need determinism verification; Jolt already uses SIMD inside).
@@ -545,7 +545,7 @@ Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then
 
 ### [ ] Before publication, in this order
 1. [x] **Game QA 2** (MealKit-QA 0.2.0) — v0.8.3, details in `docs/CHANGELOG.md`
-2. **Optimization** (stage 4 "Optimization candidates", measured before and after with `--benchmark`): #8 PGO for Export (the UI text allocation follow-up of #9 was already done in v0.8.2) → #5 and #7 only if the co-op sample shows the cost → #6 last.
+2. **Optimization** (stage 4 "Optimization candidates", measured before and after with `--benchmark`): ~~#8 PGO for Export~~ (measured: no gain, deferred table; the #9 follow-up was already done in v0.8.2) → #5 and #7 only if the co-op sample shows the cost → #6 last.
 3. **Audio** (MealKit-Audio): offline-render golden tests for events first (no API or format change). The other "Audio features after v1.0" stay after v1.0 unless a DECISIONS row moves one forward; a feature that changes `sounds.events` is the kind worth deciding before the freeze.
 
 ### [ ] Publication preparation (after the items above)
