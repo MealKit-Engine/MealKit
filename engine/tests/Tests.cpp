@@ -698,6 +698,14 @@ TEST_CASE(game, scenario) {
     TEST_CHECK(game::loadScenario(path, sc, error) && sc.checks[4].expected == "0");
     TEST_CHECK(writeTextFile(path, "tick 1 phase ~ Playing\n") && !game::loadScenario(path, sc, error));
     TEST_CHECK(writeTextFile(path, "seed 1\n") && !game::loadScenario(path, sc, error)); // no checks
+    // ...accepted with --update-expected, which writes one == check per top-level scalar of the last tick
+    TEST_CHECK(game::loadScenario(path, sc, error, true) && sc.checks.empty());
+    game::ScenarioRun fill(sc, reflect::typeOf<ScenarioState>(), true);
+    fill.afterTick(0, &state);
+    fill.afterTick(1, &state);
+    TEST_CHECK(fill.finish(1) == 0);
+    TEST_CHECK(game::loadScenario(path, sc, error) && sc.checks.size() == 2 && sc.checks[0].tick == 1 &&
+               sc.checks[0].path == "phase" && sc.checks[0].expected == "Playing" && sc.checks[1].path == "height");
     removeFile(path);
 }
 

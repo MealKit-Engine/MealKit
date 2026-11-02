@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.8.3 — Game QA 2: scenario tests, mp_test and reports as scenarios in MealKit QA (2026-11-02)
+
+### [x] Tool suite: Game QA 2 (done 2026-11-02, MealKit-QA 0.2.0)
+- **Engine**: a scenario without `tick` lines is accepted only with `--update-expected`, which appends one `==` check per top-level scalar state value (not view-only) at the last executed tick (`game::scenarioChecksText`, shared with editor [Save Scenario], which now calls it). `loadScenario(..., allowNoChecks)`; output `SCENARIO updated` + `SCENARIO ok <file> checks=N`. Unit test `game/scenario` covers it.
+- **MealKit QA** (separate repo, still no engine link): a **Tests** page lists `<project>/tests/*.scenario` and runs them with `<name>_headless --test` (Run All, one, Update Expected; failed check lines, file, output), and runs `tools/mp_test.ps1 -Exe <name>.exe -Headless -Clients N -Ticks T`. Processes run one at a time on a worker thread (`tool/Runner`, SDL_Process). Executables come from the build root's `build/Release/bin` (the engine repo for `samples/<name>`, the same rule as `ProjectInfo::buildRoot`).
+- **Save as Scenario** on a report or replay: copies the recording to `tests/<kind>_<name>.rec`, writes `tests/<kind>_<name>.scenario` (`inputs`, `ticks` = report tick + 1, `scene` from `info.txt`) and runs it with `--update-expected` to fill the checks. Without a window: `MealKitQA --run-tests [--mp-test]`, `--make-scenario <report name>`.
+- **Checked**: sandbox `--run-tests --mp-test` → 3 scenarios ok, `PASS: 4 peers identical after 900 ticks`; a saved replay became a passing scenario (then removed).
+- **Left**: the sandbox's top-level state has only `tick` and `playerCount` as scalars, so a scenario saved from a report starts with two checks; the useful ones (per-player values in arrays/pools) are written by hand. Proposing nested values (e.g. per slot) is a candidate if that proves tedious. Old bug reports from before recordings were bundled can't be saved (no `replay.rec`).
+
 ## v0.8.2 — UI 1: game UI runtime split inside the engine (2026-11-02)
 
 ### [x] Tool suite: UI 1, splitting the UI runtime layer inside the engine (done 2026-11-02)
