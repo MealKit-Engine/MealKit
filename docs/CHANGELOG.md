@@ -3,6 +3,11 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Fixes after v0.9.0 (found while building the FuseTag example game)
+
+- **Editor play no longer stops on `Esc`**: `Esc` goes to the game (its pause menu), as `manual/multiplayer.md` already said for games with menus; `F5` alone stops play. Strings, shortcut help and docs updated.
+- **Game code is rebuilt when the project opens if its sources are newer than the game DLL** (`GameModuleHost::olderThanSources`: `source/`, `sim/`, `view/`, `app/`, `modules/`, `CMakeLists.txt`). Before, code edited while the editor was closed kept running the old DLL until a manual build.
+
 ## v0.9.0 — v1.0 candidate: contracts reviewed, cookbook written (2026-11-03)
 
 Finished the v0.9 items (ROADMAP "Versions", `docs/DECISIONS.md` 2026-11-03 v1.0 scope) and bumped to v0.9.
