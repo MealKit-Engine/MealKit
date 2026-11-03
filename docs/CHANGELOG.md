@@ -3,6 +3,11 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Game UI editor in the editor (v0.9.x, in progress)
+
+- **Step 1, editable `.ui` source** (2026-11-04, `engine/libs/mkui/include/mkui/Source.h`): `parseSource`/`writeSource` keep a `.ui` file as written (comments, blank lines, property order, `$theme` tokens, `use` components and `set` lines) as a tree of nodes whose items are lines or child places, so a save changes only the lines an edit touched. `Document` can't be written back because it inlines components and resolves number tokens; the panel will edit the source, write it, and read it again with `parseDocument` (one parser). `mapDocumentNodes` maps each `Document` node to its source node (nodes inside a component map to the `use` node). Edits: `getProperty`/`setProperty`/`removeProperty` by leading words (`pos`, `on hover fill`, `set label color`, `span 1`; a new line goes after the node's last property line), `addNode`/`removeNode`/`moveNode` by child-index paths (the board can't move or go, a node can't move into itself). Penpot exports are flagged (`Source::exported`) for read-only opening.
+- **Checks**: unit test `ui_source` writes every `.ui` in the engine repo back byte for byte (samples, module, template, Penpot expected files; FuseTag and `module-cooldown` checked the same way by hand: all already in the canonical shape), maps the sandbox screens with components, and covers property and tree edits. The Editor build's `mealkit_tests` links `mkui` directly since `mealkit.dll` exports only engine objects.
+
 ## Fixes after v0.9.0 (found while building the FuseTag example game)
 
 - **Editor play no longer stops on `Esc`**: `Esc` goes to the game (its pause menu), as `manual/multiplayer.md` already said for games with menus; `F5` alone stops play. Strings, shortcut help and docs updated.

@@ -492,6 +492,7 @@ if(MEALKIT_IS_ENGINE)
         target_link_libraries(mealkit_tests PRIVATE mealkit) # game screen UI layout tests (no window)
         target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1 MEALKIT_TEST_FRONT=1)
     elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
+        target_link_libraries(mealkit_tests PRIVATE mkui) # mealkit.dll exports only engine objects; the tests call mkui (Source.h) directly
         target_compile_definitions(mealkit_tests PRIVATE MEALKIT_TEST_UI=1 MEALKIT_TEST_FRONT=1)
     endif()
 endif()

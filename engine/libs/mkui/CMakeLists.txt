@@ -10,10 +10,12 @@ add_library(mkui STATIC
     include/mkui/Types.h
     include/mkui/Host.h
     include/mkui/Document.h
+    include/mkui/Source.h
     include/mkui/Atlas.h
     include/mkui/Text.h
     include/mkui/Ui.h
     src/Document.cpp
+    src/Source.cpp
     src/Atlas.cpp
     src/Text.cpp
     src/Ui.cpp
@@ -24,7 +26,7 @@ target_link_libraries(mkui PRIVATE mkcontract)
 target_compile_features(mkui PUBLIC cxx_std_20)
 if(MSVC)
     target_compile_options(mkui PRIVATE /permissive- /utf-8 /Zc:__cplusplus)
-    set_source_files_properties(src/Document.cpp src/Atlas.cpp src/Text.cpp src/Ui.cpp PROPERTIES COMPILE_OPTIONS "/W4")
+    set_source_files_properties(src/Document.cpp src/Source.cpp src/Atlas.cpp src/Text.cpp src/Ui.cpp PROPERTIES COMPILE_OPTIONS "/W4")
     set_source_files_properties(src/StbTruetype.cpp PROPERTIES COMPILE_OPTIONS "/W0") # external library implementation
 else()
     target_compile_options(mkui PRIVATE -Wall -Wextra)

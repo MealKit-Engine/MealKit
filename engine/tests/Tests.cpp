@@ -1146,6 +1146,91 @@ TEST_CASE(ui, penpot_expected) {
     TEST_CHECK(doc.nodes[0].id == "id-pause");
 }
 
+// Editable .ui source (editor [UI] panel): every .ui in the repo writes back unchanged, edits touch only their lines
+TEST_CASE(ui, ui_source) {
+    const std::string engine = std::string(MEALKIT_ENGINE_DIR);
+    std::vector<std::string> dirs = {engine + "/templates/empty/assets/ui", engine + "/tools/penpot-plugin/test/expected"};
+    for (const std::string& sample : listDirectories(engine + "/samples")) {
+        dirs.push_back(engine + "/samples/" + sample + "/assets/ui");
+        for (const std::string& module : listDirectories(engine + "/samples/" + sample + "/modules"))
+            dirs.push_back(engine + "/samples/" + sample + "/modules/" + module + "/assets/ui");
+    }
+    u32 files = 0;
+    for (const std::string& dir : dirs)
+        for (const std::string& name : listFiles(dir, ".ui")) {
+            if (name == "theme.ui") continue; // theme format, no board
+            std::string text;
+            TEST_CHECK(readTextFile(dir + "/" + name, text));
+            std::string lf;
+            for (char c : text)
+                if (c != '\r') lf += c;
+            ui::Source source;
+            std::string error;
+            const bool ok = ui::parseSource(lf, source, &error);
+            if (!ok || ui::writeSource(source) != lf) std::printf("  %s/%s: %s\n", dir.c_str(), name.c_str(), ok ? "writes back differently" : error.c_str());
+            TEST_CHECK(ok && ui::writeSource(source) == lf);
+            ++files;
+        }
+    TEST_CHECK(files >= 20);
+
+    // Sample screens with components: Document nodes map back to source nodes (a use subtree to the use node)
+    for (const char* screen : {"ui/hud.ui", "ui/menu.ui", "ui/settings.ui"}) {
+        std::string text;
+        TEST_CHECK(readTextFile(findAssetFile(screen), text));
+        ui::Source source;
+        TEST_CHECK(ui::parseSource(text, source));
+        ui::Document doc;
+        ui::parseDocument(text, screen, doc);
+        const std::vector<ui::SourcePath> map = ui::mapDocumentNodes(source, doc);
+        TEST_CHECK(map.size() == doc.nodes.size() && !map.empty() && map[0].empty());
+        for (size_t i = 0; i < map.size(); ++i) {
+            const ui::SourceNode* n = ui::findNode(source, map[i]);
+            TEST_CHECK(n && (n->kind == "use" || n->name == doc.nodes[i].name));
+        }
+    }
+
+    const std::string text = "# header comment\n@format ui 1\nboard b 100 100\n  navigation\n  frame a\n    # about a\n    pos 1 2\n"
+                             "    fill $panel\n    on hover fill #FFFFFF\n    text t\n      key x\n    end\n  end\n"
+                             "  frame c\n  end\nend\n";
+    ui::Source s;
+    TEST_CHECK(ui::parseSource(text, s) && ui::writeSource(s) == text && !s.exported);
+    ui::SourceNode* a = ui::findNode(s, {0});
+    TEST_CHECK(a && a->name == "a" && ui::findNode(s, {0, 0})->name == "t" && !ui::findNode(s, {2}));
+    std::string v;
+    TEST_CHECK(ui::getProperty(*a, "fill", v) && v == "$panel" && ui::getProperty(*a, "on hover fill", v) && v == "#FFFFFF");
+    ui::setProperty(*a, "pos", "10 20");          // replaced in place
+    ui::setProperty(*a, "radius", "$radius");     // added after the last property, before the child
+    ui::setProperty(*ui::findNode(s, {1}), "size", "50 hug"); // node without properties
+    TEST_CHECK(ui::removeProperty(*a, "on hover fill") && !ui::removeProperty(*a, "on hover fill"));
+    TEST_CHECK(ui::writeSource(s) == "# header comment\n@format ui 1\nboard b 100 100\n  navigation\n  frame a\n    # about a\n"
+                                     "    pos 10 20\n    fill $panel\n    radius $radius\n    text t\n      key x\n    end\n  end\n"
+                                     "  frame c\n    size 50 hug\n  end\nend\n");
+
+    // Tree edits: add, move into another node and back between siblings, remove; the board can't move or go
+    ui::SourceNode img;
+    img.kind = "image";
+    img.name = "icon";
+    img.items.push_back({"src ui/icon.png", -1});
+    TEST_CHECK((ui::addNode(s, {}, 1, img) == ui::SourcePath{1}) && ui::findNode(s, {2})->name == "c");
+    ui::SourcePath moved;
+    TEST_CHECK(ui::moveNode(s, {0, 0}, {2}, 0, &moved) && (moved == ui::SourcePath{2, 0})); // t from a into c
+    TEST_CHECK(ui::findNode(s, {2, 0}) && ui::findNode(s, {2, 0})->name == "t" && ui::findNode(s, {0})->children.empty());
+    TEST_CHECK(ui::moveNode(s, {2}, {}, 0, &moved) && (moved == ui::SourcePath{0}) && ui::findNode(s, {1})->name == "a");
+    TEST_CHECK(!ui::moveNode(s, {0}, {0, 0}, 0) && !ui::moveNode(s, {}, {0}, 0) && !ui::removeNode(s, {}));
+    TEST_CHECK(ui::removeNode(s, {2}) && !ui::findNode(s, {2}));
+    TEST_CHECK(ui::writeSource(s) == "# header comment\n@format ui 1\nboard b 100 100\n  navigation\n  frame c\n    size 50 hug\n"
+                                     "    text t\n      key x\n    end\n  end\n  frame a\n    # about a\n    pos 10 20\n    fill $panel\n"
+                                     "    radius $radius\n  end\nend\n");
+    ui::Document doc;
+    ui::parseDocument(ui::writeSource(s), "ui/edited.ui", doc); // no theme here, so $radius is an error; the nodes are read anyway
+    TEST_CHECK(doc.nodes.size() == 4 && doc.nodes[1].name == "c" && doc.nodes[2].name == "t" && doc.nodes[3].name == "a");
+
+    ui::Source bad;
+    std::string error;
+    TEST_CHECK(!ui::parseSource("board b 1 1\n  frame a\nend\n", bad, &error) && error.find("missing end") != std::string::npos);
+    TEST_CHECK(!ui::parseSource("frame a\nend\n", bad, &error) && !ui::parseSource("board b 1 1\nend\nend\n", bad, &error));
+}
+
 TEST_CASE(settings, settings_service) {
     const std::string oldRoot = projectRoot();
     const std::string dir = executableDirectory() + "/test_settings";
