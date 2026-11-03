@@ -645,6 +645,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/UiPanel.h
         src/mealkit/editor/UiPanel.cpp
         src/mealkit/editor/UiPanelEdit.cpp
+        src/mealkit/editor/UiPanelDrag.cpp
         src/mealkit/editor/LookdevPanel.h
         src/mealkit/editor/LookdevPanel.cpp
         src/mealkit/editor/ImportServer.h
