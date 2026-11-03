@@ -606,6 +606,7 @@ void PSShadow(VSOutput input)
 }
 
 // Skybox: one fullscreen triangle (no vertex buffer). Drawn before 3D without depth; 3D covers it. Doesn't get fog
+// Without a sky HDRI it's a gradient of the scene's fog and sky colors
 struct SkyOutput
 {
     float4 position : SV_Position;
@@ -626,6 +627,10 @@ float4 PSSky(SkyOutput input) : SV_Target
     FrameConstants frame = loadFrame();
     float4 world = mul(float4(input.clip, 1.0, 1.0), frame.invViewProj); // near plane (reversed-Z)
     float3 d = normalize(world.xyz / world.w - frame.cameraPos.xyz);
-    float3 color = g_cubes[NonUniformResourceIndex(frame.env.x)].SampleLevel(g_linearClamp, envDirection(frame, d), 0).rgb * frame.envParams.x;
+    float3 color;
+    if (frame.env.w != 0)
+        color = g_cubes[NonUniformResourceIndex(frame.env.x)].SampleLevel(g_linearClamp, envDirection(frame, d), 0).rgb * frame.envParams.x;
+    else // no HDRI: fog color at the horizon (where fogged 3D meets it) up to the sky color overhead
+        color = lerp(frame.fogColor.rgb, frame.skyColor.rgb, sqrt(saturate(d.y)));
     return float4(lerp(color, frame.screenTint.rgb, frame.screenTint.a), 1.0);
 }

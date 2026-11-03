@@ -121,6 +121,7 @@ struct Entity {
 // In scene files as "post <field> <value>" lines (all of them, even when equal to defaults)
 MEALKIT_STRUCT(PostFields) {
     MEALKIT_FIELD(bool, toneMapping, true, "Tone mapping (AgX)");
+    MEALKIT_FIELD(bool, punchy, true, "Punchy look (contrast, saturation)");
     MEALKIT_FIELD(f32, exposure, 0.0f, "Exposure (EV)");
     MEALKIT_FIELD(std::string, lut, {}, "Color LUT (.cube)");
     MEALKIT_FIELD(f32, bloomIntensity, 0.25f, "Bloom intensity");
@@ -135,10 +136,10 @@ MEALKIT_STRUCT(PostFields) {
 struct Environment {
     Vec3 sunDirection{0.4f, 0.8f, 0.3f};
     Vec3 sunColor{1.0f, 0.95f, 0.85f};
-    Vec3 skyColor{0.30f, 0.38f, 0.50f};
+    Vec3 skyColor{0.18f, 0.36f, 0.85f};
     Vec3 groundColor{0.20f, 0.17f, 0.14f};
-    Vec3 fogColor{0.50f, 0.62f, 0.78f};
-    f32 fogDensity = 0.008f;
+    Vec3 fogColor{0.55f, 0.70f, 0.95f};
+    f32 fogDensity = 0.003f;
     // Sky HDRI (.hdr relative to assets; if empty, the sky/ground color gradient above and the fog color background). If present, skybox/ambient/reflections come from it.
     // The sun stays as sunDirection/sunColor above (match it to the HDRI's sun). View only, so not in the content hash
     std::string hdri;

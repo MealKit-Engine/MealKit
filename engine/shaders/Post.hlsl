@@ -35,6 +35,7 @@ static const uint kPostToneMap = 1u;   // when off, linear values are only clamp
 static const uint kPostFxaa = 2u;
 static const uint kPostDither = 4u;    // reduce 8-bit banding (when tone mapping)
 static const uint kPostSharpen = 8u;   // drawn at reduced dynamic resolution: contrast adaptive sharpening after upscaling
+static const uint kPostPunchy = 16u;   // AgX "Punchy" look (the base look is flat and pale)
 static const uint kNoTex = 0xFFFFFFFFu;
 
 PostConstants loadPost()
@@ -131,6 +132,13 @@ float3 agx(float3 c) // linear → display (close to gamma-encoded sRGB, 0..1)
     c = clamp(log2(max(c, 1e-10)), minEv, maxEv);
     c = (c - minEv) / (maxEv - minEv);
     return agxContrast(c);
+}
+
+float3 agxPunchy(float3 c) // the "Punchy" look from the same implementation: power 1.35, saturation 1.4 (in AgX display space)
+{
+    float luma = dot(c, float3(0.2126, 0.7152, 0.0722));
+    c = pow(max(c, 0.0), 1.35);
+    return luma + 1.4 * (c - luma);
 }
 
 float3 agxEotf(float3 c) // AgX display value → linear Rec.709 (undoes the outset primaries)
@@ -237,7 +245,9 @@ float4 PSUber(PostVSOut input) : SV_Target
         color += g_textures[NonUniformResourceIndex(post.textures.x)].SampleLevel(g_linearClamp, uv, 0).rgb * post.bloom.rgb * post.exposure.y;
     color *= post.exposure.x;
 
-    float3 display = toSrgb(agxEotf(agx(color))); // 0..1 sRGB values (same space as LUTs and external grading tools)
+    float3 mapped = agx(color);
+    if (flags & kPostPunchy) mapped = agxPunchy(mapped);
+    float3 display = toSrgb(agxEotf(mapped)); // 0..1 sRGB values (same space as LUTs and external grading tools)
     if (post.textures.y != kNoTex) display = applyLut(post.textures.y, display); // project LUT + color blindness correction (one combined by the CPU)
     if (post.exposure.z > 0.0) { // vignette: darken region edges (softness = start radius)
         float r = length(centered * float2(regionSize.x / max(regionSize.y, 1e-6), 1.0)) * 1.41421356;

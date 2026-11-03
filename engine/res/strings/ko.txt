@@ -609,6 +609,7 @@ Edit sound events in MealKit Audio (Tools menu). = 소리 이벤트는 MealKit A
 # ---- 포스트 프로세싱
 Post processing = 포스트 프로세싱
 Tone mapping (AgX) = 톤 매핑 (AgX)
+Punchy look (contrast, saturation) = 선명한 룩 (대비, 채도)
 Exposure (EV) = 노출 (EV)
 Color LUT = 색 보정 LUT
 Color LUT (.cube) = 색 보정 LUT (.cube)

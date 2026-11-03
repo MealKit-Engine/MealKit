@@ -7,6 +7,8 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 
 - **Editor play no longer stops on `Esc`**: `Esc` goes to the game (its pause menu), as `manual/multiplayer.md` already said for games with menus; `F5` alone stops play. Strings, shortcut help and docs updated.
 - **Game code is rebuilt when the project opens if its sources are newer than the game DLL** (`GameModuleHost::olderThanSources`: `source/`, `sim/`, `view/`, `app/`, `modules/`, `CMakeLists.txt`). Before, code edited while the editor was closed kept running the old DLL until a manual build.
+- **Sky without an HDRI is a gradient, default fog is lighter**: with no sky HDRI the background was a flat clear to the fog color, though the editor offers it as "None (sky colors)"; the sky pass now always runs and draws the fog color at the horizon up to the sky color overhead (`PSSky`). Default sky color 0.18 0.36 0.85 (was 0.30 0.38 0.50), fog 0.55 0.70 0.95 at density 0.003 (was 0.50 0.62 0.78 at 0.008, which washed out anything past ~30 m). Sample and template scenes on the old defaults moved to the new ones (the environment isn't in the content hash).
+- **AgX "Punchy" look, on by default** (`PostFields::punchy`, inspector "Punchy look"): AgX's base look is flat and pale, which is most of why scenes looked hazy; the look from the same AgX implementation (power 1.35, saturation 1.4) runs after the tone curve. Scenes saved before get it too (missing post fields take the default); uncheck it for the old look. Golden images updated.
 
 ## v0.9.0 — v1.0 candidate: contracts reviewed, cookbook written (2026-11-03)
 
