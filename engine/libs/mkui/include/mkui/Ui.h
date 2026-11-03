@@ -69,6 +69,7 @@ struct ScreenInfo {
     u32 visibleNodes = 0;
     std::vector<std::string> errors; // file errors, binding errors (missing fields), missing fonts/images
     bool exported = false;
+    f32 originX = 0, originY = 0, scale = 1; // screen pixel = origin + logical × scale (last layout)
 };
 
 struct NodeBox {
@@ -78,6 +79,7 @@ struct NodeBox {
     u32 depth;
     bool visible;
     bool text; // text node (layout comparison is looser by font differences)
+    u32 node;  // index in the screen's Document::nodes (list rows repeat their template's index)
 };
 
 class System {
@@ -115,6 +117,8 @@ public:
 
     ScreenInfo info(ScreenId screen) const;
     std::vector<NodeBox> boxes(ScreenId screen) const;
+    // Editor: show this .ui text instead of the screen's file (unsaved edits); nullptr goes back to the file
+    void setDraft(ScreenId screen, const std::string* text);
     void setFocusVisible(bool always);
     u32 quadCount() const;
     bool press(ScreenId screen, const std::string& nodeName);

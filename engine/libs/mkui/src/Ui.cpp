@@ -68,6 +68,8 @@ struct Screen {
     bool fresh = true; // hasn't gone through update since opening: ui.* actions are from the opening frame, so they aren't taken (so opening with Esc doesn't close with the same Esc)
     std::string path;
     u64 fileTime = 0;
+    bool hasDraft = false; // editor: doc comes from draft, not the file
+    std::string draft;
     Document doc;
     std::vector<std::array<Visual, static_cast<size_t>(State::Count)>> stateVisuals; // nodes with states: drawing values per state
     std::vector<i32> stateIndex; // doc node → stateVisuals index (-1 none)
@@ -353,7 +355,8 @@ struct System::Impl {
 
     void loadScreen(Screen& s) {
         ensureTheme(); // number tokens ($radius) are resolved when reading
-        loadDocument(s.path, s.doc, host, &theme);
+        if (s.hasDraft) parseDocument(s.draft, s.path, s.doc, host, &theme);
+        else loadDocument(s.path, s.doc, host, &theme);
         s.fileTime = host.fileTime(s.path);
         for (const std::string& e : s.doc.errors) warn("UI: " + e);
         // Build per-state drawing values in advance
@@ -1767,6 +1770,9 @@ ScreenInfo System::info(ScreenId screen) const {
         out.errors = s->doc.errors;
         out.errors.insert(out.errors.end(), s->bindingErrors.begin(), s->bindingErrors.end());
         out.exported = s->doc.exported;
+        out.originX = s->originX;
+        out.originY = s->originY;
+        out.scale = s->scale;
     }
     return out;
 }
@@ -1776,9 +1782,17 @@ std::vector<NodeBox> System::boxes(ScreenId screen) const {
     if (Screen* s = m->find(screen))
         for (const RNode& n : s->nodes) {
             const Node& d = s->doc.nodes[n.src];
-            out.push_back({d.name, d.id, n.rect.x, n.rect.y, n.rect.w, n.rect.h, d.depth, n.visible, d.kind == NodeKind::Text});
+            out.push_back({d.name, d.id, n.rect.x, n.rect.y, n.rect.w, n.rect.h, d.depth, n.visible, d.kind == NodeKind::Text, n.src});
         }
     return out;
+}
+
+void System::setDraft(ScreenId screen, const std::string* text) {
+    Screen* s = m->find(screen);
+    if (!s) return;
+    s->hasDraft = text != nullptr;
+    s->draft = text ? *text : std::string();
+    m->loadScreen(*s);
 }
 
 void System::setFocusVisible(bool always) { m->focusAlways = always; }

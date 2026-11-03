@@ -19,7 +19,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     endif()
     list(APPEND MEALKIT_SPIRV_FLAGS -spirv -fspv-target-env=vulkan1.3)
 
-    # Remaining arguments are preprocessor defines (e.g. LIGHTING_MODEL=1 → -D LIGHTING_MODEL=1, style preset variants)
+    # Remaining arguments are preprocessor defines (e.g. LIGHTING_MODEL=1 ??-D LIGHTING_MODEL=1, style preset variants)
     function(mealkit_shader source entry profile name)
         set(defines "")
         foreach(d ${ARGN})
@@ -548,7 +548,7 @@ if(mealkit_online STREQUAL "Steam")
     set(MEALKIT_STEAM_DLL ${MEALKIT_STEAMWORKS_SDK}/redistributable_bin/win64/steam_api64.dll CACHE INTERNAL "")
 elseif(mealkit_online STREQUAL "EOS")
     message(STATUS "MealKit: online backend EOS - EOS lobbies and P2P relay enabled")
-    # credentials.txt ("name: value" lines) → EosCredentials.h in the build folder. Never goes into the repo
+    # credentials.txt ("name: value" lines) ??EosCredentials.h in the build folder. Never goes into the repo
     file(STRINGS ${MEALKIT_EOS_CREDENTIALS} mealkit_eos_lines)
     foreach(key ProductId SandboxId DeploymentId ClientId ClientSecret)
         set(EOS_${key} "")
@@ -602,7 +602,7 @@ if(MEALKIT_DEBUG_UI)
         list(APPEND mealkit_imgui_sources ${MEALKIT_THIRD_PARTY}/imguizmo/ImGuizmo.cpp)
         list(APPEND mealkit_imgui_includes ${MEALKIT_THIRD_PARTY}/imguizmo)
     endif()
-    # External code is compiled separately from engine warnings/options (/W4, UNICODE) (OBJECT library → only object files into the engine target)
+    # External code is compiled separately from engine warnings/options (/W4, UNICODE) (OBJECT library ??only object files into the engine target)
     add_library(mealkit_imgui OBJECT ${mealkit_imgui_sources})
     target_include_directories(mealkit_imgui PUBLIC ${mealkit_imgui_includes})
     target_compile_definitions(mealkit_imgui PRIVATE IMGUI_IMPL_WIN32_DISABLE_GAMEPAD NOMINMAX WIN32_LEAN_AND_MEAN)
@@ -644,6 +644,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/FeedbackPanel.cpp
         src/mealkit/editor/UiPanel.h
         src/mealkit/editor/UiPanel.cpp
+        src/mealkit/editor/UiPanelEdit.cpp
         src/mealkit/editor/LookdevPanel.h
         src/mealkit/editor/LookdevPanel.cpp
         src/mealkit/editor/ImportServer.h
@@ -672,7 +673,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         src/mealkit/editor/CodeLink.cpp
         src/mealkit/editor/Strings.h
         src/mealkit/editor/Strings.cpp)
-    target_link_libraries(mealkit_editor PUBLIC mealkit PRIVATE mkcontract) # mealkit.dll exports only its own objects, not mkcontract's
+    target_link_libraries(mealkit_editor PUBLIC mealkit PRIVATE mkcontract mkui) # mealkit.dll exports only its own objects, not mkcontract's or mkui's (UI editing: mkui/Source.h)
     target_compile_definitions(mealkit_editor PUBLIC MEALKIT_EDITOR=1)
 
     add_executable(MealKitEditor src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)
