@@ -14,8 +14,7 @@
 
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/audio/Audio.h"
-#include "mealkit/game/GameInstance.h"
-#include "mealkit/game/Simulation.h"
+#include "mealkit/game/SimulationGame.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/render/DrawList.h"
 #include "mealkit/render/Renderer.h"
@@ -29,9 +28,8 @@
 // The shipping game (main.cpp) uses this class directly, and the general-purpose editor uses it through the game DLL (GameModule.cpp).
 namespace sandbox {
 
-class GameSession final : public mealkit::game::GameInstance {
+class GameSession final : public mealkit::game::SimulationGame<World> {
 public:
-    using TuningType = Tuning;                   // editor [Tuning] panel (read by MEALKIT_GAME_MODULE)
     using ProjectSettingsType = ProjectSettings; // game items in the editor [Project Settings] window
     using ViewTuningType = ViewTuning;           // view tuning (assets/view.tuning, "View" tab of the [Tuning] panel)
     using EventType = GameEvent;                 // tick events ([Feedback] panel, assets/feedback.table)
@@ -42,36 +40,17 @@ public:
 
     void start(mealkit::game::GameContext& ctx, const mealkit::scene::Scene& scene,
                const mealkit::game::PlayOptions& options) override;
-    bool started() const override { return m_sim.started(); }
     void stop(mealkit::game::GameContext& ctx) override;
     bool menus() const override { return true; } // title/menu/lobby/results screens (app/Flow.cpp)
     void update(mealkit::game::GameContext& ctx, mealkit::f64 dt) override;
     void buildFrame(mealkit::game::GameContext& ctx, mealkit::f64 now, mealkit::render::FrameParams& frame,
                     mealkit::render::DrawList& out) override;
-
-    u32 nextTick() const override { return m_sim.nextTick(); }
-    // Also called before the match (menu/lobby/loading)
-    u64 stateHash() const override { return m_sim.started() ? m_sim.world().hash() : 0; }
-    u32 activeBodies() const override { return m_sim.started() ? m_sim.world().activeBodies() : 0; }
-    bool finished() const override { return m_sim.finished(); }
-    bool captureDue() override { return m_sim.captureDue(); }
-    mealkit::f64 takeSimMsPerTick() override { return m_sim.takeSimMsPerTick(); }
-    // Sound occlusion rays read the match's physics (between ticks)
-    const mealkit::physics::PhysicsWorld* physics() const override { return m_sim.started() ? &m_sim.world().physics : nullptr; }
-    void setTuning(const void* tuning) override;
-    mealkit::reflect::View stateView() const override {
-        if (!m_sim.started()) return {};
-        return {&mealkit::reflect::typeOf<WorldState>(), &m_sim.world().state};
-    }
-    mealkit::game::SimDebug* debug() override { return &m_sim; }
     void lobby(mealkit::net::LockstepSession& session, const mealkit::game::PlayOptions& options,
                const std::string& userFolder) override;
     void loadSave(const std::string& userFolder);
     void debugUi(mealkit::game::GameContext& ctx) override;
 
 private:
-    // Fixed tick execution, previous state for interpolation, shadow simulation, recording/rewind (engine mealkit/game/Simulation.h)
-    mealkit::game::Simulation<World> m_sim;
     Flow m_flow; // screen flow (menu, lobby, pause, results)
     mealkit::scene::Scene m_scene;                       // the flattened match scene (also drawn behind menus)
     const mealkit::scene::Scene* m_sceneSource = nullptr; // the source m_scene was made from

@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.8.4 — GameSession derives from game::SimulationGame (2026-11-03)
+
+### [x] Contract freeze review item 2: the GameInstance forwarding moves into the engine (done 2026-11-03)
+- **`game::SimulationGame<World>`** (`mealkit/game/SimulationGame.h`): a `GameInstance` that owns the match's `game::Simulation<World>` (protected `sim()`) and implements the 11 functions every `GameSession` wrote the same way: `started`, `nextTick`, `stateHash`, `activeBodies` (`world.physics.activeBodyCount()`), `finished`, `captureDue`, `takeSimMsPerTick`, `physics`, `setTuning` (`World::setTuning`), `stateView`, `debug`. `TuningType` comes from `World::tuning`, so `GameSession` no longer declares it. A game now writes `start`, `stop`, `update`, `buildFrame` and optionally `lobby`, `menus`, `debugUi`.
+- **Its own header**, not in `Simulation.h`: `Simulation.h` is part of the simulation version, so changing the runner's file would invalidate peers and replays for an addition that runs nothing.
+- **`lobby()` keeps its arguments** (session, options, user folder): solo play from the command line calls it before the view services in `GameContext` exist (`GameMain.cpp`).
+- **Template change**: `samples/sandbox`, `samples/coop` and `templates/empty` derive from it (`m_sim.` became `sim().`, the forwarding lines and `setTuning` went away, about 135 lines fewer). The `GameInstance` interface and `GameModule` didn't change, so `kApiVersion` stays 22 and existing projects build as they are; `upgrade_project.ps1 -Source` brings the new form. Docs repo: game code, debug UI and engine internals pages.
+- **Left**: the other freeze items (public header list, export macro, `docs/CONTRACTS.md`).
+
 ## v0.8.3 — publication and the first green Linux/macOS CI (2026-11-03)
 
 ### [x] First green public CI on Linux x64 and macOS ARM64 (2026-11-03, commit 9dc8a42)

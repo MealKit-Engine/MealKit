@@ -26,7 +26,7 @@ Talk with the user in Korean. Code comments, log messages, and scene file keys a
   In `sim/`, objects created/destroyed during a match use `mealkit::sim::Pool<T>`, "N ticks later" uses `TickTimer`, and things to tell the view go through `world.events` (`TickEvents`).
   The view side takes engine services as `mealkit::game::GameContext&` (`docs/CODING_MODEL.md`).
 - People (`PlayerSlot`) and bodies (`Pawn`) are separate. The arena template connects them with a `Controller` (player or AI), and respawn, spectating, mounting, and AI create new Pawns or switch with `possess`/`unpossess` (`source/sim/Pawns.cpp`); the empty template starts with one Pawn per slot (`source/sim/Players.cpp`). `templateName` in `mealkit.project` says which template the project came from.
-- `GameSession` runs ticks with the engine's `game::Simulation<World>` (shadow simulation, pause, and rewind come from here). Don't write your own tick loop.
+- `GameSession` derives from the engine's `game::SimulationGame<World>`, which owns the `game::Simulation<World>` (`sim()`) that runs the ticks (shadow simulation, pause, and rewind come from here) and implements the `GameInstance` functions that only report it. Don't write your own tick loop.
 - New object kinds to place in the editor are declared in `source/sim/Objects.h` as `MEALKIT_OBJECT(Name) { MEALKIT_FIELD(type, field, default, "Display name"); };`,
   and read in `World.cpp`'s `loadScene` with `scene::readObject<Name>(entity)`. Rebuilding game code makes them appear in the editor [Add] menu.
   Includes are written relative to `source/`, like `"sim/World.h"`. Adding files doesn't require editing `CMakeLists.txt`.

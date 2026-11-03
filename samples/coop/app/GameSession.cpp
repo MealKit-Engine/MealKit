@@ -62,7 +62,7 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     Tuning tuning;
     game::loadTuning(reflect::typeOf<Tuning>(), &tuning, options.tuningPath);
     const game::MatchInfo match = game::matchInfo(session); // seed, player count, match data, per-player loadouts
-    m_sim.start(options, game::tickDt(), [&](World& world, u32 physicsThreads) {
+    sim().start(options, game::tickDt(), [&](World& world, u32 physicsThreads) {
         Headless::startWorld(world, match, tuning, m_scene, ctx.models, physicsThreads); // same match start as headless
     });
     m_camera.load(m_scene, ctx.viewTuning<ViewTuning>().camera); // the scene's virtual cameras, assets/tables/cutscenes.table
@@ -87,7 +87,7 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
 
 // Match end (back to lobby, left, disconnected): discard the World and close match screens. The save remains
 void GameSession::stop(game::GameContext& ctx) {
-    m_sim.stop();
+    sim().stop();
     ctx.audio.stopMusic(1.0f);
     ctx.audio.setSnapshot("pause", false);
     if (m_hud) ctx.ui.close(m_hud);
@@ -96,11 +96,6 @@ void GameSession::stop(game::GameContext& ctx) {
     m_flow.stop(ctx);
     m_frozen = false;
     game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
-}
-
-void GameSession::setTuning(const void* tuning) {
-    const Tuning& value = *static_cast<const Tuning*>(tuning);
-    m_sim.modifyWorlds([&](World& world) { world.setTuning(value); });
 }
 
 void GameSession::update(game::GameContext& ctx, f64 dt) {
@@ -114,8 +109,8 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     flow.chatShowSeconds = look.chatShowSeconds;
     flow.choices = kBodyKeys;
     flow.memberChoice = memberBody;
-    if (m_sim.started()) {
-        const WorldState& s = m_sim.world().state;
+    if (sim().started()) {
+        const WorldState& s = sim().world().state;
         flow.inMatch = true;
         flow.results = s.flow.phase == MatchPhase::Results;
         flow.playerCount = s.playerCount;
@@ -123,7 +118,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     }
     m_flow.update(ctx, flow, m_save, m_hudVm, m_hud, dt);
     if (m_flow.takeSaveChanged()) game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
-    if (!m_sim.started()) {
+    if (!sim().started()) {
         if (ctx.scene && ctx.scene != m_sceneSource) { // arena shown behind the menu
             m_scene = scene::flattened(*ctx.scene);
             m_sceneSource = ctx.scene;
@@ -182,20 +177,20 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
             m_lastPhase = phase;
         }
     };
-    if (!m_flow.pausesSimulation()) m_sim.update(session, dt, sample, onTick); // pause in solo play halts the match
+    if (!m_flow.pausesSimulation()) sim().update(session, dt, sample, onTick); // pause in solo play halts the match
     ctx.audio.setSnapshot("pause", m_flow.blocksInput()); // menus over the match: music and effects muffled (snapshot "pause")
 
     // Moving my character ahead: by my movement inputs sent but not yet executed (view only, only during play)
-    const World& world = m_sim.world();
+    const World& world = sim().world();
     const u8 me = session.localPlayer();
     m_prediction.begin();
-    m_sim.forEachPendingInput([&](u32, const net::PlayerInput& in) { m_prediction.addInput(world, me, in); });
+    sim().forEachPendingInput([&](u32, const net::PlayerInput& in) { m_prediction.addInput(world, me, in); });
     m_prediction.update(static_cast<f32>(dt), look.prediction, world.state.flow.phase == MatchPhase::Playing && playerPawn(world.state, me));
 
     // Game screen UI: state → view model, button actions (changes to the simulation go through confirmed commands)
     std::array<std::string, net::kMaxPlayers> names;
     for (u32 i = 0; i < names.size(); ++i) names[i] = Flow::playerName(session, i);
-    fillHud(m_sim.world(), session.localPlayer(), look, names, m_hudVm);
+    fillHud(sim().world(), session.localPlayer(), look, names, m_hudVm);
     m_save.playSeconds += static_cast<f32>(dt);
     m_saveTimer += dt;
     if (m_saveTimer >= 30.0) {
@@ -225,7 +220,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
 
 void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParams& frame, render::DrawList& out) {
     const u8 localPlayer = ctx.session.localPlayer();
-    const bool started = m_sim.started();
+    const bool started = sim().started();
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     if (!started) { // behind the menu/lobby: slowly circles and shows the arena
         camera::Brain& menu = m_menuCamera.brain;
@@ -245,14 +240,14 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     // When hitstop starts, hold the image of that moment, and return to the current state when it ends
     const bool hitStop = ctx.feedback.hitStop();
     if (hitStop && !m_frozen) {
-        m_frozenPrevious = m_sim.previous();
-        m_frozenCurrent = m_sim.world().state;
-        m_frozenAlpha = m_sim.alpha();
+        m_frozenPrevious = sim().previous();
+        m_frozenCurrent = sim().world().state;
+        m_frozenAlpha = sim().alpha();
     }
     m_frozen = hitStop;
-    const WorldState& previous = m_frozen ? m_frozenPrevious : m_sim.previous();
-    const WorldState& current = m_frozen ? m_frozenCurrent : m_sim.world().state;
-    const f32 alpha = m_frozen ? m_frozenAlpha : m_sim.alpha();
+    const WorldState& previous = m_frozen ? m_frozenPrevious : sim().previous();
+    const WorldState& current = m_frozen ? m_frozenCurrent : sim().world().state;
+    const f32 alpha = m_frozen ? m_frozenAlpha : sim().alpha();
 
     // The camera follows the Pawn I possess. While waiting to respawn it stays at the last spot (spectating).
     const Pawn* mine = nullptr;
@@ -269,7 +264,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     m_cameraTime = now;
     m_cameraEvents.clear();
     const Vec3 shake = ctx.feedback.cameraShake(mine ? target : m_camera.brain.pose().position); // impulses come from the feedback table
-    m_camera.update(m_sim.world(), mine, mine ? &target : nullptr, hitStop ? 0.0f : dt, ctx.settings.values().display.fov, shake,
+    m_camera.update(sim().world(), mine, mine ? &target : nullptr, hitStop ? 0.0f : dt, ctx.settings.values().display.fov, shake,
                     m_cameraEvents);
     m_camera.apply(ctx.viewport, look.camera, frame);
     for (const std::string& row : m_cameraEvents) ctx.feedback.play(row, frame.cameraPos); // cutscene events
@@ -279,8 +274,8 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
 
     drawScene(m_scene, ctx.models, frame.cameraPos, m_viewTime, out);
     m_view.animEvents.clear();
-    drawGoal(m_sim.world(), look, ctx.models.boxMesh(), out);
-    drawWorld(m_sim.world(), previous, current, alpha, localPlayer, now, m_viewTime, look, ctx.models, m_view, out, m_prediction.offset);
+    drawGoal(sim().world(), look, ctx.models.boxMesh(), out);
+    drawWorld(sim().world(), previous, current, alpha, localPlayer, now, m_viewTime, look, ctx.models, m_view, out, m_prediction.offset);
     for (const WorldView::AnimEvent& e : m_view.animEvents) ctx.feedback.play(e.row, e.position); // footsteps etc. (feedback table rows)
     // Name tags above characters (world-space UI): above the interpolated position
     for (u32 slot = 0; slot < current.playerCount && slot < m_tagVms.size(); ++slot) {
@@ -302,8 +297,8 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
 // Debug window (F1 in dev builds, during editor play). Buttons that change the simulation send confirmed commands.
 void GameSession::debugUi(game::GameContext& ctx) {
 #if MEALKIT_DEBUG_UI
-    if (!m_sim.started()) return;
-    const World& world = m_sim.world();
+    if (!sim().started()) return;
+    const World& world = sim().world();
     const WorldState& state = world.state;
     ImGui::SetNextWindowPos(ImVec2(ctx.viewport.x + 10.0f, ctx.viewport.y + 10.0f), ImGuiCond_FirstUseEver);
     if (ImGui::Begin("Coop", nullptr, ImGuiWindowFlags_AlwaysAutoResize)) {

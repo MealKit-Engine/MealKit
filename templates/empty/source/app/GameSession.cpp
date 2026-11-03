@@ -35,7 +35,7 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
     Tuning tuning;
     game::loadTuning(reflect::typeOf<Tuning>(), &tuning, options.tuningPath);
     const game::MatchInfo match = game::matchInfo(ctx.session); // seed, player count, match data, per-player loadouts
-    m_sim.start(options, game::tickDt(), [&](World& world, u32 physicsThreads) {
+    sim().start(options, game::tickDt(), [&](World& world, u32 physicsThreads) {
         Headless::startWorld(world, match, tuning, m_scene, ctx.models, physicsThreads); // same match start as headless
     });
     m_camera.load(m_scene, ctx.viewTuning<ViewTuning>().camera);
@@ -50,16 +50,11 @@ void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const
 
 // Match end (back to lobby, left, disconnected): discard the World and close match screens
 void GameSession::stop(game::GameContext& ctx) {
-    m_sim.stop();
+    sim().stop();
     if (m_hud) ctx.ui.close(m_hud);
     m_hud = 0;
     m_flow.stop(ctx);
     game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
-}
-
-void GameSession::setTuning(const void* tuning) {
-    const Tuning& value = *static_cast<const Tuning*>(tuning);
-    m_sim.modifyWorlds([&](World& world) { world.setTuning(value); });
 }
 
 void GameSession::update(game::GameContext& ctx, f64 dt) {
@@ -71,8 +66,8 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     flow.playerColors = look.playerColors;
     flow.resultsSeconds = look.resultsSeconds;
     flow.chatShowSeconds = look.chatShowSeconds;
-    if (m_sim.started()) {
-        const WorldState& s = m_sim.world().state;
+    if (sim().started()) {
+        const WorldState& s = sim().world().state;
         flow.inMatch = true;
         flow.results = s.flow.phase == MatchPhase::Results;
         flow.playerCount = s.playerCount;
@@ -80,7 +75,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     }
     m_flow.update(ctx, flow, m_save, m_hudVm, m_hud, dt);
     if (m_flow.takeSaveChanged()) game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
-    if (!m_sim.started()) {
+    if (!sim().started()) {
         if (ctx.scene && ctx.scene != m_sceneSource) { // the scene shown behind the menu
             m_scene = scene::flattened(*ctx.scene);
             m_sceneSource = ctx.scene;
@@ -109,13 +104,13 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     auto onTick = [&](const World& world) {
         for (const GameEvent& e : world.events) ctx.feedback.trigger(e, session.localPlayer());
     };
-    if (!m_flow.pausesSimulation()) m_sim.update(session, dt, sample, onTick); // pause in solo play halts the match
-    fillHud(m_sim.world().state, m_sim.world().tuning, m_hudVm);
+    if (!m_flow.pausesSimulation()) sim().update(session, dt, sample, onTick); // pause in solo play halts the match
+    fillHud(sim().world().state, sim().world().tuning, m_hudVm);
 }
 
 void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParams& frame, render::DrawList& out) {
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
-    if (!m_sim.started()) { // behind the menu/lobby: slowly circles the scene
+    if (!sim().started()) { // behind the menu/lobby: slowly circles the scene
         camera::Brain& menu = m_menuCamera.brain;
         menu.setFallback(look.camera.menu);
         camera::BrainInput in;
@@ -126,24 +121,24 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
         menu.apply(ctx.viewport, look.camera.nearPlane, look.camera.farPlane, frame);
     } else {
         // The camera follows my character. While waiting to respawn it stays at the last spot
-        const WorldState& previous = m_sim.previous();
-        const WorldState& current = m_sim.world().state;
+        const WorldState& previous = sim().previous();
+        const WorldState& current = sim().world().state;
         const Pawn* mine = playerPawn(current, ctx.session.localPlayer());
         Vec3 target;
         if (mine) {
             const Pawn* before = playerPawn(previous, ctx.session.localPlayer());
-            target = lerp(before ? before->position : mine->position, mine->position, m_sim.alpha());
+            target = lerp(before ? before->position : mine->position, mine->position, sim().alpha());
         }
         const f32 dt = static_cast<f32>(std::clamp(now - m_cameraTime, 0.0, 0.1)); // first frame / stalls: no jumps
         m_cameraTime = now;
-        m_camera.update(m_sim.world(), mine, mine ? &target : nullptr, dt, ctx.settings.values().display.fov);
+        m_camera.update(sim().world(), mine, mine ? &target : nullptr, dt, ctx.settings.values().display.fov);
         m_camera.apply(ctx.viewport, look.camera, frame);
     }
     applyEnvironment(m_scene.environment, ctx.models, frame);
     applyProbes(m_scene, ctx.models, m_probes, frame);
     applyLights(m_scene, m_lights, frame);
     drawScene(m_scene, ctx.models, frame.cameraPos, m_viewTime, out);
-    if (m_sim.started()) drawWorld(m_sim.previous(), m_sim.world().state, m_sim.alpha(), look, ctx.models, out);
+    if (sim().started()) drawWorld(sim().previous(), sim().world().state, sim().alpha(), look, ctx.models, out);
 }
 
 } // namespace sandbox
