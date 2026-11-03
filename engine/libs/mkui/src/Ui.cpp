@@ -1461,6 +1461,7 @@ struct System::Impl {
             if (s.nodes.empty()) continue;
             const f32 lx = (mx - s.originX) / s.scale, ly = (my - s.originY) / s.scale;
             bool blocks = false;
+            const bool mouseHere = !mouseTaken; // no screen above took the mouse (this screen's own panels set mouseTaken below)
             const i32 h = mouseTaken ? -1 : hit(s, lx, ly, blocks);
             if (blocks) mouseTaken = true;
             s.hover = h;
@@ -1482,7 +1483,7 @@ struct System::Impl {
                     s.pressed = -1;
                 }
             }
-            if (mouse && in.wheel != 0.0f && !mouseTaken) {
+            if (mouse && in.wheel != 0.0f && mouseHere) {
                 // Scrolling: the innermost scroll area under the mouse
                 for (i32 i = static_cast<i32>(s.nodes.size()) - 1; i >= 0; --i) {
                     RNode& n = s.nodes[static_cast<size_t>(i)];

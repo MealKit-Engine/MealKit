@@ -1095,6 +1095,37 @@ TEST_CASE(ui, ui_layout) {
     TEST_CHECK(writeTextFile(dir + "/assets/ui/scrolllist.ui", "board s 100 100\n  frame x\n    scroll\n    list rows\n  end\nend\n"));
     const ui::ScreenInfo scrollList = sys.info(sys.open("ui/scrolllist.ui"));
     TEST_CHECK(scrollList.errors.size() == 1 && scrollList.errors[0].find("child frame") != std::string::npos);
+    // The wheel scrolls a scroll area on a screen whose panel blocks the mouse (the settings screen shape)
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/scroller.ui",
+                             "board sc 1000 500\n"
+                             "  frame panel\n    pos 0 0\n    size 1000 500\n    fill #101010FF\n    layout column\n"
+                             "    frame area\n      size 300 100\n      layout column\n      scroll\n"
+                             "      frame items\n        size fill hug\n        layout column\n        gap 5\n        list rows\n"
+                             "        frame item\n          size 300 30\n        end\n"
+                             "      end\n"
+                             "    end\n"
+                             "  end\n"
+                             "end\n"));
+    sys.closeAll(); // screens above (the menu's filled bar) would take the mouse
+    const ui::ScreenId scroller = sys.open("ui/scroller.ui");
+    TestUiVm scrollVm;
+    scrollVm.rowsCount = 4; // 4 × 30 + 3 × 5 = 135 in a 100 tall area
+    sys.bind(scroller, scrollVm);
+    sys.layout({0, 0, 1000, 500});
+    auto itemsY = [&] {
+        for (const ui::NodeBox& b : sys.boxes(scroller))
+            if (b.name == "items") return b.y;
+        return -1.0f;
+    };
+    TEST_CHECK(sys.info(scroller).errors.empty() && itemsY() == 0.0f);
+    Input wheelInput;
+    wheelInput.setMousePosition(50, 50);
+    wheelInput.addWheel(-1.0f); // one notch down
+    ui::FrameInput frame;
+    frame.input = &wheelInput;
+    sys.update(frame, {0, 0, 1000, 500}, 0.016);
+    sys.layout({0, 0, 1000, 500});
+    TEST_CHECK(itemsY() == -35.0f); // scrolled to the end (135 - 100), not past it
     setProjectRoot(oldRoot);
 }
 // The engine parser reads the Penpot plugin converter's expected files (tools/penpot-plugin/test/expected, made by node --test) without errors
