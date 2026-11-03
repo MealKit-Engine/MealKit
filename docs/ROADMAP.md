@@ -524,7 +524,7 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 | Tool (working name) | Role | Now | Direction |
 |---|---|---|---|
 | Audio (runtime + authoring tool) | Sound designers | engine `mealkit/audio/` + `assets/sounds.table` + [Sound] panel | Separate repo. In the order of the items below |
-| Game UI runtime (the tool stays Penpot) | UI designers | engine `mealkit/ui/` + Penpot plugin `tools/penpot-plugin` | Only the runtime is split off the Audio 1·2 way (UI 1·2 below, `docs/DECISIONS.md` 2026-10-26 "When splitting out subsystems"). No new authoring tool is built (UI 3 below is a preview/check tool, a proposal) |
+| Game UI runtime (authoring in the editor [UI] panel, Penpot optional) | UI designers | engine `mealkit/ui/` + Penpot plugin `tools/penpot-plugin` | Only the runtime is split off the Audio 1·2 way (UI 1·2 below, `docs/DECISIONS.md` 2026-10-26 "When splitting out subsystems"). No new authoring tool is built (UI 3 below is a preview/check tool, a proposal) |
 | Level editing | Level designers | general-purpose editor scene editing | Deeply tied to scenes, Reflect, and the content hash, so it shares the engine core. Boundaries are decided when splitting |
 | Data management | Designers | editor [Tables]/[Tuning] panels | For the same reason, boundaries are decided when splitting |
 | Game QA | QA | `mp_test`, replays, bug report bundles (stage 3) | The surface touching the engine (replays, logs, repro files) is narrow, so it's easy to split off |
@@ -546,7 +546,7 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 
 - [ ] UI 2: the UI runtime in a separate repo (the Audio 2 approach: standalone build, tests, CI; the engine pins a version in `third_party/` + a local checkout CMake variable; whether to move the Penpot plugin too is decided then). Done when another engine/tool wants to use it. Until then, only UI 1's layer split keeps the boundary. Proposal: the Penpot plugin moves with it (designer-facing pieces in one repo, like MealKit Audio's `tool/`), and the earliest time is after the `.ui` format freeze (v1.0), since UI changes together with game features far more often than audio and cross-repo version syncing costs more before that
 
-- [ ] UI 3 (proposal, needs a DECISIONS row since it changes "no new authoring tool"): preview/check tool `MealKitUI` in the UI 2 repo. Not a layout editor (Penpot stays the authoring tool): opens `.ui` files, fills view models with sample data files, switches language/resolution/theme, walks gamepad focus, shows `--ui-check` box differences, and pushes changes to a running game via a live service `ui/` (`reload`, `state`). When a designer appears (with UI part 3), since that's who it serves; until then the editor [UI] panel covers it
+- [ ] UI 3 (proposal; its preview features moved into the editor [UI] panel editor on 2026-11-04, see "Game UI editor in the editor", so what's left is only a standalone tool for designers without the editor): preview/check tool `MealKitUI` in the UI 2 repo. Not a layout editor (Penpot stays the authoring tool): opens `.ui` files, fills view models with sample data files, switches language/resolution/theme, walks gamepad focus, shows `--ui-check` box differences, and pushes changes to a running game via a live service `ui/` (`reload`, `state`). When a designer appears (with UI part 3), since that's who it serves; until then the editor [UI] panel covers it
 
 - [ ] UI features after v1.0 (one at a time as games need them, each checked against the 11th gen Xe budget): keyframe timeline animation (deferred table, when state transitions aren't enough), virtualized long lists (only visible rows laid out), right-to-left and complex-script shaping (when such a language is added), per-player focus for local multiplayer (with "Local multiplayer on one PC"), optional blur (deferred table), UI cost numbers (quads, layout ms) in the benchmark budget
 
@@ -554,6 +554,22 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 - [ ] Achievements, leaderboards, stats after v1.0 (moved from stage 4 on 2026-11-02, `docs/DECISIONS.md`): reviewed again once the platform SDK work (Steam, EOS, console trophies) is confirmed. Plan as it stood: the game defines achievement conditions as simulation events, the view side reads them and records them through the online service layer, the achievement list is one piece of data exported for each service's registration, and without a service stats are kept in the user data folder. No effect on determinism (only reads results)
 
 ---
+
+## Game UI editor in the editor (v0.9.x, decided 2026-11-04)
+
+Every game screen is hand-written `.ui` text because there is no designer, and FuseTag M9 adds many more screens. The editor's [UI] panel becomes a WYSIWYG editor drawn with the real `mkui` runtime (`docs/DECISIONS.md` 2026-11-04). Editor-only: the `.ui` format, the runtime and the game API don't change, so it doesn't touch the frozen contracts and doesn't block publication.
+
+### [ ] [UI] panel editing
+- **Why**: placing screens by typing coordinates and reloading is slow, and Penpot's preview isn't what the game draws (line breaks, translations, view model data).
+- **Approach**: the panel keeps the `mkui` document open for editing and redraws it every change with the same layout and text code the game uses. Files exported from Penpot (`Document::exported`) open read-only.
+  1. `.ui` writer in `mkui` (none exists yet; the plugin writes them in TypeScript): read → write gives the same text for every `.ui` in the samples and FuseTag, leading comment lines kept. Tree edits (add, delete, move, reorder) rebuild the depth-first `nodes` array.
+  2. Selection by clicking the screen (topmost box under the mouse, Alt cycles through boxes beneath) and in a node tree; property window for every `.ui` key (layout, gap, padding, size fill/hug, constraints, fill/stroke/radius/shadow with `$theme` values, text key and style, `button`, `visible`/bindings, `on <state>`); save, undo/redo through the editor's command history.
+  3. Drag to move and resize: nodes outside a layout change `pos`/`size` (snapping to siblings and the board), nodes inside a flex/grid layout reorder among siblings; handles show padding and gap.
+  4. Preview inputs: sample view model values (a data file next to the screen), language, resolution and UI scale, hover/press/focus states, gamepad focus walk.
+  5. Adding nodes (frame, text, image, from a component `.ui`), copy/paste, duplicate, wrap in frame.
+- **Checks**: writer round trip over every `.ui` in `check.ps1` (static or editor group); an editor `--ui-edit` script test (open, move a node, save, compare); the game still loads every saved file the same (`--ui-check` boxes unchanged after a round trip).
+- **Docs**: docs repo "Manual > Game UI" in English and Korean (placing screens in the panel; Penpot as the optional path).
+- **Determinism**: no effect (view side, editor only).
 
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 
@@ -588,7 +604,7 @@ Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then
 - Editor polish (after stage 2, before stage 3): layout → log console → notifications → command palette → preferences/F1 → scene tree search → multi-select → viewport toolbar → snapping → camera controls → inspector conveniences → performance panel → jump to code → debug drawing → multiple scenes → play from here → asset browser **(v0.6.x)**
 3. ~~Replays~~ → ~~desync diagnosis~~ → ~~mid-match joining~~ → ~~bug report bundles~~ → ~~host migration~~ → ~~EOS backend part 1~~ → ~~crash reports (pulled from stage 4)~~ **(v0.7)**. Not blocking v0.7: EOS measurements (two PCs, portal setup). If the first game genre fits: local multiplayer on one PC
 4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → ~~character movement modes (kinematic → floating → active ragdoll)~~ → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → ~~prefabs~~ → ~~terrain (+ scatter brush)~~ → ~~Job System~~ → ~~spatial audio/interactive music~~ → ~~asset cooking + pack files~~ → ~~performance baseline check~~ → ~~empty project template~~ → second reference sample (co-op third person) **(v0.8)**
-4½. While other-OS devices are missing: ~~Game QA 2~~ → ~~optimization (measured)~~ → ~~audio golden tests~~ → publication preparation → repos made public (user)
+4½. While other-OS devices are missing: ~~Game QA 2~~ → ~~optimization (measured)~~ → ~~audio golden tests~~ → publication preparation → repos made public (user). Alongside, not blocking publication: game UI editor in the [UI] panel (v0.9.x)
 5. Contract freeze review → cookbook docs **(v0.9)** → contracts frozen **(v1.0)** → cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v1.x)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
 - Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects → health/damage → procedural generation → inventory → minimap → ai)
 - Tool suite (separate from stages, start decided by the user): ~~contract between tools~~ → ~~Audio 1 (layer split inside the engine)~~ → ~~Audio 2 (separate repo)~~ → ~~Audio 3 (authoring tool)~~ → ~~contract library~~ → ~~UI 1 (layer split inside the engine)~~ → next tool. UI 2 (separate repo, earliest after v1.0) when a use appears, UI 3 (preview tool) when a designer appears. UI/Audio features after v1.0
