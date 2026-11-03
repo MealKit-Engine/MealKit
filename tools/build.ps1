@@ -5,6 +5,7 @@
 #     Debug     Debug (D3D12 debug layer on)
 #     Profile   Release + Tracy profiling (connect with the Tracy profiler app)
 #     Export    Release game only, collected into <project>/export/<name>
+#     HeadlessOnly  Windows: the Linux/macOS CI build (core + headless targets only, clang-cl) in <project>/build/HeadlessOnly/bin
 #     ClangCL   Windows: Release built with clang-cl in <project>/build/ClangCL/bin (determinism comparison with MSVC, not shipped)
 #     Vulkan    Release game with the Vulkan RHI backend in <project>/build/Vulkan/bin (backend comparison, not shipped on Windows)
 #     VulkanEditor  editor build with the Vulkan backend in <project>/build/VulkanEditor/bin (like Editor)
@@ -57,9 +58,10 @@ switch ($Config) {
     "Vulkan" { $buildType = "Release"; $extra = @("-DMEALKIT_RHI=Vulkan") }
     "EOS" { $buildType = "Release"; $extra = @("-DMEALKIT_ONLINE=EOS") }
     "Headless" { $buildType = "Release" }
+    "HeadlessOnly" { $buildType = "Release"; $extra = @("-DMEALKIT_FORCE_HEADLESS_ONLY=ON") }
     "VulkanEditor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor", "-DMEALKIT_RHI=Vulkan"); $isEditor = $true }
     "Editor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor"); $isEditor = $true }
-    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, Editor, ClangCL, Vulkan, VulkanEditor, EOS, Headless)" }
+    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, Editor, ClangCL, Vulkan, VulkanEditor, EOS, Headless, HeadlessOnly)" }
 }
 
 if ($onWindows) {
@@ -76,7 +78,7 @@ if ($onWindows) {
         }
         if (-not $env:VSCMD_VER) { Fail "vcvars64.bat failed: $vcvars" }
     }
-    if ($Config -eq "ClangCL") {
+    if ($Config -eq "ClangCL" -or $Config -eq "HeadlessOnly") {
         # clang-cl: PATH, then any Visual Studio (including previews) with the "C++ Clang tools" component
         $clang = (Get-Command clang-cl -ErrorAction SilentlyContinue | Select-Object -First 1).Source
         if (-not $clang) {

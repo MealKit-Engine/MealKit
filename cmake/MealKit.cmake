@@ -18,7 +18,9 @@ if(WIN32)
     if(NOT MSVC)
         message(FATAL_ERROR "MealKit on Windows needs MSVC or clang-cl.")
     endif()
-    set(MEALKIT_HEADLESS_ONLY OFF)
+    # build.ps1 HeadlessOnly: the Linux/macOS CI build (core only) on Windows, to catch front-end leaks before pushing
+    option(MEALKIT_FORCE_HEADLESS_ONLY "Build only the core and headless targets, as on Linux/macOS" OFF)
+    set(MEALKIT_HEADLESS_ONLY ${MEALKIT_FORCE_HEADLESS_ONLY})
 else()
     if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU")
         message(FATAL_ERROR "MealKit headless builds need Clang or GCC (got ${CMAKE_CXX_COMPILER_ID}).")
@@ -370,9 +372,9 @@ function(mealkit_add_game name)
     list(APPEND build_info_sources "${ARG_HEADLESS}" ${engine_sim_sources})
     string(REPLACE ";" "\n" build_info_list "${build_info_sources}")
     file(CONFIGURE OUTPUT "${build_info_dir}/sim_sources.txt" CONTENT "${build_info_list}\n" @ONLY)
-    # Dev builds remember the project folder so an exe built outside it (the engine repo's samples) still finds its assets; shipping builds don't
+    # Dev builds (and Linux/macOS headless) remember the project folder so an exe built outside it (the engine repo's samples) still finds its assets; shipping builds don't
     set(dev_project_dir "")
-    if(MEALKIT_LIVE)
+    if(MEALKIT_LIVE OR MEALKIT_HEADLESS_ONLY)
         set(dev_project_dir "${project_dir_abs}")
     endif()
     add_custom_target(${name}_buildinfo

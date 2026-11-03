@@ -37,7 +37,7 @@ build.bat Editor     :: build\Editor\bin\MealKitEditor.exe
 build.bat Export     :: shipping folders in samples\<name>\export
 ```
 
-Other configurations: `Debug`, `Profile` (Tracy), `ClangCL`, `Vulkan`, `VulkanEditor`. Linux/macOS currently build the headless targets: `pwsh build.ps1 Headless`.
+Other configurations: `Debug`, `Profile` (Tracy), `ClangCL`, `Vulkan`, `VulkanEditor`. Linux/macOS currently build the headless targets: `pwsh build.ps1 Headless`. To check that build on Windows before pushing (core only, clang-cl, as CI builds it on Linux/macOS): `build.bat HeadlessOnly`, then `tools\ci_test.ps1 -Bin build\HeadlessOnly\bin -Name local -Out build\ci-local`.
 
 ## Checks
 
