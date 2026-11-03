@@ -466,7 +466,7 @@ Each platform gets a minimum spec/performance budget table when started, and fin
   4. [x] (done 2026-11-03) `docs/CONTRACTS.md` (the lists above, the format versions, the policies below) and the docs repo page that points to it, English and Korean.
 - **Policies after v1.0** (`docs/DECISIONS.md` 2026-11-03): SimCheck rules added in v1.x are warnings only (like SIM012); turning one into an error waits for v2.0. A format change in v1.x only adds keys or a new `@format` version that older files still read into.
 
-### [ ] Cookbook docs (moved from stage 4 on 2026-11-02, after crossplay and before contracts are frozen)
+### [x] Cookbook docs (done 2026-11-03: docs repo `cookbook/` cooldowns, new input, rounds, event feedback; details in `docs/CHANGELOG.md`. Moved from stage 4 on 2026-11-02)
 - Common tasks done while keeping the determinism rules, like "making coins", "timers and rounds", "adding a new input", organized as short examples (docs repo `cookbook/`, English/Korean).
 - Written right before v1.0 so the examples show the APIs that get frozen; each example is code from a reference sample, so it breaks visibly when the sample changes.
 

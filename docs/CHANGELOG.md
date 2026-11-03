@@ -26,6 +26,11 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 - **Docs repo**: reference page "What stays the same in v1.x" (`reference/contracts.md`, English and Korean) for game authors, linking to the engine document.
 - With items 1~4 the contract freeze review is done; the cookbook docs are the last v0.9 item.
 
+### [x] Cookbook docs (done 2026-11-03, docs repo)
+- **Four recipes** in the docs repo's `cookbook/` (English and Korean), each built from reference sample code: cooldowns and timers (coop shove, `TickTimer` + `Ticks` tuning), adding a new input (sandbox push: `input.bindings` row, tick input bit, `LocalInput` latch, `sim/` read), rounds and countdown (sandbox `MatchFlow`: rules from tuning, `advanceMatch` events, countdown tick events), sound and effects on a game event (tick event + `feedback.table` row).
+- **They break visibly when a sample changes**: a `% from: <engine path>` line before each code block names the sample file, and the docs `build.py check --engine` fails when a line of the block is no longer in that file (15 blocks today). The docs CI's engine checkout now includes the samples' `sim/`, `view/`, `app/` and tables.
+- With the contract freeze review this finishes the v0.9 items (the version bump is the user's call).
+
 ## v0.8.3 — publication and the first green Linux/macOS CI (2026-11-03)
 
 ### [x] First green public CI on Linux x64 and macOS ARM64 (2026-11-03, commit 9dc8a42)
