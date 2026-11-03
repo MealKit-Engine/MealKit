@@ -21,6 +21,11 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 ### [x] Contract freeze review item 3: game library export macro (done 2026-11-03)
 - `MEALKIT_GAME_MODULE` exported `mealkitGetGameModule` with `__declspec(dllexport)`, which Clang/GCC outside Windows reject without `-fdeclspec`. `MEALKIT_GAME_EXPORT` (`game/GameInstance.h`) is `__declspec(dllexport)` on Windows and `__attribute__((visibility("default")))` elsewhere. Game code doesn't change (the macro's body isn't part of the contract). The non-Windows branch is first compiled by the Linux/macOS editor build in v1.x (CI builds only headless targets there).
 
+### [x] Contract freeze review item 4: the contract document (done 2026-11-03)
+- **`docs/CONTRACTS.md`**: the game API (public headers, source compatible, what v1.x may add), every frozen file with its `@format` version at the freeze (project files and player-side files: saves, `settings.ini`, the player's `input.bindings`), the simulation rules (SimCheck errors fixed, new rules warn), and what isn't covered (simulation results across versions, replays of another simulation version, cooked and baked files).
+- **Docs repo**: reference page "What stays the same in v1.x" (`reference/contracts.md`, English and Korean) for game authors, linking to the engine document.
+- With items 1~4 the contract freeze review is done; the cookbook docs are the last v0.9 item.
+
 ## v0.8.3 — publication and the first green Linux/macOS CI (2026-11-03)
 
 ### [x] First green public CI on Linux x64 and macOS ARM64 (2026-11-03, commit 9dc8a42)
