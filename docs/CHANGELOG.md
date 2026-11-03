@@ -18,6 +18,9 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 - **`tools\check_public_headers.ps1`** (check.ps1 static group, also chosen by `-Changed` for sample code, templates and the list): every `#include "mealkit/..."` in `samples/<name>/{sim,view,app,modules}` and `templates/` must be on the list, and every listed header must exist. `-Path` checks other folders: `module-cooldown` and the MealKit-Modules template pass.
 - **Docs**: `docs/CODING_MODEL.md` "How it's enforced" 8; docs repo page for module authors.
 
+### [x] Contract freeze review item 3: game library export macro (done 2026-11-03)
+- `MEALKIT_GAME_MODULE` exported `mealkitGetGameModule` with `__declspec(dllexport)`, which Clang/GCC outside Windows reject without `-fdeclspec`. `MEALKIT_GAME_EXPORT` (`game/GameInstance.h`) is `__declspec(dllexport)` on Windows and `__attribute__((visibility("default")))` elsewhere. Game code doesn't change (the macro's body isn't part of the contract). The non-Windows branch is first compiled by the Linux/macOS editor build in v1.x (CI builds only headless targets there).
+
 ## v0.8.3 — publication and the first green Linux/macOS CI (2026-11-03)
 
 ### [x] First green public CI on Linux x64 and macOS ARM64 (2026-11-03, commit 9dc8a42)
