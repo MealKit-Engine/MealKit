@@ -476,6 +476,7 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
         return true;
     }
     if (k == "scroll") {
+        if (n.widget == WidgetKind::List) return fail("scroll and list on one frame: put the list in a child frame of the scroll area");
         n.widget = WidgetKind::Scroll;
         n.clip = true;
         n.scrollHorizontal = args == 1 && t[1] == "horizontal";
@@ -483,6 +484,7 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
     }
     if (k == "list") {
         if (args != 1) return fail("list <field>");
+        if (n.widget == WidgetKind::Scroll) return fail("scroll and list on one frame: put the list in a child frame of the scroll area");
         n.widget = WidgetKind::List;
         n.field = t[1];
         return true;

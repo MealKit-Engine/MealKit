@@ -1392,6 +1392,23 @@ struct System::Impl {
     }
 
     // Nearest widget in a direction (0 up, 1 down, 2 left, 3 right)
+    // Scroll every scroll area holding the node so it's in view (keyboard/gamepad focus; the wheel scrolls directly)
+    void scrollIntoView(Screen& s, i32 index) {
+        if (index < 0) return;
+        const Rect target = s.nodes[static_cast<size_t>(index)].rect;
+        for (i32 p = s.nodes[static_cast<size_t>(index)].parent; p >= 0; p = s.nodes[static_cast<size_t>(p)].parent) {
+            RNode& a = s.nodes[static_cast<size_t>(p)];
+            const Node& d = s.doc.nodes[a.src];
+            if (d.widget != WidgetKind::Scroll) continue;
+            const f32 start = d.scrollHorizontal ? target.x - a.rect.x : target.y - a.rect.y;
+            const f32 size = d.scrollHorizontal ? target.w : target.h, view = d.scrollHorizontal ? a.rect.w : a.rect.h;
+            f32 next = a.scroll;
+            if (start < 0.0f) next += start;
+            else if (start + size > view) next += std::min(start + size - view, start);
+            a.scroll = std::clamp(next, 0.0f, std::max(0.0f, a.contentExtent - view));
+        }
+    }
+
     i32 neighbor(Screen& s, i32 from, int dir) {
         const Node& d = s.doc.nodes[s.nodes[static_cast<size_t>(from)].src];
         if (!d.focusNext[dir].empty()) {
@@ -1523,7 +1540,10 @@ struct System::Impl {
                         continue;
                     }
                     const i32 next = neighbor(s, s.focus, dir);
-                    if (next >= 0) s.focus = next;
+                    if (next >= 0) {
+                        s.focus = next;
+                        scrollIntoView(s, next);
+                    }
                 }
                 if (in.confirm && s.focus >= 0 && focusable(s, s.focus)) {
                     focusVisible = true;

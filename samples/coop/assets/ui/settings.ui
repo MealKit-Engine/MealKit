@@ -61,131 +61,135 @@ board settings 1920 1080
     frame rows
       size fill fill
       layout column
-      gap 6
       scroll
-      list rows
-      frame row
-        size fill 58
-        layout row
-        align center
-        padding 0 16
-        gap 16
-        radius 8
-        fill #FFFFFF08
-        text label
-          content {label}
-          fontSize 24
-          color $text
-        end
-        frame spacer
-          size fill 1
-        end
-        frame toggle
-          size 64 32
-          radius 16
-          fill #FFFFFF26
-          visible isToggle
-          toggle on settings.changed
-          on checked fill $accent
-          on hover stroke 2 #FFFFFF40
-          frame knobOff
-            pos 4 4
-            size 24 24
-            radius 12
-            fill #FFFFFF
-            visible !on
-          end
-          frame knobOn
-            pos 36 4
-            size 24 24
-            radius 12
-            fill #141922
-            visible on
-          end
-        end
-        frame slider
-          size 320 24
-          radius 12
-          fill #FFFFFF26
-          clip
-          visible isSlider
-          slider value01 0 1 0.01 settings.changed
-          on hover stroke 2 #FFFFFF40
-          frame sliderFill
-            size fill fill
-            widthRatio value01
-            radius 12
-            fill linear 0 0 1 0 #FF8A20 $accent
-          end
-        end
-        text sliderValue
-          size 90 hug
-          content {value}
-          fontSize 22
-          color $textDim
-          textAlign right
-          visible isSlider
-        end
-        frame choice
-          size hug hug
+      frame items
+        size fill hug
+        layout column
+        gap 6
+        list rows
+        frame row
+          size fill 58
           layout row
           align center
-          gap 8
-          visible isChoice
-          frame prev
-            size 44 44
-            layout row
-            justify center
-            align center
-            radius 8
-            fill $button
-            button settings.prev
-            on hover fill $buttonHover
-            text arrow
-              content <
-              fontSize 24
-              color $text
-            end
-          end
-          text choiceValue
-            size 300 hug
-            content {value}
-            fontSize 22
-            color $text
-            textAlign center
-            overflow ellipsis
-            maxLines 1
-          end
-          frame next
-            size 44 44
-            layout row
-            justify center
-            align center
-            radius 8
-            fill $button
-            button settings.next
-            on hover fill $buttonHover
-            text arrow
-              content >
-              fontSize 24
-              color $text
-            end
-          end
-        end
-        frame key
-          size 400 44
-          layout row
-          justify center
-          align center
+          padding 0 16
+          gap 16
           radius 8
-          fill $button
-          visible isKey
-          button settings.rebind
-          on hover fill $buttonHover
-          text keyValue
+          fill #FFFFFF08
+          text label
+            content {label}
+            fontSize 24
+            color $text
+          end
+          frame spacer
+            size fill 1
+          end
+          frame toggle
+            size 64 32
+            radius 16
+            fill #FFFFFF26
+            visible isToggle
+            toggle on settings.changed
+            on checked fill $accent
+            on hover stroke 2 #FFFFFF40
+            frame knobOff
+              pos 4 4
+              size 24 24
+              radius 12
+              fill #FFFFFF
+              visible !on
+            end
+            frame knobOn
+              pos 36 4
+              size 24 24
+              radius 12
+              fill #141922
+              visible on
+            end
+          end
+          frame slider
+            size 320 24
+            radius 12
+            fill #FFFFFF26
+            clip
+            visible isSlider
+            slider value01 0 1 0.01 settings.changed
+            on hover stroke 2 #FFFFFF40
+            frame sliderFill
+              size fill fill
+              widthRatio value01
+              radius 12
+              fill linear 0 0 1 0 #FF8A20 $accent
+            end
+          end
+          text sliderValue
+            size 90 hug
             content {value}
             fontSize 22
-            color $text
+            color $textDim
+            textAlign right
+            visible isSlider
+          end
+          frame choice
+            size hug hug
+            layout row
+            align center
+            gap 8
+            visible isChoice
+            frame prev
+              size 44 44
+              layout row
+              justify center
+              align center
+              radius 8
+              fill $button
+              button settings.prev
+              on hover fill $buttonHover
+              text arrow
+                content <
+                fontSize 24
+                color $text
+              end
+            end
+            text choiceValue
+              size 300 hug
+              content {value}
+              fontSize 22
+              color $text
+              textAlign center
+              overflow ellipsis
+              maxLines 1
+            end
+            frame next
+              size 44 44
+              layout row
+              justify center
+              align center
+              radius 8
+              fill $button
+              button settings.next
+              on hover fill $buttonHover
+              text arrow
+                content >
+                fontSize 24
+                color $text
+              end
+            end
+          end
+          frame key
+            size 400 44
+            layout row
+            justify center
+            align center
+            radius 8
+            fill $button
+            visible isKey
+            button settings.rebind
+            on hover fill $buttonHover
+            text keyValue
+              content {value}
+              fontSize 22
+              color $text
+            end
           end
         end
       end

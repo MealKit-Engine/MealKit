@@ -1091,6 +1091,10 @@ TEST_CASE(ui, ui_layout) {
     const ui::ScreenId bad = sys.open("ui/bad.ui");
     const ui::ScreenInfo info = sys.info(bad);
     TEST_CHECK(info.errors.size() == 2 && info.errors[0].find("(3)") != std::string::npos && info.errors[1].find("(4)") != std::string::npos);
+    // A list replaces the frame's widget, so scroll and list on one frame would never scroll: the parser says so
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/scrolllist.ui", "board s 100 100\n  frame x\n    scroll\n    list rows\n  end\nend\n"));
+    const ui::ScreenInfo scrollList = sys.info(sys.open("ui/scrolllist.ui"));
+    TEST_CHECK(scrollList.errors.size() == 1 && scrollList.errors[0].find("child frame") != std::string::npos);
     setProjectRoot(oldRoot);
 }
 // The engine parser reads the Penpot plugin converter's expected files (tools/penpot-plugin/test/expected, made by node --test) without errors
