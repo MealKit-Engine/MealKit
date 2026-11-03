@@ -47,17 +47,18 @@ $folderGroups = @{
 $pathRules = @(
     @('\.md$', ''), @('^docs/', ''), @('^\.github/', ''), @('^\.claude/', ''), @('^\.git(ignore|attributes)$', ''),
     @('^samples/[^/]+/art/ui/preview/', 'tools'), @('^samples/[^/]+/art/', ''),
-    @('^engine/src/mealkit/([^/]+)/', 'folder:$1'), @('^engine/libs/mkui/', 'folder:ui'), @('^engine/shaders/', 'folder:render'),
+    @('^engine/public_headers\.txt$', 'static'), @('^engine/src/mealkit/([^/]+)/', 'folder:$1'), @('^engine/libs/mkui/', 'folder:ui'), @('^engine/shaders/', 'folder:render'),
     @('^engine/tests/golden/', 'render'), @('^engine/tests/perf/', 'game'), @('^engine/tests/', 'unit-all'),
     @('^engine/tools/SimCheck', 'editor project'), @('^engine/tools/', 'game'), @('^engine/res/', 'editor'),
     @('^third_party/mkaudio/', 'folder:audio'), @('^third_party/', 'full'),
-    @('^samples/[^/]+/(sim|replays|tests)/', 'det! game editor'), @('^samples/sandbox/app/(Flow|Screens)', 'game editor project'),
+    @('^samples/[^/]+/(sim|replays|tests)/', 'det! static game editor'), @('^samples/sandbox/app/(Flow|Screens)', 'static game editor project'),
     @('^samples/[^/]+/assets/sounds', 'folder:audio'), @('^samples/[^/]+/assets/ui/', 'folder:ui project'),
     @('^samples/[^/]+/assets/strings/', 'folder:loc project'),
     @('^samples/[^/]+/assets/(game\.tuning|scenes/|models/|tables/)', 'det game editor render'),
     @('^samples/[^/]+/mealkit\.project$', 'det game editor'),
-    @('^samples/', 'game editor'),
-    @('^(templates/|VERSION$|tools/(new|upgrade|rename)_project|tools/project_common|tools/module\.ps1$)', 'project'),
+    @('^samples/[^/]+/(view|app|modules)/', 'static game editor'), @('^samples/', 'game editor'),
+    @('^templates/', 'static project'),
+    @('^(VERSION$|tools/(new|upgrade|rename)_project|tools/project_common|tools/module\.ps1$)', 'project'),
     @('^tools/(penpot-plugin|blender-addon)/', 'tools'),
     @('^tools/(mp_test|record_replay|ci_|desync_diff)', 'det!'), @('^tools/(live_probe|compare_images)', 'game render tools'),
     @('^tools/(check_|gen_notices)', 'static'), @('^tools/check\.ps1$', ''), @('^tools/update_mkaudio', 'folder:audio'),
@@ -242,6 +243,13 @@ Invoke-Check static "Platform layer (OS APIs)" {
 Invoke-Check static "Engine layers (include order)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layers.ps1" 2>&1
+    $output | Out-File -Encoding utf8 $log
+    return $LASTEXITCODE -eq 0
+}
+# Game code (samples, templates, source modules) includes only engine\public_headers.txt (the headers v1.x keeps source compatible)
+Invoke-Check static "Public headers (game code)" {
+    param($log)
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_public_headers.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }

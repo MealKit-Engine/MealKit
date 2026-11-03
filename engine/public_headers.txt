@@ -1,0 +1,65 @@
+# Public engine headers: the ones game code may include (docs/DECISIONS.md 2026-11-03 "Contract freeze scope").
+# From v1.0 they keep source compatibility in every v1.x: a game that builds on v1.0 builds on later v1.x after a rebuild.
+# Types and functions these headers declare are public too, also when they come from a header that isn't listed here
+# (sim/Movement.h exposes Jolt-free physics types, for example). Every other engine header is internal and may change.
+# Checked by tools\check_public_headers.ps1 (check.ps1 static group): game code in samples/, templates/ and source modules
+# includes only these. Adding a header later is fine; removing one, or changing what it declares, waits for v2.0.
+# Paths are relative to engine/src/mealkit/.
+
+# Types, math, field declarations, logging
+core/Types.h
+core/Math.h
+core/Reflect.h
+core/DetMath.h
+core/Random.h
+core/Hash.h
+core/Log.h
+core/Profile.h
+core/Version.h
+
+# Simulation tools (sim/)
+sim/Pool.h
+sim/TickEvents.h
+sim/TickTimer.h
+sim/Commands.h
+sim/MatchFlow.h
+sim/Movement.h
+sim/Ragdoll.h
+sim/NavGrid.h
+sim/Table.h
+physics/PhysicsWorld.h
+jobs/Jobs.h
+net/Lockstep.h
+
+# Data and assets
+data/Tables.h
+scene/Scene.h
+asset/ModelCache.h
+asset/AnimStates.h
+asset/Cutscene.h
+
+# Game boundary, running a match, entry points
+game/GameInstance.h
+game/GameContext.h
+game/Simulation.h
+game/SimulationGame.h
+game/GameData.h
+game/GameMain.h
+game/Headless.h
+game/Loadout.h
+game/MatchService.h
+game/Save.h
+
+# View side (view/, app/)
+platform/Window.h
+render/Renderer.h
+render/DrawList.h
+render/SceneLights.h
+camera/Brain.h
+input/Actions.h
+audio/Audio.h
+feedback/Feedback.h
+ui/Ui.h
+loc/Strings.h
+settings/Settings.h
+debug/DebugDraw.h

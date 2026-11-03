@@ -10,7 +10,13 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 - **Its own header**, not in `Simulation.h`: `Simulation.h` is part of the simulation version, so changing the runner's file would invalidate peers and replays for an addition that runs nothing.
 - **`lobby()` keeps its arguments** (session, options, user folder): solo play from the command line calls it before the view services in `GameContext` exist (`GameMain.cpp`).
 - **Template change**: `samples/sandbox`, `samples/coop` and `templates/empty` derive from it (`m_sim.` became `sim().`, the forwarding lines and `setTuning` went away, about 135 lines fewer). The `GameInstance` interface and `GameModule` didn't change, so `kApiVersion` stays 22 and existing projects build as they are; `upgrade_project.ps1 -Source` brings the new form. Docs repo: game code, debug UI and engine internals pages.
-- **Left**: the other freeze items (public header list, export macro, `docs/CONTRACTS.md`).
+- **Left**: the other freeze items (export macro, `docs/CONTRACTS.md`).
+
+### [x] Contract freeze review item 1: public header list and check (done 2026-11-03)
+- **`engine/public_headers.txt`**: the 48 engine headers game code may include, grouped (types and math, simulation tools, data and assets, game boundary and entry points, view side). It is what the samples and templates include today, plus `game/GameInstance.h` and `game/Simulation.h` (reached through `SimulationGame.h`), `sim/Ragdoll.h` (its types come through `sim/Movement.h`) and `jobs/Jobs.h` (an engine tool in `docs/CODING_MODEL.md`). Types the listed headers declare are public too, also when they come from an unlisted header. The other 77 of the 125 engine headers are internal.
+- **Kept small on purpose**: adding a header later breaks nothing, removing one would wait for v2.0. Not listed for now: `online/Online.h` (no game uses online services directly; `GameContext` has none), `platform/Input.h` (key codes are for engine/debug keys only), `game/Scenario.h`, `asset/Animation.h`.
+- **`tools\check_public_headers.ps1`** (check.ps1 static group, also chosen by `-Changed` for sample code, templates and the list): every `#include "mealkit/..."` in `samples/<name>/{sim,view,app,modules}` and `templates/` must be on the list, and every listed header must exist. `-Path` checks other folders: `module-cooldown` and the MealKit-Modules template pass.
+- **Docs**: `docs/CODING_MODEL.md` "How it's enforced" 8; docs repo page for module authors.
 
 ## v0.8.3 — publication and the first green Linux/macOS CI (2026-11-03)
 
