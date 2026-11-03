@@ -43,8 +43,9 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 | v0.5 (now 0.5.0, 2026-10-19) | Stage 1: features to ship one game end to end (platform layer, data separation, sound, UI, input, menus, saves). The reference sample runs end to end from title to results screen. When the template changes while finishing stage 2 items, 0.5.x is bumped |
 | v0.6 / v0.7 (now 0.7.0, 2026-11-01) | Graphics (RHI: DX12 + Vulkan) / stronger multiplayer. Stage 2 finished while the version stayed 0.5.x, so the version went 0.5.4 → 0.7.0 when stage 3 finished (no 0.6.0 release) |
 | v0.8 (now 0.8.0, 2026-11-02) | Stage 4: gameplay framework and tools (game flow, movement modes, active ragdoll, animation states, virtual cameras, AI pathfinding, prefabs, terrain, Job System, spatial audio, pack files), two reference samples (`samples/sandbox`, `samples/coop`) and an empty project template |
-| v0.9 | Stage 5 tier 1: Linux/Steam Deck and macOS shipping and editors, crossplay between tier 1 (EOS). Tier 2 (mobile, web, consoles) follows in order and doesn't block v1.0 |
-| **v1.0** | After v0.9, the version where **all reference samples pass Export and determinism checks (`mp_test`, including cross-platform) on tier 1 platforms** and **contracts are frozen**: the `GameInstance` API, file formats (`.scene`, `.tuning`, `.table`, `.ui`, `mealkit.project`, saves), `sim/` rules (SimCheck) |
+| v0.9 | v1.0 candidate: the contract freeze review is done and the cookbook docs are written; after it only fixes until v1.0 (`docs/DECISIONS.md` 2026-11-03) |
+| **v1.0** | **Windows** (editor and shipping, DX12 and Vulkan) is fully supported and **Linux x64 / macOS ARM64 run the headless simulation** (replays, scenario tests, headless peers; per-tick hashes match Windows in CI on every commit). All reference samples pass Export and the determinism checks on Windows, and **contracts are frozen**: the `GameInstance` API, file formats (`.scene`, `.tuning`, `.table`, `.ui`, `mealkit.project`, saves), `sim/` rules (SimCheck) |
+| v1.x | Stage 5 tier 1 without breaking the frozen contracts: Linux/Steam Deck and macOS shipping and editors, cross-platform determinism between real devices, crossplay (EOS). Tier 2 (mobile, web, consoles) after |
 | v1.x and later | Frozen contracts aren't broken. If one truly must break, the major version (v2.0) is bumped and the upgrade tool migrates |
 
 ## What exists now (v0.5, stage 1 done)
@@ -400,14 +401,14 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ---
 
-## Stage 5 (v0.9): other platforms, editors on other OSes, crossplay
+## Stage 5 (v1.x): other platforms, editors on other OSes, crossplay
 
 On top of the platform layer (stage 1) and RHI layer (stage 2, DX12 + Vulkan), add other OS implementations and the remaining graphics backends (Metal, WebGPU, consoles). Simulation determinism has been checked by CI on Linux/macOS since stage 1. The goals are **crossplay where every platform joins one match** and **an editor usable anywhere on Windows, macOS, Linux**.
 Each platform gets a minimum spec/performance budget table when started, and finishes only when all reference samples pass Export and `mp_test` (including peers on other platforms) on that platform.
 
 **Platform tiers**:
-- **Tier 1** (v0.9/v1.0 wait for these): Windows, Linux/Steam Deck, macOS. Both editor and shipping.
-- **Tier 2** (done in order but doesn't block v1.0): Android/iOS, web, consoles. Shipping only. Consoles can start only once developer registration and dev kits are in place.
+- **Tier 1**: Windows, Linux/Steam Deck, macOS. Both editor and shipping. v1.0 waits only for Windows; Linux x64 and macOS ARM64 ship in v1.0 as headless builds, and their windows, renderers and editors come in v1.x (`docs/DECISIONS.md` 2026-11-03).
+- **Tier 2** (done in order after tier 1): Android/iOS, web, consoles. Shipping only. Consoles can start only once developer registration and dev kits are in place.
 
 | Order | Platform | Graphics | CPU/compiler | Check first | Notes |
 |---|---|---|---|---|---|
@@ -448,7 +449,7 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 - **Build scripts**: move `.bat` and Windows PowerShell 5.1 scripts to one that runs on every OS (candidate PowerShell 7 — current `.ps1` files can be used almost as is). The editor's [Build] menu and the project manager call it too.
 - **File paths**: asset paths use `/` and exact case. `check_layout` catches references with differing case as errors even on Windows (so they don't first surface on Linux).
 - **Exporting for other platforms**: for shipping builds that can't be made on the editor's OS (macOS/iOS only on macOS), decide then on handing off to remote builds or CI.
-- **Progress (2026-11-02, v0.8.1)**: done on Windows — build logic moved to `tools/build.ps1` (runs on Windows PowerShell 5.1 and PowerShell 7, DECISIONS 2026-11-02; `build.bat`/`toolsuild_project.bat` call it, `build.ps1` in the engine root and project template for Linux/macOS, CI headless builds use it with `Headless`); `check_layout` reports asset references whose case differs from the file; Linux/macOS Editor builds export with default symbol visibility and position-independent code, `platform/posix/DynamicLibrary.cpp` (`dlopen`), game library `<name>_game.dll/.so/.dylib` without the `lib` prefix in `bin/`, editor project paths with `/`. Left: Linux/macOS window/input/process layers and the editor's [Build] menu calling `pwsh build.ps1` there (with posix `Process`), then building the editor on those systems.
+- **Progress (2026-11-02, v0.8.1)**: done on Windows — build logic moved to `tools/build.ps1` (runs on Windows PowerShell 5.1 and PowerShell 7, DECISIONS 2026-11-02; `build.bat`/`tools\build_project.bat` call it, `build.ps1` in the engine root and project template for Linux/macOS, CI headless builds use it with `Headless`); `check_layout` reports asset references whose case differs from the file; Linux/macOS Editor builds export with default symbol visibility and position-independent code, `platform/posix/DynamicLibrary.cpp` (`dlopen`), game library `<name>_game.dll/.so/.dylib` without the `lib` prefix in `bin/`, editor project paths with `/`. Left: Linux/macOS window/input/process layers and the editor's [Build] menu calling `pwsh build.ps1` there (with posix `Process`), then building the editor on those systems.
 
 ### [ ] Cookbook docs (moved from stage 4 on 2026-11-02, after crossplay and before contracts are frozen)
 - Common tasks done while keeping the determinism rules, like "making coins", "timers and rounds", "adding a new input", organized as short examples (docs repo `cookbook/`, English/Korean).
@@ -562,7 +563,7 @@ Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then
 ### [ ] Publication (done by the user)
 - Order follows dependencies: `MealKit-Contract` → `MealKit-Audio` → `MealKit` → `MealKit-docs` → `MealKit-Manager`, `MealKit-QA` → `MealKit-Modules` (tag `v1`, Pages source set to Actions) → `module-cooldown` (tag `v0.1.0`).
 - After the first public CI runs: Read the Docs for `MealKit-docs`, the Windows on ARM runner (both waited on publication).
-- The first green public CI on Linux x64 and macOS ARM64 is recorded here; it is the only other-OS evidence until real devices are available.
+- [x] **First green public CI on Linux x64 and macOS ARM64** (2026-11-03, `MealKit-Engine/MealKit` commit 9dc8a42): unit tests pass on both, `detmath-bits` and the sandbox and coop replay per-tick hashes match Windows MSVC and clang-cl, coop scenarios and headless `mp_test` pass. Details in `docs/CHANGELOG.md`. It is the only other-OS evidence until real devices are available.
 
 ## Recommended order summary
 
@@ -573,7 +574,7 @@ Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then
 3. ~~Replays~~ → ~~desync diagnosis~~ → ~~mid-match joining~~ → ~~bug report bundles~~ → ~~host migration~~ → ~~EOS backend part 1~~ → ~~crash reports (pulled from stage 4)~~ **(v0.7)**. Not blocking v0.7: EOS measurements (two PCs, portal setup). If the first game genre fits: local multiplayer on one PC
 4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → ~~character movement modes (kinematic → floating → active ragdoll)~~ → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → ~~prefabs~~ → ~~terrain (+ scatter brush)~~ → ~~Job System~~ → ~~spatial audio/interactive music~~ → ~~asset cooking + pack files~~ → ~~performance baseline check~~ → ~~empty project template~~ → second reference sample (co-op third person) **(v0.8)**
 4½. While other-OS devices are missing: ~~Game QA 2~~ → ~~optimization (measured)~~ → ~~audio golden tests~~ → publication preparation → repos made public (user)
-5. Cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v0.9)** → cookbook docs → contracts frozen **(v1.0)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
+5. Contract freeze review → cookbook docs **(v0.9)** → contracts frozen **(v1.0)** → cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v1.x)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
 - Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects → health/damage → procedural generation → inventory → minimap → ai)
 - Tool suite (separate from stages, start decided by the user): ~~contract between tools~~ → ~~Audio 1 (layer split inside the engine)~~ → ~~Audio 2 (separate repo)~~ → ~~Audio 3 (authoring tool)~~ → ~~contract library~~ → ~~UI 1 (layer split inside the engine)~~ → next tool. UI 2 (separate repo, earliest after v1.0) when a use appears, UI 3 (preview tool) when a designer appears. UI/Audio features after v1.0
 

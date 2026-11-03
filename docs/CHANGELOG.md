@@ -3,6 +3,16 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.8.3 — publication and the first green Linux/macOS CI (2026-11-03)
+
+### [x] First green public CI on Linux x64 and macOS ARM64 (2026-11-03, commit 9dc8a42)
+- **Result**: unit tests pass on Linux x64 (Clang) and macOS ARM64 (Apple Clang); `detmath-bits` and the per-tick hashes of the sandbox and coop replays match Windows MSVC and clang-cl bit for bit; coop scenarios and headless `mp_test` pass. This is the first evidence that the simulation gives the same results on ARM.
+- **Headless-only build fixes** (Linux/macOS CI build only `mealkit_core`, no front-end target): `MEALKIT_LIVE` defines only when the `mealkit` target exists; tests that need the front end (bug/crash reports, audio reverb zones) behind `MEALKIT_TEST_FRONT`; float `std::from_chars` (missing in Apple libc++) replaced by `std::strtof` in `AnimStates.cpp`/`Cutscene.cpp`; headless exes get the build-time project folder so they find their sample assets.
+- **LAN rooms on Linux** (a real bug, not only CI): every room finder on a PC shares the room port with `SO_REUSEPORT`, and Linux delivers a unicast datagram to only one of those sockets, so a second game or the Manager on the same PC could miss rooms. The announcer now also sends to `127.255.255.255` (`net::kLoopbackBroadcastIp`), which reaches every socket; the duplicate is merged by the existing room de-duplication. Unit test `lobby_chat_rematch` covers it.
+- **CI** builds `sandbox_headless`, `coop_headless` and `mealkit_tests` on Linux/macOS (coop was missing, so its hashes were empty).
+- **Same build on Windows**: `build.bat HeadlessOnly` (clang-cl, `-DMEALKIT_FORCE_HEADLESS_ONLY=ON`) reproduces the Linux/macOS configuration, then `tools\ci_test.ps1 -Bin build\HeadlessOnly\bin -Name local -Out build\ci-local` (in `CONTRIBUTING.md`).
+- **Left**: the same between real devices (ROADMAP stage 5, now v1.x per `docs/DECISIONS.md` 2026-11-03).
+
 ## v0.8.3 — Game QA 2: scenario tests, mp_test and reports as scenarios in MealKit QA (2026-11-02)
 
 ### [x] Tool suite: Game QA 2 (done 2026-11-02, MealKit-QA 0.2.0)
