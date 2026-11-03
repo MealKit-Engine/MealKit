@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## v0.9.0 — v1.0 candidate: contracts reviewed, cookbook written (2026-11-03)
+
+Finished the v0.9 items (ROADMAP "Versions", `docs/DECISIONS.md` 2026-11-03 v1.0 scope) and bumped to v0.9.
+- **Contents** (entries below, v0.8.3 ~ v0.8.4): first green Linux x64 / macOS ARM64 CI with hashes matching Windows, the contract freeze review (`docs/CONTRACTS.md`, `engine/public_headers.txt` and its check, `game::SimulationGame`, `MEALKIT_GAME_EXPORT`), the cookbook (docs repo `cookbook/`, checked against the samples).
+- **From here to v1.0**: only fixes. v1.0 freezes what `docs/CONTRACTS.md` lists, when the user declares it.
+- **Impact**: no template or format changes since 0.8.4; existing projects only get the new engine version from `tools\upgrade_project.ps1`. Docs repo `ENGINE_VERSION` 0.9.
+
 ## v0.8.4 — GameSession derives from game::SimulationGame (2026-11-03)
 
 ### [x] Contract freeze review item 2: the GameInstance forwarding moves into the engine (done 2026-11-03)
