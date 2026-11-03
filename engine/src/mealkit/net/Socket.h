@@ -8,6 +8,7 @@ namespace mealkit::net {
 
 inline constexpr u32 kBroadcastIp = 0xFFFFFFFFu; // 255.255.255.255 (the whole network)
 inline constexpr u32 kLoopbackIp = 0x7F000001u;  // 127.0.0.1
+inline constexpr u32 kLoopbackBroadcastIp = 0x7FFFFFFFu; // 127.255.255.255 (every socket on the port on this PC)
 
 struct Address {
     u32 ip = 0; // IPv4 in host byte order

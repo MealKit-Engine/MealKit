@@ -91,9 +91,9 @@ jobs:
       - name: Install tools (macOS)
         if: runner.os == 'macOS'
         run: brew install ninja || true
-      - name: Build (sandbox_headless, mealkit_tests)
+      - name: Build (sample headless exes, mealkit_tests)
         shell: pwsh
-        run: ./build.ps1 Headless -Target sandbox_headless, mealkit_tests # the same build script as Windows (tools/build.ps1, clang)
+        run: ./build.ps1 Headless -Target sandbox_headless, coop_headless, mealkit_tests # the same build script as Windows (tools/build.ps1, clang)
       - name: Test
         shell: pwsh
         run: tools/ci_test.ps1 -Bin build/Headless/bin -Name ${{ matrix.name }} -Out ci-out/${{ matrix.name }}
