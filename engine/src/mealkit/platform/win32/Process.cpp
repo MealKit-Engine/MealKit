@@ -199,7 +199,7 @@ bool hasCppCompiler() {
     if (const char* off = std::getenv("MEALKIT_NO_COMPILER"); off && off[0] == '1') return false;
     if (std::getenv("VCINSTALLDIR")) return true;
     const char* programs = std::getenv("ProgramFiles(x86)");
-    return programs && std::filesystem::exists(std::filesystem::u8path(std::string(programs) + "\Microsoft Visual Studio\Installer\vswhere.exe"));
+    return programs && std::filesystem::exists(std::filesystem::u8path(std::string(programs) + "/Microsoft Visual Studio/Installer/vswhere.exe"));
 }
 
 } // namespace mealkit
