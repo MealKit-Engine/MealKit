@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Designer mode: game code from a shared folder (v0.9.x, 2026-11-04)
+
+- Project setting `sharedBuildFolder`. Command **Publish Game Code** copies `<name>_game.dll` and `<name>_headless.exe` there (through a temporary name); **Get Latest Game Code** copies newer files back.
+- A PC without a compiler (`hasCppCompiler`: no VCINSTALLDIR or vswhere; `MEALKIT_NO_COMPILER=1` in tests) never builds: it fetches on start and every 30 seconds in edit mode, loads the DLL regardless of source and engine file times (the API version is still checked), and shows guidance when there is none. Build commands explain why they refuse, and [Tests] uses the fetched exe.
+- Checked on a scratch copy of FuseTag with `MEALKIT_NO_COMPILER=1`: fetch and load, and the empty folder guidance; publish on the normal path. Not checked: a real PC without Visual Studio, a network share, the 30 second pickup.
+- Not solved: `MealKitEditor.exe` and `mealkit.dll` still come from an engine build, and a DLL built against another engine version with the same API version isn't detected.
+
 ## [Debug] > [Tests] (v0.9.x, 2026-11-04)
 
 - `editor/TestsPanel`: lists `tests/*.scenario`, runs them one at a time with `<name>_headless --test`, shows pass or fail with the failed checks, and **Accept as Intended** reruns a file with `--update-expected`. Commands **Tests** and **Run All Tests**.

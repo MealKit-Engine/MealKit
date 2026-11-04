@@ -49,6 +49,9 @@ private:
     std::vector<void*> m_processes; // HANDLE
 };
 
+// Can this PC compile game code? Windows: Visual Studio tools are installed. MEALKIT_NO_COMPILER=1 answers false (tests)
+bool hasCppCompiler();
+
 // Opens a folder in Explorer.
 void openInExplorer(const std::string& path);
 

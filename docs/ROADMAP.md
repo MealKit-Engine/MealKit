@@ -649,7 +649,7 @@ Candidates from a 2026-11-04 review of the editor code and FuseTag, aimed at the
 **Engine freeze**: the engine is fix-only since v0.9. D1, D5, D6 and D7 are editor or tool work. D2, D3, D4 and D9 touch the runtime, so they wait for v1.x or need a decided exception. New feedback table columns only add keys, which fits the v1.x format policy.
 
 ### Most frequent blocks
-- [ ] D1. **Editor without a C++ toolchain.** The editor builds game code when the DLL is missing or older than the sources or engine (`EditorMain.cpp`), and play is disabled without a DLL. Add a designer mode that takes a game DLL built by a programmer or CI and offers "get the latest build" instead of compiling. Check first: the real behavior on a PC with no compiler has not been tried, only read in the code.
+- [x] D1. Editor without a C++ toolchain (shared folder) — 2026-11-04, details in `docs/CHANGELOG.md`. The engine and editor binaries themselves still have to reach the designer.
 - [x] D2. Visual feedback columns (event light, glow kick, hit flash) — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [x] D3. `playersFrom` feedback column — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [ ] D4. **Squash and spring as data.** `ViewTuning` exposes the numbers, but which event triggers which motion is fixed in FuseTag `view/Juice.cpp`. Move the generic parts into the engine and add feedback columns such as `squash` and `wobble`.
