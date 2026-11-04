@@ -11,7 +11,7 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 - New `beginCombo()` (small chevron, used by every editor combo), `iconButton()`, `beginListPane()`, `iconTitle()`; `sectionHeader()` is now space, a chevron and dimmed text instead of a bar.
 - Icons are drawn by their glyph bounds (`drawGlyph`): as a button label they start at the frame padding once wider than the room inside, which pushed them off center. The snap magnet is drawn, since the icon fonts have none.
 - Inspector: name, type, transform, look and model first for every kind, then the kind's fields. Position, rotation and scale show X, Y and Z inside each field.
-- `colorEdit()` replaces every `ColorEdit`: a swatch filling the row, opening a compact picker with RGB, HSV and hex rows. It moves by dragging its empty parts and stays on screen; its corner resizes it, with the size kept in preferences (`colorPickerSize`).
+- `colorEdit()` replaces every `ColorEdit`: a square swatch with a faint border, opening a compact picker with RGB, HSV and hex rows. It moves by the handle on top and stays on screen; its corner resizes it, with the size kept in preferences (`colorPickerSize`).
 - Tabs show their close button only while hovered.
 - Problems moved from their own page to the top of the Log page: both answer "what went wrong", the list stays current and the log is history. The flag button hides the list; the `Problems` command and `--problems` still open it.
 - The scene tree, scene view and inspector can be closed from their tabs and the [Window] menu; Reset Layout reopens them and play reopens the scene view. The "Scene" tab now always shows, with an icon. While the scene view is closed the 3D picture is covered, not skipped, so it still costs GPU time.
