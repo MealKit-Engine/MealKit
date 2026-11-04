@@ -293,6 +293,8 @@ All of it is editor-only, unrelated to determinism and the shipping exe. It does
 
 - [x] Editor asset browser ([Assets] window: `assets/` folder tree and files, dragging models into the scene view, renaming/moving with references fixed together, a list of this scene's broken model references) — 2026-10-28, details in `docs/CHANGELOG.md`
 
+- [x] UX pass (left-hand value names, neutral sections, one-row scene tree tools, viewport toolbar that wraps, play options drop-down, all panels under [View]) — 2026-11-04, details in `docs/CHANGELOG.md`
+
 ## Stage 3 (v0.7): making multiplayer solid — done (2026-11-01, v0.7.0)
 
 The actual order was replays → desync diagnosis → mid-match joining → bug reports → host migration → EOS part 1. **Remaining order (re-decided 2026-10-28)**: ~~crash reports (pulled from stage 4)~~ → v0.7.

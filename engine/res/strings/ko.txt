@@ -104,10 +104,8 @@ Building game code - you can play when it finishes = 게임 코드 빌드 중 - 
 Game code #%u (build failed - using the previously built code) = 게임 코드 #%u (빌드 실패 - 이전에 빌드된 코드 사용 중)
 
 # ---- 씬 트리·인스펙터
-+ Box = + 상자
-+ Model = + 모델
-+ Spawn = + 스폰
-+ Type... = + 종류...
++ Add = + 추가
+No matching objects = 일치하는 물체가 없습니다
 (no name) = (이름 없음)
 %s -> (child of the drop target) = %s → (놓을 물체의 자식으로)
 Move to Top Level = 최상위로 꺼내기

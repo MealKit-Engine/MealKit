@@ -23,6 +23,7 @@ void applyStyle(float scale) {
     s.WindowBorderSize = 1.0f;
     s.FramePadding = ImVec2(6.0f, 4.0f);
     s.ItemSpacing = ImVec2(8.0f, 5.0f);
+    s.WindowMenuButtonPosition = ImGuiDir_None; // no triangle on every dock tab bar: tabs are all visible and can be dragged
     ImVec4* c = s.Colors;
     c[ImGuiCol_WindowBg] = ImVec4(0.13f, 0.14f, 0.16f, 1.00f);
     c[ImGuiCol_ChildBg] = ImVec4(0.13f, 0.14f, 0.16f, 1.00f);

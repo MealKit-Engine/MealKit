@@ -3,6 +3,19 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Editor UX pass (v0.9.x, 2026-11-04)
+
+Review of 1600×900 and 1280×720 captures.
+- **Value rows** (`FieldEditor.h`: `propertyRow`): names on the left in a shared column and the value filling the rest, in the inspector, environment, terrain/scatter, tuning, project settings, feedback and [UI] preview. ImGui's right-hand labels were clipped by the panel edge (`Jump force (m/`), since the width was measured from one fixed label. A name that doesn't fit gets `...` and its full text in a tooltip.
+- **Color and noise**: `sectionHeader` draws sections in a neutral bar, so blue stays for selection and active states. Axis-colored bars on transform values, an aligned scale lock, a red hover on the inspector's Delete, no triangle on dock tab bars (`WindowMenuButtonPosition`).
+- **Scene tree**: one row with **+ Add** (the [Add] menu's list; the four buttons overflowed the panel) and search. Kinds are dimmed after the name and shortened with `...`. A search without results says so, clicking empty space deselects.
+- **Viewport toolbar**: three groups with separators that flow onto new rows when they don't fit beside the axis gizmo, so the toolbar no longer covers panels in a narrow viewport. The gizmo scales with DPI.
+- **Menu bar**: player count, bots and shadow check are in one drop-down by the play button, hidden during play. The play timeline shrinks so **Save Scenario** stays on the bar at 1280 wide.
+- **Menus**: every panel is under [View] (Assets, Log, Build Log and Performance moved from [Build]).
+- **Messages** show once, as notices over the viewport (the status bar repeated them).
+- **[UI] panel**: Penpot is a closed section at the bottom, edit help is a `(?)` tooltip.
+- `--window WxH` sets the editor window size for checking layouts.
+
 ## Game UI editor in the editor (v0.9.x)
 
 - **Step 1, editable `.ui` source** (2026-11-04, `engine/libs/mkui/include/mkui/Source.h`): `parseSource`/`writeSource` keep a `.ui` file as written (comments, blank lines, property order, `$theme` tokens, `use` components and `set` lines) as a tree of nodes whose items are lines or child places, so a save changes only the lines an edit touched. `Document` can't be written back because it inlines components and resolves number tokens; the panel will edit the source, write it, and read it again with `parseDocument` (one parser). `mapDocumentNodes` maps each `Document` node to its source node (nodes inside a component map to the `use` node). Edits: `getProperty`/`setProperty`/`removeProperty` by leading words (`pos`, `on hover fill`, `set label color`, `span 1`; a new line goes after the node's last property line), `addNode`/`removeNode`/`moveNode` by child-index paths (the board can't move or go, a node can't move into itself). Penpot exports are flagged (`Source::exported`) for read-only opening.
