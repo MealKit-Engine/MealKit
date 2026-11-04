@@ -1,4 +1,5 @@
 #include "mealkit/editor/SoundPanel.h"
+#include "mealkit/editor/FieldEditor.h"
 
 #include "mealkit/editor/Strings.h"
 
@@ -39,7 +40,7 @@ void SoundPanel::drawPreview(audio::Engine& audio) {
     const std::vector<std::string> names = audio.eventNames();
     if (m_event.empty() && !names.empty()) m_event = names[0];
     ImGui::SetNextItemWidth(220.0f);
-    if (ImGui::BeginCombo("##event", m_event.c_str())) {
+    if (beginCombo("##event", m_event.c_str())) {
         for (const std::string& n : names)
             if (ImGui::Selectable(n.c_str(), n == m_event)) m_event = n;
         ImGui::EndCombo();

@@ -3,6 +3,22 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Editor look: fewer lines, less repetition, icons (v0.9.x, 2026-11-05)
+
+- Theme (`applyStyle`): neutral dark layers instead of blue-tinted ones. Panels are parted by a 4 px dark gutter and very faint borders; tabs lose the blue fill and underline and the selected one joins its panel; the accent color is left for selection and active states; thinner scrollbars, more padding. The gutter comes from pushing `ImGuiCol_WindowBg` around `DockSpace()`, the color ImGui paints splitters with.
+- Repetition removed: the scene's name stays in the menu bar switcher while editing (it had also been in the tree, the status bar and an "Opened" notice); the kind after each tree row's name moved to a tooltip; the status bar has space instead of `|`, and its camera help shows only over the viewport; the dock node's extra close button is off.
+- Icons: viewport toolbar, play button, duplicate and delete, add object, log filters, debug pages and panel tabs, all with tooltips. Glyphs come from the same system icon fonts as before and exist in both.
+- New `beginCombo()` (small chevron, used by every editor combo), `iconButton()`, `beginListPane()`, `iconTitle()`; `sectionHeader()` is now space, a chevron and dimmed text instead of a bar.
+- Icons are drawn by their glyph bounds (`drawGlyph`): as a button label they start at the frame padding once wider than the room inside, which pushed them off center. The snap magnet is drawn, since the icon fonts have none.
+- Inspector: name, type, transform, look and model first for every kind, then the kind's fields. Position, rotation and scale show X, Y and Z inside each field.
+- `colorEdit()` replaces every `ColorEdit`: a swatch filling the row, opening a compact picker with RGB, HSV and hex rows. It moves by dragging its empty parts and stays on screen; its corner resizes it, with the size kept in preferences (`colorPickerSize`).
+- Tabs show their close button only while hovered.
+- Problems moved from their own page to the top of the Log page: both answer "what went wrong", the list stays current and the log is history. The flag button hides the list; the `Problems` command and `--problems` still open it.
+- The scene tree, scene view and inspector can be closed from their tabs and the [Window] menu; Reset Layout reopens them and play reopens the scene view. The "Scene" tab now always shows, with an icon. While the scene view is closed the 3D picture is covered, not skipped, so it still costs GPU time.
+- **Save as Prefab...** moved from [Edit] to [Scene], with the other commands that write files, and is on the inspector's bottom row. The [Scene] menu is grouped as open, save, replay.
+- The screen list on the UI preview page resizes by its bottom edge.
+- Limits: tree and table arrows are still ImGui's triangles, and MealKit Manager, Audio and QA keep their own themes.
+
 ## [Debug] > [Balance] (v0.9.x, 2026-11-04)
 
 - `editor/BalancePanel`: runs N bot matches (seeds 1..N, a chosen length) with `<name>_headless --final-state` and shows average, lowest and highest of each state number. A second tuning file under `assets/` runs the same seeds for an A/B difference. List values add up per match; "none" marks are skipped.
