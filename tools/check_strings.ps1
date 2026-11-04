@@ -77,7 +77,13 @@ foreach ($file in Get-ChildItem $engineDir -File -Include *.cpp, *.h -Recurse) {
     $text = [IO.File]::ReadAllText($file.FullName, $utf8)
     foreach ($m in [regex]::Matches($text, '(?m)^\s*MEALKIT_(?:VIEW_)?FIELD(?:_FLAGS)?\(([^;]*)\);')) {
         $strings = [regex]::Matches($m.Groups[1].Value, $literal)
-        if ($strings.Count -gt 0) { Add-Key (Unescape-C $strings[$strings.Count - 1].Groups[1].Value) $file.Name }
+        if ($strings.Count -gt 0) {
+            # "name|description|group=...|range=...": name, description and group are translated, the other attributes aren't text (FieldEditor.h)
+            foreach ($part in (Unescape-C $strings[$strings.Count - 1].Groups[1].Value) -split '\|') {
+                if ($part -match '^(range|step|unit|pick)=') { continue }
+                Add-Key ($part -replace '^group=', '') $file.Name
+            }
+        }
     }
     foreach ($m in [regex]::Matches($text, 'makeBuiltin\(\w+,\s*' + $literal)) { Add-Key (Unescape-C $m.Groups[1].Value) $file.Name }
 }
