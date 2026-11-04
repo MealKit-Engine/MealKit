@@ -69,6 +69,8 @@ struct Screen {
     std::string path;
     u64 fileTime = 0;
     bool hasDraft = false; // editor: doc comes from draft, not the file
+    i32 previewNode = -1;  // editor: this doc node shows previewState
+    State previewState = State::Normal;
     std::string draft;
     Document doc;
     std::vector<std::array<Visual, static_cast<size_t>(State::Count)>> stateVisuals; // nodes with states: drawing values per state
@@ -1529,26 +1531,8 @@ struct System::Impl {
                 }
                 if (!any) continue;
                 const bool dirs[4] = {in.up, in.down, in.left, in.right};
-                for (int dir = 0; dir < 4; ++dir) {
-                    if (!dirs[dir]) continue;
-                    focusVisible = true;
-                    if (s.focus < 0 || !focusable(s, s.focus)) {
-                        s.focus = s.doc.firstFocus.empty() ? -1 : findByName(s, s.doc.firstFocus);
-                        for (size_t i = 0; i < s.nodes.size() && s.focus < 0; ++i)
-                            if (focusable(s, static_cast<i32>(i))) s.focus = static_cast<i32>(i);
-                        continue;
-                    }
-                    const WidgetKind w = s.doc.nodes[s.nodes[static_cast<size_t>(s.focus)].src].widget;
-                    if (dir >= 2 && (w == WidgetKind::Slider || w == WidgetKind::Select)) {
-                        activate(s, s.focus, dir == 2 ? -1 : 1);
-                        continue;
-                    }
-                    const i32 next = neighbor(s, s.focus, dir);
-                    if (next >= 0) {
-                        s.focus = next;
-                        scrollIntoView(s, next);
-                    }
-                }
+                for (int dir = 0; dir < 4; ++dir)
+                    if (dirs[dir]) stepFocus(s, dir);
                 if (in.confirm && s.focus >= 0 && focusable(s, s.focus)) {
                     focusVisible = true;
                     activate(s, s.focus);
@@ -1565,13 +1549,34 @@ struct System::Impl {
                 RNode& n = s.nodes[i];
                 const Node& d = s.doc.nodes[n.src];
                 if (s.stateIndex[n.src] < 0) continue;
-                const bool target[static_cast<int>(State::Count)] = {
+                bool target[static_cast<int>(State::Count)] = {
                     true, s.hover == static_cast<i32>(i), s.pressed == static_cast<i32>(i),
                     s.focus == static_cast<i32>(i) && (focusVisible || focusAlways), n.disabled, n.checked};
+                if (s.previewNode == static_cast<i32>(n.src)) target[static_cast<int>(s.previewState)] = true;
                 const f32 rate = d.transition > 0 ? static_cast<f32>(dt) / d.transition : 1.0f;
                 for (int st = 1; st < static_cast<int>(State::Count); ++st)
                     n.mix[st] = std::clamp(n.mix[st] + (target[st] ? rate : -rate), 0.0f, 1.0f);
             }
+    }
+
+    void stepFocus(Screen& s, int dir) {
+        focusVisible = true;
+        if (s.focus < 0 || !focusable(s, s.focus)) {
+            s.focus = s.doc.firstFocus.empty() ? -1 : findByName(s, s.doc.firstFocus);
+            for (size_t i = 0; i < s.nodes.size() && s.focus < 0; ++i)
+                if (focusable(s, static_cast<i32>(i))) s.focus = static_cast<i32>(i);
+            return;
+        }
+        const WidgetKind w = s.doc.nodes[s.nodes[static_cast<size_t>(s.focus)].src].widget;
+        if (dir >= 2 && (w == WidgetKind::Slider || w == WidgetKind::Select)) {
+            activate(s, s.focus, dir == 2 ? -1 : 1);
+            return;
+        }
+        const i32 next = neighbor(s, s.focus, dir);
+        if (next >= 0) {
+            s.focus = next;
+            scrollIntoView(s, next);
+        }
     }
 
     void editText(Screen& s, const FrameInput& in) {
@@ -1773,6 +1778,7 @@ ScreenInfo System::info(ScreenId screen) const {
         out.originX = s->originX;
         out.originY = s->originY;
         out.scale = s->scale;
+        if (s->focus >= 0 && s->focus < static_cast<i32>(s->nodes.size())) out.focus = s->doc.nodes[s->nodes[static_cast<size_t>(s->focus)].src].name;
     }
     return out;
 }
@@ -1793,6 +1799,20 @@ void System::setDraft(ScreenId screen, const std::string* text) {
     s->hasDraft = text != nullptr;
     s->draft = text ? *text : std::string();
     m->loadScreen(*s);
+}
+
+void System::setPreviewState(ScreenId screen, i32 node, State state) {
+    if (Screen* s = m->find(screen)) {
+        s->previewNode = node;
+        s->previewState = state;
+    }
+}
+
+void System::moveFocus(ScreenId screen, int direction) {
+    Screen* s = m->find(screen);
+    if (!s) return;
+    if (s->rebuild) m->prepare(*s, m->viewW, m->viewH);
+    m->stepFocus(*s, direction);
 }
 
 void System::setFocusVisible(bool always) { m->focusAlways = always; }

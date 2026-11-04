@@ -561,7 +561,7 @@ if (-not $Quick) {
         $file = Join-Path $sandbox "assets\ui\pause.ui"
         $before = (Get-Item $file).LastWriteTimeUtc
         $code = Run $log $editor "--project `"$sandbox`" --frames 60 --ui pause.ui --ui-select resume --capture `"$png`""
-        if ($code -ne 0 -or -not (Test-Path $png) -or (Has $log "\[ERROR\]") -or (Has $log "UI edit:")) { return $false }
+        if ($code -ne 0 -or -not (Test-Path $png) -or (Has $log "\[ERROR\]") -or (Has $log "UI edit:") -or -not (Has $log "UI preview: values from")) { return $false }
         # Mouse drags through the same code as the mouse: a free node moves (no snapping), a node in a column layout reorders
         $code = Run $log $editor "--project `"$sandbox`" --frames 30 --ui pause.ui --ui-select panel --ui-drag 23,17"
         if ($code -ne 0 -or -not (Has $log "UI drag test: panel pos 733 317 size 500 hug")) { return $false }

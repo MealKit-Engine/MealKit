@@ -1146,6 +1146,31 @@ TEST_CASE(ui, penpot_expected) {
     TEST_CHECK(doc.nodes[0].id == "id-pause");
 }
 
+// Editor preview inputs: focus moves like the ui.* actions and is reported by name
+TEST_CASE(ui, ui_preview_focus) {
+    const std::string oldRoot = projectRoot();
+    const std::string dir = executableDirectory() + "/test_ui_focus";
+    createDirectories(dir + "/assets/ui");
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/f.ui", "board f 100 100\n  navigation\n  firstFocus a\n"
+                                                     "  frame a\n    pos 0 0\n    size 100 20\n    button x\n  end\n"
+                                                     "  frame b\n    pos 0 50\n    size 100 20\n    button y\n  end\nend\n"));
+    setProjectRoot(dir);
+    {
+        ui::System sys;
+        sys.init(nullptr, nullptr);
+        const ui::ScreenId s = sys.open("ui/f.ui");
+        sys.layout({0, 0, 100, 100});
+        TEST_CHECK(sys.info(s).focus.empty());
+        sys.moveFocus(s, 1); // nothing focused: the first focus
+        TEST_CHECK(sys.info(s).focus == "a");
+        sys.moveFocus(s, 1);
+        TEST_CHECK(sys.info(s).focus == "b");
+        sys.moveFocus(s, 0);
+        TEST_CHECK(sys.info(s).focus == "a");
+    }
+    setProjectRoot(oldRoot);
+}
+
 // Editable .ui source (editor [UI] panel): every .ui in the repo writes back unchanged, edits touch only their lines
 TEST_CASE(ui, ui_source) {
     const std::string engine = std::string(MEALKIT_ENGINE_DIR);

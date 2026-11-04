@@ -26,6 +26,8 @@ struct Action {
     bool dragging = false; // dragging a slider with the mouse (fires once more with dragging=false on release)
 };
 
+enum class State : u8; // mkui/Document.h
+
 struct FrameInput {
     bool mouse = false; // mouse values below are valid (the game may have taken the mouse)
     f32 mouseX = 0, mouseY = 0; // pixels
@@ -70,6 +72,7 @@ struct ScreenInfo {
     std::vector<std::string> errors; // file errors, binding errors (missing fields), missing fonts/images
     bool exported = false;
     f32 originX = 0, originY = 0, scale = 1; // screen pixel = origin + logical × scale (last layout)
+    std::string focus; // name of the focused node (empty if none)
 };
 
 struct NodeBox {
@@ -119,6 +122,10 @@ public:
     std::vector<NodeBox> boxes(ScreenId screen) const;
     // Editor: show this .ui text instead of the screen's file (unsaved edits); nullptr goes back to the file
     void setDraft(ScreenId screen, const std::string* text);
+    // Editor preview: this Document node shows this state as if it were real (node < 0: none)
+    void setPreviewState(ScreenId screen, i32 node, State state);
+    // Editor preview: one keyboard/gamepad move (0 up, 1 down, 2 left, 3 right), same as the ui.* actions
+    void moveFocus(ScreenId screen, int direction);
     void setFocusVisible(bool always);
     u32 quadCount() const;
     bool press(ScreenId screen, const std::string& nodeName);
