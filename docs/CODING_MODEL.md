@@ -140,7 +140,7 @@ The engine's `engine/src/mealkit/physics` follows the same rules. `sim/` files a
 | UI designer inside the engine editor (UMG style) | The largest development cost. Penpot already has canvases, components, and tokens |
 | Figma | Designers use it most, but it's cloud-only and REST API rate limits are tight. `.ui` is an intermediate format, so if needed only a Figma plugin would be built separately |
 | Shader graph / material editor inside the engine | Large development cost, and as combinations grow the integrated graphics budget and shader compile time can't be managed. Most looks work within the glTF PBR range |
-| Per-project surface function HLSL | Style presets are enough for now, and shader combinations would grow per project. Same as the conditions in the `DECISIONS.md` deferred table |
+| Per-project surface function HLSL | Not until v1.0: style presets are what games have now. Planned first among the opt-in rendering features after v1.0 (`docs/DECISIONS.md` 2026-11-04, `docs/ROADMAP.md` "Opt-in rendering features") |
 | Particle editor inside the engine | Curves, gradients, and previews would all have to be built, a large development cost. External effect tools already have them |
 | Layout libraries like Yoga or Clay | Since it must compute exactly like Penpot's layout, building it directly against Penpot is more reliable than matching another library's rules |
 | RmlUi, Noesis, Gameface, Rive | Either text markup rather than visual editing (RmlUi), or commercial/heavy runtimes. Rive's runtime is MIT but the editor that exports game files is paid (`DECISIONS.md` 2026-10-20) |
