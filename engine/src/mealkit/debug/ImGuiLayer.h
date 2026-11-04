@@ -1,5 +1,7 @@
 #pragma once
 
+#include <functional>
+
 #include "mealkit/core/Types.h"
 
 #include <string>
@@ -31,7 +33,8 @@ public:
     // Switches the window layout file (per-project layouts). The already loaded layout is written to the old file and the new file is read. true if the new file exists
     bool setIniPath(const std::string& iniPath);
 
-    void newFrame();
+    // inject (optional) adds test input after the platform's, so it wins
+    void newFrame(const std::function<void()>& inject = {});
     // Draws the UI in if a renderer frame is open. Even if not, the ImGui frame is always closed.
     void render(render::Renderer& renderer, bool frameActive);
 

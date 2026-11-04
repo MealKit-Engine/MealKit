@@ -133,7 +133,7 @@ bool ImGuiLayer::setIniPath(const std::string& iniPath) {
     return exists;
 }
 
-void ImGuiLayer::newFrame() {
+void ImGuiLayer::newFrame(const std::function<void()>& inject) {
     for (size_t i = 0; i < m_textures.size();) {
         ImTextureData* tex = m_textures[i];
         if (tex->WantDestroyNextFrame && tex->Status == ImTextureStatus_Destroyed) {
@@ -146,6 +146,7 @@ void ImGuiLayer::newFrame() {
     }
     rhi::imguiNewFrame();
     imguiPlatformNewFrame();
+    if (inject) inject();
     ImGui::NewFrame();
 }
 

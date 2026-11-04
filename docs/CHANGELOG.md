@@ -41,7 +41,7 @@ Review of 1600×900 and 1280×720 captures.
 ## Editor usability, tree folders and thumbnails (v0.9.x, 2026-11-04)
 
 - **Scene tree folders**: `Entity::folder` is a path saved as a `folder` line (`.scene` format 5) and left out of the content hash, so it needs no folder objects and empty folders don't exist. Drag objects onto a folder, or use **Move to Folder...**; folders can be renamed or removed, with undo. Changing `scene/` and `core/` changes the simulation version of every game; simulation results don't change.
-- **Asset grid** (`AssetThumbnails.h`): the [Assets] slider switches between the list and a grid. Models are drawn one per frame to small targets and redrawn when the file changes, up to 128 for the session. Nothing is cached on disk yet, and targets are not freed until the editor closes. Known issue: the first cell's name loses its first letter (`ring.glb` shows as `ing.glb`), cause not found; the tooltip has the full path.
+- **Asset grid** (`AssetThumbnails.h`): the [Assets] slider switches between the list and a grid. Models are drawn one per frame to small targets and redrawn when the file changes, up to 128 for the session. Nothing is cached on disk yet, and targets are not freed until the editor closes.
 
 ## Editor usability, viewport handles and density (v0.9.x, 2026-11-04)
 
@@ -64,6 +64,11 @@ Review of 1600×900 and 1280×720 captures.
 - **[Previews]** (View menu): UI, Look Dev and cutscenes as tabs. The UI overlay and look dev rendering run only on their tab.
 - **Unsaved list**: the status bar shows `Unsaved: N` when documents differ from their files; clicking lists them with save and revert. Reverting tuning and tables can be undone; the scene asks for a second click because its undo steps don't survive; UI screens have no revert here.
 - **Smaller moves**: effects are their own [Data] page with undo; the sound preview stays in [Data] and buses, voices and culled plays moved to [Debug]; [History] has undo and redo for the open [Data] page.
+
+## Editor test input (v0.9.x, 2026-11-04)
+
+- **`--input "move x y; down; wait 2; up; key ctrl+z; type abc; command Save; print"`** (`Editor::runTestInput`) sends mouse and keys one step per frame, and `print` writes an `INPUT` line with the selection, undo count and fields. Clicking, gizmo and handle drags, undo, multi-object edits, folder moves, problem clicks and docking beside the scene tab were checked with it by hand-written scripts.
+- **Bugs it found**: the first grid cell lost 5 pixels of picture and name, because a Selectable's rectangle reaches past its position. The scene tree row menu opened only on the lock toggle, because the toggles became the last item. A multi-object edit on an object whose scene lines leave out defaults overwrote every field of the others, not just the changed one.
 
 ## Game UI editor in the editor (v0.9.x)
 
