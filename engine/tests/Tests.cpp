@@ -1250,6 +1250,20 @@ TEST_CASE(ui, ui_source) {
     ui::parseDocument(ui::writeSource(s), "ui/edited.ui", doc); // no theme here, so $radius is an error; the nodes are read anyway
     TEST_CHECK(doc.nodes.size() == 4 && doc.nodes[1].name == "c" && doc.nodes[2].name == "t" && doc.nodes[3].name == "a");
 
+    // Clipboard text, unique names, wrapping
+    const std::string clip = ui::writeNodeText(*ui::findNode(s, {0}));
+    TEST_CHECK(clip == "frame c\n  size 50 hug\n  text t\n    key x\n  end\nend\n");
+    ui::SourceNode pasted;
+    TEST_CHECK(ui::parseNodeText(clip, pasted) && pasted.name == "c" && pasted.children.size() == 1);
+    TEST_CHECK(!ui::parseNodeText("pos 1 2\n", pasted) && !ui::parseNodeText(clip + clip, pasted) && !ui::parseNodeText("frame a\n", pasted));
+    TEST_CHECK(ui::uniqueName(s, "c") == "c2" && ui::uniqueName(s, "t") == "t2" && ui::uniqueName(s, "new") == "new");
+    ui::SourceNode group;
+    group.kind = "frame";
+    group.name = "group";
+    ui::SourcePath wrapped;
+    TEST_CHECK(ui::wrapNode(s, {1}, group, &wrapped) && (wrapped == ui::SourcePath{1}));
+    TEST_CHECK(ui::findNode(s, {1})->name == "group" && ui::findNode(s, {1, 0})->name == "a" && !ui::wrapNode(s, {}, group));
+
     ui::Source bad;
     std::string error;
     TEST_CHECK(!ui::parseSource("board b 1 1\n  frame a\nend\n", bad, &error) && error.find("missing end") != std::string::npos);

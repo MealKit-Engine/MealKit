@@ -85,7 +85,7 @@ foreach ($file in Get-ChildItem $engineDir -File -Include *.cpp, *.h -Recurse) {
 # 3) Language tables
 function Format-Specs([string]$s) { return ([regex]::Matches($s, '%[-+ #0]*\d*(?:\.\d+)?[hlzjt]*[diuxXfFeEgGcsp%]') | ForEach-Object { $_.Value }) -join " " }
 foreach ($table in Get-ChildItem $stringsDir -Filter *.txt) {
-    $entries = @{}
+    $entries = New-Object System.Collections.Hashtable ([StringComparer]::Ordinal) # tr("Copy") and tr("copy") are different keys
     $lineNo = 0
     foreach ($line in [IO.File]::ReadAllLines($table.FullName, $utf8)) {
         $lineNo++

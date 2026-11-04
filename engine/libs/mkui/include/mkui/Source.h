@@ -52,9 +52,17 @@ bool getProperty(const SourceNode& node, const std::string& key, std::string& va
 void setProperty(SourceNode& node, const std::string& key, const std::string& value);
 bool removeProperty(SourceNode& node, const std::string& key); // removes every matching line
 
+// One node with its subtree as .ui text (clipboard), and back. false if the text isn't exactly one frame/text/image/use node
+std::string writeNodeText(const SourceNode& node);
+bool parseNodeText(const std::string& text, SourceNode& out);
+// base if no node in the file has that name, else base2, base3 ...
+std::string uniqueName(const Source& source, const std::string& base);
+
 // Tree edits. at = position among the parent's children (clamped; the end if larger). Comment lines stay where they were
 SourcePath addNode(Source& source, const SourcePath& parent, u32 at, SourceNode node);
 bool removeNode(Source& source, const SourcePath& path);
+// Puts frame where the node is and the node inside it. Returns the frame's path ({} and false for the board)
+bool wrapNode(Source& source, const SourcePath& path, SourceNode frame, SourcePath* wrapped = nullptr);
 // Moves a node under newParent at position at (after the move). Refused into its own subtree or for the board. Returns the new path
 bool moveNode(Source& source, const SourcePath& path, const SourcePath& newParent, u32 at, SourcePath* moved = nullptr);
 

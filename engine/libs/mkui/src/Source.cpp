@@ -259,6 +259,51 @@ bool removeProperty(SourceNode& node, const std::string& key) {
     return removed;
 }
 
+std::string writeNodeText(const SourceNode& node) {
+    std::string out;
+    writeNode(node, 0, out);
+    return out;
+}
+
+bool parseNodeText(const std::string& text, SourceNode& out) {
+    Source s;
+    if (!parseSource("board clip 1 1\n" + text + "\nend\n", s)) return false;
+    const SourceNode& board = s.root.children[0];
+    if (board.children.size() != 1) return false;
+    for (const SourceItem& item : board.items)
+        if (item.child < 0 && !item.line.empty()) return false; // anything beside the node
+    out = board.children[0];
+    return true;
+}
+
+namespace {
+bool hasName(const SourceNode& n, const std::string& name) {
+    if (n.name == name) return true;
+    for (const SourceNode& c : n.children)
+        if (hasName(c, name)) return true;
+    return false;
+}
+} // namespace
+
+std::string uniqueName(const Source& source, const std::string& base) {
+    if (!hasName(source.root, base)) return base;
+    for (u32 i = 2;; ++i) {
+        const std::string name = base + std::to_string(i);
+        if (!hasName(source.root, name)) return name;
+    }
+}
+
+bool wrapNode(Source& source, const SourcePath& path, SourceNode frame, SourcePath* wrapped) {
+    if (path.empty() || !findNode(source, path)) return false;
+    const SourcePath parent(path.begin(), path.end() - 1);
+    const SourcePath frameAt = addNode(source, parent, path.back(), std::move(frame));
+    SourcePath node = path;
+    ++node.back(); // the frame went in front of it
+    if (!moveNode(source, node, frameAt, 0)) return false;
+    if (wrapped) *wrapped = frameAt;
+    return true;
+}
+
 SourcePath addNode(Source& source, const SourcePath& parent, u32 at, SourceNode node) {
     SourceNode* p = findNode(source, parent);
     if (!p) return {};

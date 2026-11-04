@@ -559,14 +559,14 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 
 Every game screen is hand-written `.ui` text because there is no designer, and FuseTag M9 adds many more screens. The editor's [UI] panel becomes a WYSIWYG editor drawn with the real `mkui` runtime (`docs/DECISIONS.md` 2026-11-04). Editor-only: the `.ui` format, the runtime and the game API don't change, so it doesn't touch the frozen contracts and doesn't block publication.
 
-### [ ] [UI] panel editing
+### [x] [UI] panel editing — 2026-11-04, details in `docs/CHANGELOG.md`
 - **Why**: placing screens by typing coordinates and reloading is slow, and Penpot's preview isn't what the game draws (line breaks, translations, view model data).
 - **Approach**: the panel keeps the `mkui` document open for editing and redraws it every change with the same layout and text code the game uses. Files exported from Penpot (`Document::exported`) open read-only.
   1. [x] `.ui` writer in `mkui` — 2026-11-04, `mkui/Source.h`, details in `docs/CHANGELOG.md`. Was: read → write gives the same text for every `.ui` in the samples and FuseTag, leading comment lines kept. Tree edits (add, delete, move, reorder) rebuild the depth-first `nodes` array.
   2. [x] — 2026-11-04, details in `docs/CHANGELOG.md` (cycle with Ctrl+click, not Alt, which orbits the camera). Was: Selection by clicking the screen (topmost box under the mouse, Alt cycles through boxes beneath) and in a node tree; property window for every `.ui` key (layout, gap, padding, size fill/hug, constraints, fill/stroke/radius/shadow with `$theme` values, text key and style, `button`, `visible`/bindings, `on <state>`); save, undo/redo through the editor's command history.
   3. [x] — 2026-11-04, details in `docs/CHANGELOG.md` (handles show padding; gap isn't drawn). Was: Drag to move and resize: nodes outside a layout change `pos`/`size` (snapping to siblings and the board), nodes inside a flex/grid layout reorder among siblings; handles show padding and gap.
   4. [x] — 2026-11-04, details in `docs/CHANGELOG.md` (values live in `art/ui/samples/`, since `art/` doesn't ship). Was: Preview inputs: sample view model values (a data file next to the screen), language, resolution and UI scale, hover/press/focus states, gamepad focus walk.
-  5. Adding nodes (frame, text, image, from a component `.ui`), copy/paste, duplicate, wrap in frame.
+  5. [x] — 2026-11-04. Was: Adding nodes (frame, text, image, from a component `.ui`), copy/paste, duplicate, wrap in frame.
 - **Checks**: writer round trip over every `.ui` in `check.ps1` (static or editor group); an editor `--ui-edit` script test (open, move a node, save, compare); the game still loads every saved file the same (`--ui-check` boxes unchanged after a round trip).
 - **Docs**: docs repo "Manual > Game UI" in English and Korean (placing screens in the panel; Penpot as the optional path).
 - **Determinism**: no effect (view side, editor only).
