@@ -59,6 +59,7 @@
 #include "mealkit/settings/Settings.h"
 #include "mealkit/ui/Document.h"
 #include "mealkit/ui/Ui.h"
+#include "mealkit/editor/FuzzyMatch.h"
 #include "mealkit/editor/UndoStack.h"
 #endif
 
@@ -2895,6 +2896,16 @@ void runFake(game::Simulation<FakeWorld>& sim, net::LockstepSession& session, u3
     auto onTick = [&](const FakeWorld& w) { events += w.events.size(); };
     for (u32 i = 0; i < ticks * 4 && sim.nextTick() < ticks; ++i) sim.update(session, 1.0 / 30.0, sample, onTick);
     TEST_CHECK(events == sim.nextTick() - before); // events go to the view side every tick
+}
+
+TEST_CASE(editor, fuzzy_match) {
+    using editor::fuzzyScore;
+    TEST_CHECK(fuzzyScore("Save Scene", "") == 0);
+    TEST_CHECK(fuzzyScore("Save Scene", "svsc") > 0);
+    TEST_CHECK(fuzzyScore("Save Scene", "SAVE") > fuzzyScore("Save Scene", "ave"));
+    TEST_CHECK(fuzzyScore("Save Scene", "xyz") == -1);
+    TEST_CHECK(fuzzyScore("Save Scene", "cs") == -1); // order matters
+    TEST_CHECK(fuzzyScore("\xEC\x94\xAC \xEC\xA0\x80\xEC\x9E\xA5", "\xE3\x85\x86\xE3\x85\x88") > 0); // ssi-eun jeo-jang by initials
 }
 
 TEST_CASE(editor, undo_stack_steps) {

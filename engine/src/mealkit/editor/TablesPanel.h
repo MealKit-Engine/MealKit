@@ -27,6 +27,8 @@ public:
     int docCount() const { return static_cast<int>(m_docs.size()); }
     std::string docName(int which) const { return m_docs[static_cast<size_t>(which)].info.path; }
     bool docDirty(int which) const { return m_docs[static_cast<size_t>(which)].dirty; }
+    const std::vector<std::string>& docIds(int which) const { return m_docs[static_cast<size_t>(which)].data.ids; }
+    void selectRow(int which, int row) { m_docs[static_cast<size_t>(which)].selected = row; m_scrollToRow = row; }
     int current() const { return m_current; }
     void setCurrent(int which) { m_current = which; }
     bool canStep(int which, bool back) const { return which >= 0 && which < docCount() && m_docs[static_cast<size_t>(which)].undo.canStep(back); }
@@ -70,6 +72,7 @@ private:
     data::TableIndexList m_index;
     char m_idBuffer[128] = {};
     int m_idRow = -1;
+    int m_scrollToRow = -1;
 };
 
 } // namespace mealkit::editor

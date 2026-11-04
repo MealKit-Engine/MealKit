@@ -32,6 +32,12 @@ Review of 1600×900 and 1280×720 captures.
 - **[Problems] window**: missing models, models over budget, and missing row references in tables, tuning and scene objects, checked twice a second. The count is on the tab. Clicking selects the object or opens the document. It replaces the list under the table.
 - **Undo** (`UndoStack.h`): tuning, tables and feedback reactions keep text snapshots, one step per drag or typed value. Ctrl+Z and Ctrl+Y go to the open page while the [Data] window has focus, also during play. Deleting rows, reloading from file and restoring defaults can be undone, so they ask no confirmation. Effect files have no undo.
 
+## Editor usability, selection and search (v0.9.x, 2026-11-04)
+
+- **Command palette** (`FuzzyMatch.h`): letters in order with gaps, Korean initial consonants, best match first. Recent items lead when nothing is typed (kept for the session). It also finds assets, table rows and tuning values.
+- **Scene tree badges**: `!` in red or orange with the reason in a tooltip, and a blue dot for fields changed from the kind's defaults. No prefab badge, because placed objects keep no link to their prefab.
+- **Multi-object editing**: a field changed in the inspector goes to the other selected objects of the same kind. Fields that differ get a dash and a tinted value. Name and transform values still edit one object.
+
 ## Game UI editor in the editor (v0.9.x)
 
 - **Step 1, editable `.ui` source** (2026-11-04, `engine/libs/mkui/include/mkui/Source.h`): `parseSource`/`writeSource` keep a `.ui` file as written (comments, blank lines, property order, `$theme` tokens, `use` components and `set` lines) as a tree of nodes whose items are lines or child places, so a save changes only the lines an edit touched. `Document` can't be written back because it inlines components and resolves number tokens; the panel will edit the source, write it, and read it again with `parseDocument` (one parser). `mapDocumentNodes` maps each `Document` node to its source node (nodes inside a component map to the `use` node). Edits: `getProperty`/`setProperty`/`removeProperty` by leading words (`pos`, `on hover fill`, `set label color`, `span 1`; a new line goes after the node's last property line), `addNode`/`removeNode`/`moveNode` by child-index paths (the board can't move or go, a node can't move into itself). Penpot exports are flagged (`Source::exported`) for read-only opening.

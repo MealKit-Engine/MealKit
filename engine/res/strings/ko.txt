@@ -277,6 +277,7 @@ Game = 게임
 Display = 화면
 Problems (%zu) = 문제 (%zu)
 No problems found. = 문제가 없습니다.
+Asset = 에셋
 Missing model: %s (%s) = 없는 모델: %s (%s)
 Over budget: %s: %s = 예산 초과: %s: %s
 
@@ -706,7 +707,7 @@ Lock (cannot be picked in the scene view) = 잠금 (씬 뷰에서 클릭으로 �
 Hide in the scene view = 씬 뷰에서 숨기기
 Duplicated %zu objects = 물체 %zu개를 복제했습니다
 Deleted %zu objects = 물체 %zu개를 지웠습니다
-%zu objects selected - the gizmo moves all, this panel edits the last one = 물체 %zu개 선택 - 기즈모는 모두 옮기고, 이 패널은 마지막에 고른 것을 고칩니다
+%zu objects selected - the gizmo moves all, fields of the same kind edit together = 물체 %zu개 선택: 기즈모는 전부 옮기고, 같은 종류의 필드는 함께 고칩니다
 Select All = 모두 선택
 Snap = 스냅
 Snap without holding Ctrl (Ctrl turns it off for a moment) = Ctrl 없이 스냅 (Ctrl을 누르면 잠시 끈다)

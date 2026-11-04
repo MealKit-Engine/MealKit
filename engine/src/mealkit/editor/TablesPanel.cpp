@@ -341,10 +341,17 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         }
         ImGuiListClipper clipper;
         clipper.Begin(static_cast<int>(t.rows.size()));
+        if (m_scrollToRow >= 0) {
+            clipper.IncludeItemByIndex(m_scrollToRow);
+        }
         while (clipper.Step()) {
             for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
                 const size_t r = static_cast<size_t>(row);
                 ImGui::TableNextRow();
+                if (row == m_scrollToRow) {
+                    ImGui::SetScrollHereY();
+                    m_scrollToRow = -1;
+                }
                 ImGui::PushID(row);
                 ImGui::TableNextColumn();
                 if (ImGui::Selectable(std::to_string(row).c_str(), doc.selected == row)) doc.selected = row;

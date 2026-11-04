@@ -592,7 +592,7 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 6. Required and validated fields: `required` and `validate` mark the row and report to the Problems panel (item 11).
 7. Search inside the inspector and [Tuning]: by name, description, and "only values that differ from the default".
 8. List and array editing: add, remove and reorder. `MEALKIT_LIST` currently shows its count as a separate number field.
-9. ★ Multi-object editing: the inspector currently edits only one object of a multi-selection. Edit shared fields together and show `—` for mixed values.
+9. [x] ★ Multi-object editing: the inspector currently edits only one object of a multi-selection. Edit shared fields together and show `—` for mixed values.
 10. Pinned and multiple inspectors for comparing objects, and remembering which sections are collapsed.
 
 ### [ ] Gathering similar features
@@ -607,7 +607,7 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 ### [ ] Scene tree
 18. ★ Folders and separators. A folder saved in `.scene` may affect the content hash, so decide where folders live first.
 19. Color tags, connecting lines and row stripes. Color tags can live in the existing `.view` file.
-20. ★ Row badges: prefab, missing model, over budget, differs from default, has a problem.
+20. [x] (no prefab badge: objects keep no prefab link) ★ Row badges: prefab, missing model, over budget, differs from default, has a problem.
 21. Tree filters such as `t:spawn`, `is:hidden`, `has:problem`, and "select all of this kind".
 22. Selection history (`Alt+Left/Right`) and favorite objects.
 23. Hover link: hovering a tree row highlights the object in the viewport, and the reverse.
@@ -629,7 +629,7 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 
 ### [ ] Shared UI and workflow
 35. ★ Display density and color rules: a compact mode (rows are large at 900p), one set of color tokens for accent, danger, changed and play, and icons with tooltips on the viewport toolbar.
-36. ★ Stronger command palette: it only matches substrings today. Add fuzzy matching, Korean initial-consonant search, recent items, and search over assets, table rows and tuning fields.
+36. [x] ★ Stronger command palette: it only matches substrings today. Add fuzzy matching, Korean initial-consonant search, recent items, and search over assets, table rows and tuning fields.
 37. Scene switcher next to the play button, and rebindable shortcuts built on the command table.
 38. Context hints: replace the fixed status bar text with hints for the current tool and hovered item.
 
