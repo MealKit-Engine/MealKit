@@ -21,7 +21,10 @@ Review of 1600×900 and 1280×720 captures.
 - **[Tables] showed `input.bindings` empty**: engine tables open before `setProject`, so they were read from a path with no project folder, and saving could have written there. `TablesPanel::setProjectDirectory` now sets the paths again and rereads open tables.
 - **Table headers** show the field name only, in columns 110 to 200 wide. The tooltip has the name, description and field path. The panel note moved to a `(?)` tooltip.
 - **Asset browser scan cache** (`EditorAssets.cpp`): folder listings and missing model checks run once a second instead of every frame, and right after a rename.
-- `--tables` brings the [Tables] tab to the front for captures.
+- `--tables` and `--tuning` bring those tabs to the front for captures.
+- **Field attributes** (`FieldEditor.h`): the label takes `group`, `range`, `step`, `unit` and `pick` after the name. Sections are `sectionHeader`s; drags without `step` follow the size of the value. Cells in [Tables] use the same attributes.
+- **Pickers**: `sound` and `effect` in `feedback.table` are searchable lists, and a value not in the list stays and shows in red. Drag and drop and a preview button aren't done.
+- `samples/sandbox/sim/Tuning.h` uses the groups, ranges and units. Labels stay out of the content hash, but its simulation version changes because it hashes `sim/` sources. The saved replay still passes.
 
 ## Game UI editor in the editor (v0.9.x)
 

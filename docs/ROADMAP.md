@@ -584,10 +584,10 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 - [ ] The bottom strip keeps its height in a taller window (docking gives the extra room to the center). The [Tables] note moved to a tooltip, but only about two rows fit at 1000p: revisit with item 12 or 35.
 
 ### [ ] Inspector and field attributes (Odin style)
-1. ★ Field attribute syntax: extend the existing `"name|description"` label, for example `"Push radius|Description|group=Pushing|range=0..20|unit=m"`. This may not need changes to `core/Reflect.h`, which would change the simulation version. Check that labels stay out of the content hash and how translation keys are affected before starting.
-2. ★ Groups, foldouts and tabs: `samples/sandbox/sim/Tuning.h` groups its 37 fields only in source comments (Match, Pushing, Respawn/AI), and the panel shows them with no such groups.
-3. ★ Ranges and units: sliders, min/max, unit text and a drag speed that fits the value. Every float currently drags at 0.01 (`FieldEditor.cpp`).
-4. ★ Asset and event pickers: string fields such as `sound` and `effect` in `feedback.table` are typed by hand. Add a searchable drop-down, drag and drop, and a preview button.
+1. [x] ★ Field attribute syntax: extend the existing `"name|description"` label, for example `"Push radius|Description|group=Pushing|range=0..20|unit=m"`. This may not need changes to `core/Reflect.h`, which would change the simulation version. Check that labels stay out of the content hash and how translation keys are affected before starting.
+2. [x] (groups and foldouts; no tabs yet) ★ Groups, foldouts and tabs: `samples/sandbox/sim/Tuning.h` groups its 37 fields only in source comments (Match, Pushing, Respawn/AI), and the panel shows them with no such groups.
+3. [x] ★ Ranges and units: sliders, min/max, unit text and a drag speed that fits the value. Every float currently drags at 0.01 (`FieldEditor.cpp`).
+4. [ ] (searchable drop-down done; drag and drop and a preview button remain) ★ Asset and event pickers: string fields such as `sound` and `effect` in `feedback.table` are typed by hand. Add a searchable drop-down, drag and drop, and a preview button.
 5. Conditional fields: `showIf=teams>0` hides or dims fields that don't apply.
 6. Required and validated fields: `required` and `validate` mark the row and report to the Problems panel (item 11).
 7. Search inside the inspector and [Tuning]: by name, description, and "only values that differ from the default".
@@ -640,9 +640,7 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 4. Visuals and finish: 29 (viewport handles), 35 (density and colors).
 
 ### Open design questions
-- Attribute syntax: stay in the label string, or add real metadata to `MEALKIT_FIELD` (which changes `core/Reflect.h` and so the simulation version)?
-- Scene tree folders: stored in `.scene` (an object kind, possibly in the content hash) or in `build\editor\<scene>.view` (per user, not shared)?
-- Data hub: does it replace the separate panels, or sit beside them?
+Decided 2026-11-04 (`docs/DECISIONS.md`): attributes in the label string, scene tree folders in `.scene` outside the content hash, and the data hub replaces the separate panels.
 
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 

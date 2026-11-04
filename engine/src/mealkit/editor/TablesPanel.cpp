@@ -317,6 +317,11 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
             if (label.tooltip.empty()) ImGui::SetTooltip("%s\n%s", ImGui::TableGetColumnName(column), path.c_str());
             else ImGui::SetTooltip("%s\n%s\n%s", ImGui::TableGetColumnName(column), trData(label.tooltip.c_str()), path.c_str());
         }
+        std::vector<FieldLabel> attributes; // ranges, units and pickers of top-level fields also apply in cells
+        for (const std::string& c : doc.columns) {
+            const reflect::FieldInfo* field = t.rowType->field(c.c_str());
+            attributes.push_back(field ? splitFieldLabel(field->label) : FieldLabel{});
+        }
         ImGuiListClipper clipper;
         clipper.Begin(static_cast<int>(t.rows.size()));
         while (clipper.Step()) {
@@ -349,14 +354,15 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                         }
                     }
                 }
-                for (const std::string& path : doc.columns) {
+                for (size_t c = 0; c < doc.columns.size(); ++c) {
+                    const std::string& path = doc.columns[c];
                     ImGui::TableNextColumn();
                     const reflect::ValueInfo* value = nullptr;
                     void* data = nullptr;
                     if (!reflect::resolvePath(*t.rowType, t.rows[r].data(), path, value, data)) continue;
                     ImGui::PushID(path.c_str());
                     ImGui::SetNextItemWidth(-FLT_MIN);
-                    if (drawValueWidget("##v", path.c_str(), *value, data, &context)) changed();
+                    if (drawValueWidget("##v", path.c_str(), *value, data, &context, &attributes[c])) changed();
                     ImGui::PopID();
                 }
                 ImGui::PopID();
