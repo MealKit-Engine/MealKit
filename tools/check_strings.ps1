@@ -80,7 +80,7 @@ foreach ($file in Get-ChildItem $engineDir -File -Include *.cpp, *.h -Recurse) {
         if ($strings.Count -gt 0) {
             # "name|description|group=...|range=...": name, description and group are translated, the other attributes aren't text (FieldEditor.h)
             foreach ($part in (Unescape-C $strings[$strings.Count - 1].Groups[1].Value) -split '\|') {
-                if ($part -match '^(range|step|unit|pick)=') { continue }
+                if ($part -match '^(range|step|unit|pick|gizmo)=') { continue }
                 Add-Key ($part -replace '^group=', '') $file.Name
             }
         }

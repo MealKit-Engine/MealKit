@@ -31,7 +31,7 @@ inline constexpr const char* kTypeTerrain = "terrain"; // heightmap terrain (col
 MEALKIT_STRUCT(PointLightFields) {
     MEALKIT_FIELD(Color, color, (Color::rgb(255, 214, 160)), "Light color");
     MEALKIT_FIELD(f32, intensity, 3.0f, "Intensity");
-    MEALKIT_FIELD(f32, range, 6.0f, "Range (m)");
+    MEALKIT_FIELD(f32, range, 6.0f, "Range (m)|gizmo=radius");
 };
 
 // Fields of reverb zones: while the listener is inside the box (the smallest one if several), buses with reverb use these values

@@ -43,6 +43,12 @@ Review of 1600×900 and 1280×720 captures.
 - **Scene tree folders**: `Entity::folder` is a path saved as a `folder` line (`.scene` format 5) and left out of the content hash, so it needs no folder objects and empty folders don't exist. Drag objects onto a folder, or use **Move to Folder...**; folders can be renamed or removed, with undo. Changing `scene/` and `core/` changes the simulation version of every game; simulation results don't change.
 - **Asset grid** (`AssetThumbnails.h`): the [Assets] slider switches between the list and a grid. Models are drawn one per frame to small targets and redrawn when the file changes, up to 128 for the session. Nothing is cached on disk yet, and targets are not freed until the editor closes. Known issue: the first cell's name loses its first letter (`ring.glb` shows as `ing.glb`), cause not found; the tooltip has the full path.
 
+## Editor usability, viewport handles and density (v0.9.x, 2026-11-04)
+
+- **Viewport handles**: an f32 field labeled `gizmo=radius` draws three circles around the selected object and a handle that drags the value, as one undo step. The point light's range uses it. `gizmo=point` isn't done: nothing uses it yet.
+- **Compact rows** (Preferences > Interface, `--compact` for captures): half the vertical padding and spacing.
+- **Color tokens** (`EditorColors.h`): danger, warning, good, changed and play replace literal colors of those meanings in the main panels. Toolbar icons aren't done.
+
 ## Game UI editor in the editor (v0.9.x)
 
 - **Step 1, editable `.ui` source** (2026-11-04, `engine/libs/mkui/include/mkui/Source.h`): `parseSource`/`writeSource` keep a `.ui` file as written (comments, blank lines, property order, `$theme` tokens, `use` components and `set` lines) as a tree of nodes whose items are lines or child places, so a save changes only the lines an edit touched. `Document` can't be written back because it inlines components and resolves number tokens; the panel will edit the source, write it, and read it again with `parseDocument` (one parser). `mapDocumentNodes` maps each `Document` node to its source node (nodes inside a component map to the `use` node). Edits: `getProperty`/`setProperty`/`removeProperty` by leading words (`pos`, `on hover fill`, `set label color`, `span 1`; a new line goes after the node's last property line), `addNode`/`removeNode`/`moveNode` by child-index paths (the board can't move or go, a node can't move into itself). Penpot exports are flagged (`Source::exported`) for read-only opening.

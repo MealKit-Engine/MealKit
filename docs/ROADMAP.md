@@ -620,7 +620,7 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 28. Reverse references: which scenes and tables use this asset, reusing the reference search behind renaming.
 
 ### [ ] More visual tools
-29. ★ Fields linked to the viewport: `gizmo=radius` and `gizmo=point` draw values such as the push radius as spheres and handles that can be dragged.
+29. [x] (`gizmo=radius` only, on scene object fields; no `gizmo=point`, tuning values have no place in the scene) ★ Fields linked to the viewport: `gizmo=radius` and `gizmo=point` draw values such as the push radius as spheres and handles that can be dragged.
 30. Viewport icons and labels for spawns, cameras and probes, toggled per kind.
 31. Small preview window for the selected virtual camera.
 32. Table visuals: sorting, filtering, color chips, number bars and a row detail pane for long values.
@@ -628,7 +628,7 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 34. Tuning A/B presets: switch saved value sets during play, and show differences from the file.
 
 ### [ ] Shared UI and workflow
-35. ★ Display density and color rules: a compact mode (rows are large at 900p), one set of color tokens for accent, danger, changed and play, and icons with tooltips on the viewport toolbar.
+35. [x] (compact mode and color tokens; toolbar icons not done) ★ Display density and color rules: a compact mode (rows are large at 900p), one set of color tokens for accent, danger, changed and play, and icons with tooltips on the viewport toolbar.
 36. [x] ★ Stronger command palette: it only matches substrings today. Add fuzzy matching, Korean initial-consonant search, recent items, and search over assets, table rows and tuning fields.
 37. Scene switcher next to the play button, and rebindable shortcuts built on the command table.
 38. Context hints: replace the fixed status bar text with hints for the current tool and hovered item.
