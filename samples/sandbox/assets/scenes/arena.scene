@@ -1,11 +1,22 @@
 # MealKit scene
-@format scene 2
+@format scene 5
 
-sun 0.400000006 0.800000012 0.300000012
-sunColor 1 0.949999988 0.850000024
-sky 0.180000007 0.360000014 0.850000024
-groundColor 0.200000003 0.170000002 0.140000001
-fog 0.550000012 0.699999988 0.949999988 0.00300000003
+sun 0.4 0.8 0.3
+sunColor 1 0.95 0.85
+sky 0.18 0.36 0.85
+groundColor 0.2 0.17 0.14
+fog 0.55 0.7 0.95 0.003
+post toneMapping true
+post punchy true
+post exposure 0
+post lut 
+post bloomIntensity 0.25
+post bloomThreshold 1
+post bloomTint 1 1 1
+post vignette 0
+post vignetteSmoothness 0.5
+post grain 0
+post chromaticAberration 0
 
 entity
 id 1
@@ -67,7 +78,7 @@ id 6
 name Ramp
 kind solid
 position 18 1.25 -10
-rotation 0 0 0.130526185 0.991444886
+rotation 0 0 0.13052619 0.9914449
 scale 10 0.5 4
 color FF6EA0C4
 flags 0
@@ -88,7 +99,7 @@ entity
 id 8
 name Pillar A
 kind solid
-position -7.36503649 2 14.0621119
+position -7.3650365 2 14.062112
 rotation 0 0 0 1
 scale 2 4 2
 color FFB6AAAA
@@ -111,7 +122,7 @@ id 10
 name Block
 kind solid
 position -20 1 -15
-rotation 0 0.258819044 0 0.965925813
+rotation 0 0.25881904 0 0.9659258
 scale 6 2 3
 color FFC87896
 flags 0
@@ -122,7 +133,7 @@ id 11
 name Crate
 kind solid
 position 0 1 25
-rotation 0 0.382683426 0 0.923879504
+rotation 0 0.38268343 0 0.9238795
 scale 4 2 4
 color FF508CCD
 flags 0
@@ -132,9 +143,9 @@ entity
 id 12
 name Banner
 kind decoration
-position 0 6 -59.9000015
+position 0 6 -59.9
 rotation 0 0 0 1
-scale 14 5 0.200000003
+scale 14 5 0.2
 color FF3C3CC8
 flags 0
 end
@@ -143,7 +154,7 @@ entity
 id 13
 name Spawn 1
 kind spawn
-position -6 0.899999976 -6
+position -6 0.9 -6
 rotation 0 0 0 1
 scale 1 1 1
 color FF5ADCFF
@@ -154,7 +165,7 @@ entity
 id 14
 name Spawn 2
 kind spawn
-position 6 0.899999976 6
+position 6 0.9 6
 rotation 0 0 0 1
 scale 1 1 1
 color FF5ADCFF
@@ -165,7 +176,7 @@ entity
 id 15
 name Spawn 3
 kind spawn
-position 6 0.899999976 -6
+position 6 0.9 -6
 rotation 0 0 0 1
 scale 1 1 1
 color FF5ADCFF
@@ -176,7 +187,7 @@ entity
 id 16
 name Spawn 4
 kind spawn
-position -6 0.899999976 6
+position -6 0.9 6
 rotation 0 0 0 1
 scale 1 1 1
 color FF5ADCFF
@@ -189,7 +200,7 @@ name Tree 1
 kind solid
 position -30 0 30
 rotation 0 0 0 1
-scale 1.60000002 1.60000002 1.60000002
+scale 1.6 1.6 1.6
 model models/tree.glb
 color FFFFFFFF
 flags 0
@@ -200,8 +211,8 @@ id 18
 name Tree 2
 kind solid
 position -36 0 22
-rotation 0 0.382683426 0 0.923879504
-scale 1.29999995 1.29999995 1.29999995
+rotation 0 0.38268343 0 0.9238795
+scale 1.3 1.3 1.3
 model models/tree.glb
 color FFFFFFFF
 flags 0
@@ -212,8 +223,8 @@ id 19
 name Tree 3
 kind solid
 position 32 0 34
-rotation 0 0.258819044 0 0.965925813
-scale 1.79999995 1.79999995 1.79999995
+rotation 0 0.25881904 0 0.9659258
+scale 1.8 1.8 1.8
 model models/tree.glb
 color FFFFFFFF
 flags 0
@@ -225,7 +236,7 @@ name Tree 4
 kind solid
 position 40 0 -32
 rotation 0 0 0 1
-scale 1.39999998 1.39999998 1.39999998
+scale 1.4 1.4 1.4
 model models/tree.glb
 color FFFFFFFF
 flags 0
@@ -236,8 +247,8 @@ id 21
 name Tree 5
 kind solid
 position -42 0 -36
-rotation 0 0.5 0 0.866025388
-scale 1.70000005 1.70000005 1.70000005
+rotation 0 0.5 0 0.8660254
+scale 1.7 1.7 1.7
 model models/tree.glb
 color FFFFFFFF
 flags 0
@@ -248,7 +259,7 @@ id 22
 name Rock 1
 kind solid
 position 12 0 22
-rotation 0 0.258819044 0 0.965925813
+rotation 0 0.25881904 0 0.9659258
 scale 1.5 1.5 1.5
 model models/rock.glb
 color FFFFFFFF
@@ -261,7 +272,7 @@ name Rock 2
 kind solid
 position -28 0 2
 rotation 0 0 0 1
-scale 2.20000005 2 2.20000005
+scale 2.2 2 2.2
 model models/rock.glb
 color FFFFFFFF
 flags 0
@@ -272,8 +283,8 @@ id 24
 name Rock 3
 kind solid
 position 36 0 8
-rotation 0 0.707106769 0 0.707106769
-scale 1.29999995 1.29999995 1.29999995
+rotation 0 0.70710677 0 0.70710677
+scale 1.3 1.3 1.3
 model models/rock.glb
 color FFFFFFFF
 flags 0
@@ -295,9 +306,9 @@ entity
 id 26
 name Jump Pad
 kind JumpPad
-position 0 0.0500000007 -14
+position 0 0.05 -14
 rotation 0 0 0 1
-scale 3 0.100000001 3
+scale 3 0.1 3
 color FF3CC8F0
 flags 0
 field power 14
@@ -340,8 +351,25 @@ flags 0
 field body Fixed
 field priority 20
 field active false
+field follow 
 field lookAt Platform
+field height 0.8
+field distance 18
+field minDistance 4
+field maxDistance 80
+field yaw 45
+field pitch 30
+field minPitch -6
+field maxPitch 83
+field orbitSpeed 5
+field fov 0
+field deadZone 0
+field damping 0
+field collisionRadius 0.3
 field blendSeconds 1.5
+field ease EaseInOut
+field rail 
+field moveSpeed 10
 end
 
 entity
@@ -355,4 +383,18 @@ color FFB48CFF
 flags 0
 field roomSize 0.8
 field wet 0.45
+end
+
+entity
+id 31
+name 점광원 31
+kind point_light
+position 0 0.9 5.742668
+rotation 0 0 0 1
+scale 1 1 1
+color FF5ADCFF
+flags 0
+field color #FFD6A0
+field intensity 3
+field range 6
 end
