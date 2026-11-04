@@ -721,6 +721,72 @@ The surface shader item itself stays in "Opt-in rendering features". T6~T8 are t
 - Parameter storage: the material record is a fixed 128 bytes, read for every material. Do custom parameters get a separate table in the upload ring?
 - Vulkan and later backends: surface files compile to DXIL and SPIR-V like engine shaders; stage 5 conversion (`docs/CHANGELOG.md` "Other backends") must also cover them.
 
+## Roles and tools review (proposed 2026-11-04, not scheduled)
+
+A 2026-11-04 pass over every game development role: how each should work, and whether that work belongs in an external tool or in ours. It applies criterion ④ role by role. **Nothing here is decided yet**: pick items before work starts, and put open design questions in `docs/DECISIONS.md` first. It comes from this roadmap, the decision log, READMEs, file lists and keyword searches, not from running each feature, so check an item's "now" before building on it. The D and T items keep their own sections and are only referenced here.
+
+**Conclusion**: most roles work in external tools and need only a connection from us. Few roles need a large new feature. The real gaps are in the work roles share: collaboration setup, installing the tools, and capture for trailers.
+
+**How to sort a job**:
+1. Can the result be judged away from our runtime and simulation? Then it stays in an external tool (modeling, composing, scheduling).
+2. Can it be judged only inside the real game? Then it's made externally, and we build the import, preview and checks (textures, materials, animation).
+3. Is it tied to our data formats or determinism rules? Then it's done in the editor or a MealKit tool (tuning, scenes, rule data, replays).
+
+### Roles
+
+| Role | How they work | Now | What we'd add |
+|---|---|---|---|
+| Systems and balance design | Documents in an external tool; numbers in the editor, checked with bot matches | [Tables], [Tuning], [Balance], [Tests] | Ours: D8, D9 |
+| Level design | Places and playtests in the editor; rough shapes in Blender | Scenes, terrain brushes, prefabs | Ours: D9 triggers, platforms, timers |
+| Narrative | Writes in a dedicated external dialogue tool, then imports | No dialogue system (only the sound item "dialogue lines" in "Audio features after v1.0") | External + module: R4, when a game needs it |
+| Gameplay programming | VS Code or Visual Studio, hot reload, SimCheck | Covered | Nothing (own IDE stays deferred) |
+| Engine and network programming | RenderDoc/PIX, Tracy, `mp_test`, `desync_diff` | Covered | Nothing |
+| Concept art | Krita, Photoshop | No contact with the engine | Nothing |
+| 3D modeling and rigging | Blender + MealKit add-on | Export checks, budget warnings | Nothing |
+| Texture art | Substance Painter, Krita → glTF | Texture cache, [Look Dev] | Connection: T4 |
+| Animation | Blender; playback and state table in the engine | State table, animation events | Connection: IK and root motion when a game asks (deferred table) |
+| Technical art | Surface shader functions, diagnosis with view modes | T1~T11, proposals only | Ours: T1, T2, T4, T6~T8 |
+| VFX | Effects section of [Feedback] | Own particle runtime | Ours: mesh and GPU particles as opt-ins |
+| UI/UX | [UI] panel; Penpot optional | Panel editing done | Nothing (Figma when designers can only use Figma) |
+| Sound and music | Reaper, Audacity, a DAW → MealKit Audio | Live connection included | Ours: "Audio features after v1.0" |
+| Cinematics | Blender camera animation | No sequencer (decided) | Nothing (revisit under the deferred row's condition) |
+| Localization | External translation tool such as Weblate or Crowdin | Per-language string files, font glyph check | Connection: R5 |
+| QA | F9 reports → MealKit-QA → scenarios; issues in an external tracker | Covered | Nothing |
+| Build and release | CI, Export, store upload tools | D1 shared folder | Connection: R6; D1's check on a real PC |
+| Production | Linear, Jira, Notion | Not applicable | Nothing, on purpose |
+| Data analysis | External analytics service + replays | No telemetry | Module: R7 |
+| Marketing | DaVinci, OBS, store pages | No capture mode found | Ours: R3 |
+
+### Shared gaps
+- [ ] R1. ★ **Collaboration setup** (S). `templates/project` has `.gitignore` but no `.gitattributes`, and neither the decision log nor the manual mentions Git LFS or how to handle merge conflicts. Once artists join, `.blend` and PNG files pile up in git history, and two people editing one scene have no documented way to resolve it. Add a `.gitattributes` to the template (bumps `VERSION`) and a manual page in English and Korean. Best done before publication, since new projects copy the template.
+- [ ] R2. ★ **Installing without a build** (M). D1 solved getting game code from a shared folder, but the engine and editor binaries are still copied by hand ("Designer independence"). A designer or artist gets stuck on the first day here. The Manager downloads or copies an engine build and registers it. Needs a published engine binary to exist first.
+- [ ] R3. **Free camera in replays** (M). Input replays already exist and `scene/Scene.h` already has a player-moved spectator camera mode (`Free`), so this may be mostly connecting them, plus hiding the UI and stepping time. Serves trailers, screenshots and QA reproduction. View-side, so determinism isn't affected.
+- [ ] R4. **Where dialogue state lives** (decision first, S). Whether dialogue progress is simulation state or view state decides how it syncs in multiplayer. Record it in `docs/DECISIONS.md` before any module is written. The authoring tool stays external.
+
+### Later, when a game asks
+- R5. Translation exchange: convert string files to and from a translation tool's format, and report missing keys and text that overflows its box.
+- R6. Store upload script around `steamcmd`, called after Export.
+- R7. Analytics module: needs a server, so it stays outside the engine.
+
+### Not to build
+- Scheduling, issue tracking and document tools: good external tools exist and they have no contact with the engine.
+- Modeling, texture painting and composing tools: we can't catch up with existing tools, and artists want the ones they know.
+- Visual scripting and a sequencer: already ruled out, and D9's rule rows cover most of that need.
+
+### Suggested order
+1. R1: before publication.
+2. D9 → D4 → D8, as already ordered in "Designer independence".
+3. T1, T2, T4: small, and needed once art work starts.
+4. R3: when FuseTag needs a trailer. R2 once a published engine binary exists.
+5. R4 and R5~R7 wait for a game that asks.
+
+**Engine freeze**: the exceptions in `docs/DECISIONS.md` 2026-11-04 don't cover these. R2 is mostly Manager work and R3 should be editor and view-side only, so neither looks likely to touch the frozen contracts, but neither is designed yet and R3 needs a row before v1.0.
+
+### Open design questions
+- R1: is Git LFS the default or only a recommendation? Hosting quotas are a cost for free users. Do `.scene` files merge cleanly as text, or do they need a merge rule? This hasn't been tested.
+- R2: where do engine binaries come from, and how do they match a project's `engineVersion`?
+- R3: where does the camera live during a replay in the shipping exe, the editor, or both? Does a shipped game offer it to players as a photo mode, or is it dev-only?
+
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 
 Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then the next work is the QA, optimization and audio items below, and the repos are published after them (`docs/DECISIONS.md` 2026-11-02). The remaining designer independence items (D9, D4, D8) are also meant to land before publication (`docs/DECISIONS.md` 2026-11-04).
@@ -754,7 +820,7 @@ Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then
 - Editor polish (after stage 2, before stage 3): layout → log console → notifications → command palette → preferences/F1 → scene tree search → multi-select → viewport toolbar → snapping → camera controls → inspector conveniences → performance panel → jump to code → debug drawing → multiple scenes → play from here → asset browser **(v0.6.x)**
 3. ~~Replays~~ → ~~desync diagnosis~~ → ~~mid-match joining~~ → ~~bug report bundles~~ → ~~host migration~~ → ~~EOS backend part 1~~ → ~~crash reports (pulled from stage 4)~~ **(v0.7)**. Not blocking v0.7: EOS measurements (two PCs, portal setup). If the first game genre fits: local multiplayer on one PC
 4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → ~~character movement modes (kinematic → floating → active ragdoll)~~ → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → ~~prefabs~~ → ~~terrain (+ scatter brush)~~ → ~~Job System~~ → ~~spatial audio/interactive music~~ → ~~asset cooking + pack files~~ → ~~performance baseline check~~ → ~~empty project template~~ → second reference sample (co-op third person) **(v0.8)**
-4½. While other-OS devices are missing: ~~Game QA 2~~ → ~~optimization (measured)~~ → ~~audio golden tests~~ → publication preparation → repos made public (user). Alongside (v0.9.x): ~~game UI editor in the [UI] panel~~ → ~~editor usability ★ items~~ → ~~designer independence D1, D2, D3, D5, D6, D7~~ → D9 (before FuseTag M6) → D4 → D8. Not scheduled: the rest of the editor usability items, technical artist T1~T5 and T10 (each needs an exception row before v1.0)
+4½. While other-OS devices are missing: ~~Game QA 2~~ → ~~optimization (measured)~~ → ~~audio golden tests~~ → publication preparation → repos made public (user). Alongside (v0.9.x): ~~game UI editor in the [UI] panel~~ → ~~editor usability ★ items~~ → ~~designer independence D1, D2, D3, D5, D6, D7~~ → D9 (before FuseTag M6) → D4 → D8. Not scheduled: the rest of the editor usability items, technical artist T1~T5 and T10 (each needs an exception row before v1.0), roles review R1~R4 (R1 before publication if picked)
 5. Contract freeze review → cookbook docs **(v0.9)** → contracts frozen **(v1.0)** → cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v1.x)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
 - Opt-in rendering (after v1.0, one at a time): surface shaders with technical artist T6~T9 and T11 → other features in the order of "Opt-in rendering features"
 - Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects (pulled forward by D9) → health/damage → procedural generation → inventory → minimap → ai)
