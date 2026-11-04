@@ -70,6 +70,17 @@ Review of 1600×900 and 1280×720 captures.
 - **`--input "move x y; down; wait 2; up; key ctrl+z; type abc; command Save; print"`** (`Editor::runTestInput`) sends mouse and keys one step per frame, and `print` writes an `INPUT` line with the selection, undo count and fields. Clicking, gizmo and handle drags, undo, multi-object edits, folder moves, problem clicks and docking beside the scene tab were checked with it by hand-written scripts.
 - **Bugs it found**: the first grid cell lost 5 pixels of picture and name, because a Selectable's rectangle reaches past its position. The scene tree row menu opened only on the lock toggle, because the toggles became the last item. A multi-object edit on an object whose scene lines leave out defaults overwrote every field of the others, not just the changed one.
 
+## Editor search, table views and remaining field work (v0.9.x, 2026-11-04)
+
+- **Field search**: the inspector, [Tuning] and project settings have a search box; [Tuning] also has **Only changed**, and now shows default dots and reset. Searching drops the group headers.
+- **Field attributes**: `showIf=flash>0` hides a field (feedback rows use it), and `required` tints an empty string and adds a [Problems] line for tuning, scene objects and table rows (`Action::label` uses it).
+- **Pickers**: a play button previews the sound or effect, and files dragged from [Assets] drop on effect fields. Sound events have no file, so they can't be dropped.
+- **Tables**: filter over ids and values, click a header to sort (the file keeps its order, and moving rows is off meanwhile), bars under ranged numbers, and a list of the chosen row's fields below.
+- **Multi-object transforms**: inspector position, rotation and scale changes apply to the other selected objects as the same move, turn and scale. Names stay one at a time.
+- **[Assets] > Find Uses** lists text files naming the asset, the way a rename finds them. Effects and sound events named without their path aren't found.
+- **Scene switcher** by the play button; palette recents kept per project (`build\\editor\\palette_recent.txt`); **View > Layout** saves named layouts per user.
+- **[State] graphs**: add a field path; one sample per frame for ten seconds.
+
 ## Game UI editor in the editor (v0.9.x)
 
 - **Step 1, editable `.ui` source** (2026-11-04, `engine/libs/mkui/include/mkui/Source.h`): `parseSource`/`writeSource` keep a `.ui` file as written (comments, blank lines, property order, `$theme` tokens, `use` components and `set` lines) as a tree of nodes whose items are lines or child places, so a save changes only the lines an edit touched. `Document` can't be written back because it inlines components and resolves number tokens; the panel will edit the source, write it, and read it again with `parseDocument` (one parser). `mapDocumentNodes` maps each `Document` node to its source node (nodes inside a component map to the `use` node). Edits: `getProperty`/`setProperty`/`removeProperty` by leading words (`pos`, `on hover fill`, `set label color`, `span 1`; a new line goes after the node's last property line), `addNode`/`removeNode`/`moveNode` by child-index paths (the board can't move or go, a node can't move into itself). Penpot exports are flagged (`Source::exported`) for read-only opening.

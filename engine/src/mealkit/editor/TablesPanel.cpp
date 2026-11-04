@@ -7,6 +7,8 @@
 #include "mealkit/platform/Paths.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdlib>
 #include <cstring>
 
 #include <imgui.h>
@@ -167,6 +169,8 @@ void TablesPanel::collectProblems(std::vector<std::pair<int, std::string>>& out)
         for (size_t i = 0; i < doc.data.rows.size(); ++i)
             data::resolveRows(*doc.data.rowType, doc.data.rows[i].data(), m_index, &found,
                               std::string(doc.info.path) + " " + doc.data.ids[i] + ": ");
+        for (size_t i = 0; i < doc.data.rows.size(); ++i)
+            collectRequired(*doc.data.rowType, doc.data.rows[i].data(), std::string(doc.info.path) + " " + doc.data.ids[i] + ": ", found);
         for (std::string& text : found) out.emplace_back(static_cast<int>(d), std::move(text));
     }
 }
@@ -246,6 +250,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         changed();
     }
     const bool hasRow = doc.selected >= 0 && doc.selected < static_cast<int>(t.rows.size());
+    const bool viewChanged = m_rowFilter[0] != 0 || m_sorted; // moving rows only makes sense in file order
     ImGui::BeginDisabled(!hasRow);
     ImGui::SameLine();
     if (ImGui::Button(tr("Duplicate"))) {
@@ -266,7 +271,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         changed();
     }
     ImGui::SameLine();
-    if (ImGui::ArrowButton("##up", ImGuiDir_Up) && doc.selected > 0) {
+    if (ImGui::ArrowButton("##up", ImGuiDir_Up) && doc.selected > 0 && !viewChanged) {
         const size_t i = static_cast<size_t>(doc.selected);
         std::swap(t.ids[i], t.ids[i - 1]);
         std::swap(t.rows[i], t.rows[i - 1]);
@@ -274,7 +279,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         changed();
     }
     ImGui::SameLine();
-    if (ImGui::ArrowButton("##down", ImGuiDir_Down) && doc.selected + 1 < static_cast<int>(t.rows.size())) {
+    if (ImGui::ArrowButton("##down", ImGuiDir_Down) && doc.selected + 1 < static_cast<int>(t.rows.size()) && !viewChanged) {
         const size_t i = static_cast<size_t>(doc.selected);
         std::swap(t.ids[i], t.ids[i + 1]);
         std::swap(t.rows[i], t.rows[i + 1]);
@@ -316,12 +321,17 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
 
     // ---- Cells
     FieldContext context{&m_index};
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 14.0f);
+    ImGui::InputTextWithHint("##rowFilter", tr("Filter rows"), m_rowFilter, sizeof(m_rowFilter));
+    const bool rowSelected = doc.selected >= 0 && doc.selected < static_cast<int>(t.rows.size());
+    const f32 detailHeight = rowSelected ? ImGui::GetContentRegionAvail().y * 0.35f : 0.0f;
     const int columns = 2 + static_cast<int>(doc.columns.size());
     const ImGuiTableFlags flags = ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable |
-                                  ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit;
-    if (columns <= 64 && ImGui::BeginTable("##rows", columns, flags, ImVec2(0.0f, 0.0f))) {
+                                  ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit |
+                                  ImGuiTableFlags_Sortable | ImGuiTableFlags_SortTristate;
+    if (columns <= 64 && ImGui::BeginTable("##rows", columns, flags, ImVec2(0.0f, -detailHeight))) {
         ImGui::TableSetupScrollFreeze(2, 1);
-        ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 28.0f);
+        ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed | ImGuiTableColumnFlags_NoSort, 28.0f);
         ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_WidthFixed, 110.0f);
         for (const std::string& c : doc.columns) {
             // Column names: for top-level fields their description (text declared by the game), inner paths (a.b, a[1]) as is. CSV column names are paths
@@ -342,18 +352,57 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
             if (label.tooltip.empty()) ImGui::SetTooltip("%s\n%s", ImGui::TableGetColumnName(column), path.c_str());
             else ImGui::SetTooltip("%s\n%s\n%s", ImGui::TableGetColumnName(column), trData(label.tooltip.c_str()), path.c_str());
         }
+        // Rows to show: the filter over ids and values, then the clicked column. File order is unchanged
+        std::vector<int> order;
+        const ImGuiTableSortSpecs* sort = ImGui::TableGetSortSpecs();
+        const bool sorting = sort && sort->SpecsCount > 0;
+        m_sorted = sorting;
+        std::vector<reflect::TextFields> texts;
+        if (m_rowFilter[0] || sorting) {
+            texts.resize(t.rows.size());
+            for (size_t i = 0; i < t.rows.size(); ++i) reflect::toText(*t.rowType, t.rows[i].data(), texts[i]);
+        }
+        const auto hasText = [this](const std::string& text) {
+            const std::string needle = m_rowFilter;
+            return std::search(text.begin(), text.end(), needle.begin(), needle.end(), [](char a, char b) { return std::tolower(static_cast<unsigned char>(a)) == std::tolower(static_cast<unsigned char>(b)); }) != text.end();
+        };
+        for (int i = 0; i < static_cast<int>(t.rows.size()); ++i) {
+            bool show = !m_rowFilter[0] || hasText(t.ids[static_cast<size_t>(i)]);
+            if (!show)
+                for (const auto& field : texts[static_cast<size_t>(i)]) show = show || hasText(field.second);
+            if (show) order.push_back(i);
+        }
+        if (sorting) {
+            const int column = sort->Specs[0].ColumnIndex;
+            const bool ascending = sort->Specs[0].SortDirection == ImGuiSortDirection_Ascending;
+            const auto cell = [&](int row) -> const std::string& {
+                if (column <= 1) return t.ids[static_cast<size_t>(row)];
+                return texts[static_cast<size_t>(row)][static_cast<size_t>(column - 2)].second;
+            };
+            std::stable_sort(order.begin(), order.end(), [&](int a, int b) {
+                const std::string& x = ascending ? cell(a) : cell(b);
+                const std::string& y = ascending ? cell(b) : cell(a);
+                char* endX = nullptr;
+                char* endY = nullptr;
+                const f32 nx = std::strtof(x.c_str(), &endX), ny = std::strtof(y.c_str(), &endY);
+                if (!x.empty() && !y.empty() && !*endX && !*endY) return nx < ny;
+                return x < y;
+            });
+        }
         std::vector<FieldLabel> attributes; // ranges, units and pickers of top-level fields also apply in cells
         for (const std::string& c : doc.columns) {
             const reflect::FieldInfo* field = t.rowType->field(c.c_str());
             attributes.push_back(field ? splitFieldLabel(field->label) : FieldLabel{});
         }
         ImGuiListClipper clipper;
-        clipper.Begin(static_cast<int>(t.rows.size()));
+        clipper.Begin(static_cast<int>(order.size()));
         if (m_scrollToRow >= 0) {
-            clipper.IncludeItemByIndex(m_scrollToRow);
+            const auto at = std::find(order.begin(), order.end(), m_scrollToRow);
+            if (at != order.end()) clipper.IncludeItemByIndex(static_cast<int>(at - order.begin()));
         }
         while (clipper.Step()) {
-            for (int row = clipper.DisplayStart; row < clipper.DisplayEnd; ++row) {
+            for (int shown = clipper.DisplayStart; shown < clipper.DisplayEnd; ++shown) {
+                const int row = order[static_cast<size_t>(shown)];
                 const size_t r = static_cast<size_t>(row);
                 ImGui::TableNextRow();
                 if (row == m_scrollToRow) {
@@ -395,12 +444,25 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                     ImGui::PushID(path.c_str());
                     ImGui::SetNextItemWidth(-FLT_MIN);
                     if (drawValueWidget("##v", path.c_str(), *value, data, &context, &attributes[c])) changed();
+                    if (value->kind == reflect::Kind::Float && attributes[c].hasRange) { // how far along its range, under the number
+                        const f32 share = std::clamp((*static_cast<const f32*>(data) - attributes[c].min) / (attributes[c].max - attributes[c].min), 0.0f, 1.0f);
+                        const ImVec2 lo = ImGui::GetItemRectMin(), hi = ImGui::GetItemRectMax();
+                        ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(lo.x, hi.y - 2.0f), ImVec2(lo.x + (hi.x - lo.x) * share, hi.y), ImGui::GetColorU32(ImGuiCol_PlotHistogram));
+                    }
                     ImGui::PopID();
                 }
                 ImGui::PopID();
             }
         }
         ImGui::EndTable();
+    }
+    // Long values are easier to edit in the chosen row's own list
+    if (rowSelected && doc.selected < static_cast<int>(t.rows.size())) {
+        if (ImGui::BeginChild("##rowDetail", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders)) {
+            ImGui::TextDisabled("%s", t.ids[static_cast<size_t>(doc.selected)].c_str());
+            if (drawFields(*t.rowType, t.rows[static_cast<size_t>(doc.selected)].data(), &context)) changed();
+        }
+        ImGui::EndChild();
     }
 }
 

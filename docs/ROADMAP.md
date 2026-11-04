@@ -587,10 +587,10 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 1. [x] ★ Field attribute syntax: extend the existing `"name|description"` label, for example `"Push radius|Description|group=Pushing|range=0..20|unit=m"`. This may not need changes to `core/Reflect.h`, which would change the simulation version. Check that labels stay out of the content hash and how translation keys are affected before starting.
 2. [x] (groups and foldouts; no tabs yet) ★ Groups, foldouts and tabs: `samples/sandbox/sim/Tuning.h` groups its 37 fields only in source comments (Match, Pushing, Respawn/AI), and the panel shows them with no such groups.
 3. [x] ★ Ranges and units: sliders, min/max, unit text and a drag speed that fits the value. Every float currently drags at 0.01 (`FieldEditor.cpp`).
-4. [ ] (searchable drop-down done; drag and drop and a preview button remain) ★ Asset and event pickers: string fields such as `sound` and `effect` in `feedback.table` are typed by hand. Add a searchable drop-down, drag and drop, and a preview button.
-5. Conditional fields: `showIf=teams>0` hides or dims fields that don't apply.
-6. Required and validated fields: `required` and `validate` mark the row and report to the Problems panel (item 11).
-7. Search inside the inspector and [Tuning]: by name, description, and "only values that differ from the default".
+4. [x] ★ Asset and event pickers: string fields such as `sound` and `effect` in `feedback.table` are typed by hand. Add a searchable drop-down, drag and drop, and a preview button.
+5. [x] Conditional fields: `showIf=teams>0` hides or dims fields that don't apply.
+6. [x] (`required` only; no `validate`) Required and validated fields: `required` and `validate` mark the row and report to the Problems panel (item 11).
+7. [x] Search inside the inspector and [Tuning]: by name, description, and "only values that differ from the default".
 8. List and array editing: add, remove and reorder. `MEALKIT_LIST` currently shows its count as a separate number field.
 9. [x] ★ Multi-object editing: the inspector currently edits only one object of a multi-selection. Edit shared fields together and show `—` for mixed values.
 10. Pinned and multiple inspectors for comparing objects, and remembering which sections are collapsed.
@@ -613,24 +613,24 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 23. Hover link: hovering a tree row highlights the object in the viewport, and the reverse.
 
 ### [ ] Asset browser
-24. [x] (kept in memory, not cached under `build/cache`) ★ Thumbnail grid with a size slider that switches between list and grid, reusing the [Look Dev] offscreen rendering and caching under `build/cache`.
+24. [x] (kept in memory: three to a few hundred models draw in moments, and showing a cached file needs a texture upload path) ★ Thumbnail grid with a size slider that switches between list and grid, reusing the [Look Dev] offscreen rendering and caching under `build/cache`.
 25. Search, kind filters, favorites, a folder path bar and recently used assets.
 26. [x] Scan cache: details in `docs/CHANGELOG.md`.
 27. Preview pane: triangle count, budget bar, sound waveform and a play button.
-28. Reverse references: which scenes and tables use this asset, reusing the reference search behind renaming.
+28. [x] Reverse references: which scenes and tables use this asset, reusing the reference search behind renaming.
 
 ### [ ] More visual tools
 29. [x] (`gizmo=radius` only, on scene object fields; no `gizmo=point`, tuning values have no place in the scene) ★ Fields linked to the viewport: `gizmo=radius` and `gizmo=point` draw values such as the push radius as spheres and handles that can be dragged.
 30. Viewport icons and labels for spawns, cameras and probes, toggled per kind.
 31. Small preview window for the selected virtual camera.
-32. Table visuals: sorting, filtering, color chips, number bars and a row detail pane for long values.
-33. Graphs of pinned [State] fields per tick, and event and desync markers on the existing play timeline.
+32. [x] Table visuals: sorting, filtering, color chips, number bars and a row detail pane for long values.
+33. [ ] Graphs of [State] fields are done (per frame). Event and desync markers on the play timeline remain.
 34. Tuning A/B presets: switch saved value sets during play, and show differences from the file.
 
 ### [ ] Shared UI and workflow
 35. [x] (compact mode and color tokens; toolbar icons not done) ★ Display density and color rules: a compact mode (rows are large at 900p), one set of color tokens for accent, danger, changed and play, and icons with tooltips on the viewport toolbar.
 36. [x] ★ Stronger command palette: it only matches substrings today. Add fuzzy matching, Korean initial-consonant search, recent items, and search over assets, table rows and tuning fields.
-37. Scene switcher next to the play button, and rebindable shortcuts built on the command table.
+37. [ ] The scene switcher is done. Rebindable shortcuts remain.
 38. Context hints: replace the fixed status bar text with hints for the current tool and hovered item.
 
 ### Suggested order

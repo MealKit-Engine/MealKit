@@ -75,6 +75,8 @@ private:
     char m_idBuffer[128] = {};
     int m_idRow = -1;
     int m_scrollToRow = -1;
+    char m_rowFilter[64] = {};
+    bool m_sorted = false;
 };
 
 } // namespace mealkit::editor
