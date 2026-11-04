@@ -11,7 +11,8 @@ namespace mealkit::editor {
 
 class SoundPanel {
 public:
-    void drawContent(audio::Engine& audio);
+    void drawPreview(audio::Engine& audio); // [Data] page: try sound events
+    void drawMonitor(audio::Engine& audio); // [Debug] page: buses, voices, culled plays
 
 private:
     std::string m_event;

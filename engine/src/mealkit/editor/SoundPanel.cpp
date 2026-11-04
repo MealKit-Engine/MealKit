@@ -29,14 +29,11 @@ const char* reasonText(const char* r) {
 
 } // namespace
 
-void SoundPanel::drawContent(audio::Engine& audio) {
+void SoundPanel::drawPreview(audio::Engine& audio) {
     if (!audio.ready()) {
         ImGui::TextDisabled("%s", tr("No audio output device."));
         return;
     }
-    const audio::Stats& st = audio.stats();
-    ImGui::Text("%s", trf("Voices: %u mixed, %u virtual | %.3f ms per frame", st.realVoices, st.virtualVoices, st.updateMs).c_str());
-
     // ---- Preview
     ImGui::SeparatorText(tr("Preview"));
     const std::vector<std::string> names = audio.eventNames();
@@ -67,6 +64,15 @@ void SoundPanel::drawContent(audio::Engine& audio) {
         ImGui::TextDisabled("%s", trf("%s | bus %s%s", clips.c_str(), def->bus.c_str(), def->loop ? " | loop" : "").c_str());
     }
     ImGui::TextDisabled("%s", tr("Edit sound events in MealKit Audio (Tools menu)."));
+}
+
+void SoundPanel::drawMonitor(audio::Engine& audio) {
+    if (!audio.ready()) {
+        ImGui::TextDisabled("%s", tr("No audio output device."));
+        return;
+    }
+    const audio::Stats& st = audio.stats();
+    ImGui::Text("%s", trf("Voices: %u mixed, %u virtual | %.3f ms per frame", st.realVoices, st.virtualVoices, st.updateMs).c_str());
 
     // ---- Buses
     ImGui::SeparatorText(tr("Buses"));

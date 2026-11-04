@@ -33,6 +33,8 @@ public:
     void setCurrent(int which) { m_current = which; }
     bool canStep(int which, bool back) const { return which >= 0 && which < docCount() && m_docs[static_cast<size_t>(which)].undo.canStep(back); }
     void step(int which, bool back);
+    void saveDoc(int which) { save(m_docs[static_cast<size_t>(which)]); }
+    void revertDoc(int which); // undoable
     // Saves all edited tables (before play starts: the game reads the files). false on failure.
     bool saveAll(std::string* status);
     bool dirty() const;

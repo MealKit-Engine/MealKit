@@ -190,6 +190,14 @@ void TablesPanel::drawContent(int which, void* owner, bool editing) {
     });
 }
 
+void TablesPanel::revertDoc(int which) {
+    Doc& doc = m_docs[static_cast<size_t>(which)];
+    UndoStack<data::TableText> history = doc.undo;
+    load(doc);
+    doc.undo = std::move(history);
+    doc.undo.mark();
+}
+
 void TablesPanel::step(int which, bool back) {
     if (which < 0 || which >= docCount()) return;
     Doc& doc = m_docs[static_cast<size_t>(which)];

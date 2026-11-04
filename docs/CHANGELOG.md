@@ -58,6 +58,13 @@ Review of 1600×900 and 1280×720 captures.
 
 - Log, Problems, Build Log, Performance and State are pages of one [Debug] window, a tab in the bottom strip with the problem count on it. The separate windows and tabs are gone; their commands open their page. A failed build, a notice and starting play open the right page.
 
+## Editor [Settings] and [Previews] windows (v0.9.x, 2026-11-04)
+
+- **[Settings]** (File menu): project settings, preferences, modules, tools and keyboard shortcuts under one list. Input bindings stay a [Data] table, so they keep one way in. The [Tools] menu still launches tools.
+- **[Previews]** (View menu): UI, Look Dev and cutscenes as tabs. The UI overlay and look dev rendering run only on their tab.
+- **Unsaved list**: the status bar shows `Unsaved: N` when documents differ from their files; clicking lists them with save and revert. Reverting tuning and tables can be undone; the scene asks for a second click because its undo steps don't survive; UI screens have no revert here.
+- **Smaller moves**: effects are their own [Data] page with undo; the sound preview stays in [Data] and buses, voices and culled plays moved to [Debug]; [History] has undo and redo for the open [Data] page.
+
 ## Game UI editor in the editor (v0.9.x)
 
 - **Step 1, editable `.ui` source** (2026-11-04, `engine/libs/mkui/include/mkui/Source.h`): `parseSource`/`writeSource` keep a `.ui` file as written (comments, blank lines, property order, `$theme` tokens, `use` components and `set` lines) as a tree of nodes whose items are lines or child places, so a save changes only the lines an edit touched. `Document` can't be written back because it inlines components and resolves number tokens; the panel will edit the source, write it, and read it again with `parseDocument` (one parser). `mapDocumentNodes` maps each `Document` node to its source node (nodes inside a component map to the `use` node). Edits: `getProperty`/`setProperty`/`removeProperty` by leading words (`pos`, `on hover fill`, `set label color`, `span 1`; a new line goes after the node's last property line), `addNode`/`removeNode`/`moveNode` by child-index paths (the board can't move or go, a node can't move into itself). Penpot exports are flagged (`Source::exported`) for read-only opening.

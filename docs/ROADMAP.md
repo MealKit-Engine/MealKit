@@ -598,11 +598,11 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 ### [ ] Gathering similar features
 11. [x] ★ Problems panel: missing model references ([Assets]), missing row references ([Tables]) and budget warnings (log, inspector) in one list, where clicking goes to the source. Similar in role to Odin Validator.
 12. [x] ★ Data hub: [Tuning], [Tables], [Feedback] and the [Sound] preview under one left-hand list, with a list showing unsaved marks in place of the table combo.
-13. Settings hub: project settings, preferences, input bindings, modules and tools in one window with navigation and search.
+13. [x] (input bindings stay a [Data] table) Settings hub: project settings, preferences, input bindings, modules and tools in one window with navigation and search.
 14. [x] (a [Debug] window with pages, not a layout preset) Diagnostics layout: log, build log, performance and state opened together as a layout preset.
-15. Unsaved documents list: scene, tuning, tables and UI changes in one place on the status bar, each with save and revert.
+15. [x] Unsaved documents list: scene, tuning, tables and UI changes in one place on the status bar, each with save and revert.
 16. Menu cleanup: [View] lacks Scenes, History, Tuning and State. List every panel in one menu.
-17. [x] (feedback effect files still have none) ★ Shared undo: [Tuning] and [Tables] have no undo, and deleting a row, reloading from file and restoring defaults happen without confirmation. Best done together with item 12.
+17. [x] ★ Shared undo: [Tuning] and [Tables] have no undo, and deleting a row, reloading from file and restoring defaults happen without confirmation. Best done together with item 12.
 
 ### [ ] Scene tree
 18. [x] (folders; no separators) ★ Folders and separators. A folder saved in `.scene` may affect the content hash, so decide where folders live first.
