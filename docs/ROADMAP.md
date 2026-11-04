@@ -650,8 +650,8 @@ Candidates from a 2026-11-04 review of the editor code and FuseTag, aimed at the
 
 ### Most frequent blocks
 - [ ] D1. **Editor without a C++ toolchain.** The editor builds game code when the DLL is missing or older than the sources or engine (`EditorMain.cpp`), and play is disabled without a DLL. Add a designer mode that takes a game DLL built by a programmer or CI and offers "get the latest build" instead of compiling. Check first: the real behavior on a PC with no compiler has not been tried, only read in the code.
-- [ ] D2. **Visual feedback columns.** The feedback table has sound, shake, flash, hit stop and particles, so FuseTag writes event lights, hit flash and bloom kicks as view code. Build part 1 items 1~3 of `docs/VISUAL_FEEDBACK.md` (event light, hit flash, glow kick). They reuse existing renderer parts: the best effect for the cost.
-- [ ] D3. **`playersFrom` feedback column.** Rows match only the event's `player` field, so the tagged player's reaction is played from code (FuseTag `GameSession.cpp`, `TagVictim`; its `docs/ENGINE_NOTES.md`). Small.
+- [x] D2. Visual feedback columns (event light, glow kick, hit flash) — 2026-11-04, details in `docs/CHANGELOG.md`.
+- [x] D3. `playersFrom` feedback column — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [ ] D4. **Squash and spring as data.** `ViewTuning` exposes the numbers, but which event triggers which motion is fixed in FuseTag `view/Juice.cpp`. Move the generic parts into the engine and add feedback columns such as `squash` and `wobble`.
 
 ### Workflow breaks

@@ -3,6 +3,11 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Feedback table: lights, kicks, hit flash, playersFrom (v0.9.x, 2026-11-04)
+
+- New `feedback.table` columns (keys only, old files read the same): `light*` (a fading point light at the event, 32 at most, added to the frame by `game::Frontend`), `bloomKick`/`exposureKick`/`kickSeconds`, `hitFlash*` with `targetFrom`, and `playersFrom` (which event field `players` compares). The flash setting scales lights, kicks and hit flash.
+- `hitFlash` needs view code: the table doesn't know instances, so the game passes `ctx.feedback.objectFlash(id)` to `render::instanceFlash`. Flash is toward white only. No reference sample or FuseTag row uses the columns yet, so this item has been built but not seen on screen.
+
 ## UI binding pickers (v0.9.x, 2026-11-04)
 
 - [UI] panel properties get a **Bindings** section: drop-downs of the preview view model's fields for `visible`, `disabled` (with Invert for `!`), `widthRatio` (float), `colorField` (color) and `list`, and Insert field for `content`. Inside a `list`, fields come from its element type.
