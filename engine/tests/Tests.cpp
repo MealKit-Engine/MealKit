@@ -59,6 +59,7 @@
 #include "mealkit/settings/Settings.h"
 #include "mealkit/ui/Document.h"
 #include "mealkit/ui/Ui.h"
+#include "mealkit/editor/UndoStack.h"
 #endif
 
 #include "TestRegistry.h"
@@ -2894,6 +2895,26 @@ void runFake(game::Simulation<FakeWorld>& sim, net::LockstepSession& session, u3
     auto onTick = [&](const FakeWorld& w) { events += w.events.size(); };
     for (u32 i = 0; i < ticks * 4 && sim.nextTick() < ticks; ++i) sim.update(session, 1.0 / 30.0, sample, onTick);
     TEST_CHECK(events == sim.nextTick() - before); // events go to the view side every tick
+}
+
+TEST_CASE(editor, undo_stack_steps) {
+    editor::UndoStack<int> undo;
+    undo.reset(1);
+    int value = 2;
+    undo.mark();
+    undo.settle(true, [&] { return value; }); // still dragging: no step yet
+    TEST_CHECK(!undo.canStep(true));
+    undo.settle(false, [&] { return value; });
+    TEST_CHECK(undo.canStep(true));
+    int out = 0;
+    TEST_CHECK(undo.step(true, out) && out == 1);
+    TEST_CHECK(undo.step(false, out) && out == 2);
+    TEST_CHECK(!undo.step(false, out));
+    TEST_CHECK(undo.step(true, out) && out == 1);
+    value = 3; // a new edit drops the redo side
+    undo.mark();
+    undo.settle(false, [&] { return value; });
+    TEST_CHECK(!undo.canStep(false));
 }
 
 TEST_CASE(game, simulation_shadow_and_rewind) {

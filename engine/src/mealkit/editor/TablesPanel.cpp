@@ -68,6 +68,7 @@ void TablesPanel::syncDocs(const std::vector<reflect::TableInfo>& infos) {
                 std::string warnings;
                 data::tableFromText(*info.rowType, doc.backup, doc.data, &warnings);
                 if (!warnings.empty()) MEALKIT_WARN("Table %s: %s", info.path, warnings.c_str());
+                doc.undo.reset(doc.backup);
             }
         } else {
             doc.info = info;
@@ -100,6 +101,9 @@ void TablesPanel::load(Doc& doc) {
     doc.dirty = false;
     doc.selected = -1;
     rebuildIndex();
+    data::TableText now;
+    if (doc.data.rowType) data::tableToText(doc.data, now);
+    doc.undo.reset(std::move(now));
 }
 
 bool TablesPanel::save(Doc& doc) {
@@ -154,44 +158,52 @@ std::string TablesPanel::uniqueId(const Doc& doc, const std::string& base) const
     }
 }
 
-void TablesPanel::draw(void* owner, bool editing, bool* open) {
-    ImGui::SetNextWindowSize(ImVec2(960.0f, 420.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(trl(kWindow), open)) {
-        ImGui::End();
-        return;
-    }
-    // Missing row references: between tables + outside the panel (tuning, scene objects)
-    m_problems.clear();
-    for (Doc& doc : m_docs) {
+void TablesPanel::collectProblems(std::vector<std::pair<int, std::string>>& out) {
+    std::vector<std::string> found;
+    for (size_t d = 0; d < m_docs.size(); ++d) {
+        Doc& doc = m_docs[d];
         if (!doc.data.rowType) continue;
+        found.clear();
         for (size_t i = 0; i < doc.data.rows.size(); ++i)
-            data::resolveRows(*doc.data.rowType, doc.data.rows[i].data(), m_index, &m_problems,
+            data::resolveRows(*doc.data.rowType, doc.data.rows[i].data(), m_index, &found,
                               std::string(doc.info.path) + " " + doc.data.ids[i] + ": ");
+        for (std::string& text : found) out.emplace_back(static_cast<int>(d), std::move(text));
     }
-    m_problems.insert(m_problems.end(), m_extraProblems.begin(), m_extraProblems.end());
+}
 
-    if (m_docs.empty()) {
+void TablesPanel::drawContent(int which, void* owner, bool editing) {
+    if (which < 0 || which >= docCount()) {
         ImGui::TextDisabled("%s", tr("Tables appear when the game code is loaded (MEALKIT_TABLE)."));
-        ImGui::End();
         return;
     }
-    auto label = [](const Doc& d) {
-        return std::string(d.info.path) + (d.data.rowType ? std::string(" (") + d.data.rowType->name + ")" : "") +
-               (d.dirty ? " *" : "");
-    };
-    ImGui::SetNextItemWidth(-FLT_MIN);
-    if (ImGui::BeginCombo("##table", label(m_docs[static_cast<size_t>(m_current)]).c_str())) {
-        for (int i = 0; i < static_cast<int>(m_docs.size()); ++i)
-            if (ImGui::Selectable(label(m_docs[static_cast<size_t>(i)]).c_str(), i == m_current)) m_current = i;
-        ImGui::EndCombo();
-    }
-    Doc& doc = m_docs[static_cast<size_t>(m_current)];
+    m_current = which;
+    Doc& doc = m_docs[static_cast<size_t>(which)];
     if (!doc.data.rowType) {
         ImGui::TextDisabled("%s", tr("Waiting for the game code (values are kept)."));
-    } else {
-        drawDoc(doc, owner, editing);
+        return;
     }
-    ImGui::End();
+    drawDoc(doc, owner, editing);
+    doc.undo.settle(ImGui::IsAnyItemActive(), [&] {
+        data::TableText now;
+        data::tableToText(doc.data, now);
+        return now;
+    });
+}
+
+void TablesPanel::step(int which, bool back) {
+    if (which < 0 || which >= docCount()) return;
+    Doc& doc = m_docs[static_cast<size_t>(which)];
+    data::TableText text;
+    if (!doc.data.rowType || !doc.undo.step(back, text)) return;
+    const reflect::TypeInfo* rowType = doc.data.rowType;
+    doc.data = {};
+    std::string warnings;
+    data::tableFromText(*rowType, text, doc.data, &warnings);
+    doc.dirty = true;
+    if ((doc.info.flags & reflect::kTableView) != 0) doc.viewChanged = true;
+    doc.selected = -1;
+    m_idRow = -1;
+    rebuildIndex();
 }
 
 void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
@@ -201,6 +213,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
     auto changed = [&] {
         doc.dirty = true;
         if (view) doc.viewChanged = true;
+        doc.undo.mark();
     };
 
     // ---- Toolbar
@@ -208,7 +221,12 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
     if (ImGui::Button(tr("Save"))) save(doc);
     ImGui::EndDisabled();
     ImGui::SameLine();
-    if (ImGui::Button(tr("Reload from File"))) load(doc);
+    if (ImGui::Button(tr("Reload from File"))) { // undoable: unsaved edits come back with Undo
+        UndoStack<data::TableText> history = doc.undo;
+        load(doc);
+        doc.undo = std::move(history);
+        doc.undo.mark();
+    }
     ImGui::SameLine();
     ImGui::TextDisabled("|");
     ImGui::SameLine();
@@ -290,11 +308,10 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
 
     // ---- Cells
     FieldContext context{&m_index};
-    const f32 problemsHeight = m_problems.empty() ? 0.0f : ImGui::GetTextLineHeightWithSpacing() * std::min<f32>(6.0f, static_cast<f32>(m_problems.size()) + 1.0f);
     const int columns = 2 + static_cast<int>(doc.columns.size());
     const ImGuiTableFlags flags = ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY | ImGuiTableFlags_Resizable |
                                   ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_SizingFixedFit;
-    if (columns <= 64 && ImGui::BeginTable("##rows", columns, flags, ImVec2(0.0f, -problemsHeight))) {
+    if (columns <= 64 && ImGui::BeginTable("##rows", columns, flags, ImVec2(0.0f, 0.0f))) {
         ImGui::TableSetupScrollFreeze(2, 1);
         ImGui::TableSetupColumn("#", ImGuiTableColumnFlags_WidthFixed, 28.0f);
         ImGui::TableSetupColumn("id", ImGuiTableColumnFlags_WidthFixed, 110.0f);
@@ -369,10 +386,6 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
             }
         }
         ImGui::EndTable();
-    }
-    if (!m_problems.empty()) {
-        ImGui::TextColored(ImVec4(1.0f, 0.55f, 0.4f, 1.0f), "%s", trf("Missing row references: %zu", m_problems.size()).c_str());
-        for (const std::string& p : m_problems) ImGui::BulletText("%s", p.c_str());
     }
 }
 

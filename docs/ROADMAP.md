@@ -578,10 +578,10 @@ Every game screen is hand-written `.ui` text because there is no designer, and F
 
 A list of candidates from a 2026-11-04 review of the editor code and 1600×900 captures of `samples/sandbox`, with Odin Inspector and Unity editor-enhancer packages as references. **Nothing here is decided yet**: pick items before work starts, and put open design questions in `docs/DECISIONS.md` first. All of it is editor-only and doesn't change the shipping exe. Per criterion ④, it adds no authoring tools inside the editor (visual scripting, material graphs, particle editors). ★ marks the highest-value items.
 
-### [ ] Check first: problems seen during the review
+### [x] Check first: problems seen during the review
 - [x] The `input.bindings` table showed no rows: details in `docs/CHANGELOG.md`.
 - [x] Table column headers used the whole field label: details in `docs/CHANGELOG.md`.
-- [ ] The bottom strip keeps its height in a taller window (docking gives the extra room to the center). The [Tables] note moved to a tooltip, but only about two rows fit at 1000p: revisit with item 12 or 35.
+- [x] The bottom strip kept tables to about two rows: tables moved to the [Data] window (item 12).
 
 ### [ ] Inspector and field attributes (Odin style)
 1. [x] ★ Field attribute syntax: extend the existing `"name|description"` label, for example `"Push radius|Description|group=Pushing|range=0..20|unit=m"`. This may not need changes to `core/Reflect.h`, which would change the simulation version. Check that labels stay out of the content hash and how translation keys are affected before starting.
@@ -596,13 +596,13 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 10. Pinned and multiple inspectors for comparing objects, and remembering which sections are collapsed.
 
 ### [ ] Gathering similar features
-11. ★ Problems panel: missing model references ([Assets]), missing row references ([Tables]) and budget warnings (log, inspector) in one list, where clicking goes to the source. Similar in role to Odin Validator.
-12. ★ Data hub: [Tuning], [Tables], [Feedback] and the [Sound] preview under one left-hand list, with a list showing unsaved marks in place of the table combo.
+11. [x] ★ Problems panel: missing model references ([Assets]), missing row references ([Tables]) and budget warnings (log, inspector) in one list, where clicking goes to the source. Similar in role to Odin Validator.
+12. [x] ★ Data hub: [Tuning], [Tables], [Feedback] and the [Sound] preview under one left-hand list, with a list showing unsaved marks in place of the table combo.
 13. Settings hub: project settings, preferences, input bindings, modules and tools in one window with navigation and search.
 14. Diagnostics layout: log, build log, performance and state opened together as a layout preset.
 15. Unsaved documents list: scene, tuning, tables and UI changes in one place on the status bar, each with save and revert.
 16. Menu cleanup: [View] lacks Scenes, History, Tuning and State. List every panel in one menu.
-17. ★ Shared undo: [Tuning] and [Tables] have no undo, and deleting a row, reloading from file and restoring defaults happen without confirmation. Best done together with item 12.
+17. [x] (feedback effect files still have none) ★ Shared undo: [Tuning] and [Tables] have no undo, and deleting a row, reloading from file and restoring defaults happen without confirmation. Best done together with item 12.
 
 ### [ ] Scene tree
 18. ★ Folders and separators. A folder saved in `.scene` may affect the content hash, so decide where folders live first.

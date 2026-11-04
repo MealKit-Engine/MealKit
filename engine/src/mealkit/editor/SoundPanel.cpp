@@ -29,15 +29,9 @@ const char* reasonText(const char* r) {
 
 } // namespace
 
-void SoundPanel::draw(audio::Engine& audio, bool* open) {
-    ImGui::SetNextWindowSize(ImVec2(520.0f, 560.0f), ImGuiCond_FirstUseEver);
-    if (!ImGui::Begin(trl(kSoundsWindow), open)) {
-        ImGui::End();
-        return;
-    }
+void SoundPanel::drawContent(audio::Engine& audio) {
     if (!audio.ready()) {
         ImGui::TextDisabled("%s", tr("No audio output device."));
-        ImGui::End();
         return;
     }
     const audio::Stats& st = audio.stats();
@@ -127,7 +121,6 @@ void SoundPanel::draw(audio::Engine& audio, bool* open) {
             ImGui::TextDisabled("%s  %s", it->event.c_str(), reasonText(it->reason));
     }
     ImGui::EndChild();
-    ImGui::End();
 }
 
 } // namespace mealkit::editor
