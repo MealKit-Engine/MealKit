@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## [Debug] > [Tests] (v0.9.x, 2026-11-04)
+
+- `editor/TestsPanel`: lists `tests/*.scenario`, runs them one at a time with `<name>_headless --test`, shows pass or fail with the failed checks, and **Accept as Intended** reruns a file with `--update-expected`. Commands **Tests** and **Run All Tests**.
+- Builds Release first when the headless exe is missing or older than the game sources, which needs a compiler (see D1). Data changes need no build. It reads saved files, not unsaved edits.
+- Checked on FuseTag: four scenarios pass, and a wrongly edited expected value showed as failed with its line. The Accept button wasn't clicked in the check. Replays aren't covered.
+
 ## Feedback table: lights, kicks, hit flash, playersFrom (v0.9.x, 2026-11-04)
 
 - New `feedback.table` columns (keys only, old files read the same): `light*` (a fading point light at the event, 32 at most, added to the frame by `game::Frontend`), `bloomKick`/`exposureKick`/`kickSeconds`, `hitFlash*` with `targetFrom`, and `playersFrom` (which event field `players` compares). The flash setting scales lights, kicks and hit flash.

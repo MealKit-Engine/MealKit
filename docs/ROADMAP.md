@@ -655,7 +655,7 @@ Candidates from a 2026-11-04 review of the editor code and FuseTag, aimed at the
 - [ ] D4. **Squash and spring as data.** `ViewTuning` exposes the numbers, but which event triggers which motion is fixed in FuseTag `view/Juice.cpp`. Move the generic parts into the engine and add feedback columns such as `squash` and `wobble`.
 
 ### Workflow breaks
-- [ ] D5. **[Tests] page in the editor.** Changing tuning, scenes or tables changes replay and scenario results, and refreshing them is command line only (`--update-expected`, `tools\record_replay.ps1`). Run scenarios, show results, and accept an intended change with a button. Report failures as "this value went from A to B". MealKit-QA lists a similar candidate (running `tests/*.scenario`), so decide where it lives first.
+- [x] D5. [Tests] page in the editor — 2026-11-04, details in `docs/CHANGELOG.md`. Replays (`replays/*.rec`) are not covered yet.
 - [x] D6. View model field pickers in the [UI] panel — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [ ] D7. **Batch bot matches.** Headless runs and bots already exist, and FuseTag M10 plans a balance pass on recorded bot matches. Add "run 100 matches with these values", with statistics in a table (round length, item use) and an A/B comparison.
 - [ ] D8. **Remaining usability items**: list editing (item 8) and tuning A/B presets (item 34) from "Editor usability proposals".
