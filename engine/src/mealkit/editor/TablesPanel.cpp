@@ -23,6 +23,14 @@ std::string backslashes(std::string path) {
 
 } // namespace
 
+void TablesPanel::setProjectDirectory(const std::string& directory) {
+    m_projectDir = directory;
+    for (Doc& doc : m_docs) {
+        doc.path = backslashes(m_projectDir + "/" + assetFilePath(doc.info.path));
+        if (doc.data.rowType) load(doc);
+    }
+}
+
 void TablesPanel::setTables(const reflect::TableList* tables) {
     if (!tables) { // unloading the DLL: game table values are held only as text
         for (Doc& doc : m_docs) {
@@ -272,8 +280,12 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         if (!csv.empty())
             doc.status = data::exportTableCsv(t, csv) ? trf("Exported %s", csv.c_str()) : trf("Could not write %s", csv.c_str());
     }
-    ImGui::TextDisabled("%s", view ? tr("Display table: saved changes apply while playing")
-                                   : tr("Simulation table: used from the next play (content hash). Play saves it"));
+    // The note moved to a tooltip: on a short bottom strip the rows need the room
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        ImGui::SetTooltip("%s", view ? tr("Display table: saved changes apply while playing")
+                                     : tr("Simulation table: used from the next play (content hash). Play saves it"));
     if (!doc.status.empty()) ImGui::TextDisabled("%s", doc.status.c_str());
 
     // ---- Cells
@@ -289,9 +301,22 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         for (const std::string& c : doc.columns) {
             // Column names: for top-level fields their description (text declared by the game), inner paths (a.b, a[1]) as is. CSV column names are paths
             const reflect::FieldInfo* field = t.rowType->field(c.c_str());
-            ImGui::TableSetupColumn(field ? trData(field->label) : c.c_str(), ImGuiTableColumnFlags_WidthFixed, 110.0f);
+            const std::string name = field ? trData(splitFieldLabel(field->label).name.c_str()) : c;
+            const f32 fit = ImGui::CalcTextSize(name.c_str()).x + ImGui::GetStyle().CellPadding.x * 2.0f + ImGui::GetFontSize();
+            ImGui::TableSetupColumn(name.c_str(), ImGuiTableColumnFlags_WidthFixed, std::clamp(fit, 110.0f, 200.0f)); // long labels are cut; the tooltip has them whole
         }
-        ImGui::TableHeadersRow();
+        // Headers show only the name; the description and the file path are in the tooltip
+        ImGui::TableNextRow(ImGuiTableRowFlags_Headers);
+        for (int column = 0; column < columns; ++column) {
+            ImGui::TableSetColumnIndex(column);
+            ImGui::TableHeader(ImGui::TableGetColumnName(column));
+            if (column < 2 || !ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort)) continue;
+            const std::string& path = doc.columns[static_cast<size_t>(column - 2)];
+            const reflect::FieldInfo* field = t.rowType->field(path.c_str());
+            const FieldLabel label = field ? splitFieldLabel(field->label) : FieldLabel{};
+            if (label.tooltip.empty()) ImGui::SetTooltip("%s\n%s", ImGui::TableGetColumnName(column), path.c_str());
+            else ImGui::SetTooltip("%s\n%s\n%s", ImGui::TableGetColumnName(column), trData(label.tooltip.c_str()), path.c_str());
+        }
         ImGuiListClipper clipper;
         clipper.Begin(static_cast<int>(t.rows.size()));
         while (clipper.Step()) {

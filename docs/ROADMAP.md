@@ -574,6 +574,76 @@ Every game screen is hand-written `.ui` text because there is no designer, and F
 - **Docs**: docs repo "Manual > Game UI" in English and Korean (placing screens in the panel; Penpot as the optional path).
 - **Determinism**: no effect (view side, editor only).
 
+## Editor usability proposals (proposed 2026-11-04, not scheduled)
+
+A list of candidates from a 2026-11-04 review of the editor code and 1600×900 captures of `samples/sandbox`, with Odin Inspector and Unity editor-enhancer packages as references. **Nothing here is decided yet**: pick items before work starts, and put open design questions in `docs/DECISIONS.md` first. All of it is editor-only and doesn't change the shipping exe. Per criterion ④, it adds no authoring tools inside the editor (visual scripting, material graphs, particle editors). ★ marks the highest-value items.
+
+### [ ] Check first: problems seen during the review
+- [x] The `input.bindings` table showed no rows: details in `docs/CHANGELOG.md`.
+- [x] Table column headers used the whole field label: details in `docs/CHANGELOG.md`.
+- [ ] The bottom strip keeps its height in a taller window (docking gives the extra room to the center). The [Tables] note moved to a tooltip, but only about two rows fit at 1000p: revisit with item 12 or 35.
+
+### [ ] Inspector and field attributes (Odin style)
+1. ★ Field attribute syntax: extend the existing `"name|description"` label, for example `"Push radius|Description|group=Pushing|range=0..20|unit=m"`. This may not need changes to `core/Reflect.h`, which would change the simulation version. Check that labels stay out of the content hash and how translation keys are affected before starting.
+2. ★ Groups, foldouts and tabs: `samples/sandbox/sim/Tuning.h` groups its 37 fields only in source comments (Match, Pushing, Respawn/AI), and the panel shows them with no such groups.
+3. ★ Ranges and units: sliders, min/max, unit text and a drag speed that fits the value. Every float currently drags at 0.01 (`FieldEditor.cpp`).
+4. ★ Asset and event pickers: string fields such as `sound` and `effect` in `feedback.table` are typed by hand. Add a searchable drop-down, drag and drop, and a preview button.
+5. Conditional fields: `showIf=teams>0` hides or dims fields that don't apply.
+6. Required and validated fields: `required` and `validate` mark the row and report to the Problems panel (item 11).
+7. Search inside the inspector and [Tuning]: by name, description, and "only values that differ from the default".
+8. List and array editing: add, remove and reorder. `MEALKIT_LIST` currently shows its count as a separate number field.
+9. ★ Multi-object editing: the inspector currently edits only one object of a multi-selection. Edit shared fields together and show `—` for mixed values.
+10. Pinned and multiple inspectors for comparing objects, and remembering which sections are collapsed.
+
+### [ ] Gathering similar features
+11. ★ Problems panel: missing model references ([Assets]), missing row references ([Tables]) and budget warnings (log, inspector) in one list, where clicking goes to the source. Similar in role to Odin Validator.
+12. ★ Data hub: [Tuning], [Tables], [Feedback] and the [Sound] preview under one left-hand list, with a list showing unsaved marks in place of the table combo.
+13. Settings hub: project settings, preferences, input bindings, modules and tools in one window with navigation and search.
+14. Diagnostics layout: log, build log, performance and state opened together as a layout preset.
+15. Unsaved documents list: scene, tuning, tables and UI changes in one place on the status bar, each with save and revert.
+16. Menu cleanup: [View] lacks Scenes, History, Tuning and State. List every panel in one menu.
+17. ★ Shared undo: [Tuning] and [Tables] have no undo, and deleting a row, reloading from file and restoring defaults happen without confirmation. Best done together with item 12.
+
+### [ ] Scene tree
+18. ★ Folders and separators. A folder saved in `.scene` may affect the content hash, so decide where folders live first.
+19. Color tags, connecting lines and row stripes. Color tags can live in the existing `.view` file.
+20. ★ Row badges: prefab, missing model, over budget, differs from default, has a problem.
+21. Tree filters such as `t:spawn`, `is:hidden`, `has:problem`, and "select all of this kind".
+22. Selection history (`Alt+Left/Right`) and favorite objects.
+23. Hover link: hovering a tree row highlights the object in the viewport, and the reverse.
+
+### [ ] Asset browser
+24. ★ Thumbnail grid with a size slider that switches between list and grid, reusing the [Look Dev] offscreen rendering and caching under `build/cache`.
+25. Search, kind filters, favorites, a folder path bar and recently used assets.
+26. [x] Scan cache: details in `docs/CHANGELOG.md`.
+27. Preview pane: triangle count, budget bar, sound waveform and a play button.
+28. Reverse references: which scenes and tables use this asset, reusing the reference search behind renaming.
+
+### [ ] More visual tools
+29. ★ Fields linked to the viewport: `gizmo=radius` and `gizmo=point` draw values such as the push radius as spheres and handles that can be dragged.
+30. Viewport icons and labels for spawns, cameras and probes, toggled per kind.
+31. Small preview window for the selected virtual camera.
+32. Table visuals: sorting, filtering, color chips, number bars and a row detail pane for long values.
+33. Graphs of pinned [State] fields per tick, and event and desync markers on the existing play timeline.
+34. Tuning A/B presets: switch saved value sets during play, and show differences from the file.
+
+### [ ] Shared UI and workflow
+35. ★ Display density and color rules: a compact mode (rows are large at 900p), one set of color tokens for accent, danger, changed and play, and icons with tooltips on the viewport toolbar.
+36. ★ Stronger command palette: it only matches substrings today. Add fuzzy matching, Korean initial-consonant search, recent items, and search over assets, table rows and tuning fields.
+37. Scene switcher next to the play button, and rebindable shortcuts built on the command table.
+38. Context hints: replace the fixed status bar text with hints for the current tool and hovered item.
+
+### Suggested order
+1. Groundwork: 26 (scan cache) and 1~4 (field attributes), which many later items build on.
+2. Safe editing and gathering: 11 (Problems), 12 (Data hub), 17 (shared undo).
+3. Most noticeable: 9 (multi-object editing), 24 (thumbnails), 18 and 20 (scene tree), 36 (palette).
+4. Visuals and finish: 29 (viewport handles), 35 (density and colors).
+
+### Open design questions
+- Attribute syntax: stay in the label string, or add real metadata to `MEALKIT_FIELD` (which changes `core/Reflect.h` and so the simulation version)?
+- Scene tree folders: stored in `.scene` (an object kind, possibly in the content hash) or in `build\editor\<scene>.view` (per user, not shared)?
+- Data hub: does it replace the separate panels, or sit beside them?
+
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 
 Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then the next work is the QA, optimization and audio items below, and the repos are published after them (`docs/DECISIONS.md` 2026-11-02).

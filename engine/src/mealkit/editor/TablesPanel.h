@@ -14,7 +14,8 @@ namespace mealkit::editor {
 class TablesPanel {
 public:
     static constexpr const char* kWindow = "Tables###Tables";
-    void setProjectDirectory(const std::string& directory) { m_projectDir = directory; }
+    // Tables that were already opened (engine tables come before the project) are read again from the project's files.
+    void setProjectDirectory(const std::string& directory);
     // Table list of the game DLL (nullptr before unloading the DLL). Read from files when first received.
     void setTables(const reflect::TableList* tables);
     // Tables registered by the engine (sound events etc.). Shown together with game tables.

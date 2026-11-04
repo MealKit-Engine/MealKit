@@ -16,6 +16,13 @@ Review of 1600×900 and 1280×720 captures.
 - **[UI] panel**: Penpot is a closed section at the bottom, edit help is a `(?)` tooltip.
 - `--window WxH` sets the editor window size for checking layouts.
 
+## Editor usability, first fixes (v0.9.x, 2026-11-04)
+
+- **[Tables] showed `input.bindings` empty**: engine tables open before `setProject`, so they were read from a path with no project folder, and saving could have written there. `TablesPanel::setProjectDirectory` now sets the paths again and rereads open tables.
+- **Table headers** show the field name only, in columns 110 to 200 wide. The tooltip has the name, description and field path. The panel note moved to a `(?)` tooltip.
+- **Asset browser scan cache** (`EditorAssets.cpp`): folder listings and missing model checks run once a second instead of every frame, and right after a rename.
+- `--tables` brings the [Tables] tab to the front for captures.
+
 ## Game UI editor in the editor (v0.9.x)
 
 - **Step 1, editable `.ui` source** (2026-11-04, `engine/libs/mkui/include/mkui/Source.h`): `parseSource`/`writeSource` keep a `.ui` file as written (comments, blank lines, property order, `$theme` tokens, `use` components and `set` lines) as a tree of nodes whose items are lines or child places, so a save changes only the lines an edit touched. `Document` can't be written back because it inlines components and resolves number tokens; the panel will edit the source, write it, and read it again with `parseDocument` (one parser). `mapDocumentNodes` maps each `Document` node to its source node (nodes inside a component map to the `use` node). Edits: `getProperty`/`setProperty`/`removeProperty` by leading words (`pos`, `on hover fill`, `set label color`, `span 1`; a new line goes after the node's last property line), `addNode`/`removeNode`/`moveNode` by child-index paths (the board can't move or go, a node can't move into itself). Penpot exports are flagged (`Source::exported`) for read-only opening.
