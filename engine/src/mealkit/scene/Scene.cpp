@@ -265,6 +265,7 @@ void writeEntities(FILE* f, const std::vector<Entity>& entities) {
     for (const Entity& e : entities) {
         fprintf(f, "\nentity\nid %u\nname %s\nkind %s\n", e.id, e.name.c_str(), e.type.c_str());
         if (e.parent) fprintf(f, "parent %u\n", e.parent);
+        if (!e.folder.empty()) fprintf(f, "folder %s\n", e.folder.c_str());
         writeVec3(f, "position", e.position);
         writeFloats(f, "rotation", {e.rotation.x, e.rotation.y, e.rotation.z, e.rotation.w});
         writeVec3(f, "scale", e.scale);
@@ -320,6 +321,7 @@ bool loadText(Scene& out, const std::string& path, const text::Format& format, s
         } else if (inEntity) {
             if (std::strcmp(key, "id") == 0) e.id = static_cast<u32>(std::strtoul(rest, nullptr, 10));
             else if (std::strcmp(key, "parent") == 0) e.parent = static_cast<u32>(std::strtoul(rest, nullptr, 10));
+            else if (std::strcmp(key, "folder") == 0) e.folder = rest;
             else if (std::strcmp(key, "name") == 0) e.name = rest;
             else if (std::strcmp(key, "kind") == 0) {
                 ok = validTypeName(rest);

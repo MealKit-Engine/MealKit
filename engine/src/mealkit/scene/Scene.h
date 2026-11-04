@@ -107,6 +107,7 @@ struct Entity {
     Vec3 scale{1.0f, 1.0f, 1.0f};
     u32 color = 0xFFC8C8C8;     // rgba8 sRGB (same layout as render::rgba). Multiplied with the model's material color
     u32 flags = 0;              // render::kInstance* flags
+    std::string folder;         // scene tree folder ("Props/Trees", empty = none). Editor only: not in the content hash, games don't read it
     std::string model;          // glTF path (relative to the assets folder, e.g. models/tree.glb). A box if empty
     reflect::TextFields fields; // fields of game kinds (path, value text)
 

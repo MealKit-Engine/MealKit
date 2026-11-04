@@ -23,7 +23,7 @@ inline constexpr Format kProject{"project", 1};   // mealkit.project
 inline constexpr Format kTuning{"tuning", 1};     // game.tuning, view.tuning
 inline constexpr Format kSettings{"settings", 1}; // player settings settings.ini
 inline constexpr Format kTable{"table", 1};       // *.table, input.bindings, feedback.table
-inline constexpr Format kScene{"scene", 4};       // *.scene (version 2: parent-relative values, 3: sky HDRI line, 4: post line. Old "version N" lines are also read)
+inline constexpr Format kScene{"scene", 5};       // *.scene (version 2: parent-relative values, 3: sky HDRI line, 4: post line, 5: folder line. Old "version N" lines are also read)
 inline constexpr Format kPrefab{"prefab", 1};   // assets/prefabs/*.prefab (scene entity blocks only, scene/Scene.h savePrefab)
 inline constexpr Format kScatter{"scatter", 1}; // assets/terrain/*.scatter (scatter brush instances, asset/Scatter.h)
 inline constexpr Format kEffect{"effect", 1};     // assets/effects/*.fx (particle effects)

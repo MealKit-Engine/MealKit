@@ -605,7 +605,7 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 17. [x] (feedback effect files still have none) ★ Shared undo: [Tuning] and [Tables] have no undo, and deleting a row, reloading from file and restoring defaults happen without confirmation. Best done together with item 12.
 
 ### [ ] Scene tree
-18. ★ Folders and separators. A folder saved in `.scene` may affect the content hash, so decide where folders live first.
+18. [x] (folders; no separators) ★ Folders and separators. A folder saved in `.scene` may affect the content hash, so decide where folders live first.
 19. Color tags, connecting lines and row stripes. Color tags can live in the existing `.view` file.
 20. [x] (no prefab badge: objects keep no prefab link) ★ Row badges: prefab, missing model, over budget, differs from default, has a problem.
 21. Tree filters such as `t:spawn`, `is:hidden`, `has:problem`, and "select all of this kind".
@@ -613,7 +613,7 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 23. Hover link: hovering a tree row highlights the object in the viewport, and the reverse.
 
 ### [ ] Asset browser
-24. ★ Thumbnail grid with a size slider that switches between list and grid, reusing the [Look Dev] offscreen rendering and caching under `build/cache`.
+24. [x] (kept in memory, not cached under `build/cache`) ★ Thumbnail grid with a size slider that switches between list and grid, reusing the [Look Dev] offscreen rendering and caching under `build/cache`.
 25. Search, kind filters, favorites, a folder path bar and recently used assets.
 26. [x] Scan cache: details in `docs/CHANGELOG.md`.
 27. Preview pane: triangle count, budget bar, sound waveform and a play button.

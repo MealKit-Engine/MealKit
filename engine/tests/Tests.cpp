@@ -2898,6 +2898,19 @@ void runFake(game::Simulation<FakeWorld>& sim, net::LockstepSession& session, u3
     TEST_CHECK(events == sim.nextTick() - before); // events go to the view side every tick
 }
 
+TEST_CASE(scene, scene_folder_outside_hash) {
+    scene::Scene a;
+    a.add(scene::kTypeSolid, "Box");
+    const u64 before = a.contentHash();
+    a.entities[0].folder = "Props/Boxes";
+    TEST_CHECK(a.contentHash() == before);
+    const std::string path = executableDirectory() + "\\test_folder.scene";
+    TEST_CHECK(scene::save(a, path));
+    scene::Scene b;
+    TEST_CHECK(scene::load(b, path));
+    TEST_CHECK(b.entities.size() == 1 && b.entities[0].folder == "Props/Boxes");
+}
+
 TEST_CASE(editor, fuzzy_match) {
     using editor::fuzzyScore;
     TEST_CHECK(fuzzyScore("Save Scene", "") == 0);
