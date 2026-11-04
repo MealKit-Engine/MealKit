@@ -81,6 +81,12 @@ Review of 1600×900 and 1280×720 captures.
 - **Scene switcher** by the play button; palette recents kept per project (`build\\editor\\palette_recent.txt`); **View > Layout** saves named layouts per user.
 - **[State] graphs**: add a field path; one sample per frame for ten seconds.
 
+## Editor menu bar (v0.9.x, 2026-11-04)
+
+- **Menus**: Project (settings, folders, exit), Scene, Edit, Window (was View), Build, and Tools only when tools are installed; tool folders and rescanning are in [Settings].
+- **[Add] is gone**: the scene tree's **+ Add** has the same list, and the command palette now finds object kinds.
+- **Moved**: focus selected to the scene view toolbar, which already had view modes; play from here to the list by the play button; vertical sync and GPU capture to the [Debug] performance page.
+
 ## Game UI editor in the editor (v0.9.x)
 
 - **Step 1, editable `.ui` source** (2026-11-04, `engine/libs/mkui/include/mkui/Source.h`): `parseSource`/`writeSource` keep a `.ui` file as written (comments, blank lines, property order, `$theme` tokens, `use` components and `set` lines) as a tree of nodes whose items are lines or child places, so a save changes only the lines an edit touched. `Document` can't be written back because it inlines components and resolves number tokens; the panel will edit the source, write it, and read it again with `parseDocument` (one parser). `mapDocumentNodes` maps each `Document` node to its source node (nodes inside a component map to the `use` node). Edits: `getProperty`/`setProperty`/`removeProperty` by leading words (`pos`, `on hover fill`, `set label color`, `span 1`; a new line goes after the node's last property line), `addNode`/`removeNode`/`moveNode` by child-index paths (the board can't move or go, a node can't move into itself). Penpot exports are flagged (`Source::exported`) for read-only opening.

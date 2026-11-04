@@ -2,7 +2,6 @@
 # 원문에는 " = "를 쓰지 않고 #으로 시작하지 않는다. 줄바꿈은 \n, 역슬래시는 \\. printf 형식(%s, %u ...)은 원문과 같은 순서로 둔다.
 
 # ---- 메뉴·창
-File = 파일
 New Scene = 새 씬
 Open... = 열기...
 Open Replay... = 리플레이 열기...
@@ -22,7 +21,6 @@ Redo = 다시 실행
 Duplicate = 복제
 Delete = 삭제
 Model... = 모델...
-View = 보기
 Focus Selected = 선택한 물체로 이동
 Reset Layout = 레이아웃 초기화
 Layout = 레이아웃
@@ -900,7 +898,6 @@ Compact rows = 좁은 행
 Settings = 설정
 Settings... = 설정...
 Previews = 미리보기
-Manage Tools... = 도구 관리...
 Unsaved: %d = 저장 안 됨: %d
 Everything is saved. = 모두 저장되었습니다.
 Really revert? = 정말 되돌릴까요?
@@ -913,3 +910,5 @@ Not used by any scene, table or other text file = 씬, 표, 다른 텍스트 파
 Graphs = 그래프
 Field path, such as tick = 필드 경로 (예: tick)
 Add Graph = 그래프 추가
+Project = 프로젝트
+Window = 창
