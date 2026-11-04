@@ -43,7 +43,7 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 | v0.5 (now 0.5.0, 2026-10-19) | Stage 1: features to ship one game end to end (platform layer, data separation, sound, UI, input, menus, saves). The reference sample runs end to end from title to results screen. When the template changes while finishing stage 2 items, 0.5.x is bumped |
 | v0.6 / v0.7 (now 0.7.0, 2026-11-01) | Graphics (RHI: DX12 + Vulkan) / stronger multiplayer. Stage 2 finished while the version stayed 0.5.x, so the version went 0.5.4 → 0.7.0 when stage 3 finished (no 0.6.0 release) |
 | v0.8 (now 0.8.0, 2026-11-02) | Stage 4: gameplay framework and tools (game flow, movement modes, active ragdoll, animation states, virtual cameras, AI pathfinding, prefabs, terrain, Job System, spatial audio, pack files), two reference samples (`samples/sandbox`, `samples/coop`) and an empty project template |
-| v0.9 (now 0.9.0, 2026-11-03) | v1.0 candidate: the contract freeze review is done and the cookbook docs are written; after it only fixes until v1.0 (`docs/DECISIONS.md` 2026-11-03) |
+| v0.9 (now 0.9.0, 2026-11-03) | v1.0 candidate: the contract freeze review is done and the cookbook docs are written; after it only fixes until v1.0 (`docs/DECISIONS.md` 2026-11-03). Decided exceptions, which only add to frozen formats: the game UI editor and designer independence D1~D9 (`docs/DECISIONS.md` 2026-11-04) |
 | **v1.0** | **Windows** (editor and shipping, DX12 and Vulkan) is fully supported and **Linux x64 / macOS ARM64 run the headless simulation** (replays, scenario tests, headless peers; per-tick hashes match Windows in CI on every commit). All reference samples pass Export and the determinism checks on Windows, and **contracts are frozen**: the `GameInstance` API, file formats (`.scene`, `.tuning`, `.table`, `.ui`, `mealkit.project`, saves), `sim/` rules (SimCheck) |
 | v1.x | Stage 5 tier 1 without breaking the frozen contracts: Linux/Steam Deck and macOS shipping and editors, cross-platform determinism between real devices, crossplay (EOS). Tier 2 (mobile, web, consoles) after |
 | v1.x and later | Frozen contracts aren't broken. If one truly must break, the major version (v2.0) is bumped and the upgrade tool migrates |
@@ -486,7 +486,7 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 
 ## Modules (after stage 5)
 
-The module system is done (stage 4 ①~⑧). The remaining first modules (⑨) are made after cross-platform (stage 5), **one at a time, whenever the user wants one**.
+The module system is done (stage 4 ①~⑧). The remaining first modules (⑨) are made after cross-platform (stage 5), **one at a time, whenever the user wants one**. One exception: designer independence D9 pulls `objects` forward.
 
 ### [ ] Source module system (feature reuse) — ①~⑧ done, ⑨ remaining modules one at a time
 - **Why**: features that differ slightly per game but are used often, like health bars, skill cooldowns, minimaps, inventories, and procedural map generation, are built from scratch every time.
@@ -554,7 +554,7 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 
 - [ ] Audio features after v1.0 (in MealKit-Audio, runtime + tool together, one at a time): bus effect chains (EQ, compressor/limiter, delay) and sidechain compression in place of volume-only ducking, master limiter + loudness meter (LUFS) in the tool, clip sets loaded/unloaded per scene with a memory budget warning, ~~offline-render golden tests for events~~ (done 2026-11-02, MealKit-Audio 0.4.0), a voice/profiler timeline in the tool over the live `audio/` state, dialogue lines (queue, priority, tied to subtitles), Steam Audio HRTF (deferred table, when headphone positioning is core)
 - [ ] Achievements, leaderboards, stats after v1.0 (moved from stage 4 on 2026-11-02, `docs/DECISIONS.md`): reviewed again once the platform SDK work (Steam, EOS, console trophies) is confirmed. Plan as it stood: the game defines achievement conditions as simulation events, the view side reads them and records them through the online service layer, the achievement list is one piece of data exported for each service's registration, and without a service stats are kept in the user data folder. No effect on determinism (only reads results)
-- [ ] Opt-in rendering features after v1.0 (`docs/DECISIONS.md` 2026-11-04, one at a time, each with its cost measured on minimum spec hardware and shown to the developer; view-side, so no effect on determinism; additions only, no frozen contract breaks). Shared first piece: project settings for each feature, player quality presets (Low, Medium, High) with a per-game lock, and an editor warning when the enabled features exceed the project GPU budgets. Order: (1) project surface shaders (API and pipeline variant handling designed first), glTF occlusion texture applied to ambient light only, point light shadows on chosen lights (shadow atlas), UI blur, screen-space outlines, mesh particles → (2) post passes that don't run when off: SMAA, EASU upscaling, depth of field, motion blur, SSR → (3) RHI compute on DX12 and Vulkan, then Forward+, SSAO and GPU particles → (4) real-time GI, technique chosen when started. Deferred rendering only when a game shows a need Forward+ can't meet
+- [ ] Opt-in rendering features after v1.0 (`docs/DECISIONS.md` 2026-11-04, one at a time, each with its cost measured on minimum spec hardware and shown to the developer; view-side, so no effect on determinism; additions only, no frozen contract breaks). Shared first piece: project settings for each feature, player quality presets (Low, Medium, High) with a per-game lock, and an editor warning when the enabled features exceed the project GPU budgets. Order: (1) project surface shaders (API and pipeline variant handling designed first), glTF occlusion texture applied to ambient light only, point light shadows on chosen lights (shadow atlas), UI blur, screen-space outlines, mesh particles → (2) post passes that don't run when off: SMAA, EASU upscaling, depth of field, motion blur, SSR → (3) RHI compute on DX12 and Vulkan, then Forward+, SSAO and GPU particles → (4) real-time GI, technique chosen when started. Deferred rendering only when a game shows a need Forward+ can't meet. What a technical artist needs around surface shaders is T6~T9 and T11 in "Technical artist proposals"
 
 ---
 
@@ -574,9 +574,9 @@ Every game screen is hand-written `.ui` text because there is no designer, and F
 - **Docs**: docs repo "Manual > Game UI" in English and Korean (placing screens in the panel; Penpot as the optional path).
 - **Determinism**: no effect (view side, editor only).
 
-## Editor usability proposals (proposed 2026-11-04, not scheduled)
+## Editor usability proposals (proposed 2026-11-04, every ★ item done, the rest not scheduled)
 
-A list of candidates from a 2026-11-04 review of the editor code and 1600×900 captures of `samples/sandbox`, with Odin Inspector and Unity editor-enhancer packages as references. **Nothing here is decided yet**: pick items before work starts, and put open design questions in `docs/DECISIONS.md` first. All of it is editor-only and doesn't change the shipping exe. Per criterion ④, it adds no authoring tools inside the editor (visual scripting, material graphs, particle editors). ★ marks the highest-value items.
+A list of candidates from a 2026-11-04 review of the editor code and 1600×900 captures of `samples/sandbox`, with Odin Inspector and Unity editor-enhancer packages as references. Every ★ item is done. **The open items aren't decided**: pick them before work starts, and put open design questions in `docs/DECISIONS.md` first. All of it is editor-only and doesn't change the shipping exe. Per criterion ④, it adds no authoring tools inside the editor (visual scripting, material graphs, particle editors). ★ marks the highest-value items. Parentheses after `[x]` say what a done item left out.
 
 ### [x] Check first: problems seen during the review
 - [x] The `input.bindings` table showed no rows: details in `docs/CHANGELOG.md`.
@@ -587,13 +587,13 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 1. [x] ★ Field attribute syntax: extend the existing `"name|description"` label, for example `"Push radius|Description|group=Pushing|range=0..20|unit=m"`. This may not need changes to `core/Reflect.h`, which would change the simulation version. Check that labels stay out of the content hash and how translation keys are affected before starting.
 2. [x] (groups and foldouts; no tabs yet) ★ Groups, foldouts and tabs: `samples/sandbox/sim/Tuning.h` groups its 37 fields only in source comments (Match, Pushing, Respawn/AI), and the panel shows them with no such groups.
 3. [x] ★ Ranges and units: sliders, min/max, unit text and a drag speed that fits the value. Every float currently drags at 0.01 (`FieldEditor.cpp`).
-4. [x] ★ Asset and event pickers: string fields such as `sound` and `effect` in `feedback.table` are typed by hand. Add a searchable drop-down, drag and drop, and a preview button.
+4. [x] (searchable lists; no drag and drop or preview button) ★ Asset and event pickers: string fields such as `sound` and `effect` in `feedback.table` are typed by hand. Add a searchable drop-down, drag and drop, and a preview button.
 5. [x] Conditional fields: `showIf=teams>0` hides or dims fields that don't apply.
 6. [x] (`required` only; no `validate`) Required and validated fields: `required` and `validate` mark the row and report to the Problems panel (item 11).
 7. [x] Search inside the inspector and [Tuning]: by name, description, and "only values that differ from the default".
 8. [x] List editing (`MEALKIT_LIST`: add, remove, move up; 2026-11-04).
 9. [x] ★ Multi-object editing: the inspector currently edits only one object of a multi-selection. Edit shared fields together and show `—` for mixed values.
-10. Pinned and multiple inspectors for comparing objects, and remembering which sections are collapsed.
+10. [ ] Pinned and multiple inspectors for comparing objects, and remembering which sections are collapsed.
 
 ### [ ] Gathering similar features
 11. [x] ★ Problems panel: missing model references ([Assets]), missing row references ([Tables]) and budget warnings (log, inspector) in one list, where clicking goes to the source. Similar in role to Odin Validator.
@@ -601,64 +601,67 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 13. [x] (input bindings stay a [Data] table) Settings hub: project settings, preferences, input bindings, modules and tools in one window with navigation and search.
 14. [x] (a [Debug] window with pages, not a layout preset) Diagnostics layout: log, build log, performance and state opened together as a layout preset.
 15. [x] Unsaved documents list: scene, tuning, tables and UI changes in one place on the status bar, each with save and revert.
-16. Menu cleanup: [View] lacks Scenes, History, Tuning and State. List every panel in one menu.
+16. [x] (the menu bar is now [Project], [Scene], [Edit], [Window], [Build] and [Tools]; tuning and state are pages of [Data] and [Debug]) Menu cleanup: [View] lacked Scenes, History, Tuning and State. List every panel in one menu.
 17. [x] ★ Shared undo: [Tuning] and [Tables] have no undo, and deleting a row, reloading from file and restoring defaults happen without confirmation. Best done together with item 12.
 
 ### [ ] Scene tree
 18. [x] (folders; no separators) ★ Folders and separators. A folder saved in `.scene` may affect the content hash, so decide where folders live first.
-19. Color tags, connecting lines and row stripes. Color tags can live in the existing `.view` file.
+19. [ ] Color tags, connecting lines and row stripes. Color tags can live in the existing `.view` file.
 20. [x] (no prefab badge: objects keep no prefab link) ★ Row badges: prefab, missing model, over budget, differs from default, has a problem.
-21. Tree filters such as `t:spawn`, `is:hidden`, `has:problem`, and "select all of this kind".
-22. Selection history (`Alt+Left/Right`) and favorite objects.
-23. Hover link: hovering a tree row highlights the object in the viewport, and the reverse.
+21. [ ] Tree filters such as `t:spawn`, `is:hidden`, `has:problem`, and "select all of this kind".
+22. [ ] Selection history (`Alt+Left/Right`) and favorite objects.
+23. [ ] Hover link: hovering a tree row highlights the object in the viewport, and the reverse.
 
 ### [ ] Asset browser
 24. [x] (kept in memory: three to a few hundred models draw in moments, and showing a cached file needs a texture upload path) ★ Thumbnail grid with a size slider that switches between list and grid, reusing the [Look Dev] offscreen rendering and caching under `build/cache`.
-25. Search, kind filters, favorites, a folder path bar and recently used assets.
+25. [ ] Search, kind filters, favorites, a folder path bar and recently used assets.
 26. [x] Scan cache: details in `docs/CHANGELOG.md`.
-27. Preview pane: triangle count, budget bar, sound waveform and a play button.
+27. [ ] Preview pane: triangle count, budget bar, sound waveform and a play button.
 28. [x] Reverse references: which scenes and tables use this asset, reusing the reference search behind renaming.
 
 ### [ ] More visual tools
 29. [x] (`gizmo=radius` only, on scene object fields; no `gizmo=point`, tuning values have no place in the scene) ★ Fields linked to the viewport: `gizmo=radius` and `gizmo=point` draw values such as the push radius as spheres and handles that can be dragged.
-30. Viewport icons and labels for spawns, cameras and probes, toggled per kind.
-31. Small preview window for the selected virtual camera.
+30. [ ] Viewport icons and labels for spawns, cameras and probes, toggled per kind.
+31. [ ] Small preview window for the selected virtual camera.
 32. [x] Table visuals: sorting, filtering, color chips, number bars and a row detail pane for long values.
 33. [ ] Graphs of [State] fields are done (per frame). Event and desync markers on the play timeline remain.
-34. Tuning A/B presets: switch saved value sets during play, and show differences from the file.
+34. [ ] Tuning A/B presets: switch saved value sets during play, and show differences from the file. This is also designer independence D8; [Debug] > [Balance] already compares two tuning files across bot matches, but not during play.
 
 ### [ ] Shared UI and workflow
 35. [x] (compact mode and color tokens; toolbar icons not done) ★ Display density and color rules: a compact mode (rows are large at 900p), one set of color tokens for accent, danger, changed and play, and icons with tooltips on the viewport toolbar.
 36. [x] ★ Stronger command palette: it only matches substrings today. Add fuzzy matching, Korean initial-consonant search, recent items, and search over assets, table rows and tuning fields.
 37. [ ] The scene switcher is done. Rebindable shortcuts remain.
-38. Context hints: replace the fixed status bar text with hints for the current tool and hovered item.
+38. [ ] Context hints: replace the fixed status bar text with hints for the current tool and hovered item.
 
 ### Suggested order
-1. Groundwork: 26 (scan cache) and 1~4 (field attributes), which many later items build on.
-2. Safe editing and gathering: 11 (Problems), 12 (Data hub), 17 (shared undo).
-3. Most noticeable: 9 (multi-object editing), 24 (thumbnails), 18 and 20 (scene tree), 36 (palette).
-4. Visuals and finish: 29 (viewport handles), 35 (density and colors).
+The original order (groundwork, safe editing, most noticeable, visuals) is done. For what's left:
+1. 34 (tuning A/B): also designer independence D8.
+2. 25, 27 (asset browser): noticeable as a project's assets grow.
+3. 21, 22, 23 (finding things in the scene tree), once scenes grow with the FuseTag maps.
+4. 30, 31, 33 (viewport and timeline), then 10, 19, 37, 38 when someone asks.
 
 ### Open design questions
 Decided 2026-11-04 (`docs/DECISIONS.md`): attributes in the label string, scene tree folders in `.scene` outside the content hash, and the data hub replaces the separate panels.
 
-## Designer independence proposals (proposed 2026-11-04, not scheduled)
+## Designer independence (decided 2026-11-04, v0.9.x, before publication)
 
-Candidates from a 2026-11-04 review of the editor code and FuseTag, aimed at the moments a designer still needs a programmer. The editor panels are already well covered ("Editor usability proposals" above), so these target the remaining places that need a C++ build. **Nothing here is decided yet**: pick items before work starts, and put open design questions in `docs/DECISIONS.md` first. Sizes are estimates from reading the code.
+From a 2026-11-04 review of the editor code and FuseTag, aimed at the moments a designer still needs a programmer. The editor panels are already well covered ("Editor usability proposals" above), so these target the remaining places that need a C++ build.
 
-**Engine freeze**: the engine is fix-only since v0.9. D1, D5, D6 and D7 are editor or tool work. D2, D3, D4 and D9 touch the runtime, so they wait for v1.x or need a decided exception. New feedback table columns only add keys, which fits the v1.x format policy.
+**Engine freeze**: D1~D9 are built now as exceptions to "only fixes until v1.0", including the runtime ones (`docs/DECISIONS.md` 2026-11-04). They may only add keys and new object kinds to frozen formats. Rule rows widen what v1.0 freezes, which is the accepted cost.
+
+**Left over from done items**: D1 wasn't checked on a real PC without Visual Studio or on a network share, and the engine and editor binaries are still copied by hand. D2's columns aren't used by a reference sample or a FuseTag row yet, so a test row on a scratch copy is their only check. D5 doesn't cover replays, and its Accept button hasn't been clicked in a check.
 
 ### Most frequent blocks
-- [x] D1. Editor without a C++ toolchain (shared folder) — 2026-11-04, details in `docs/CHANGELOG.md`. The engine and editor binaries themselves still have to reach the designer.
+- [x] D1. Editor without a C++ toolchain (shared folder) — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [x] D2. Visual feedback columns (event light, glow kick, hit flash) — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [x] D3. `playersFrom` feedback column — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [ ] D4. **Squash and spring as data.** `ViewTuning` exposes the numbers, but which event triggers which motion is fixed in FuseTag `view/Juice.cpp`. Move the generic parts into the engine and add feedback columns such as `squash` and `wobble`.
 
 ### Workflow breaks
-- [x] D5. [Tests] page in the editor — 2026-11-04, details in `docs/CHANGELOG.md`. Replays (`replays/*.rec`) are not covered yet.
+- [x] D5. [Tests] page in the editor — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [x] D6. View model field pickers in the [UI] panel — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [x] D7. Batch bot matches ([Debug] > [Balance]) — 2026-11-04, details in `docs/CHANGELOG.md`.
-- [ ] D8. Remaining usability item: list editing is done; tuning A/B presets (item 34) from "Editor usability proposals".
+- [ ] D8. Tuning A/B presets: item 34 in "Editor usability proposals". List editing, the other half of this item, is done.
 
 ### Rules and map gimmicks
 The most important area for independence, and the largest. New item effects are fixed in code (FuseTag `ItemEffect` and the `switch` in `sim/Items.cpp`; the table holds only numbers), the M6~M8 map gimmicks need new object kinds and `sim/` code, and the samples' `sim/Objects.h` have no generic trigger or door.
@@ -666,13 +669,12 @@ The most important area for independence, and the largest. New item effects are 
   1. Pull the `objects` module forward (trigger volumes, platforms on paths; "Modules" above), with a timer object added.
   2. Add rule rows on trigger objects or tables, such as `player enters → speed ×0.5, 3 s`. Programmers define the list of effects and designers combine them. This keeps the "no visual scripting" principle. Determinism holds as long as the data is in the content hash and the rows run at a fixed point in `sim/`.
   3. Scripting languages stay deferred (`docs/DECISIONS.md` deferred table).
+  - **Decide before starting** (`docs/DECISIONS.md`): whether rule rows live on trigger objects or in a table, the first list of effects, and whether FuseTag's gimmicks written as their own scene objects in its roadmap (M6 `Blackout`) move to rows.
 
 ### Suggested order
-1. D2, D3, D6: quick and noticeable.
-2. D5: removes the programmer call after each number change.
-3. D1: before a designer actually joins, since the problem doesn't show on a PC with a compiler.
-4. D9: before FuseTag M6, so the three map gimmicks are built and checked with it.
-5. D4, D7: together with game work.
+1. D9: next, before FuseTag M6, so the three map gimmicks are built and checked with it.
+2. D4: together with FuseTag's character work (M5).
+3. D8: any time; it's editor-only.
 
 ## Technical artist proposals (proposed 2026-11-04, not scheduled)
 
@@ -682,11 +684,11 @@ Candidates from a 2026-11-04 review of the renderer, the editor and the opt-in p
 
 **Principle**: shaders are text edited in an external editor, and looks are checked and tuned in the MealKit editor. This keeps criterion ④ and the deferred rows "Shader graph, material editor inside the engine" and "Own IDE". A node graph is reviewed only if surface functions have been used and TAs who don't write code are blocked by them.
 
-**Engine freeze**: T1~T5 are editor or tool work, or debug-only shader paths, so they can be picked before v1.0. T6~T11 build on surface shaders, so they wait for v1.x or need a decided exception. All are view-side, so none affects determinism.
+**Engine freeze**: the exceptions in `docs/DECISIONS.md` 2026-11-04 cover the game UI editor and D1~D9, not these. T1~T5 and T10 are editor or tool work or debug-only shader paths, so they fit an exception well, but each still needs a row before v1.0. T6~T9 and T11 build on surface shaders, which come after v1.0 ("Opt-in rendering features"). All are view-side, so none affects determinism.
 
 ### Checking a look (no project shaders needed)
-- [ ] T1. ★ **More view modes** (S). `render::DebugView` has wireframe, normals, LOD, overdraw, budget and material features. Add base color, roughness, metallic, emissive, sun only, ambient only, reflections only, shadow cascades, mip level and texel density. They extend the `debugView` branches in `PSMain` (`Forward.hlsl`). Those branches are also compiled into the shipping shader today, so the new modes should sit behind a define that only builds with the debug UI set, leaving the shipping shader no larger.
-- [ ] T2. ★ **Pixel inspector** (S). Click the scene view or [Look Dev] to see that pixel's linear HDR value, luminance, value after exposure and final sRGB. Answers "why is this bloom firing" without a GPU capture. Needs a readback of the HDR target (`Renderer::captureTarget` reads 8-bit targets today).
+- [ ] T1. ★ **More view modes** (S). `render::DebugView` has wireframe, normals, LOD, overdraw, budget and material features. Add base color, roughness, metallic, emissive, sun only, ambient only, reflections only, shadow cascades, mip level and texel density. They extend the `debugView` branches in `PSMain` (`Forward.hlsl`). Those branches are also compiled into the shipping shader today, so the new modes should sit behind a define that only builds with the debug UI set, leaving the shipping shader no larger. Checked on DX12 and Vulkan, like every graphics item.
+- [ ] T2. ★ **Pixel inspector** (S). Click the scene view or [Look Dev] to see that pixel's linear HDR value, luminance, value after exposure and final sRGB. Answers "why is this bloom firing" without a GPU capture. Needs a readback of the HDR target on DX12 and Vulkan (`Renderer::captureTarget` reads 8-bit targets today).
 - [ ] T3. **[Look Dev] references and comparison** (M). A grey ball, a chrome ball and a color chart beside the model; a split view of two states (lighting model, HDRI, LUT or a saved image), so a change is judged against the same reference every time.
 - [ ] T4. ★ **[Materials] page in [Look Dev]** (S). Read-only list of the selected model's materials: factors, textures with size and format, features and their values, the features ignored on load, and which meshes use each one. Clicking a row highlights those triangles. Values stay in Blender, the single source.
 - [ ] T5. ★ **Cost comparison** (M). A page like [Debug] > [Balance] that runs `--benchmark` on a scene twice (for example before and after a change, or with a project setting flipped) and shows the difference per `render::GpuPass`. Numbers are from this PC, so the page says which GPU they came from and that minimum spec hardware is the real judge.
@@ -695,11 +697,11 @@ Candidates from a 2026-11-04 review of the renderer, the editor and the opt-in p
 The surface shader item itself stays in "Opt-in rendering features". T6~T8 are the parts of it a TA needs from the first day, so decide them in the same design.
 - [ ] T6. ★ **Project shader files and hot reload** (M). `assets/shaders/*.surface.hlsl`, chosen per material from the Blender MealKit panel (a glTF `extras` key, listed in the engine schema). `ShaderReloader` also watches the project folder, and the cook compiles them, so the shipping exe still needs no compiler. Used by water and lava in a reference sample before it counts as done.
 - [ ] T7. ★ **Parameters declared in the shader** (M). A block at the top of the file (name, type, range, default, texture) is read at compile time and shown as Blender panel fields and [Look Dev] sliders. Slider changes apply at once. Saving goes to the glTF source through Blender, with one source for each value.
-- [ ] T8. ★ **Compile errors where the TA looks** (S). Failed reloads go to the Problems panel and a notification, with clicks opening `file:line` in the code editor, and lines mapped from the generated shader back to the surface file. A broken shader keeps the previous one, as now.
+- [ ] T8. ★ **Compile errors where the TA looks** (S). Failed reloads go to [Debug] > [Problems] and a notification, with clicks opening `file:line` in the code editor, and lines mapped from the generated shader back to the surface file. A broken shader keeps the previous one, as now.
 
 ### Keeping a look under control
-- [ ] T9. ★ **Shader budgets** (M). Project limits on texture samples and estimated instructions per surface shader, from DXC's output, reported in the Problems panel and the Blender add-on as warnings, not blocks (`docs/DECISIONS.md` 2026-11-04). A list shows every project shader with its pipeline count, numbers and users. T5 stays the real measurement.
-- [ ] T10. **Project look tests** (M). The `--render-golden` comparison run for a game project's own shots (a project `tests/golden/`, `shots.txt`, an update button in the [Tests] page), on both backends. Catches an engine upgrade or a shader change that alters a game's look. Could be picked earlier for style presets alone.
+- [ ] T9. ★ **Shader budgets** (M). Project limits on texture samples and estimated instructions per surface shader, from DXC's output, reported in [Debug] > [Problems] and the Blender add-on as warnings, not blocks (`docs/DECISIONS.md` 2026-11-04). A list shows every project shader with its pipeline count, numbers and users. T5 stays the real measurement. Separate from the GPU budget warning in the opt-in features' shared first piece, which judges a whole project's enabled features; both report the same way.
+- [ ] T10. **Project look tests** (M). The `--render-golden` comparison run for a game project's own shots (a project `tests/golden/`, `shots.txt`, an update button in [Debug] > [Tests]), on both backends. Catches an engine upgrade or a shader change that alters a game's look. Needs no project shaders, so it works with style presets alone.
 - [ ] T11. **Shared library and external editor setup** (S). An engine include with noise, UV and color helpers, documented as part of the surface API, and generated settings for VS Code HLSL extensions (include paths, defines) so completion and error marks work outside the engine folder. Cookbook page with water and lava.
 
 ### Later, when a game asks
@@ -714,13 +716,14 @@ The surface shader item itself stays in "Opt-in rendering features". T6~T8 are t
 
 ### Open design questions
 - Surface API shape: does it stay one `Surface surf(Input)`, or get a vertex function for waves and wind? The vertex function is hard to take back, as is every public `Input` field.
+- TAs without a build toolchain: hot reload and cooking compile with DXC, and `ShaderReloader` turns off on a PC without the engine folder or DXC. DXC arrives with the first engine build, so a PC on the D1 shared folder may have neither. Does the editor bundle or download DXC, and where do the engine includes come from?
 - Pipeline count: each surface shader multiplied by lighting model, skinned, shadow and outline pipelines. All are built on load so there are no hitches on first use; how many are acceptable, and what does loading cost?
 - Parameter storage: the material record is a fixed 128 bytes, read for every material. Do custom parameters get a separate table in the upload ring?
 - Vulkan and later backends: surface files compile to DXIL and SPIR-V like engine shaders; stage 5 conversion (`docs/CHANGELOG.md` "Other backends") must also cover them.
 
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 
-Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then the next work is the QA, optimization and audio items below, and the repos are published after them (`docs/DECISIONS.md` 2026-11-02).
+Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then the next work is the QA, optimization and audio items below, and the repos are published after them (`docs/DECISIONS.md` 2026-11-02). The remaining designer independence items (D9, D4, D8) are also meant to land before publication (`docs/DECISIONS.md` 2026-11-04).
 
 ### [ ] Before publication, in this order
 1. [x] **Game QA 2** (MealKit-QA 0.2.0) — v0.8.3, details in `docs/CHANGELOG.md`
@@ -751,9 +754,10 @@ Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then
 - Editor polish (after stage 2, before stage 3): layout → log console → notifications → command palette → preferences/F1 → scene tree search → multi-select → viewport toolbar → snapping → camera controls → inspector conveniences → performance panel → jump to code → debug drawing → multiple scenes → play from here → asset browser **(v0.6.x)**
 3. ~~Replays~~ → ~~desync diagnosis~~ → ~~mid-match joining~~ → ~~bug report bundles~~ → ~~host migration~~ → ~~EOS backend part 1~~ → ~~crash reports (pulled from stage 4)~~ **(v0.7)**. Not blocking v0.7: EOS measurements (two PCs, portal setup). If the first game genre fits: local multiplayer on one PC
 4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → ~~character movement modes (kinematic → floating → active ragdoll)~~ → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → ~~prefabs~~ → ~~terrain (+ scatter brush)~~ → ~~Job System~~ → ~~spatial audio/interactive music~~ → ~~asset cooking + pack files~~ → ~~performance baseline check~~ → ~~empty project template~~ → second reference sample (co-op third person) **(v0.8)**
-4½. While other-OS devices are missing: ~~Game QA 2~~ → ~~optimization (measured)~~ → ~~audio golden tests~~ → publication preparation → repos made public (user). Alongside, not blocking publication: game UI editor in the [UI] panel (v0.9.x)
+4½. While other-OS devices are missing: ~~Game QA 2~~ → ~~optimization (measured)~~ → ~~audio golden tests~~ → publication preparation → repos made public (user). Alongside (v0.9.x): ~~game UI editor in the [UI] panel~~ → ~~editor usability ★ items~~ → ~~designer independence D1, D2, D3, D5, D6, D7~~ → D9 (before FuseTag M6) → D4 → D8. Not scheduled: the rest of the editor usability items, technical artist T1~T5 and T10 (each needs an exception row before v1.0)
 5. Contract freeze review → cookbook docs **(v0.9)** → contracts frozen **(v1.0)** → cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v1.x)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
-- Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects → health/damage → procedural generation → inventory → minimap → ai)
+- Opt-in rendering (after v1.0, one at a time): surface shaders with technical artist T6~T9 and T11 → other features in the order of "Opt-in rendering features"
+- Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects (pulled forward by D9) → health/damage → procedural generation → inventory → minimap → ai)
 - Tool suite (separate from stages, start decided by the user): ~~contract between tools~~ → ~~Audio 1 (layer split inside the engine)~~ → ~~Audio 2 (separate repo)~~ → ~~Audio 3 (authoring tool)~~ → ~~contract library~~ → ~~UI 1 (layer split inside the engine)~~ → next tool. UI 2 (separate repo, earliest after v1.0) when a use appears, UI 3 (preview tool) when a designer appears. UI/Audio features after v1.0
 
 What to check when finishing each feature: no Release build warnings, `mp_test.ps1 -Clients 3 -Ticks 900` PASS, the default preset within budget on minimum spec (11th gen Xe) integrated graphics (opt-in features: no GPU cost when off, cost measured when on), actually used in a reference sample, no OS/graphics API calls outside `platform/`/RHI, per-tick hashes match in every CI build, (from stage 2) the same image on the Vulkan backend too, reflected in the docs repo in English and Korean (`tools/build.py check` passes),
