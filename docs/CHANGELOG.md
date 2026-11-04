@@ -49,6 +49,11 @@ Review of 1600×900 and 1280×720 captures.
 - **Compact rows** (Preferences > Interface, `--compact` for captures): half the vertical padding and spacing.
 - **Color tokens** (`EditorColors.h`): danger, warning, good, changed and play replace literal colors of those meanings in the main panels. Toolbar icons aren't done.
 
+## Editor scene view tab (v0.9.x, 2026-11-04)
+
+- **Scene view tab** (`Editor::drawSceneWindow`): the scene view is a dock window, so other windows can sit beside it as tabs and it can dock elsewhere. The 3D picture stays on the back buffer and fits the window's area, because offscreen targets have no shadows. It can't float: released outside a dock, it returns to the center. Behind another tab the gizmo, toolbar and picking stop, and starting play brings it to the front.
+- **[View] menu** lists only [Data] for tuning, tables, feedback and sounds. Their commands stay in the palette and shortcuts.
+
 ## Game UI editor in the editor (v0.9.x)
 
 - **Step 1, editable `.ui` source** (2026-11-04, `engine/libs/mkui/include/mkui/Source.h`): `parseSource`/`writeSource` keep a `.ui` file as written (comments, blank lines, property order, `$theme` tokens, `use` components and `set` lines) as a tree of nodes whose items are lines or child places, so a save changes only the lines an edit touched. `Document` can't be written back because it inlines components and resolves number tokens; the panel will edit the source, write it, and read it again with `parseDocument` (one parser). `mapDocumentNodes` maps each `Document` node to its source node (nodes inside a component map to the `use` node). Edits: `getProperty`/`setProperty`/`removeProperty` by leading words (`pos`, `on hover fill`, `set label color`, `span 1`; a new line goes after the node's last property line), `addNode`/`removeNode`/`moveNode` by child-index paths (the board can't move or go, a node can't move into itself). Penpot exports are flagged (`Source::exported`) for read-only opening.
