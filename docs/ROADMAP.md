@@ -9,7 +9,7 @@ Finished items are shortened to one `[x]` line and implementation details move t
 Every feature is weighed in the order below to decide whether it goes in.
 
 1. **Does it not hurt 3D + multiplayer?** Features touching the simulation must keep lockstep determinism (`docs/CODING_MODEL.md` "Determinism rules").
-2. **Lightness and speed.** The target hardware is office PCs with Intel integrated graphics, **minimum spec Intel 11th gen (Xe integrated graphics) or newer**. Features exceeding the budgets below must be toggleable.
+2. **Lightness and speed.** The target hardware is office PCs with Intel integrated graphics, **minimum spec Intel 11th gen (Xe integrated graphics) or newer**. The budgets below are what the default preset guarantees, not a limit on what the engine supports: features exceeding them are opt-in (off by default, no GPU cost when off, turned on per project, player-toggleable through quality presets unless the game locks them; `docs/DECISIONS.md` 2026-11-04).
 3. **Multiple platforms, DX12 as reference.** OS APIs are called only behind the platform layer (`mealkit/platform/`), graphics APIs only behind the thin RHI (`mealkit/rhi/`).
    New rendering features are designed on the DX12 backend first, and **from stage 2 the Vulkan backend is built together within the same item**. Metal, WebGPU, and console backends (stage 5) follow. Features aren't lowered to fit other APIs; features a backend can't do are turned off in that platform's preset.
    The editor is Windows first, macOS/Linux in stage 5. The goal is crossplay between all platforms (platform table and conditions in stage 5).
@@ -20,7 +20,7 @@ Every feature is weighed in the order below to decide whether it goes in.
      freely if used only on the view side (`view/`), only determinism-verified ones if they touch the simulation (like Jolt). Source included, version pinned (`third_party/`), permissive license (MIT/BSD/zlib/public domain, etc.), within the shipping exe budget (5 MB).
      Libraries that run on every target platform are looked at first. One platform's native APIs (XAudio2, XInput, WIC, etc.) are used only inside that platform's implementation in the platform layer.
 
-### Performance budget (minimum spec Intel 11th gen Xe integrated graphics, 1280×720, 60 fps)
+### Performance budget of the default preset (minimum spec Intel 11th gen Xe integrated graphics, 1280×720, 60 fps)
 
 "Current" values were measured on a Core Ultra 5 125U (Xe-LPG), faster than the minimum spec. They must be re-measured on minimum spec hardware.
 This table is for Windows. Minimum specs and budgets for other platforms are set in a table of the same shape when that platform is started (stage 5). The 5 MB executable is the same on all platforms.
@@ -31,7 +31,7 @@ This table is for Windows. Minimum specs and budgets for other platforms are set
 | Simulation tick (30 Hz) | 4 ms or less per tick | 0.9~2.5 ms (2,000 bodies) |
 | Draw calls | 200 or fewer | 26 (816 instances, arena) |
 | Network (4 players, host send) | 10 KB/s or less | about 5 KB/s |
-| Game executable | 5 MB or less (excluding assets) | about 3.2 MB (Export build, including audio, Jolt, post) |
+| Game executable | 5 MB or less (excluding assets) | about 3.6 MB (Export build, including audio, Jolt, post, 2026-11-03) |
 
 ## Versions
 
@@ -552,6 +552,7 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 
 - [ ] Audio features after v1.0 (in MealKit-Audio, runtime + tool together, one at a time): bus effect chains (EQ, compressor/limiter, delay) and sidechain compression in place of volume-only ducking, master limiter + loudness meter (LUFS) in the tool, clip sets loaded/unloaded per scene with a memory budget warning, ~~offline-render golden tests for events~~ (done 2026-11-02, MealKit-Audio 0.4.0), a voice/profiler timeline in the tool over the live `audio/` state, dialogue lines (queue, priority, tied to subtitles), Steam Audio HRTF (deferred table, when headphone positioning is core)
 - [ ] Achievements, leaderboards, stats after v1.0 (moved from stage 4 on 2026-11-02, `docs/DECISIONS.md`): reviewed again once the platform SDK work (Steam, EOS, console trophies) is confirmed. Plan as it stood: the game defines achievement conditions as simulation events, the view side reads them and records them through the online service layer, the achievement list is one piece of data exported for each service's registration, and without a service stats are kept in the user data folder. No effect on determinism (only reads results)
+- [ ] Opt-in rendering features after v1.0 (`docs/DECISIONS.md` 2026-11-04, one at a time, each with its cost measured on minimum spec hardware and shown to the developer; view-side, so no effect on determinism; additions only, no frozen contract breaks). Shared first piece: project settings for each feature, player quality presets (Low, Medium, High) with a per-game lock, and an editor warning when the enabled features exceed the project GPU budgets. Order: (1) glTF occlusion texture applied to ambient light only, point light shadows on chosen lights (shadow atlas) → (2) RHI compute on DX12 and Vulkan, then Forward+ and SSAO → (3) real-time GI, technique chosen when started. Deferred rendering only when a game shows a need Forward+ can't meet
 
 ---
 
@@ -609,5 +610,5 @@ Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then
 - Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects → health/damage → procedural generation → inventory → minimap → ai)
 - Tool suite (separate from stages, start decided by the user): ~~contract between tools~~ → ~~Audio 1 (layer split inside the engine)~~ → ~~Audio 2 (separate repo)~~ → ~~Audio 3 (authoring tool)~~ → ~~contract library~~ → ~~UI 1 (layer split inside the engine)~~ → next tool. UI 2 (separate repo, earliest after v1.0) when a use appears, UI 3 (preview tool) when a designer appears. UI/Audio features after v1.0
 
-What to check when finishing each feature: no Release build warnings, `mp_test.ps1 -Clients 3 -Ticks 900` PASS, within budget on minimum spec (11th gen Xe) integrated graphics, actually used in a reference sample, no OS/graphics API calls outside `platform/`/RHI, per-tick hashes match in every CI build, (from stage 2) the same image on the Vulkan backend too, reflected in the docs repo in English and Korean (`tools/build.py check` passes),
+What to check when finishing each feature: no Release build warnings, `mp_test.ps1 -Clients 3 -Ticks 900` PASS, the default preset within budget on minimum spec (11th gen Xe) integrated graphics (opt-in features: no GPU cost when off, cost measured when on), actually used in a reference sample, no OS/graphics API calls outside `platform/`/RHI, per-tick hashes match in every CI build, (from stage 2) the same image on the Vulkan backend too, reflected in the docs repo in English and Korean (`tools/build.py check` passes),
 and new external libraries get `LICENSE` and `mealkit.txt` in `third_party/<lib>/`, then `third_party/VERSIONS.txt` (the canonical external library table) and `THIRD_PARTY_NOTICES.txt` are regenerated with `tools\gen_notices.ps1`.
