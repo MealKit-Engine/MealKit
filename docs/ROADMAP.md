@@ -674,6 +674,50 @@ The most important area for independence, and the largest. New item effects are 
 4. D9: before FuseTag M6, so the three map gimmicks are built and checked with it.
 5. D4, D7: together with game work.
 
+## Technical artist proposals (proposed 2026-11-04, not scheduled)
+
+Candidates from a 2026-11-04 review of the renderer, the editor and the opt-in plans, aimed at a technical artist (TA) who owns a game's look: writing shaders, checking their cost and keeping the look from breaking. **Nothing here is decided yet**: pick items before work starts, and put open design questions in `docs/DECISIONS.md` first. Sizes are estimates. ★ marks the highest-value items.
+
+**What a TA has today**: style presets, Blender material features, [Look Dev], view modes, GPU capture, `--benchmark` and post values with LUT grading. A TA can't write a shader for a game: `render::ShaderReloader` watches only `engine/shaders`, and "project surface shaders" is the first item of "Opt-in rendering features".
+
+**Principle**: shaders are text edited in an external editor, and looks are checked and tuned in the MealKit editor. This keeps criterion ④ and the deferred rows "Shader graph, material editor inside the engine" and "Own IDE". A node graph is reviewed only if surface functions have been used and TAs who don't write code are blocked by them.
+
+**Engine freeze**: T1~T5 are editor or tool work, or debug-only shader paths, so they can be picked before v1.0. T6~T11 build on surface shaders, so they wait for v1.x or need a decided exception. All are view-side, so none affects determinism.
+
+### Checking a look (no project shaders needed)
+- [ ] T1. ★ **More view modes** (S). `render::DebugView` has wireframe, normals, LOD, overdraw, budget and material features. Add base color, roughness, metallic, emissive, sun only, ambient only, reflections only, shadow cascades, mip level and texel density. They extend the `debugView` branches in `PSMain` (`Forward.hlsl`). Those branches are also compiled into the shipping shader today, so the new modes should sit behind a define that only builds with the debug UI set, leaving the shipping shader no larger.
+- [ ] T2. ★ **Pixel inspector** (S). Click the scene view or [Look Dev] to see that pixel's linear HDR value, luminance, value after exposure and final sRGB. Answers "why is this bloom firing" without a GPU capture. Needs a readback of the HDR target (`Renderer::captureTarget` reads 8-bit targets today).
+- [ ] T3. **[Look Dev] references and comparison** (M). A grey ball, a chrome ball and a color chart beside the model; a split view of two states (lighting model, HDRI, LUT or a saved image), so a change is judged against the same reference every time.
+- [ ] T4. ★ **[Materials] page in [Look Dev]** (S). Read-only list of the selected model's materials: factors, textures with size and format, features and their values, the features ignored on load, and which meshes use each one. Clicking a row highlights those triangles. Values stay in Blender, the single source.
+- [ ] T5. ★ **Cost comparison** (M). A page like [Debug] > [Balance] that runs `--benchmark` on a scene twice (for example before and after a change, or with a project setting flipped) and shows the difference per `render::GpuPass`. Numbers are from this PC, so the page says which GPU they came from and that minimum spec hardware is the real judge.
+
+### Writing project shaders (with "project surface shaders")
+The surface shader item itself stays in "Opt-in rendering features". T6~T8 are the parts of it a TA needs from the first day, so decide them in the same design.
+- [ ] T6. ★ **Project shader files and hot reload** (M). `assets/shaders/*.surface.hlsl`, chosen per material from the Blender MealKit panel (a glTF `extras` key, listed in the engine schema). `ShaderReloader` also watches the project folder, and the cook compiles them, so the shipping exe still needs no compiler. Used by water and lava in a reference sample before it counts as done.
+- [ ] T7. ★ **Parameters declared in the shader** (M). A block at the top of the file (name, type, range, default, texture) is read at compile time and shown as Blender panel fields and [Look Dev] sliders. Slider changes apply at once. Saving goes to the glTF source through Blender, with one source for each value.
+- [ ] T8. ★ **Compile errors where the TA looks** (S). Failed reloads go to the Problems panel and a notification, with clicks opening `file:line` in the code editor, and lines mapped from the generated shader back to the surface file. A broken shader keeps the previous one, as now.
+
+### Keeping a look under control
+- [ ] T9. ★ **Shader budgets** (M). Project limits on texture samples and estimated instructions per surface shader, from DXC's output, reported in the Problems panel and the Blender add-on as warnings, not blocks (`docs/DECISIONS.md` 2026-11-04). A list shows every project shader with its pipeline count, numbers and users. T5 stays the real measurement.
+- [ ] T10. **Project look tests** (M). The `--render-golden` comparison run for a game project's own shots (a project `tests/golden/`, `shots.txt`, an update button in the [Tests] page), on both backends. Catches an engine upgrade or a shader change that alters a game's look. Could be picked earlier for style presets alone.
+- [ ] T11. **Shared library and external editor setup** (S). An engine include with noise, UV and color helpers, documented as part of the surface API, and generated settings for VS Code HLSL extensions (include paths, defines) so completion and error marks work outside the engine folder. Cookbook page with water and lava.
+
+### Later, when a game asks
+- T12. Project post effects: one full-screen function in the same form as surface functions, as an opt-in pass with no cost when off.
+- T13. Shaders in source modules (`modules/`), so a look can be shared between projects. Needs the surface API frozen first.
+- T14. Project shaders for particles (`.fx`) and `.ui` nodes.
+
+### Suggested order
+1. T1, T2, T4: small, and useful with the current presets.
+2. T5, T3: when a TA is actually comparing looks. T10 fits here if an engine upgrade breaks a game's look.
+3. T6, T7, T8 in the surface shader design, then T9, T11.
+
+### Open design questions
+- Surface API shape: does it stay one `Surface surf(Input)`, or get a vertex function for waves and wind? The vertex function is hard to take back, as is every public `Input` field.
+- Pipeline count: each surface shader multiplied by lighting model, skinned, shadow and outline pipelines. All are built on load so there are no hitches on first use; how many are acceptable, and what does loading cost?
+- Parameter storage: the material record is a fixed 128 bytes, read for every material. Do custom parameters get a separate table in the upload ring?
+- Vulkan and later backends: surface files compile to DXIL and SPIR-V like engine shaders; stage 5 conversion (`docs/CHANGELOG.md` "Other backends") must also cover them.
+
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 
 Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then the next work is the QA, optimization and audio items below, and the repos are published after them (`docs/DECISIONS.md` 2026-11-02).
