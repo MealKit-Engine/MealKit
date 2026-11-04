@@ -591,7 +591,7 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 5. [x] Conditional fields: `showIf=teams>0` hides or dims fields that don't apply.
 6. [x] (`required` only; no `validate`) Required and validated fields: `required` and `validate` mark the row and report to the Problems panel (item 11).
 7. [x] Search inside the inspector and [Tuning]: by name, description, and "only values that differ from the default".
-8. List and array editing: add, remove and reorder. `MEALKIT_LIST` currently shows its count as a separate number field.
+8. [x] List editing (`MEALKIT_LIST`: add, remove, move up; 2026-11-04).
 9. [x] ★ Multi-object editing: the inspector currently edits only one object of a multi-selection. Edit shared fields together and show `—` for mixed values.
 10. Pinned and multiple inspectors for comparing objects, and remembering which sections are collapsed.
 
@@ -658,7 +658,7 @@ Candidates from a 2026-11-04 review of the editor code and FuseTag, aimed at the
 - [x] D5. [Tests] page in the editor — 2026-11-04, details in `docs/CHANGELOG.md`. Replays (`replays/*.rec`) are not covered yet.
 - [x] D6. View model field pickers in the [UI] panel — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [ ] D7. **Batch bot matches.** Headless runs and bots already exist, and FuseTag M10 plans a balance pass on recorded bot matches. Add "run 100 matches with these values", with statistics in a table (round length, item use) and an A/B comparison.
-- [ ] D8. **Remaining usability items**: list editing (item 8) and tuning A/B presets (item 34) from "Editor usability proposals".
+- [ ] D8. Remaining usability item: list editing is done; tuning A/B presets (item 34) from "Editor usability proposals".
 
 ### Rules and map gimmicks
 The most important area for independence, and the largest. New item effects are fixed in code (FuseTag `ItemEffect` and the `switch` in `sim/Items.cpp`; the table holds only numbers), the M6~M8 map gimmicks need new object kinds and `sim/` code, and the samples' `sim/Objects.h` have no generic trigger or door.

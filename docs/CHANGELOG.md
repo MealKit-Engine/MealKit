@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## List editing, shared build stamp (v0.9.x, 2026-11-04)
+
+- `MEALKIT_LIST` fields show only the used items with x, move up and **+ Add Item**, and the separate count row is gone (`FieldEditor.cpp`).
+- **Publish Game Code** writes `<name>.engine`, a hash of `mealkit.dll`. A PC whose engine build differs refuses the shared DLL with a message and keeps its local copy, instead of risking a crash. Copy the same engine build to designers.
+- Feedback columns checked on screen: a test row on a scratch FuseTag copy lit the arena red with bloom during play.
+
 ## Designer mode: game code from a shared folder (v0.9.x, 2026-11-04)
 
 - Project setting `sharedBuildFolder`. Command **Publish Game Code** copies `<name>_game.dll` and `<name>_headless.exe` there (through a temporary name); **Get Latest Game Code** copies newer files back.
