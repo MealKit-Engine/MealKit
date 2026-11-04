@@ -657,7 +657,7 @@ Candidates from a 2026-11-04 review of the editor code and FuseTag, aimed at the
 ### Workflow breaks
 - [x] D5. [Tests] page in the editor — 2026-11-04, details in `docs/CHANGELOG.md`. Replays (`replays/*.rec`) are not covered yet.
 - [x] D6. View model field pickers in the [UI] panel — 2026-11-04, details in `docs/CHANGELOG.md`.
-- [ ] D7. **Batch bot matches.** Headless runs and bots already exist, and FuseTag M10 plans a balance pass on recorded bot matches. Add "run 100 matches with these values", with statistics in a table (round length, item use) and an A/B comparison.
+- [x] D7. Batch bot matches ([Debug] > [Balance]) — 2026-11-04, details in `docs/CHANGELOG.md`.
 - [ ] D8. Remaining usability item: list editing is done; tuning A/B presets (item 34) from "Editor usability proposals".
 
 ### Rules and map gimmicks

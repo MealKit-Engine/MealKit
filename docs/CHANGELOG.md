@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## [Debug] > [Balance] (v0.9.x, 2026-11-04)
+
+- `editor/BalancePanel`: runs N bot matches (seeds 1..N, a chosen length) with `<name>_headless --final-state` and shows average, lowest and highest of each state number. A second tuning file under `assets/` runs the same seeds for an A/B difference. List values add up per match; "none" marks are skipped.
+- New headless option `--final-state` prints `STATE path value`; it only reads the state.
+- Limits: numbers are the state at the last tick, so a game must keep counters to measure things, names are field paths, and a headless exe older than an engine change fails with the reason shown (only game sources trigger a rebuild). Each match runs alone, one after another.
+
 ## List editing, shared build stamp (v0.9.x, 2026-11-04)
 
 - `MEALKIT_LIST` fields show only the used items with x, move up and **+ Add Item**, and the separate count row is gone (`FieldEditor.cpp`).
