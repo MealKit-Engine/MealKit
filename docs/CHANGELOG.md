@@ -3,6 +3,11 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI binding pickers (v0.9.x, 2026-11-04)
+
+- [UI] panel properties get a **Bindings** section: drop-downs of the preview view model's fields for `visible`, `disabled` (with Invert for `!`), `widthRatio` (float), `colorField` (color) and `list`, and Insert field for `content`. Inside a `list`, fields come from its element type.
+- Names that don't exist show red, and the open screen's are listed in [Problems] as warnings. Only the open screen with a chosen view model is checked, since a `.ui` file doesn't say which view model the game binds. `use` components aren't entered.
+
 ## Editor UX pass (v0.9.x, 2026-11-04)
 
 Review of 1600×900 and 1280×720 captures.

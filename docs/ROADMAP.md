@@ -642,6 +642,38 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 ### Open design questions
 Decided 2026-11-04 (`docs/DECISIONS.md`): attributes in the label string, scene tree folders in `.scene` outside the content hash, and the data hub replaces the separate panels.
 
+## Designer independence proposals (proposed 2026-11-04, not scheduled)
+
+Candidates from a 2026-11-04 review of the editor code and FuseTag, aimed at the moments a designer still needs a programmer. The editor panels are already well covered ("Editor usability proposals" above), so these target the remaining places that need a C++ build. **Nothing here is decided yet**: pick items before work starts, and put open design questions in `docs/DECISIONS.md` first. Sizes are estimates from reading the code.
+
+**Engine freeze**: the engine is fix-only since v0.9. D1, D5, D6 and D7 are editor or tool work. D2, D3, D4 and D9 touch the runtime, so they wait for v1.x or need a decided exception. New feedback table columns only add keys, which fits the v1.x format policy.
+
+### Most frequent blocks
+- [ ] D1. **Editor without a C++ toolchain.** The editor builds game code when the DLL is missing or older than the sources or engine (`EditorMain.cpp`), and play is disabled without a DLL. Add a designer mode that takes a game DLL built by a programmer or CI and offers "get the latest build" instead of compiling. Check first: the real behavior on a PC with no compiler has not been tried, only read in the code.
+- [ ] D2. **Visual feedback columns.** The feedback table has sound, shake, flash, hit stop and particles, so FuseTag writes event lights, hit flash and bloom kicks as view code. Build part 1 items 1~3 of `docs/VISUAL_FEEDBACK.md` (event light, hit flash, glow kick). They reuse existing renderer parts: the best effect for the cost.
+- [ ] D3. **`playersFrom` feedback column.** Rows match only the event's `player` field, so the tagged player's reaction is played from code (FuseTag `GameSession.cpp`, `TagVictim`; its `docs/ENGINE_NOTES.md`). Small.
+- [ ] D4. **Squash and spring as data.** `ViewTuning` exposes the numbers, but which event triggers which motion is fixed in FuseTag `view/Juice.cpp`. Move the generic parts into the engine and add feedback columns such as `squash` and `wobble`.
+
+### Workflow breaks
+- [ ] D5. **[Tests] page in the editor.** Changing tuning, scenes or tables changes replay and scenario results, and refreshing them is command line only (`--update-expected`, `tools\record_replay.ps1`). Run scenarios, show results, and accept an intended change with a button. Report failures as "this value went from A to B". MealKit-QA lists a similar candidate (running `tests/*.scenario`), so decide where it lives first.
+- [x] D6. View model field pickers in the [UI] panel — 2026-11-04, details in `docs/CHANGELOG.md`.
+- [ ] D7. **Batch bot matches.** Headless runs and bots already exist, and FuseTag M10 plans a balance pass on recorded bot matches. Add "run 100 matches with these values", with statistics in a table (round length, item use) and an A/B comparison.
+- [ ] D8. **Remaining usability items**: list editing (item 8) and tuning A/B presets (item 34) from "Editor usability proposals".
+
+### Rules and map gimmicks
+The most important area for independence, and the largest. New item effects are fixed in code (FuseTag `ItemEffect` and the `switch` in `sim/Items.cpp`; the table holds only numbers), the M6~M8 map gimmicks need new object kinds and `sim/` code, and the samples' `sim/Objects.h` have no generic trigger or door.
+- [ ] D9. **Generic objects, then condition → effect rows.**
+  1. Pull the `objects` module forward (trigger volumes, platforms on paths; "Modules" above), with a timer object added.
+  2. Add rule rows on trigger objects or tables, such as `player enters → speed ×0.5, 3 s`. Programmers define the list of effects and designers combine them. This keeps the "no visual scripting" principle. Determinism holds as long as the data is in the content hash and the rows run at a fixed point in `sim/`.
+  3. Scripting languages stay deferred (`docs/DECISIONS.md` deferred table).
+
+### Suggested order
+1. D2, D3, D6: quick and noticeable.
+2. D5: removes the programmer call after each number change.
+3. D1: before a designer actually joins, since the problem doesn't show on a PC with a compiler.
+4. D9: before FuseTag M6, so the three map gimmicks are built and checked with it.
+5. D4, D7: together with game work.
+
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 
 Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then the next work is the QA, optimization and audio items below, and the repos are published after them (`docs/DECISIONS.md` 2026-11-02).
