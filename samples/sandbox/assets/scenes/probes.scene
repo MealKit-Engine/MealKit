@@ -1,14 +1,25 @@
 # MealKit scene
-@format scene 3
+@format scene 5
 
-sun 0.400000006 0.800000012 0.300000012
-sunColor 1 0.949999988 0.850000024
-sky 0.300000012 0.379999995 0.5
-groundColor 0.200000003 0.170000002 0.140000001
-fog 0.5 0.620000005 0.779999971 0.00400000019
+sun 0.4 0.8 0.3
+sunColor 1 0.95 0.85
+sky 0.3 0.38 0.5
+groundColor 0.2 0.17 0.14
+fog 0.5 0.62 0.78 0.004
 hdri textures/hdri/kloofendal_partly_cloudy_1k.hdr
 hdriIntensity 1
 hdriRotation 0
+post toneMapping true
+post punchy true
+post exposure 0
+post lut 
+post bloomIntensity 0.25
+post bloomThreshold 1
+post bloomTint 1 1 1
+post vignette 0
+post vignetteSmoothness 0.5
+post grain 0
+post chromaticAberration 0
 
 entity
 id 1
