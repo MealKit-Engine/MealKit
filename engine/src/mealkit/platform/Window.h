@@ -25,6 +25,12 @@ struct DisplaySize {
     u32 width = 0, height = 0;
 };
 
+// Position and size of the restored window plus the maximized flag (width 0 = none saved)
+struct WindowPlacement {
+    i32 x = 0, y = 0, width = 0, height = 0;
+    bool maximized = false;
+};
+
 // Hook letting other modules (editor UI etc.) see window messages first. Returning nonzero treats the message as handled.
 using MessageHook = std::intptr_t (*)(void* user, void* hwnd, u32 msg, std::uintptr_t wparam, std::intptr_t lparam);
 
@@ -55,6 +61,9 @@ public:
     WindowMode mode() const { return m_mode; }
     // Resolutions supported by the monitor the window is on (largest first, no duplicates)
     std::vector<DisplaySize> displaySizes() const;
+    // Saved and restored between runs. The OS moves a placement from a missing monitor back on screen
+    WindowPlacement placement() const;
+    void setPlacement(const WindowPlacement& placement);
 
     Input& input() { return m_input; }
     void setMessageHook(MessageHook hook, void* user);

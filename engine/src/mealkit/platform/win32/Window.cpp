@@ -142,6 +142,27 @@ std::vector<DisplaySize> Window::displaySizes() const {
     return out;
 }
 
+WindowPlacement Window::placement() const {
+    WINDOWPLACEMENT wp{};
+    wp.length = sizeof(wp);
+    WindowPlacement out;
+    if (!m_hwnd || !GetWindowPlacement(static_cast<HWND>(m_hwnd), &wp)) return out;
+    const RECT& r = wp.rcNormalPosition;
+    out = {r.left, r.top, r.right - r.left, r.bottom - r.top, wp.showCmd == SW_SHOWMAXIMIZED || (wp.flags & WPF_RESTORETOMAXIMIZED) != 0};
+    return out;
+}
+
+void Window::setPlacement(const WindowPlacement& placement) {
+    if (!m_hwnd || placement.width <= 0 || placement.height <= 0) return;
+    WINDOWPLACEMENT wp{};
+    wp.length = sizeof(wp);
+    wp.showCmd = placement.maximized ? SW_SHOWMAXIMIZED : SW_SHOWNORMAL;
+    wp.ptMaxPosition = {-1, -1};
+    wp.ptMinPosition = {-1, -1};
+    wp.rcNormalPosition = {placement.x, placement.y, placement.x + placement.width, placement.y + placement.height};
+    SetWindowPlacement(static_cast<HWND>(m_hwnd), &wp);
+}
+
 bool Window::pumpMessages() {
     m_input.beginFrame();
     MSG msg;
