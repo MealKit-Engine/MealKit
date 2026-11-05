@@ -558,6 +558,13 @@ All free, code is MIT. Jobs that already have good free external tools stay exte
 
 ---
 
+## Design refresh for the rest of the suite (planned 2026-11-05, not scheduled)
+
+The engine editor's look was improved first (`docs/CHANGELOG.md` "Editor look: fewer lines, less repetition, icons"). The rest will follow; details and order are decided when each one starts.
+
+- [ ] MealKit Manager, MealKit Audio and QA, which still keep their own themes
+- [ ] The editor's tree and table arrows, still ImGui's triangles
+
 ## Game UI editor in the editor (v0.9.x, decided 2026-11-04)
 
 Every game screen is hand-written `.ui` text because there is no designer, and FuseTag M9 adds many more screens. The editor's [UI] panel becomes a WYSIWYG editor drawn with the real `mkui` runtime (`docs/DECISIONS.md` 2026-11-04). Editor-only: the `.ui` format, the runtime and the game API don't change, so it doesn't touch the frozen contracts and doesn't block publication.

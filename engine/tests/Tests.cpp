@@ -52,6 +52,8 @@
 #include "mealkit/asset/Scatter.h"
 #include "mealkit/asset/Terrain.h"
 #include "mealkit/render/Culling.h"
+#include "mealkit/editor/FuzzyMatch.h" // standard library only, so these two tests also run in the headless build
+#include "mealkit/editor/UndoStack.h"
 #if MEALKIT_TEST_UI
 #include "mealkit/camera/Brain.h"
 #include "mealkit/game/FrameStats.h"
@@ -59,8 +61,6 @@
 #include "mealkit/settings/Settings.h"
 #include "mealkit/ui/Document.h"
 #include "mealkit/ui/Ui.h"
-#include "mealkit/editor/FuzzyMatch.h"
-#include "mealkit/editor/UndoStack.h"
 #endif
 
 #include "TestRegistry.h"
@@ -2904,7 +2904,7 @@ TEST_CASE(scene, scene_folder_outside_hash) {
     const u64 before = a.contentHash();
     a.entities[0].folder = "Props/Boxes";
     TEST_CHECK(a.contentHash() == before);
-    const std::string path = executableDirectory() + "\\test_folder.scene";
+    const std::string path = executableDirectory() + "/test_folder.scene";
     TEST_CHECK(scene::save(a, path));
     scene::Scene b;
     TEST_CHECK(scene::load(b, path));
