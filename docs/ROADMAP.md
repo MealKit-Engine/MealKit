@@ -819,6 +819,18 @@ Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then
 - After the first public CI runs: Read the Docs for `MealKit-docs`, the Windows on ARM runner (both waited on publication).
 - [x] **First green public CI on Linux x64 and macOS ARM64** (2026-11-03, `MealKit-Engine/MealKit` commit 9dc8a42): unit tests pass on both, `detmath-bits` and the sandbox and coop replay per-tick hashes match Windows MSVC and clang-cl, coop scenarios and headless `mp_test` pass. Details in `docs/CHANGELOG.md`. It is the only other-OS evidence until real devices are available.
 
+## After publication (proposed 2026-11-05, not scheduled)
+
+The repos are public, so what is missing now is mostly what a first visitor sees and can try. The first GitHub release is v1.0.0 (`docs/DECISIONS.md` 2026-11-05).
+
+- [ ] A screenshot or play GIF in the engine README
+- [ ] Check that the GitHub settings under "At publication, on GitHub" are really on
+- [ ] Full `tools\check.ps1` (the "Last checks" item above)
+- [ ] First-run check on a clean Windows PC: build from source, new project, run, export
+- [ ] A short demo video: 4 players and 8,000 physics boxes on integrated graphics
+- [ ] Get outside feedback before freezing contracts for v1.0, since they are hard to take back afterwards
+- [ ] GitHub release v1.0.0 with Windows binaries
+
 ## Recommended order summary
 
 0. ~~General-purpose editor + game DLL hot reload~~ → ~~`sim/`/`view/` structure + determinism check~~ → ~~basic tools (Pool, tick events, tick timers, GameContext)~~ → ~~object types + inspector fields~~ → ~~tuning values as data~~ → ~~declaring state fields once~~ → ~~deterministic math utils~~ → ~~player/character separation (possession)~~ → ~~scene tree hierarchy~~ → ~~autosave~~ → ~~multiplayer play~~ → ~~shadow simulation~~ → ~~rewind~~ → ~~verification script~~ → ~~project upgrade + engine version~~ → ~~code formatting~~ **(v0.4 done)**
