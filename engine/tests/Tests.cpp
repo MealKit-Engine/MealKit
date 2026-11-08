@@ -7,6 +7,7 @@
 #include "mealkit/core/DetMath.h"
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
+#include "mealkit/core/Memory.h"
 #include "mealkit/core/Random.h"
 #include "mealkit/asset/Animation.h"
 #include "mealkit/data/Tables.h"
@@ -229,6 +230,72 @@ TEST_CASE(sim, match_flow) {
     q[3].alive = false;
     TEST_CHECK(sim::advanceMatch(f, c, 13, q) == FlowEvent::RoundEnd && f.roundWinner == sim::kNoSide); // everyone out: lost
     TEST_CHECK(sim::advanceMatch(f, c, 13, q) == FlowEvent::MatchEnd && f.matchWinner == sim::kNoSide); // 1 won, 2 lost
+}
+
+TEST_CASE(core, memory) {
+    using namespace mealkit;
+    const mem::Tag t = mem::tag("test_memory");
+    TEST_CHECK(mem::tag("test_memory") == t);
+    TEST_CHECK(std::string(mem::tagName(t)) == "test_memory");
+    TEST_CHECK(mem::tag("").index == 0);
+    const mem::TagStats before = mem::stats(t);
+
+    // Counted heap, also through pmr containers
+    void* p = mem::allocate(t, 1000, 64);
+    TEST_CHECK(reinterpret_cast<uintptr_t>(p) % 64 == 0);
+    TEST_CHECK(mem::stats(t).bytes == before.bytes + 1000);
+    mem::deallocate(t, p, 1000, 64);
+    TEST_CHECK(mem::stats(t).bytes == before.bytes);
+    TEST_CHECK(mem::stats(t).peak >= before.bytes + 1000);
+    {
+        std::pmr::vector<int> v{&mem::heap(t)};
+        v.resize(256);
+        TEST_CHECK(mem::stats(t).bytes >= before.bytes + 256 * sizeof(int));
+    }
+    TEST_CHECK(mem::stats(t).bytes == before.bytes);
+
+    // Arena: aligned bumps, reset keeps pages, trim gives back all but the first, big blocks get a page of their own
+    {
+        mem::Arena a{t, 1024};
+        void* x = a.allocate(10, 1);
+        void* y = a.allocate(100, 32);
+        TEST_CHECK(x != y && reinterpret_cast<uintptr_t>(y) % 32 == 0);
+        void* big = a.allocate(5000, 16);
+        TEST_CHECK(big != nullptr && a.reserved() >= 1024 + 5000);
+        const size_t reserved = a.reserved();
+        a.reset();
+        TEST_CHECK(a.used() == 0 && a.reserved() == reserved);
+        TEST_CHECK(a.allocate(10, 1) == x); // the first page is reused from its start
+        a.trim();
+        TEST_CHECK(a.reserved() == 1024);
+        std::pmr::vector<int> v{&a};
+        v.assign(100, 7);
+        TEST_CHECK(v[99] == 7);
+    }
+    TEST_CHECK(mem::stats(t).bytes == before.bytes);
+
+    // FixedPool: blocks reused through the free list, pages added as needed
+    {
+        mem::FixedPool pool{t, 24, 8, 4};
+        void* blocks[6];
+        for (void*& b : blocks) b = pool.allocate();
+        TEST_CHECK(pool.count() == 6 && pool.capacity() == 8);
+        pool.free(blocks[2]);
+        TEST_CHECK(pool.allocate() == blocks[2]);
+        for (void* b : blocks) pool.free(b);
+        TEST_CHECK(pool.count() == 0);
+        struct Item { int a; double b; };
+        Item* item = pool.create<Item>(Item{3, 2.5});
+        TEST_CHECK(item->a == 3 && item->b == 2.5);
+        pool.destroy(item);
+    }
+    TEST_CHECK(mem::stats(t).bytes == before.bytes);
+
+    // Frame arena is empty after endFrame
+    (void)mem::frameArena().allocate(128, 16);
+    TEST_CHECK(mem::frameArena().used() >= 128);
+    mem::endFrame();
+    TEST_CHECK(mem::frameArena().used() == 0);
 }
 
 TEST_CASE(core, det_math) {

@@ -124,6 +124,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/core/Zip.h
     src/mealkit/core/Zip.cpp
     src/mealkit/core/Profile.h
+    src/mealkit/core/Memory.h
+    src/mealkit/core/Memory.cpp
     src/mealkit/game/GameContext.h
     src/mealkit/game/GameInstance.h
     src/mealkit/game/BuildInfo.h
@@ -162,6 +164,8 @@ set(MEALKIT_CORE_SOURCES
     src/mealkit/loc/Strings.cpp
     src/mealkit/jobs/Jobs.h
     src/mealkit/jobs/Jobs.cpp
+    src/mealkit/jobs/JoltAllocator.h
+    src/mealkit/jobs/JoltAllocator.cpp
     src/mealkit/physics/PhysicsWorld.h
     src/mealkit/physics/PhysicsWorld.cpp
     src/mealkit/platform/Paths.h
@@ -298,16 +302,16 @@ endif()
 if(MEALKIT_DEBUG_UI)
     list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/debug/ImGuiLayer.h src/mealkit/debug/ImGuiLayer.cpp
         src/mealkit/debug/DebugDraw.h src/mealkit/debug/DebugDrawRender.h src/mealkit/debug/DebugDraw.cpp
-        src/mealkit/debug/AllocCount.h src/mealkit/debug/AllocCount.cpp
+        src/mealkit/core/AllocCount.h src/mealkit/core/AllocCount.cpp
         src/mealkit/platform/ImGuiPlatform.h src/mealkit/platform/win32/ImGuiPlatform.cpp
         ${mealkit_rhi_imgui}
         # Texture compression (asset/TextureCache.cpp): dev builds only create it; shipping builds only read the compressed cache
         ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp)
 endif()
 
-# Frame allocation counter (debug/AllocCount.h): replaces operator new only in the dev game exe (static), not in mealkit.dll
+# Frame allocation counter (core/AllocCount.h): replaces operator new only in the dev game exe (static), not in mealkit.dll
 if(MEALKIT_DEBUG_UI AND NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
-    set_source_files_properties(src/mealkit/debug/AllocCount.cpp PROPERTIES COMPILE_DEFINITIONS MEALKIT_ALLOC_COUNT=1)
+    set_source_files_properties(src/mealkit/core/AllocCount.cpp PROPERTIES COMPILE_DEFINITIONS MEALKIT_ALLOC_COUNT=1)
 endif()
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")

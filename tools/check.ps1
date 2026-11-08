@@ -392,7 +392,7 @@ if (-not $Quick) {
         if ($code -ne 0 -or -not $m.Success -or -not (Test-Path $report)) { return $false }
         $now = [ordered]@{ avg = [double]$m.Groups[1].Value; p99 = [double]$m.Groups[2].Value; sim = [double]$m.Groups[3].Value
             gpu = [double]$m.Groups[4].Value; mem = [double]$m.Groups[5].Value; gpumem = [double]$m.Groups[6].Value }
-        # Frame allocations (ROADMAP optimization 9, debug/AllocCount.h): main thread heap allocations per frame in render + UI.
+        # Frame allocations (ROADMAP optimization 9, core/AllocCount.h): main thread heap allocations per frame in render + UI.
         # The same on every PC, so compared even when the adapter differs; any rise over the baseline (+1 for rounding) warns. The goal is 0
         $allocs = if ($m.Groups[7].Success) { [double]$m.Groups[7].Value } else { -1 }
         $adapter = ((Select-String -Path $report -Pattern '^gpu\s+(.+?) \|').Matches[0].Groups[1].Value).Trim()

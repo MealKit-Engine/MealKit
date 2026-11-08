@@ -3,6 +3,16 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 1: kernel memory (v0.9.x, 2026-11-08)
+
+- `core/Memory.h`: memory tags by name (`mem::tag("render")`, at most 64, "other" for the rest), counted with relaxed atomics (bytes now, peak, allocation calls). `mem::allocate/deallocate`, `mem::heap(tag)` (a `std::pmr::memory_resource` per tag), `mem::Allocator<T, Name>` (stateless, for containers that must stay plain std types), `mem::Arena` (linear, `reset`/`trim`, pages from the heap under its tag, pmr resource) and `mem::FixedPool` (same-size blocks, free list).
+- Frame arena reset by `mem::endFrame()` (game exe main loop after `FrameStats::update`, start of `Editor::update`), match arena trimmed by `mem::endMatch()` after `GameInstance::stop` (game exe, editor play). Both are main thread only and have no users yet: code moves onto them only where the frame allocation check shows allocations.
+- `sim::Pool` storage uses `mem::Allocator` under tag "sim". **Not the match arena** as `docs/ENGINE_MODULES.md` first planned: Pools are copied (shadow simulation, rewind, snapshots) and `grow()` mid-match, which an arena reset would break. Replays, scenarios and `mp_test` give the same hashes as before.
+- Jolt's allocation hooks are set once in `jobs/JoltAllocator.cpp` (tag "jolt"), called by both the job pool and physics. Before this, `jobs/Jobs.cpp` and `physics/PhysicsWorld.cpp` each called `RegisterDefaultAllocator`; with physics switching to counted hooks, blocks from one set reached the other's free and the heap broke at exit (0xC0000374). Every block carries a 16-byte header (size, offset, alignment), so `Free` and `AlignedFree` are one function.
+- `debug/AllocCount` moved to `core/AllocCount` (still dev game exes only).
+- `FrameStats`: `taggedMemory` (sum of tags, with a renderer) in `line()` as `tagged N MB`, every tag in `json()` under `memory`. Editor [Debug] > [Memory] page: per-tag now, peak, allocations, total (command palette "Memory"). Unit test `core/memory`.
+- Not done in this item: miniaudio's allocation callbacks (needs a MealKit-Audio change; mkaudio is pinned in `third_party/`), meshoptimizer, per-tag budgets in `mealkit.project`. The editor [Memory] page was built and the editor ran a play session, but the page itself wasn't looked at on screen.
+
 ## Editor look: fewer lines, less repetition, icons (v0.9.x, 2026-11-05)
 
 - Theme (`applyStyle`): neutral dark layers instead of blue-tinted ones. Panels are parted by a 4 px dark gutter and very faint borders; tabs lose the blue fill and underline and the selected one joins its panel; the accent color is left for selection and active states; thinner scrollbars, more padding. The gutter comes from pushing `ImGuiCol_WindowBg` around `DockSpace()`, the color ImGui paints splitters with.

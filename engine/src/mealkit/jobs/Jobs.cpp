@@ -1,5 +1,7 @@
 #include "mealkit/jobs/Jobs.h"
 
+#include "mealkit/jobs/JoltAllocator.h"
+
 #include <Jolt/Jolt.h>
 
 #include <Jolt/Core/JobSystemThreadPool.h>
@@ -25,7 +27,7 @@ constexpr u32 kMaxBarriers = 64;
 void acquire() {
     std::lock_guard<std::mutex> guard(g_lock);
     if (g_users++ > 0) return;
-    JPH::RegisterDefaultAllocator(); // the pool allocates through Jolt's hooks (idempotent; PhysicsWorld does the same)
+    installJoltAllocator(); // the pool allocates through Jolt's hooks, shared with physics (JoltAllocator.h)
     const u32 cores = std::max(1u, std::thread::hardware_concurrency());
     const u32 workers = std::clamp(cores - 1, 1u, 6u); // leave one for the main thread
     g_pool = new JPH::JobSystemThreadPool(kMaxJobs, kMaxBarriers, static_cast<int>(workers));

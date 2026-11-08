@@ -794,6 +794,21 @@ A 2026-11-04 pass over every game development role: how each should work, and wh
 - R2: where do engine binaries come from, and how do they match a project's `engineVersion`?
 - R3: where does the camera live during a replay in the shipping exe, the editor, or both? Does a shipped game offer it to players as a photo mode, or is it dev-only?
 
+## Engine module split (decided 2026-11-08, before publication)
+
+The engine becomes a kernel, and every subsystem an engine module in its own repo (`docs/DECISIONS.md` 2026-11-08, design and details in `docs/ENGINE_MODULES.md`). Built now, before "Publication preparation" finishes, since repo layout and contract paths change. Each item is done when the Editor and Release builds, render goldens on DX12 and Vulkan, and the determinism group pass.
+
+- [x] 1. Kernel memory — 2026-11-08, details in `docs/CHANGELOG.md` (miniaudio hooks and per-tag budgets left for later)
+- [ ] 2. `engine-module.txt` manifests on the current folders, `check_modules.ps1` replaces `check_layers.ps1`
+- [ ] 3. Kernel target `engine/core/` (`mealkit_core`), `sim/` containers moved into it
+- [ ] 4. Module targets in `modules/<name>/`, leaves first (camera … editor)
+- [ ] 5. Kernel service registry and dependency-order init; `GameContext::get<T>()`
+- [ ] 6. Session interface (`game::Session`, `LocalSession`), `net` optional, `solo` preset plays sandbox offline
+- [ ] 7. Project module lists and presets in `mealkit.project`, upgrade migration, template change (`VERSION`), `kApiVersion`, exe size per preset
+- [ ] 8. Editor panels into modules' `editor/` folders; online backends as modules
+- [ ] 9. Module repos extracted with history, `modules.lock`, `tools\modules.ps1` (sync, bump, status, local mode), shared module workflow. GitHub repos created and pushed by the user
+- [ ] 10. Workspace notes and tools, CLAUDE.md rules, CODING_MODEL, CONTRACTS, docs repo (English and Korean), publication order with the new repos
+
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 
 Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then the next work is the QA, optimization and audio items below, and the repos are published after them (`docs/DECISIONS.md` 2026-11-02). The remaining designer independence items (D9, D4, D8) are also meant to land before publication (`docs/DECISIONS.md` 2026-11-04).
@@ -839,7 +854,7 @@ The repos are public, so what is missing now is mostly what a first visitor sees
 - Editor polish (after stage 2, before stage 3): layout → log console → notifications → command palette → preferences/F1 → scene tree search → multi-select → viewport toolbar → snapping → camera controls → inspector conveniences → performance panel → jump to code → debug drawing → multiple scenes → play from here → asset browser **(v0.6.x)**
 3. ~~Replays~~ → ~~desync diagnosis~~ → ~~mid-match joining~~ → ~~bug report bundles~~ → ~~host migration~~ → ~~EOS backend part 1~~ → ~~crash reports (pulled from stage 4)~~ **(v0.7)**. Not blocking v0.7: EOS measurements (two PCs, portal setup). If the first game genre fits: local multiplayer on one PC
 4. ~~Source module system ①~⑧ (engine integration, `module.ps1`, `cooldown`, registry `MealKit-Modules`, editor/Manager lists, site, docs)~~ → ~~scenario tests for game code (moved from stage 1)~~ → ~~project namespace cleanup~~ → ~~game flow framework~~ → ~~character movement modes (kinematic → floating → active ragdoll)~~ → ~~virtual cameras + cutscenes~~ → ~~AI pathfinding~~ → ~~prefabs~~ → ~~terrain (+ scatter brush)~~ → ~~Job System~~ → ~~spatial audio/interactive music~~ → ~~asset cooking + pack files~~ → ~~performance baseline check~~ → ~~empty project template~~ → second reference sample (co-op third person) **(v0.8)**
-4½. While other-OS devices are missing: ~~Game QA 2~~ → ~~optimization (measured)~~ → ~~audio golden tests~~ → publication preparation → repos made public (user). Alongside (v0.9.x): ~~game UI editor in the [UI] panel~~ → ~~editor usability ★ items~~ → ~~designer independence D1, D2, D3, D5, D6, D7~~ → D9 (before FuseTag M6) → D4 → D8. Not scheduled: the rest of the editor usability items, technical artist T1~T5 and T10 (each needs an exception row before v1.0), roles review R1~R4 (R1 before publication if picked)
+4½. While other-OS devices are missing: ~~Game QA 2~~ → ~~optimization (measured)~~ → ~~audio golden tests~~ → engine module split (kernel + one repo per module, `docs/ENGINE_MODULES.md`) → publication preparation → repos made public (user). Alongside (v0.9.x): ~~game UI editor in the [UI] panel~~ → ~~editor usability ★ items~~ → ~~designer independence D1, D2, D3, D5, D6, D7~~ → D9 (before FuseTag M6) → D4 → D8. Not scheduled: the rest of the editor usability items, technical artist T1~T5 and T10 (each needs an exception row before v1.0), roles review R1~R4 (R1 before publication if picked)
 5. Contract freeze review → cookbook docs **(v0.9)** → contracts frozen **(v1.0)** → cross-platform determinism (real devices) → Linux/Steam Deck (Vulkan, including editor) → macOS (Metal, including editor) → crossplay **(v1.x)** → tier 2: Android/iOS → web (WebGPU) → consoles (once dev kits exist, Xbox → PlayStation → Switch)
 - Opt-in rendering (after v1.0, one at a time): surface shaders with technical artist T6~T9 and T11 → other features in the order of "Opt-in rendering features"
 - Modules (after stage 5, one at a time as wanted): source modules ⑨ remaining first modules (basic objects (pulled forward by D9) → health/damage → procedural generation → inventory → minimap → ai)

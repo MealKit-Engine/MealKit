@@ -1,4 +1,4 @@
-#include "mealkit/debug/AllocCount.h"
+#include "mealkit/core/AllocCount.h"
 
 #include <cstdlib>
 #include <new>
