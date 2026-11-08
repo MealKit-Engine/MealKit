@@ -60,6 +60,7 @@ engine 0.8
 title Cooldowns
 summary TickTimer bundles for skill cooldowns, with a cooldown icon .ui
 tags gameplay timer ui
+icon timer
 requires
 ```
 
@@ -72,6 +73,10 @@ requires
 | `engine` | The compatible engine MINOR. During 0.x, MINOR is the API boundary |
 | `requires` | Dependency modules as `name minVersion`, space-separated |
 | `title`/`summary`/`tags` | Used for listing and search |
+| `icon` | Optional. One keyword for the picture in the editor [Modules] window and MealKit Manager (below). Without it, the first tag that is a keyword, then the name, then a puzzle piece |
+
+Icon keywords (each program draws its own picture for them; unknown keywords fall back as if absent): `gameplay`, `timer`, `combat`, `health`, `ai`, `map`, `save`, `ui`, `audio`, `render`, `camera`, `physics`, `net`, `online`, `input`, `data`, `asset`, `scene`, `debug`, `tool`, `settings`, `loc`, `feedback`, `live`, `session`, `sim`, `game`, `editor`.
+They include the engine module names, so engine modules get their picture without an `icon` line.
 
 ## How modules enter the build
 

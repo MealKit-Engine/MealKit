@@ -11,8 +11,11 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $utf8 = New-Object System.Text.UTF8Encoding $false
-$editorDir = Join-Path $root "engine\src\mealkit\editor"
-$engineDir = Join-Path $root "engine\src\mealkit"
+# Editor code: the editor module and every module's editor/ folder (docs/ENGINE_MODULES.md); data text: the kernel and the other module code
+$editorDirs = @((Join-Path $root "modules\editor\src"), (Join-Path $root "modules\editor\include")) +
+    @(Get-ChildItem (Join-Path $root "modules") -Directory | ForEach-Object { Join-Path $_.FullName "editor" } | Where-Object { Test-Path $_ })
+$engineDirs = @((Join-Path $root "engine"), (Join-Path $root "modules"))
+function In-EditorDir([string]$path) { foreach ($d in $editorDirs) { if ($path.StartsWith($d + "\")) { return $true } }; return $false }
 $stringsDir = Join-Path $root "engine\res\strings"
 
 $literal = '"((?:[^"\\]|\\.)*)"'
@@ -33,7 +36,7 @@ function Add-Key([string]$key, [string]$where) {
 }
 
 # 1) Editor code
-foreach ($file in Get-ChildItem $editorDir -File -Include *.cpp, *.h -Recurse) {
+foreach ($file in Get-ChildItem $editorDirs -File -Include *.cpp, *.h -Recurse) {
     $raw = [IO.File]::ReadAllText($file.FullName, $utf8)
     $name = $file.Name
     # Comments are ignored (line comments and after " // ")
@@ -72,8 +75,8 @@ foreach ($file in Get-ChildItem $editorDir -File -Include *.cpp, *.h -Recurse) {
 }
 
 # 2) Data text declared by the engine (translated by the editor with trData): field descriptions (last string), built-in scene kind names
-foreach ($file in Get-ChildItem $engineDir -File -Include *.cpp, *.h -Recurse) {
-    if ($file.FullName.StartsWith($editorDir)) { continue }
+foreach ($file in Get-ChildItem $engineDirs -File -Include *.cpp, *.h -Recurse) {
+    if ((In-EditorDir $file.FullName) -or $file.FullName -match '\\(third_party|tests)\\') { continue }
     $text = [IO.File]::ReadAllText($file.FullName, $utf8)
     foreach ($m in [regex]::Matches($text, '(?m)^\s*MEALKIT_(?:VIEW_)?FIELD(?:_FLAGS)?\(([^;]*)\);')) {
         $strings = [regex]::Matches($m.Groups[1].Value, $literal)

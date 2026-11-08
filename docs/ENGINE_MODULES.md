@@ -8,7 +8,7 @@ When done, rules move to `docs/CODING_MODEL.md` and the CLAUDE.md files, impleme
 
 - The engine becomes a **kernel** (`core`): memory, types and math, determinism tools, reflection, text formats, logging and profiling, the platform basics (files, time, threads), jobs, and the module mechanism itself. It knows no graphics, physics, network or sound.
 - Everything else is an **engine module**: `rhi`, `render`, `physics`, `net`, `sim`, `audio`, `ui`, `input`, `game`, `editor`, ... Each module has a manifest that declares what it requires; the folder layer order becomes a dependency graph read from those manifests.
-- **One module = one repo** (`MealKit-<Name>`), from the first public release. The `MealKit` repo keeps the kernel, the build system, project tools, templates, reference samples, and the **lock file** that pins which module versions make up an engine version.
+- **One module = one repo** (`module-<name>`), from the first public release. The `MealKit` repo keeps the kernel, the build system, project tools, templates, reference samples, and the **lock file** that pins which module versions make up an engine version.
 - Modules are **linked statically, chosen at build time**: a project picks **any combination** (presets are named starting points) and may pin **each module's version** on its own, like source modules (decided 2026-11-08, second row; "Module selection and versions" below). Not runtime plugins: the shipping exe stays a single static file, calls stay inlinable, and peers can't mix different module builds.
 - **Multiplayer is a module too.** `net` is in the default preset, so new games are multiplayer-capable as now, but a game may leave it out. The determinism rules stay for every game (replays, rewind, scenario tests, and adding `net` later all depend on them).
 
@@ -76,7 +76,7 @@ TagStats stats(Tag tag);          // shown in FrameStats and the editor [Debug] 
 ### Module layout (= the root of its repo)
 
 ```
-MealKit-Render/               repo root = the module
+module-render/               repo root = the module
   module.txt                  manifest (below)
   LICENSE                     MIT
   include/mealkit/render/     public headers only
@@ -84,13 +84,13 @@ MealKit-Render/               repo root = the module
   shaders/
   editor/                     editor panels of this module (built only in Editor builds)
   tests/                      TEST_CASE(render, ...), built into mealkit_tests and by the module's own CI
-  third_party/                libraries only this module uses (Jolt in MealKit-Physics), same rules as the engine's
+  third_party/                libraries only this module uses (Jolt in module-physics), same rules as the engine's
   .github/workflows/          one line calling the shared workflow ("Module CI")
 ```
 
 - **Include paths don't change for games**: `#include "mealkit/render/Renderer.h"` still works. Private headers are in `src/` and can't be included from outside the module.
 - A module's `editor/` folder holds the panels about it ([Look Dev] with `render`, [Sound] with `audio`). The `editor` module gathers them.
-- Library code that doesn't need MealKit headers stays a separate library inside its module repo, checked by `check_libs.ps1` (`mkui` inside MealKit-UI; `mkaudio` stays the engine-free runtime in MealKit-Audio, with the glue module beside it).
+- Library code that doesn't need MealKit headers stays a separate library inside its module repo, checked by `check_libs.ps1` (`mkui` inside module-ui; `mkaudio` stays the engine-free runtime in MealKit-Audio, with the glue module beside it).
 
 ### Manifest `module.txt`
 
@@ -221,12 +221,12 @@ The docs say **engine module** (`type engine`: built into the engine libraries, 
 | Repo | Contents |
 |---|---|
 | `MealKit` | kernel (`engine/core/`), `cmake/` (`mealkit_add_game`, `mealkit_add_engine_module`), `tools/` (build, check, project and module tools), `templates/`, `samples/`, `modules.lock`, vendored modules in `modules/`, the integration CI, and the shared module workflow |
-| `MealKit-<Name>` | one engine module each, from the table above (`MealKit-Render`, `MealKit-Physics`, `MealKit-Net`, ...) |
-| `MealKit-RHI` | `rhi` with its backends `rhi-dx12` and `rhi-vulkan` (one folder each under `backends/`, each still its own module and manifest), so a graphics change on both backends stays one commit |
-| `MealKit-Online` | `online` with `online-steam` and `online-eos` the same way (SDKs stay outside the repo, stub approach) |
+| `module-<name>` | one engine module each, from the table above (`module-render`, `module-physics`, `module-net`, ...) |
+| `module-rhi` | `rhi` with its backends `rhi-dx12` and `rhi-vulkan` (one folder each under `backends/`, each still its own module and manifest), so a graphics change on both backends stays one commit |
+| `module-online` | `online` with `online-steam` and `online-eos` the same way (SDKs stay outside the repo, stub approach) |
 | `MealKit-Audio` | the existing engine-free `mkaudio` runtime and tool, plus the `audio` glue module in `module/` |
-| `MealKit-UI` | `mkui`, the `ui` glue module, and later the Penpot plugin (pulls ROADMAP "UI 2" forward) |
-| `MealKit-Editor` | the `editor` module (the general-purpose editor app) |
+| `module-ui` | `mkui`, the `ui` glue module, and later the Penpot plugin (pulls ROADMAP "UI 2" forward) |
+| `module-editor` | the `editor` module (the general-purpose editor app) |
 
 Repos are under `github.com/MealKit-Engine/`, MIT, KingProtea99 as author. The local checkouts sit beside the others in `D:\MealKit-Engine\`.
 
@@ -235,14 +235,14 @@ Repos are under `github.com/MealKit-Engine/`, MIT, KingProtea99 as author. The l
 ```
 # MealKit/modules.lock
 @format module-lock 1
-module render  https://github.com/MealKit-Engine/MealKit-Render  v0.1.0  3f2a…
-module physics https://github.com/MealKit-Engine/MealKit-Physics v0.1.0  9c1d…
+module render  https://github.com/KingProtea99/module-render  v0.1.0  3f2a…
+module physics https://github.com/KingProtea99/module-physics v0.1.0  9c1d…
 ```
 
 - **An engine version is a tested set**: the root `VERSION` plus `modules.lock`. Games pin an engine version, not module versions one by one, so the combinations that exist are the ones CI tested.
 - The engine repo **vendors** each locked module into `modules/<name>/` (source copies of `module.txt`, `include/`, `src/`, `shaders/`, `editor/`, `tests/`, `third_party/`, `LICENSE`), the way `third_party/mkaudio` works today. Cloning `MealKit` alone is still enough to build, offline, and the simulation version hashes what's in the folder.
 - `tools\modules.ps1` keeps both in step: `sync` (copy the locked tags, check commits), `bump <name> [<tag>]` (update the lock and the copy in one engine commit), `status` (vendored copy vs lock vs local checkout). It generalizes `update_mkaudio.ps1`.
-- **Local mode**: `tools\modules.ps1 local on [name]` turns `modules/<name>` into a junction to the sibling checkout `..\MealKit-<Name>` (changed 2026-11-08 in step 9 from a CMake switch: the build keeps one set of paths), for changes that span repos; `local off` restores the vendored copy. When the change is done, each module repo gets a commit and tag, and `bump` brings them into the engine in one commit.
+- **Local mode**: `tools\modules.ps1 local on [name]` turns `modules/<name>` into a junction to the sibling checkout `..\module-<name>` (changed 2026-11-08 in step 9 from a CMake switch: the build keeps one set of paths), for changes that span repos; `local off` restores the vendored copy. When the change is done, each module repo gets a commit and tag, and `bump` brings them into the engine in one commit.
 
 ### Module CI (per module repo)
 
@@ -271,14 +271,14 @@ All steps are done now, before publication. Each is one ROADMAP item, done when 
 6. **Session interface**: `game::Session`, `LocalSession`, `net` optional; the `solo` preset builds and plays sandbox offline.
 7. **Project module lists and presets**, shipping links only those, `upgrade_project.ps1` migration, `templates/project` change (bumps `VERSION`), `kApiVersion` bump. Exe size measured per preset.
 8. **Editor panels into modules' `editor/` folders**; `online-steam`/`online-eos` as backend modules.
-9. **Repos**: extract each `modules/<name>/` with history into `D:\MealKit-Engine\MealKit-<Name>` (local git, KingProtea99, tag `v0.1.0`), `modules.lock`, `tools\modules.ps1`, local mode, the shared module workflow. Creating the GitHub repos and pushing is done by the user.
+9. **Repos**: extract each `modules/<name>/` with history into `D:\MealKit-Engine\module-<name>` (local git, KingProtea99, tag `v0.1.0`), `modules.lock`, `tools\modules.ps1`, local mode, the shared module workflow. Creating the GitHub repos and pushing is done by the user.
 10. **Workspace and docs**: workspace `CLAUDE.md` repo list, `mk-build.ps1` and `.clangd` for module repos, the CLAUDE.md layer rules, `docs/CODING_MODEL.md`, `docs/CONTRACTS.md`, the docs repo's engine developer guide (English and Korean), the publication order in ROADMAP.
 
 ## Cost and risk
 
 - Steps 3–4 move most engine files. Every include of a private header from another folder becomes a build error that needs a public header or a `requires` line; the layer check already removed the backward ones, but the count isn't measured yet.
 - The editor build, golden tests and determinism replays must stay green through the moves. Moving files rebuilds everything, so each step is a full rebuild through `mk-build.ps1`.
-- After step 9 a change that spans the kernel and a module is several commits in several repos plus a lock bump. Backends share their interface's repo, so the RHI rule "DX12 and Vulkan fixed in the same piece of work" stays one commit in `MealKit-RHI`; a graphics feature usually also touches `MealKit-Render`, so it's two repos plus a lock bump.
+- After step 9 a change that spans the kernel and a module is several commits in several repos plus a lock bump. Backends share their interface's repo, so the RHI rule "DX12 and Vulkan fixed in the same piece of work" stays one commit in `module-rhi`; a graphics feature usually also touches `module-render`, so it's two repos plus a lock bump.
 - The 2026-11-03 contract review needs a pass over `docs/CONTRACTS.md` and the cookbook. Doing this before publication keeps it a 0.x change.
 - Rough size: steps 1–2 a few days, 3–8 two to three weeks, 9–10 about a week.
 
@@ -287,5 +287,5 @@ All steps are done now, before publication. Each is one ROADMAP item, done when 
 1. Goal: a small kernel that rarely changes and smaller exes per game, leaving room for replacing implementations and for others' modules.
 2. Static modules chosen at build time; no runtime plugins.
 3. `net` is an optional module (in the default `standard` preset). The absolute rule becomes "multiplayer by default"; the determinism rules stay for every game.
-4. One repo per module from the first public release, with the lock file and vendored copies in `MealKit`. Backend modules live in their interface's repo (`MealKit-RHI`, `MealKit-Online`).
+4. One repo per module from the first public release, with the lock file and vendored copies in `MealKit`. Backend modules live in their interface's repo (`module-rhi`, `module-online`).
 5. Everything is built now, before publication.

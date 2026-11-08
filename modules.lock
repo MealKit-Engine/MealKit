@@ -1,25 +1,25 @@
 # Engine modules vendored into modules/<name> (tools\modules.ps1). One engine version = VERSION + this file.
 # module <name> <repo url> <tag> <commit> <path in the repo>
 @format module-lock 1
-module asset https://github.com/MealKit-Engine/MealKit-Asset v0.1.2 91b82a902d28d7a1fa88530f8d318b29ab619f77 .
-module camera https://github.com/MealKit-Engine/MealKit-Camera v0.1.2 9e5f51463ce32806e2a985504d9b4cd7d62db2b8 .
-module data https://github.com/MealKit-Engine/MealKit-Data v0.1.2 4f58d548daafa2d2b88204a99f499ac70676a317 .
-module debug https://github.com/MealKit-Engine/MealKit-Debug v0.1.2 d8ad98765068c1a233a3f94c852f600ac2517cad .
-module editor https://github.com/MealKit-Engine/MealKit-Editor v0.1.2 7df55c29e1de3df1afc5af850dae954fc9f71095 .
-module feedback https://github.com/MealKit-Engine/MealKit-Feedback v0.1.3 2134f7a20b5b321bc8e47a0d8b56df61301f7b1e .
-module game https://github.com/MealKit-Engine/MealKit-Game v0.1.3 b310e129c90dd4acef5c5e0bf61bcd10b98fd474 .
-module input https://github.com/MealKit-Engine/MealKit-Input v0.1.2 2dcb56c28d9e457775eb5661307b4e387c3bbcb0 .
-module live https://github.com/MealKit-Engine/MealKit-Live v0.1.2 9734ef88bd8c30d5f7cf6ca0d1c8ec8376885913 .
-module loc https://github.com/MealKit-Engine/MealKit-Loc v0.1.2 4ba365bd3436da7bd04895eb012039d66a791d95 .
-module net https://github.com/MealKit-Engine/MealKit-Net v0.1.2 e84d576dfff6baa6843dadb9d2b7f36ff6c579ed .
-module online https://github.com/MealKit-Engine/MealKit-Online v0.1.2 d938f1bf0c2b407b5abb4c523b5a5cf40020d884 .
-module online-eos https://github.com/MealKit-Engine/MealKit-Online v0.1.2 d938f1bf0c2b407b5abb4c523b5a5cf40020d884 backends/online-eos
-module online-steam https://github.com/MealKit-Engine/MealKit-Online v0.1.2 d938f1bf0c2b407b5abb4c523b5a5cf40020d884 backends/online-steam
-module physics https://github.com/MealKit-Engine/MealKit-Physics v0.1.2 d10246c2bead2a9f719981a54880dd5bfdb0e30e .
-module render https://github.com/MealKit-Engine/MealKit-Render v0.1.2 bad62e7d8e4069b4488aed955f7581a4995c49c9 .
-module rhi https://github.com/MealKit-Engine/MealKit-RHI v0.1.2 5251d09081ae2f057794e03354c573bd7aed1e87 .
-module scene https://github.com/MealKit-Engine/MealKit-Scene v0.1.2 02986c1a7db6f9a650d5b2e8bb157c212dd5329c .
-module session https://github.com/MealKit-Engine/MealKit-Session v0.1.2 31b2239bb50c6fc18e9d641c9e026f069b45e200 .
-module settings https://github.com/MealKit-Engine/MealKit-Settings v0.1.4 87231d99be6b411420ff6aec931c3f5893787f36 .
-module sim https://github.com/MealKit-Engine/MealKit-Sim v0.1.2 776572f56dcdfb04c9fd1e263dbfe17913d062df .
-module ui https://github.com/MealKit-Engine/MealKit-UI v0.1.2 ca3357b8ae0ba1bd7bdfbf87980d5fb58031cc51 .
+module asset https://github.com/KingProtea99/module-asset v0.1.2 91b82a902d28d7a1fa88530f8d318b29ab619f77 .
+module camera https://github.com/KingProtea99/module-camera v0.1.2 9e5f51463ce32806e2a985504d9b4cd7d62db2b8 .
+module data https://github.com/KingProtea99/module-data v0.1.2 4f58d548daafa2d2b88204a99f499ac70676a317 .
+module debug https://github.com/KingProtea99/module-debug v0.1.2 d8ad98765068c1a233a3f94c852f600ac2517cad .
+module editor https://github.com/KingProtea99/module-editor v0.1.3 c58062fdd2587b836f7130104d6a5576a5dcd7ab .
+module feedback https://github.com/KingProtea99/module-feedback v0.1.3 2134f7a20b5b321bc8e47a0d8b56df61301f7b1e .
+module game https://github.com/KingProtea99/module-game v0.1.3 b310e129c90dd4acef5c5e0bf61bcd10b98fd474 .
+module input https://github.com/KingProtea99/module-input v0.1.2 2dcb56c28d9e457775eb5661307b4e387c3bbcb0 .
+module live https://github.com/KingProtea99/module-live v0.1.2 9734ef88bd8c30d5f7cf6ca0d1c8ec8376885913 .
+module loc https://github.com/KingProtea99/module-loc v0.1.2 4ba365bd3436da7bd04895eb012039d66a791d95 .
+module net https://github.com/KingProtea99/module-net v0.1.2 e84d576dfff6baa6843dadb9d2b7f36ff6c579ed .
+module online https://github.com/KingProtea99/module-online v0.1.2 d938f1bf0c2b407b5abb4c523b5a5cf40020d884 .
+module online-eos https://github.com/KingProtea99/module-online v0.1.2 d938f1bf0c2b407b5abb4c523b5a5cf40020d884 backends/online-eos
+module online-steam https://github.com/KingProtea99/module-online v0.1.2 d938f1bf0c2b407b5abb4c523b5a5cf40020d884 backends/online-steam
+module physics https://github.com/KingProtea99/module-physics v0.1.2 d10246c2bead2a9f719981a54880dd5bfdb0e30e .
+module render https://github.com/KingProtea99/module-render v0.1.2 bad62e7d8e4069b4488aed955f7581a4995c49c9 .
+module rhi https://github.com/KingProtea99/module-rhi v0.1.2 5251d09081ae2f057794e03354c573bd7aed1e87 .
+module scene https://github.com/KingProtea99/module-scene v0.1.2 02986c1a7db6f9a650d5b2e8bb157c212dd5329c .
+module session https://github.com/KingProtea99/module-session v0.1.2 31b2239bb50c6fc18e9d641c9e026f069b45e200 .
+module settings https://github.com/KingProtea99/module-settings v0.1.4 87231d99be6b411420ff6aec931c3f5893787f36 .
+module sim https://github.com/KingProtea99/module-sim v0.1.2 776572f56dcdfb04c9fd1e263dbfe17913d062df .
+module ui https://github.com/KingProtea99/module-ui v0.1.2 ca3357b8ae0ba1bd7bdfbf87980d5fb58031cc51 .

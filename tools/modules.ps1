@@ -4,9 +4,9 @@
 #   powershell -ExecutionPolicy Bypass -File tools\modules.ps1 sync [name ...]   rewrite modules/<name> from the locked commit
 #   powershell -ExecutionPolicy Bypass -File tools\modules.ps1 bump <name> [tag] lock a new tag (default: the checkout's newest v* tag) and sync it
 #   powershell -ExecutionPolicy Bypass -File tools\modules.ps1 local on|off [name ...]
-#       on:  modules/<name> becomes a junction to the sibling checkout ..\MealKit-<Name>, for changes that span repos (the engine build
+#       on:  modules/<name> becomes a junction to the sibling checkout ..\module-<name>, for changes that span repos (the engine build
 #            uses the checkout's working files). off: removes the junctions and restores the vendored copies from git.
-# Repos are read from sibling checkouts (D:\MealKit-Engine\MealKit-<Name>), cloned from the lock's URL into
+# Repos are read from sibling checkouts (D:\MealKit-Engine\module-<name>), cloned from the lock's URL into
 # %LOCALAPPDATA%\MealKit\modules when missing. A vendored copy is the repo's files at the locked commit without README.md and .github/;
 # local notes (CLAUDE.md) are left alone.
 param(
@@ -158,7 +158,7 @@ switch ($Command) {
         $tag = if ($Names.Count -ge 2) { $Names[1] } else { (& git -C $dir tag --list "v*" --sort=-v:refname | Select-Object -First 1) }
         if (-not $tag) { throw "$dir has no v* tag" }
         $commit = @(Git-Lines $dir @("rev-parse", "$tag^{commit}"))[0].Trim()
-        # Every module of the same repo moves together (MealKit-Online: online and its backends)
+        # Every module of the same repo moves together (module-online: online and its backends)
         foreach ($other in $entries | Where-Object { $_.Url -eq $e.Url }) { $other.Tag = $tag; $other.Commit = $commit }
         Write-Lock $entries
         foreach ($other in $entries | Where-Object { $_.Url -eq $e.Url }) { Sync-Entry $other }

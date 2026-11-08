@@ -3,7 +3,7 @@
 #     module:
 #       uses: MealKit-Engine/MealKit/.github/workflows/engine-module.yml@v1
 #       with:
-#         modules: "render"            # engine modules in this repo (MealKit-Online: "online online-steam online-eos")
+#         modules: "render"            # engine modules in this repo (module-online: "online online-steam online-eos")
 # It checks out the engine, replaces those modules' vendored copies with the repo under test, builds, and runs the engine tests of
 # those areas. Modules of kind sim also run the headless determinism checks on Windows and Linux.
 name: engine-module

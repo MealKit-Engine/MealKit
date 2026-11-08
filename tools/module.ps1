@@ -59,9 +59,9 @@ $kernelNames = @("core", "platform", "jobs")
 # ---------------------------------------------------------------- Common
 
 function Read-ModuleInfo([string]$dir) {
-    $info = @{ name = ""; version = "0"; engine = ""; requires = @(); type = "source"; summary = ""; tags = "" }
+    $info = @{ name = ""; version = "0"; engine = ""; requires = @(); type = "source"; title = ""; summary = ""; tags = ""; icon = "" }
     foreach ($line in [IO.File]::ReadAllLines((Join-Path $dir "module.txt"), $MealKitUtf8)) {
-        if ($line -match '^\s*(name|version|engine|requires|type|summary|tags)(?:\s+(.*?))?\s*$') {
+        if ($line -match '^\s*(name|version|engine|requires|type|title|summary|tags|icon)(?:\s+(.*?))?\s*$') {
             $value = "$($Matches[2])"
             if ($Matches[1] -eq "requires") {
                 $info.requires = @($value -split '\s+' | Where-Object { $_ -ne "" -and $_ -notmatch '^[0-9]' })
@@ -190,7 +190,7 @@ function Get-EngineModuleSource([string]$name, [string]$version) {
         return @{ dir = $vendored; source = "engine $name $current $tag" }
     }
     if (-not $lock) { throw "$name has no repo in the engine's modules.lock yet, so only its engine copy ($current) can be added" }
-    # The checkout beside the engine (..\MealKit-<Name>) when there is one, else the lock's URL
+    # The checkout beside the engine (..\module-<name>) when there is one, else the lock's URL
     $repoName = ($lock.url.TrimEnd("/") -split "/")[-1]
     $sibling = Join-Path (Split-Path -Parent $engineRoot) $repoName
     $from = if (Test-Path (Join-Path $sibling ".git")) { $sibling } else { $lock.url }
@@ -314,14 +314,19 @@ switch ($Command) {
     "search" {
         if ($Tsv) {
             # Lines read by the editor [Modules] window and the MealKit Manager [Modules] tab (tab-separated, UTF-8). One call returns both installed modules and the list:
-            #   installed <name> <version> <modified file count> <.new count> <source>
-            #   module <name> <version for this engine or -> <newest version> <engine of that version> <title> <summary> <tags (space)> <author> <repo>
+            #   installed <name> <version> <modified file count> <.new count> <source> <type> <title> <summary> <tags (space)> <icon>
+            #   module <name> <version for this engine or -> <newest version> <engine of that version> <title> <summary> <tags (space)> <author> <repo> <icon>
+            # (MealKit-Contract docs/CONTRACT.md "Module list"; engine modules carry "engine" first in their tags)
             #   error <message>   (the list couldn't be fetched. installed lines still appear)
             [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false
             $clean = { param($s) "$s" -replace "[`t`r`n]", " " }
             foreach ($m in Get-Installed) {
                 $st = Get-ModuleState $m.FullName
-                Write-Output (@("installed", $st.info.name, $st.info.version, $st.modified, $st.pending, (& $clean $st.source)) -join "`t")
+                $i = $st.info
+                $itags = if ($i.type -eq "engine") { ("engine " + $i.tags).Trim() } else { $i.tags }
+                $ititle = if ($i.title) { $i.title } else { $i.name }
+                Write-Output (@("installed", $i.name, $i.version, $st.modified, $st.pending, (& $clean $st.source), $i.type, (& $clean $ititle),
+                    (& $clean $i.summary), (& $clean $itags), (& $clean $i.icon)) -join "`t")
             }
             # The engine's own modules (type engine): one line each, like registry modules, with "engine" first in the tags
             foreach ($d in Get-ChildItem (Join-Path $engineRoot "modules") -Directory | Sort-Object Name) {
@@ -329,14 +334,14 @@ switch ($Command) {
                 $ei = Read-ModuleInfo $d.FullName
                 $lock = Get-EngineLock $d.Name
                 $repo = if ($lock) { $lock.url } else { "-" }
-                Write-Output (@("module", $ei.name, $ei.version, $ei.version, $engineMinor, $ei.name, (& $clean $ei.summary), ("engine " + $ei.tags).Trim(), "MealKit", $repo) -join "`t")
+                Write-Output (@("module", $ei.name, $ei.version, $ei.version, $engineMinor, $(if ($ei.title) { & $clean $ei.title } else { $ei.name }), (& $clean $ei.summary), ("engine " + $ei.tags).Trim(), "MealKit", $repo, (& $clean $ei.icon)) -join "`t")
             }
             try { $all = @((Get-Registry).modules) } catch { Write-Output "error`t$(& $clean $_.Exception.Message)"; $all = @() }
             foreach ($m in $all) {
                 $fit = @($m.versions | Where-Object { $_.engine -eq $engineMinor })
                 $first = @($m.versions)[0]
                 Write-Output (@("module", $m.name, $(if ($fit.Count) { $fit[0].version } else { "-" }), $first.version, $first.engine,
-                    (& $clean $m.title), (& $clean $m.summary), ($m.tags -join " "), (& $clean $m.author), $m.repo) -join "`t")
+                    (& $clean $m.title), (& $clean $m.summary), ($m.tags -join " "), (& $clean $m.author), $m.repo, (& $clean "$($m.icon)")) -join "`t")
             }
             break
         }
