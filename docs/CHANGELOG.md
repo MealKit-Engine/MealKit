@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 11: any combination, a version per module, layers (v0.9.1, 2026-11-08)
+
+- Decided with the user (`docs/DECISIONS.md` 2026-11-08, second row): engine modules are chosen like source modules.
+- `mealkit.project`: `enginePreset` (starting point), `engineModules` (added), `engineWithout` (taken out, with its backends), `engineModuleVersion <name> <tag>` (one line per pinned module). `cmake/MealKit.cmake` `mealkit_project_engine` resolves them: modules that require a left-out one go with it, `game` stops the build naming what it needs, each chosen version's `requires name minVersion` is checked, and the editor module is never in a game's selection.
+- Every distinct selection builds `mealkit_core_<key>`/`mealkit_<key>` (`mealkit_engine_variant` in `engine/CMakeLists.txt`); the standard set at the locked versions stays the plain libraries. Every module gets `MEALKIT_HAS_<NAME>` (1, or 0 when left out). Pinned modules are built from `%LOCALAPPDATA%\MealKit\modules\<name>@<tag>` with the engine's file list for that module (new `.cpp` files at the top of the version's `src/mealkit/<name>/` are added; backend subfolders follow the engine's list).
+- `tools\modules.ps1 fetch -Project <folder>` exports each pinned tag into that cache. The simulation version hashes the sim modules the build uses, from the folders it builds them from. Editor builds keep every module at the locked version and say so when a project pins or leaves out modules.
+- Manifests get `layer` (`platform`, `kernel`, `core`, `framework`, `app`); `check_modules.ps1` fails when a module includes a higher layer. `live` is `framework` (audio uses it). `editor` no longer lists `net`.
+- Checked: Editor, Release and Presets builds; the selection rules with project files (leaving out `net`, leaving out `audio`, pinning `camera v0.1.0` after `fetch`). Not checked: a full build with a pinned version.
+
 ## Engine module split 10: rules and docs (v0.9.1, 2026-11-08)
 
 - The absolute rule is "multiplayer by default" (`CONTRIBUTING.md`): `net` is in the default preset and the determinism rules hold for every game.

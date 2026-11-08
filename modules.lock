@@ -1,26 +1,25 @@
 # Engine modules vendored into modules/<name> (tools\modules.ps1). One engine version = VERSION + this file.
 # module <name> <repo url> <tag> <commit> <path in the repo>
-# audio is not here yet: its glue moves into the existing MealKit-Audio repo (module/) later; third_party/mkaudio stays pinned by update_mkaudio.ps1
 @format module-lock 1
-module asset https://github.com/MealKit-Engine/MealKit-Asset v0.1.0 5b27a1ff7b3a7e0904b91e32746b6f4d0bb85095 .
-module camera https://github.com/MealKit-Engine/MealKit-Camera v0.1.0 563f6ae30b1ee399fb76c7ce2a88d8ddd70f3431 .
-module data https://github.com/MealKit-Engine/MealKit-Data v0.1.0 e5368d3eb5a9500aef7d435ef9469ffa42db0c9d .
-module debug https://github.com/MealKit-Engine/MealKit-Debug v0.1.0 05a701563779a13a436fb798edae12f3661c28c2 .
-module editor https://github.com/MealKit-Engine/MealKit-Editor v0.1.0 d19cd65a4b56a5c06ad98772684a4ec0288b1efe .
-module feedback https://github.com/MealKit-Engine/MealKit-Feedback v0.1.0 69590fae123b33f21d9f85d57fd240955521d965 .
-module game https://github.com/MealKit-Engine/MealKit-Game v0.1.0 76a3b97bfdfa28ae2386adc2989f572fb2811785 .
-module input https://github.com/MealKit-Engine/MealKit-Input v0.1.0 948a7d83893d462eb017ef72149b39a2046011cf .
-module live https://github.com/MealKit-Engine/MealKit-Live v0.1.0 301dc9900abe11709cd8bb1a32fa9ee056bcc068 .
-module loc https://github.com/MealKit-Engine/MealKit-Loc v0.1.0 ee29adb100de3502abe30b6c05cacab74c38766e .
-module net https://github.com/MealKit-Engine/MealKit-Net v0.1.0 90ce39ed8ffee8e304c84db0723314cf279c9aac .
-module online https://github.com/MealKit-Engine/MealKit-Online v0.1.0 92902db1f440bb3105034b3a65bd9f1d5ce4e711 .
-module online-eos https://github.com/MealKit-Engine/MealKit-Online v0.1.0 92902db1f440bb3105034b3a65bd9f1d5ce4e711 backends/online-eos
-module online-steam https://github.com/MealKit-Engine/MealKit-Online v0.1.0 92902db1f440bb3105034b3a65bd9f1d5ce4e711 backends/online-steam
-module physics https://github.com/MealKit-Engine/MealKit-Physics v0.1.0 dcaaa824661dceb7f22c46902c1aaa9f0a86482a .
-module render https://github.com/MealKit-Engine/MealKit-Render v0.1.0 0e3883eb87eec13e4bcd11e0f8f22beca0e7c2c5 .
-module rhi https://github.com/MealKit-Engine/MealKit-RHI v0.1.0 d781b00cc01fcac352154e5156ecfe3803f45195 .
-module scene https://github.com/MealKit-Engine/MealKit-Scene v0.1.0 2a60a450ab823ed6d6e678d7a0f53603880a963b .
-module session https://github.com/MealKit-Engine/MealKit-Session v0.1.0 2aad02d5972c5bfff348773ac77f3552ebae11d0 .
-module settings https://github.com/MealKit-Engine/MealKit-Settings v0.1.0 1019928b4d08899f428f08409298131cd35ca83a .
-module sim https://github.com/MealKit-Engine/MealKit-Sim v0.1.0 07bd04b2967c761d992cbacdce9288ca6f6e3922 .
-module ui https://github.com/MealKit-Engine/MealKit-UI v0.1.0 3d9a4e5b2acf13dc8be7aeaf860bc340896d8944 .
+module asset https://github.com/MealKit-Engine/MealKit-Asset v0.1.1 09b4cf674e2a33cbb120c0ac60379525d15b577e .
+module camera https://github.com/MealKit-Engine/MealKit-Camera v0.1.1 fa541db5287a7c776f3686a88cafe9253ca123ec .
+module data https://github.com/MealKit-Engine/MealKit-Data v0.1.1 b2bd743b4945300691cf9ee8a9a51c65d732b6b5 .
+module debug https://github.com/MealKit-Engine/MealKit-Debug v0.1.1 ffdfe48409f4e265032240a853324d7ad68e3a8f .
+module editor https://github.com/MealKit-Engine/MealKit-Editor v0.1.1 a61c9d1fde23941170365f86677c68ef9eaa78b2 .
+module feedback https://github.com/MealKit-Engine/MealKit-Feedback v0.1.1 e6b3260b52e95a74b1a5466618ba076effaffdef .
+module game https://github.com/MealKit-Engine/MealKit-Game v0.1.1 bce2a8864ee71251b593a49d55a926ca9274b035 .
+module input https://github.com/MealKit-Engine/MealKit-Input v0.1.1 918481c2e4c2a3c918753471b1ac1d679075d808 .
+module live https://github.com/MealKit-Engine/MealKit-Live v0.1.1 ee086a4da409e2148aba59f37d1825cb3509c848 .
+module loc https://github.com/MealKit-Engine/MealKit-Loc v0.1.1 42e9488ffbe71dbe3cd0158a8a712cd11f72992c .
+module net https://github.com/MealKit-Engine/MealKit-Net v0.1.1 9799dc72559ac496d42a3395ab015832297c0f5b .
+module online https://github.com/MealKit-Engine/MealKit-Online v0.1.1 2a9b21187043258b3c6b35057bcd8d6994dc0108 .
+module online-eos https://github.com/MealKit-Engine/MealKit-Online v0.1.1 2a9b21187043258b3c6b35057bcd8d6994dc0108 backends/online-eos
+module online-steam https://github.com/MealKit-Engine/MealKit-Online v0.1.1 2a9b21187043258b3c6b35057bcd8d6994dc0108 backends/online-steam
+module physics https://github.com/MealKit-Engine/MealKit-Physics v0.1.1 419a2d4ad6f644859c2a197efd5addc25a33b562 .
+module render https://github.com/MealKit-Engine/MealKit-Render v0.1.1 9ca6e850451a8753aaf049f94d40cd8fca0465b8 .
+module rhi https://github.com/MealKit-Engine/MealKit-RHI v0.1.1 cac000f44c9e249e29cb7055f7ef8812ff8e5d96 .
+module scene https://github.com/MealKit-Engine/MealKit-Scene v0.1.1 1029f5167db90708a9c7d2799baa7c4fad0fd623 .
+module session https://github.com/MealKit-Engine/MealKit-Session v0.1.1 e88850acddce5f05fdfa03023271a0e982e62227 .
+module settings https://github.com/MealKit-Engine/MealKit-Settings v0.1.1 0207f624171a56f94dccb6f6d4f5be7a6654a2e2 .
+module sim https://github.com/MealKit-Engine/MealKit-Sim v0.1.1 468ac1bcb3b6cf77a64bf6e6b311067781d59893 .
+module ui https://github.com/MealKit-Engine/MealKit-UI v0.1.1 475e4417a5d080ec0bbc4d5ca14acad79af03647 .

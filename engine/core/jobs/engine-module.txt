@@ -5,6 +5,7 @@ name jobs
 version 0.1.0
 kernel 0.9
 kind kernel
+layer kernel
 requires
 tag jobs
 summary Kernel: the shared worker pool (parallelFor, run) and the process-wide Jolt allocation hooks

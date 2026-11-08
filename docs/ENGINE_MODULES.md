@@ -9,7 +9,7 @@ When done, rules move to `docs/CODING_MODEL.md` and the CLAUDE.md files, impleme
 - The engine becomes a **kernel** (`core`): memory, types and math, determinism tools, reflection, text formats, logging and profiling, the platform basics (files, time, threads), jobs, and the module mechanism itself. It knows no graphics, physics, network or sound.
 - Everything else is an **engine module**: `rhi`, `render`, `physics`, `net`, `sim`, `audio`, `ui`, `input`, `game`, `editor`, ... Each module has a manifest that declares what it requires; the folder layer order becomes a dependency graph read from those manifests.
 - **One module = one repo** (`MealKit-<Name>`), from the first public release. The `MealKit` repo keeps the kernel, the build system, project tools, templates, reference samples, and the **lock file** that pins which module versions make up an engine version.
-- Modules are **linked statically, chosen at build time** (a module list per project, presets for the common sets). Not runtime plugins: the shipping exe stays a single static file, calls stay inlinable, and peers can't mix different module builds.
+- Modules are **linked statically, chosen at build time**: a project picks **any combination** (presets are named starting points) and may pin **each module's version** on its own, like source modules (decided 2026-11-08, second row; "Module selection and versions" below). Not runtime plugins: the shipping exe stays a single static file, calls stay inlinable, and peers can't mix different module builds.
 - **Multiplayer is a module too.** `net` is in the default preset, so new games are multiplayer-capable as now, but a game may leave it out. The determinism rules stay for every game (replays, rewind, scenario tests, and adding `net` later all depend on them).
 
 ## What changes from the earlier decisions
@@ -21,7 +21,7 @@ The 2026-10-19 and 2026-10-26 rows kept the subsystems inside one library. Their
 | Exe budget is fine (2.4 MB, later 3.7 MB of 5 MB), so nothing needs removing | Still true. The goal is a small, stable kernel and replaceable parts. Size per preset is measured anyway |
 | The editor shares one `mealkit.dll` across all projects | Kept: the editor links every module in the lock file. Per-module editor DLLs aren't part of this |
 | `GameContext` holds services by reference; optional services would need "when absent" handling | Absence is a **build error, not a runtime check**: a module's headers are on the include path only when the project enables it. `GameContext` keeps its reference members for the modules the `game` framework requires ("Services") |
-| Combinations to check | Checked per **preset**: `kernel`, `headless`, `solo`, `standard`. Other lists are the game's own responsibility, like game libraries |
+| Combinations to check | Engine CI checks the **presets** with the locked versions. Any other list or version is the game's own responsibility, like game libraries; configuring checks `requires` versions and missing requirements, and the simulation version keeps different builds apart |
 | Runtime plugins cost indirect calls, LTO, the dynamic CRT, determinism risk, ABI work | Not used. Static linking keeps all of that as today; the only virtual interfaces are the ones that already exist (RHI backends, online backends) plus the session interface for optional `net` |
 | Separate repos before interfaces settle cost cross-repo syncing (why UI 2 waited for v1.0) | Accepted as the price. Reduced by the lock file, local checkout mode and shared CI below |
 
@@ -110,12 +110,31 @@ public Renderer.h DrawList.h SceneLights.h
 | `name` | CMake target `mealkit_<name>`, namespace `mealkit::<name>`, memory tag, folder under `modules/` once vendored |
 | `version` | The module's semver, matching the repo tag `v<version>` |
 | `kernel` | The kernel MINOR it builds against |
+| `layer` | `platform` (OS and API backends), `kernel`, `core` (simulation), `framework` (window, drawing, sound, input, UI), `app` (game, editor, debug tools). A module includes only its own layer and the layers below (`check_modules.ps1`) |
 | `kind` | `sim` (in the simulation version hash, follows the determinism rules, allowed from `sim/`), `view` (not allowed from `sim/`), `tool` (editor and dev builds only, never in shipping) |
 | `requires` | Modules this one may include and link, as `name minVersion`. Must form a graph without cycles. Replaces the folder order in `check_layers.ps1` |
 | `provides` | Optional. For backend modules that implement another module's interface: `rhi-dx12` and `rhi-vulkan` both `provides rhi-backend`; a project picks one |
 | `public` | Public headers, relative to `include/mealkit/<name>/`. Replaces that module's lines in `engine/public_headers.txt` |
 
 `mealkit_add_engine_module()` in `cmake/MealKit.cmake` reads the manifest, creates the static library, and sets includes and links from `requires`. Modules don't write their own dependency lines, so the manifest and the build can't disagree. The format line and reading go into mkcontract, since the Manager and module CI read manifests too.
+
+### Module selection and versions
+
+```
+# mealkit.project
+enginePreset standard              # starting point (standard, solo)
+engineModules camera               # added to the preset
+engineWithout audio net            # taken out of the preset
+engineModuleVersion render v0.2.0  # this module at another tag than the engine's lock
+```
+
+- Layers in use: `platform` = the kernel's `platform`; `kernel` = `core`, `jobs`; `core` = physics, sim, data, scene, asset, session, net; `framework` = rhi, render, input, audio, ui, loc, settings, feedback, camera, live (the dev connection, used by audio and game), online and its backends (a backend takes its interface's layer); `app` = game, editor, debug.
+- The modules a build uses are the preset, plus `engineModules`, minus `engineWithout`. Modules that require a left-out module go with it (leaving out `net` also leaves out `online`); only `game` stops the build instead, naming what it needs. `editor` is never part of a game's selection. Kernel modules can't be taken out. Taking out a module that another chosen module requires (not `optional`) stops configuring with both names.
+- Code that works without a module has it as `optional` and keeps its uses inside `#if MEALKIT_HAS_<NAME>`; every module gets `MEALKIT_HAS_<NAME>` 0 or 1.
+- Versions: the engine's `modules.lock` gives every module's default. `engineModuleVersion` picks another tag; `tools\modules.ps1 fetch -Project <folder>` puts that tag's files in `%LOCALAPPDATA%\MealKit\modules\<name>@<tag>`, and the build uses them instead of the vendored copy. Each chosen version's `requires name minVersion` is checked against the others.
+- The engine builds one set of engine libraries per distinct module list and version set in the build (`mealkit_core_<key>`, `mealkit_<key>`); the standard set with the locked versions is the plain `mealkit_core`/`mealkit`.
+- The simulation version covers the kernel and the sim modules this build uses, from the folders it builds them from.
+- The editor's `mealkit.dll` has every module at the locked version. A project's version pins apply to its shipping and headless builds; the editor warns when a project pins versions.
 
 ### Module list (first cut = current folders)
 

@@ -2,6 +2,8 @@
 #   powershell -ExecutionPolicy Bypass -File tools\modules.ps1 status            vendored copy vs modules.lock vs the local checkout
 #   powershell -ExecutionPolicy Bypass -File tools\modules.ps1 sync [name ...]   rewrite modules/<name> from the locked commit
 #   powershell -ExecutionPolicy Bypass -File tools\modules.ps1 bump <name> [tag] lock a new tag (default: the checkout's newest v* tag) and sync it
+#   powershell -ExecutionPolicy Bypass -File tools\modules.ps1 fetch -Project <folder>
+#       a game's engineModuleVersion <name> <tag> lines: that tag's files into %LOCALAPPDATA%\MealKit\modules\<name>@<tag> (the build uses them)
 #   powershell -ExecutionPolicy Bypass -File tools\modules.ps1 local on|off [name ...]
 #       on:  modules/<name> becomes a junction to the sibling checkout ..\MealKit-<Name>, for changes that span repos (the engine build
 #            uses the checkout's working files). off: removes the junctions and restores the vendored copies from git.
@@ -9,7 +11,8 @@
 # %LOCALAPPDATA%\MealKit\modules when missing. A vendored copy is the repo's files at the locked commit without README.md and .github/;
 # local notes (CLAUDE.md) are left alone.
 param(
-    [Parameter(Mandatory = $true, Position = 0)][ValidateSet("status", "sync", "bump", "local")][string]$Command,
+    [Parameter(Mandatory = $true, Position = 0)][ValidateSet("status", "sync", "bump", "local", "fetch")][string]$Command,
+    [string]$Project = "",
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)][string[]]$Names = @()
 )
 $ErrorActionPreference = "Stop"
@@ -105,10 +108,10 @@ function Vendored-Differences($e, $dir) {
     return $diff
 }
 
-function Sync-Entry($e) {
+function Sync-Entry($e, [string]$into = "") {
     $dir = Repo-Dir $e
-    $target = Vendored-Dir $e
-    if (Is-Junction $target) { throw "modules\$($e.Name) is in local mode; run 'modules.ps1 local off $($e.Name)' first" }
+    $target = if ($into) { $into } else { Vendored-Dir $e }
+    if (-not $into -and (Is-Junction $target)) { throw "modules\$($e.Name) is in local mode; run 'modules.ps1 local off $($e.Name)' first" }
     $locked = Locked-Files $e $dir
     if (Test-Path $target) {
         foreach ($f in Get-ChildItem -Path $target -Recurse -File) {
@@ -126,7 +129,7 @@ function Sync-Entry($e) {
     # Empty folders left by removed files
     Get-ChildItem -Path $target -Recurse -Directory | Sort-Object { $_.FullName.Length } -Descending |
         Where-Object { -not (Get-ChildItem -LiteralPath $_.FullName -Force) } | Remove-Item -Force
-    Write-Host "synced $($e.Name) $($e.Tag) ($($e.Commit.Substring(0, 9)))"
+    Write-Host "synced $($e.Name) $($e.Tag) ($($e.Commit.Substring(0, 9))) -> $target"
 }
 
 $entries = Read-Lock
@@ -162,6 +165,27 @@ switch ($Command) {
         Write-Lock $entries
         foreach ($other in $entries | Where-Object { $_.Url -eq $e.Url }) { Sync-Entry $other }
         Write-Host "Commit modules.lock and modules/ together in the engine (one engine commit per bump)."
+    }
+    "fetch" {
+        if (-not $Project) { throw "fetch -Project <game project folder>" }
+        $projectFile = Join-Path (Resolve-Path $Project).Path "mealkit.project"
+        $cache = Join-Path $env:LOCALAPPDATA "MealKit\modules"
+        $count = 0
+        foreach ($line in [IO.File]::ReadAllLines($projectFile)) {
+            if ($line.Trim() -notmatch '^engineModuleVersion\s+([a-z0-9-]+)\s+(\S+)') { continue }
+            $name = $Matches[1]; $tag = $Matches[2]
+            $e = $entries | Where-Object { $_.Name -eq $name }
+            if (-not $e) { throw "${projectFile}: no engine module '$name' in modules.lock" }
+            $target = Join-Path $cache "$name@$tag"
+            if (Test-Path (Join-Path $target "engine-module.txt")) { Write-Host "have $name $tag"; $count++; continue }
+            $dir = Repo-Dir $e
+            $commit = @(Git-Lines $dir @("rev-parse", "$tag^{commit}"))[0].Trim()
+            $pinned = [pscustomobject]@{ Name = $e.Name; Url = $e.Url; Tag = $tag; Commit = $commit; Path = $e.Path }
+            New-Item -ItemType Directory -Force $target | Out-Null
+            Sync-Entry $pinned $target
+            $count++
+        }
+        Write-Host "$count pinned module version(s) ready in $cache"
     }
     "local" {
         if ($Names.Count -lt 1 -or $Names[0] -notin @("on", "off")) { throw "local on|off [name ...]" }

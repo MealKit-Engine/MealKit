@@ -16,8 +16,11 @@ $warnings = @()
 
 $version = ([IO.File]::ReadAllText((Join-Path $root "VERSION"))).Trim()
 $engineMinor = ($version -split '\.')[0..1] -join '.'
-$known = @("name", "version", "kernel", "kind", "requires", "transitional", "optional", "tag", "summary", "provides")
+$known = @("name", "version", "kernel", "kind", "layer", "requires", "transitional", "optional", "tag", "summary", "provides")
 $kinds = @("kernel", "sim", "view", "tool")
+# Layers, low to high (docs/ENGINE_MODULES.md "Manifest"): a module includes only its own layer and the ones below. The kernel modules
+# (platform, core, jobs) form the base and include each other
+$layers = @("platform", "kernel", "core", "framework", "app")
 
 # ---- Read manifests
 $mods = [ordered]@{}
@@ -25,7 +28,7 @@ foreach ($dir in Get-EngineModules $root | ForEach-Object { Get-Item $_.Dir }) {
     $path = Join-Path $dir.FullName "engine-module.txt"
     $rel = $path.Substring($root.Length + 1)
     if (-not (Test-Path $path)) { $problems += "${rel}: missing (every engine folder is a module)"; continue }
-    $m = @{ name = ""; kind = ""; version = ""; kernel = ""; requires = @(); optional = @(); transitional = @(); rel = $rel }
+    $m = @{ name = ""; kind = ""; layer = ""; version = ""; kernel = ""; requires = @(); optional = @(); transitional = @(); rel = $rel }
     $sawFormat = $false
     $n = 0
     foreach ($line in [IO.File]::ReadAllLines($path)) {
@@ -61,6 +64,7 @@ foreach ($dir in Get-EngineModules $root | ForEach-Object { Get-Item $_.Dir }) {
     if (-not $sawFormat) { $problems += "${rel}: empty" }
     if ($m.name -ne $dir.Name) { $problems += "${rel}: name '$($m.name)' must match the folder '$($dir.Name)'" }
     if ($kinds -notcontains $m.kind) { $problems += "${rel}: kind '$($m.kind)' must be one of $($kinds -join ', ')" }
+    if ($layers -notcontains $m.layer) { $problems += "${rel}: layer '$($m.layer)' must be one of $($layers -join ', ')" }
     if ($m.version -notmatch '^\d+\.\d+\.\d+$') { $problems += "${rel}: version '$($m.version)' isn't semver" }
     if ($m.kernel -ne $engineMinor) { $problems += "${rel}: kernel '$($m.kernel)' doesn't match the engine $engineMinor (VERSION)" }
     $mods[$dir.Name] = $m
@@ -127,6 +131,10 @@ foreach ($f in $files) {
         $transitional = $m.transitional -contains $to
         if (-not $declared -and -not $transitional) { $problems += "${rel}:${n}: $from includes $to/, not in its requires ($($m.rel))"; continue }
         if ($to -eq "editor") { $problems += "${rel}:${n}: $from includes editor/ (only the editor app may)"; continue }
+        $fromRank = [array]::IndexOf($layers, $m.layer); $toRank = [array]::IndexOf($layers, $mods[$to].layer)
+        if ($toRank -gt $fromRank -and -not $transitional) {
+            $problems += "${rel}:${n}: $from ($($m.layer)) includes $to ($($mods[$to].layer)), a higher layer"
+        }
         if (-not (KindAllows $m.kind $toKind) -and -not $transitional) {
             $problems += "${rel}:${n}: $from ($($m.kind)) includes $to ($toKind); $($m.kind) modules can't depend on $toKind modules"
         }

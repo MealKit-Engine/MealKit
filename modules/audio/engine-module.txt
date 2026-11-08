@@ -5,6 +5,7 @@ name audio
 version 0.1.0
 kernel 0.9
 kind view
+layer framework
 requires live 0.1 physics 0.1 scene 0.1
 tag audio
 summary Sound glue over mkaudio (events, buses, spatial audio, music)

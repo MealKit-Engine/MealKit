@@ -5,6 +5,7 @@ name core
 version 0.1.0
 kernel 0.9
 kind kernel
+layer kernel
 requires
 tag core
 summary Kernel: memory, types and math, determinism tools, reflection, text formats, logging, profiling
