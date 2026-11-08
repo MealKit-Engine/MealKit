@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 10: rules and docs (v0.9.1, 2026-11-08)
+
+- The absolute rule is "multiplayer by default" (`CONTRIBUTING.md`): `net` is in the default preset and the determinism rules hold for every game.
+- `docs/CONTRACTS.md` gets an "Engine modules" section (presets, `engine-module.txt` and `modules.lock` formats, `MEALKIT_HAS_<NAME>`); `docs/CODING_MODEL.md` the module workflow (change in the module repo, `modules.ps1 bump`, `local on`).
+- Docs repo: new page "Working on the engine > Engine modules" (English and Korean), the source layout after the split, `enginePreset` in the project settings.
+- Publication order in ROADMAP: the module repos and their tags go up before the engine, then the engine tag `v1` for the shared workflow.
+- Local workspace notes (not in git): the repo list, `.clangd` for the module checkouts, and the CLAUDE.md rules of the engine follow the split.
+
 ## Engine module split 9: module repos and the lock file (v0.9.1, 2026-11-08)
 
 - Each `modules/<name>/` was extracted with its history (`git filter-repo` from a fresh clone; each file's `--follow` history renamed to its current path, stopping where rename detection jumps to another module's file) into a local repo beside the engine: `MealKit-Asset`, `-Camera`, `-Data`, `-Debug`, `-Editor`, `-Feedback`, `-Game`, `-Input`, `-Live`, `-Loc`, `-Net`, `-Physics`, `-Render`, `-RHI`, `-Scene`, `-Session`, `-Settings`, `-Sim`, `-UI`, and `MealKit-Online` (`online` at the root, `online-steam`/`online-eos` in `backends/`). Each has `LICENSE` (MIT, KingProtea99), a README with the beta notice, `.github/workflows/ci.yml` calling the shared workflow, and the tag `v0.1.0`. Nothing is pushed.

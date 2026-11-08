@@ -807,7 +807,7 @@ The engine becomes a kernel, and every subsystem an engine module in its own rep
 - [x] 7. Project module lists and presets — 2026-11-08 (engine 0.9.1), details in `docs/CHANGELOG.md` (presets `standard` and `solo`; `kernel`/`headless` as named presets, and the editor refusing a game DLL that includes a module its project left out, wait for per-module libraries in step 9)
 - [x] 8. Editor panels into modules' `editor/` folders; online backends as modules — 2026-11-08, details in `docs/CHANGELOG.md`
 - [x] 9. Module repos extracted with history, `modules.lock`, `tools\modules.ps1`, shared module workflow — 2026-11-08, details in `docs/CHANGELOG.md`. Left for the user: create the 20 GitHub repos under `MealKit-Engine` and push them with their `v0.1.0` tags, then tag the engine `v1` for the shared workflow. `audio` stays in the engine until its glue moves into `MealKit-Audio`
-- [ ] 10. Workspace notes and tools, CLAUDE.md rules, CODING_MODEL, CONTRACTS, docs repo (English and Korean), publication order with the new repos
+- [x] 10. Workspace notes and tools, rules, CODING_MODEL, CONTRACTS, docs repo, publication order — 2026-11-08, details in `docs/CHANGELOG.md`
 
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 
@@ -825,7 +825,7 @@ Other-OS testing (the rest of stage 5) waits for Linux/macOS devices. Until then
 - [x] **Community files**: engine `CONTRIBUTING.md` (rules, build, checks, DCO) and `SECURITY.md`; org repo `MealKit-Engine/.github` (local folder `D:\MealKit-Engine\.github`, not pushed): profile README, default `CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `SECURITY.md`, issue forms (bug report asking for the F9 zip, feature request, Discussions link), pull request template. The org files cover every org repo without its own; `module-cooldown` (under KingProtea99) has none.
 - [x] **README beta notice** in all 8 repos; engine README links CONTRIBUTING/SECURITY.
 - [ ] **Sponsorship** (the user is looking into it): `FUNDING.yml` in the org `.github` repo once decided. GitHub Sponsors pays out to South Korea (Stripe, W-8BEN); Open Source Collective needs about 100 stars; taxes to check first.
-- [ ] **At publication, on GitHub** (user): create the `.github` repo and push it; force-push the four rewritten repos; install the DCO app (checks `Signed-off-by` on pull requests); branch protection on `main` (CI must pass); Discussions on in `MealKit`; private vulnerability reporting, secret scanning and Dependabot alerts on; topics; Pages source Actions for `MealKit-Modules`.
+- [ ] **At publication, on GitHub** (user): create the `.github` repo and push it; create the 20 engine module repos (`modules.lock`) and push each with its `v0.1.0` tag before the engine, then push the engine and tag it `v1` for the shared module workflow (`engine-module.yml@v1`); force-push the four rewritten repos; install the DCO app (checks `Signed-off-by` on pull requests); branch protection on `main` (CI must pass); Discussions on in `MealKit`; private vulnerability reporting, secret scanning and Dependabot alerts on; topics; Pages source Actions for `MealKit-Modules`.
 - [ ] **Later, optional**: a screenshot in the engine README (`MealKitEditor --capture`); `module-cooldown` community files.
 - [ ] **Last checks**: full `tools\check.ps1`, push the remaining local commits.
 
