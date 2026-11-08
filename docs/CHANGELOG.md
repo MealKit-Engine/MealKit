@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 5: service registry and module order (v0.9.x, 2026-11-08)
+
+- `core/Services.h`: `services::provide/withdraw/find/get<T>()` keyed by the type's name (from `__FUNCSIG__`/`__PRETTY_FUNCTION__`), so `mealkit.dll` and a game DLL agree without exported template statics; `ServiceScope<T>` provides for a scope and withdraws in reverse order. Providing a type again shadows the earlier one until it withdraws (editor play inside the editor). No allocation per provide: keys view the string literals.
+- `game::ContextServices` provides every `GameContext` member: once in `game::runGame`, per call in the editor's play session. `GameContext::get<T>()` reaches services outside the struct. `kApiVersion` 23.
+- `core/Modules.h`: `engineModules()`, generated at configure time from the manifests (`engine/CMakeLists.txt`, Kahn's algorithm, kernel first, ties by name; a cycle fails the configure). `<game> --modules` (and `_headless`) prints the list and exits.
+- Not done: the registry doesn't create services or run init/shutdown hooks. Owners still create objects in written order (as the design says, so the order stays visible), and that order isn't checked against `engineModules()`.
+
 ## Engine module split 3–4: kernel and module folders (v0.9.x, 2026-11-08)
 
 - `engine/src/mealkit/` is gone. The kernel is `engine/core/{core,platform,jobs}/`, every other module `modules/<name>/` (repo root), each with `engine-module.txt`, `include/mealkit/<name>/` and `src/mealkit/<name>/`. 281 files moved with `git mv`; include paths in code are unchanged (`mealkit/<name>/X.h`).

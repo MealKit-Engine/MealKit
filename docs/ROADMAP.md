@@ -802,7 +802,7 @@ The engine becomes a kernel, and every subsystem an engine module in its own rep
 - [x] 2. Manifests and `check_modules.ps1` — 2026-11-08, details in `docs/CHANGELOG.md`
 - [x] 3. Kernel in `engine/core/` — 2026-11-08, details in `docs/CHANGELOG.md`
 - [x] 4. Modules in `modules/<name>/` — 2026-11-08, details in `docs/CHANGELOG.md` (per-module CMake targets and `asset`'s GPU parts moving to `render` left for the repo split)
-- [ ] 5. Kernel service registry and dependency-order init; `GameContext::get<T>()`
+- [x] 5. Service registry and module order — 2026-11-08, details in `docs/CHANGELOG.md`
 - [ ] 6. Session interface (`game::Session`, `LocalSession`), `net` optional, `solo` preset plays sandbox offline
 - [ ] 7. Project module lists and presets in `mealkit.project`, upgrade migration, template change (`VERSION`), `kApiVersion`, exe size per preset
 - [ ] 8. Editor panels into modules' `editor/` folders; online backends as modules
