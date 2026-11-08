@@ -195,7 +195,10 @@ tools\module.ps1 search  [<query>] [-Tag <tag>]                    registry list
 tools\module.ps1 list    -Project <folder>                         installed modules, versions, modified file counts, new versions available
 tools\module.ps1 add     -Project <folder> <name[@version] | gitUrl#tag | folder>
 tools\module.ps1 update  -Project <folder> <name> [-To <version>] [-DryRun] [-Force]
+tools\module.ps1 update  -Project <folder> -All [-DryRun]          every registry/engine module with a newer version for the engine MINOR
 tools\module.ps1 remove  -Project <folder> <name>
+tools\module.ps1 resolve -Project <folder> <name> -File <path> -Use new|mine   settle a <file>.new left by update (the record takes the .new's hash)
+tools\module.ps1 versions <name> [-Project <folder>] [-Tsv]          registry versions, or the engine module repo's v* tags
 ```
 
 | Action | What it does |

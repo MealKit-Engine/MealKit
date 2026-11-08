@@ -5,7 +5,11 @@
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 add    -Project <folder> <name[@version] | folder | git url[#tag]> [-Name <module>] [-WithRequires]
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 add    -Project <folder> -Preset standard|solo    (every engine module of that preset)
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 update -Project <folder> <module> [-To <version>] [-From <folder | git url[#tag]>] [-DryRun] [-Force]
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 update -Project <folder> -All [-DryRun]   (every registry/engine module with a newer version for this engine)
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 remove -Project <folder> <module> [-Force]
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 resolve -Project <folder> <module> -File <path in the module> -Use new|mine
+#       a <file>.new left by update: new = take the module's version, mine = keep yours; either way the .new goes and the record moves on
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 versions <module> [-Project <folder>] [-Tsv]   (versions to update or go back to)
 #
 # - The source is a module folder (module.txt at its root) or a git repo containing such folders. If the repo has several modules/<name>/module.txt, pick one with -Name.
 #   A name of an engine module (this engine's modules/<name>, e.g. render, audio, online-steam) takes the engine's copy; name@version takes that tag
@@ -20,7 +24,7 @@
 # - remove refuses if another module's requires lists it or game code includes it (source/ for source modules; source/, sim/, view/, app/ including
 #   mealkit/<name>/ for engine modules) (force with -Force). Undo is git's job.
 param(
-    [Parameter(Mandatory = $true, Position = 0)][ValidateSet("search", "list", "add", "update", "remove")][string]$Command,
+    [Parameter(Mandatory = $true, Position = 0)][ValidateSet("search", "list", "add", "update", "remove", "resolve", "versions")][string]$Command,
     [Parameter(Position = 1)][string]$Target = "",
     [string]$Project = "",
     [string]$Name = "",
@@ -29,6 +33,9 @@ param(
     [string]$Tag = "",
     [string]$Index = "",
     [string]$Preset = "",
+    [string]$File = "",
+    [ValidateSet("", "new", "mine")][string]$Use = "",
+    [switch]$All,
     [switch]$WithRequires,
     [switch]$Tsv,
     [switch]$DryRun,
@@ -38,7 +45,7 @@ $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\project_common.ps1"
 
 $modulesDir = ""
-if ($Command -ne "search" -or $Project) { # search works without a project too (shows installed state if given)
+if (($Command -ne "search" -and $Command -ne "versions") -or $Project) { # search works without a project too (shows installed state if given)
     if ($Project -eq "") { $Project = (Get-Location).Path }
     $Project = (Get-Item -LiteralPath (Resolve-Path $Project).Path -Force).FullName.TrimEnd("\") # long path (not an 8.3 short name)
     if (-not (Test-Path (Join-Path $Project "mealkit.project"))) { Write-Error "$Project has no mealkit.project"; exit 1 }
@@ -308,6 +315,24 @@ function Get-Installed {
     return @(Get-ChildItem $modulesDir -Directory | Where-Object { Test-Path (Join-Path $_.FullName "module.txt") } | Sort-Object Name)
 }
 
+# Newest version this engine can take for an installed module whose source is the registry or the engine ("" if none or another source)
+function Get-NewerVersion([string]$dir) {
+    $record = Read-FilesRecord $dir
+    $current = (Read-ModuleInfo $dir).version
+    if ($record.source -match '^engine\s+(\S+)') {
+        $vendored = Find-EngineModule $Matches[1]
+        if (-not $vendored) { return "" }
+        $v = (Read-ModuleInfo $vendored).version
+    } elseif ($record.source -match '^registry\s+(\S+)') {
+        try { $m = Find-RegistryModule $Matches[1] } catch { return "" }
+        $fit = @($m.versions | Where-Object { $_.engine -eq $engineMinor })
+        if ($fit.Count -eq 0) { return "" }
+        $v = $fit[0].version
+    } else { return "" }
+    if ($v -and $v -ne $current) { return $v }
+    return ""
+}
+
 # ---------------------------------------------------------------- Commands
 
 switch ($Command) {
@@ -336,8 +361,8 @@ switch ($Command) {
                 $repo = if ($lock) { $lock.url } else { "-" }
                 Write-Output (@("module", $ei.name, $ei.version, $ei.version, $engineMinor, $(if ($ei.title) { & $clean $ei.title } else { $ei.name }), (& $clean $ei.summary), ("engine " + $ei.tags).Trim(), "MealKit", $repo, (& $clean $ei.icon)) -join "`t")
             }
-            try { $all = @((Get-Registry).modules) } catch { Write-Output "error`t$(& $clean $_.Exception.Message)"; $all = @() }
-            foreach ($m in $all) {
+            try { $registryList = @((Get-Registry).modules) } catch { Write-Output "error`t$(& $clean $_.Exception.Message)"; $registryList = @() }
+            foreach ($m in $registryList) {
                 $fit = @($m.versions | Where-Object { $_.engine -eq $engineMinor })
                 $first = @($m.versions)[0]
                 Write-Output (@("module", $m.name, $(if ($fit.Count) { $fit[0].version } else { "-" }), $first.version, $first.engine,
@@ -442,6 +467,17 @@ switch ($Command) {
     }
 
     "update" {
+        if ($All) {
+            $todo = @(Get-Installed | ForEach-Object { $v = Get-NewerVersion $_.FullName; if ($v) { @{ name = $_.Name; version = $v } } })
+            if ($todo.Count -eq 0) { Write-Host "Every module is at the newest version for engine $engineMinor"; break }
+            $failed = @()
+            foreach ($t in $todo) {
+                & $PSCommandPath update $t.name -Project $Project -Index $Index -DryRun:$DryRun
+                if ($LASTEXITCODE -ne 0) { $failed += $t.name }
+            }
+            if ($failed.Count) { Write-Error "could not update: $($failed -join ', ')"; exit 1 }
+            break
+        }
         if (-not $Target) { Write-Error "update needs a module name"; exit 1 }
         $dest = Join-Path $modulesDir $Target
         if (-not (Test-Path (Join-Path $dest "module.txt"))) { Write-Error "modules/$Target is not installed"; exit 1 }
@@ -537,6 +573,49 @@ switch ($Command) {
         }
         Remove-Item -Recurse -Force $dest
         Write-Host "Removed modules/$Target" -ForegroundColor Green
+    }
+
+    "resolve" {
+        if (-not $Target -or -not $File -or -not $Use) { Write-Error "resolve needs a module, -File <path in the module> and -Use new|mine"; exit 1 }
+        $dest = Join-Path $modulesDir $Target
+        $rel = $File.Replace("\", "/") -replace '\.new$', ''
+        $dst = Join-Path $dest $rel.Replace("/", "\")
+        $new = "$dst.new"
+        if (-not (Test-Path -LiteralPath $new)) { Write-Error "modules/$Target/$rel.new does not exist"; exit 1 }
+        $record = Read-FilesRecord $dest
+        # The .new is the module's current version of the file, so the record takes its hash either way:
+        # new - the file becomes it (unmodified); mine - your file stays and counts as changed from that version
+        $record.hashes[$rel] = Get-ModuleFileHash $new
+        if ($Use -eq "new") { Move-Item -LiteralPath $new -Destination $dst -Force; Write-Host "Took the module's version of $rel" -ForegroundColor Green }
+        else { Remove-Item -LiteralPath $new -Force; Write-Host "Kept your $rel (the module's version is dropped)" -ForegroundColor Green }
+        Write-FilesRecord $dest $record.source $record.hashes
+    }
+
+    "versions" {
+        if (-not $Target) { Write-Error "versions needs a module name"; exit 1 }
+        # Lines: version <version> <engine MAJOR.MINOR or -> <fits this engine: yes/no/->
+        $lines = @()
+        if (Find-EngineModule $Target) {
+            $lock = Get-EngineLock $Target
+            if ($lock) {
+                $repoName = ($lock.url.TrimEnd("/") -split "/")[-1]
+                $sibling = Join-Path (Split-Path -Parent $engineRoot) $repoName
+                $from = if (Test-Path (Join-Path $sibling ".git")) { $sibling } else { $lock.url }
+                $ErrorActionPreference = "Continue"
+                $tags = @(& git ls-remote --tags $from 2>$null | ForEach-Object { ($_ -split '\s+')[1] -replace '^refs/tags/', '' -replace '\^\{\}$', '' } |
+                    Where-Object { $_ -match '^v\d+\.\d+\.\d+$' } | Select-Object -Unique)
+                $ErrorActionPreference = "Stop"
+                $sorted = $tags | Sort-Object { [version]($_.Substring(1)) } -Descending
+                foreach ($t in $sorted) { $lines += ,@($t.Substring(1), "-", "-") }
+            } else { $lines += ,@((Read-ModuleInfo (Find-EngineModule $Target)).version, $engineMinor, "yes") }
+        } else {
+            $m = Find-RegistryModule $Target
+            foreach ($v in @($m.versions)) { $lines += ,@($v.version, $v.engine, $(if ($v.engine -eq $engineMinor) { "yes" } else { "no" })) }
+        }
+        foreach ($l in $lines) {
+            if ($Tsv) { [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false; Write-Output ((@("version") + $l) -join "`t") }
+            else { Write-Host ("{0}  engine {1}{2}" -f $l[0], $l[1], $(if ($l[2] -eq "no") { "  (not this engine)" } else { "" })) }
+        }
     }
 }
 exit 0

@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Module review after publishing (2026-11-09)
+
+- `modules.lock` points at `github.com/MealKit-Engine/module-<name>` where the repos were published (it still said KingProtea99); module tags pushed; the engine got the `v1` tag the module repos' CI calls `engine-module.yml` with (their runs failed at once without it).
+- `tools/module.ps1`: `update -All [-DryRun]` (every registry/engine module with a newer version for this engine), `resolve <module> -File <path> -Use new|mine` (settles a `.new`; the record takes the `.new`'s hash either way, so the next update compares against that version), `versions <module> [-Tsv]` (registry versions, or the engine module repo's tags). The `-All` switch clashed with the search's `$all` variable (PowerShell names ignore case): renamed it.
+- MealKit-Contract v0.3.0: `kModuleIconKeywords` and `moduleIconKeyword()`, shared by the editor, MealKit Manager (icons in its Modules tab now) and, as a copy, the registry site (emoji) and `check_module.ps1` (warns on an unknown keyword).
+- Editor (module-editor v0.1.4) Modules window: requires, required-by and requires missing from the build; `.new` files with Open Both / Use New / Keep Mine; Other Versions with Change to / Add This Version; Update All with a preview; engine modules marked in use while the project has none in `modules/`, and a question before the first one is added (standard set, only this one, cancel).
+- Registry: shared workflow tag `v2` (template and module-cooldown use it). FuseTag's `module.files` carry the new repo URLs.
+- Checked: Editor build, screenshots on sandbox and a new empty project (in use, first engine module question, requires, `.new` list, versions, Update All), `module.ps1` resolve/update -All/versions on that project, mkcontract tests, Manager build, tests and screenshot, `check_strings.ps1`, docs `build.py check`; module-asset CI started after the `v1` tag. `check.ps1` not run.
+
 ## Modules window, module icons and module-<name> repos (2026-11-09)
 
 - Decided with the user (`docs/DECISIONS.md` 2026-11-09, third row). Engine module repos renamed to `module-<name>` in the MealKit-Engine organization: sibling folders, `modules.lock` URLs (same commits and tags), the docs and the workspace `.clangd`. Projects' `module.files` keep the old URL as a record; `update` reads only the module name from it.

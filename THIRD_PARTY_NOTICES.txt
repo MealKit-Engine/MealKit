@@ -274,7 +274,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ==============================================================================
-mkcontract (MealKit tool contract) v0.2.0 (5f0e7f5)
+mkcontract (MealKit tool contract) v0.3.0 (ebceb22)
 ==============================================================================
 MIT License
 
