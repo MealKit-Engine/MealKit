@@ -1,17 +1,24 @@
-﻿# Adds, updates, and removes source modules in the project's modules/<name>/ (docs/MODULES.md). The editor and MealKit Manager call this too.
+﻿# Adds, updates, and removes modules in the project's modules/<name>/: source modules (docs/MODULES.md) and engine modules (module.txt "type engine",
+# docs/ENGINE_MODULES.md "Module selection"), the same way. The editor and MealKit Manager call this too.
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 search [<query>] [-Tag <tag>] [-Project <folder>] [-Tsv]   (-Tsv: lines for the editor/Manager)
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 list   -Project <folder>
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 add    -Project <folder> <name[@version] | folder | git url[#tag]> [-Name <module>] [-WithRequires]
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 add    -Project <folder> -Preset standard|solo    (every engine module of that preset)
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 update -Project <folder> <module> [-To <version>] [-From <folder | git url[#tag]>] [-DryRun] [-Force]
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 remove -Project <folder> <module> [-Force]
 #
 # - The source is a module folder (module.txt at its root) or a git repo containing such folders. If the repo has several modules/<name>/module.txt, pick one with -Name.
+#   A name of an engine module (this engine's modules/<name>, e.g. render, audio, online-steam) takes the engine's copy; name@version takes that tag
+#   (v<version>) of the module's repo in the engine's modules.lock (the checkout beside the engine when there is one).
+#   A project with no engine modules in modules/ builds with every engine module of its engine; once it has one, only those in modules/.
 #   Names are looked up in the registry (MealKit-Modules) index.json: fetches the newest version for this engine MINOR by tag and checks the commit matches the list.
 #   The list can be changed with -Index or the environment variable MEALKIT_MODULE_INDEX (URL or file). The fetched list is kept in %LOCALAPPDATA%\MealKit\module-index.json and used when offline.
-# - What's copied: module.txt, sim/, view/, assets/, art/, docs/, LICENSE*/README* at the root (excluding *.new). Hashes of copied files and where they came from are kept in modules/<name>/module.files.
+# - What's copied: module.txt, sim/, view/, assets/, art/, docs/, LICENSE*/README* at the root (excluding *.new); for an engine module every file but
+#   .git/, .github/, backends/ (separate modules), CLAUDE.md and README*. Hashes of copied files and where they came from are kept in modules/<name>/module.files.
 # - update follows the same rules as upgrade_project.ps1: only unmodified files (hash matches the record) are replaced; modified files are kept and <file>.new is written.
 #   Files gone in the new version are deleted if unmodified, kept and reported if modified. -Force replaces modified files too.
-# - remove refuses if another module's requires lists it or game source/ includes it (force with -Force). Undo is git's job.
+# - remove refuses if another module's requires lists it or game code includes it (source/ for source modules; source/, sim/, view/, app/ including
+#   mealkit/<name>/ for engine modules) (force with -Force). Undo is git's job.
 param(
     [Parameter(Mandatory = $true, Position = 0)][ValidateSet("search", "list", "add", "update", "remove")][string]$Command,
     [Parameter(Position = 1)][string]$Target = "",
@@ -21,6 +28,7 @@ param(
     [string]$To = "",
     [string]$Tag = "",
     [string]$Index = "",
+    [string]$Preset = "",
     [switch]$WithRequires,
     [switch]$Tsv,
     [switch]$DryRun,
@@ -44,13 +52,16 @@ $textExtensions = @(".h", ".hpp", ".cpp", ".c", ".inl", ".txt", ".md", ".ui", ".
 $engineMinor = ((Get-MealKitVersion) -replace '^(\d+\.\d+).*$', '$1')
 $defaultIndex = "https://raw.githubusercontent.com/MealKit-Engine/MealKit-Modules/main/index.json"
 $registryNamePattern = '^[a-z][a-z0-9_]*(@\d+\.\d+\.\d+)?$'
+$engineNamePattern = '^[a-z][a-z0-9_-]*(@\d+\.\d+\.\d+)?$'
+$engineRoot = Split-Path -Parent $PSScriptRoot
+$kernelNames = @("core", "platform", "jobs")
 
 # ---------------------------------------------------------------- Common
 
 function Read-ModuleInfo([string]$dir) {
-    $info = @{ name = ""; version = "0"; engine = ""; requires = @() }
+    $info = @{ name = ""; version = "0"; engine = ""; requires = @(); type = "source"; summary = ""; tags = "" }
     foreach ($line in [IO.File]::ReadAllLines((Join-Path $dir "module.txt"), $MealKitUtf8)) {
-        if ($line -match '^\s*(name|version|engine|requires)(?:\s+(.*?))?\s*$') {
+        if ($line -match '^\s*(name|version|engine|requires|type|summary|tags)(?:\s+(.*?))?\s*$') {
             $value = "$($Matches[2])"
             if ($Matches[1] -eq "requires") {
                 $info.requires = @($value -split '\s+' | Where-Object { $_ -ne "" -and $_ -notmatch '^[0-9]' })
@@ -72,12 +83,14 @@ function Get-ModuleFileHash([string]$file) {
 # Files to copy from a module folder: module-relative path (/) → full path
 function Get-ModuleFiles([string]$dir) {
     $files = [ordered]@{}
+    $engineType = (Read-ModuleInfo $dir).type -eq "engine"
     # The base is the long path from Get-Item (paths received as 8.3 short names like %TEMP% differ in length from FullName)
     $base = (Get-Item -LiteralPath $dir -Force).FullName.TrimEnd("\")
     Get-ChildItem -LiteralPath $base -Recurse -File -Force | Sort-Object FullName | ForEach-Object {
         $rel = $_.FullName.Substring($base.Length + 1).Replace("\", "/")
         $top = $rel.Split("/")[0]
         $keep = $copyTop -contains $top -or ($rel -notmatch "/" -and $top -match "^(license|readme)")
+        if ($engineType) { $keep = $top -notin @(".git", ".github", "backends", "build") -and $_.Name -ne "CLAUDE.md" -and $rel -notmatch "^readme" -and $rel -ne $filesName }
         if (-not $keep -or $_.Extension -eq ".new") { return }
         $files[$rel] = $_.FullName
     }
@@ -149,9 +162,62 @@ function Select-RegistryVersion($module, [string]$version) {
 }
 
 # Source (registry name[@version], folder, git url#tag) → @{ dir; source } . git is freshly cloned into a cache folder
+# An engine module of this engine: modules/<name>/module.txt with "type engine" → its folder, else ""
+function Find-EngineModule([string]$name) {
+    $dir = Join-Path $engineRoot "modules\$name"
+    $meta = Join-Path $dir "module.txt"
+    if ((Test-Path $meta) -and (Read-ModuleInfo $dir).type -eq "engine") { return $dir }
+    return ""
+}
+
+# modules.lock line of an engine module: @{ url; tag; commit; path } or $null (a module without its own repo yet, like audio)
+function Get-EngineLock([string]$name) {
+    $lock = Join-Path $engineRoot "modules.lock"
+    if (-not (Test-Path $lock)) { return $null }
+    foreach ($line in [IO.File]::ReadAllLines($lock)) {
+        $p = $line.Trim() -split '\s+'
+        if ($p.Count -ge 6 -and $p[0] -eq "module" -and $p[1] -eq $name) { return @{ url = $p[2]; tag = $p[3]; commit = $p[4]; path = $p[5] } }
+    }
+    return $null
+}
+
+function Get-EngineModuleSource([string]$name, [string]$version) {
+    $vendored = Find-EngineModule $name
+    $current = (Read-ModuleInfo $vendored).version
+    $lock = Get-EngineLock $name
+    if (-not $version -or $version -eq $current) {
+        $tag = if ($lock) { "$($lock.tag) $($lock.commit) $($lock.url)" } else { "- - -" }
+        return @{ dir = $vendored; source = "engine $name $current $tag" }
+    }
+    if (-not $lock) { throw "$name has no repo in the engine's modules.lock yet, so only its engine copy ($current) can be added" }
+    # The checkout beside the engine (..\MealKit-<Name>) when there is one, else the lock's URL
+    $repoName = ($lock.url.TrimEnd("/") -split "/")[-1]
+    $sibling = Join-Path (Split-Path -Parent $engineRoot) $repoName
+    $from = if (Test-Path (Join-Path $sibling ".git")) { $sibling } else { $lock.url }
+    $cacheRoot = Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "MealKit\module-cache"
+    $root = Join-Path $cacheRoot ([Guid]::NewGuid().ToString("N").Substring(0, 12))
+    New-Item -ItemType Directory -Force $cacheRoot | Out-Null
+    $ErrorActionPreference = "Continue"
+    & git -c advice.detachedHead=false clone --quiet --depth 1 --branch "v$version" $from $root 2>&1 | ForEach-Object { Write-Host "  git: $_" }
+    $cloned = $LASTEXITCODE -eq 0
+    $ErrorActionPreference = "Stop"
+    if (-not $cloned) { Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue; throw "$name has no version $version (tag v$version in $from)" }
+    $commit = (& git -C $root rev-parse HEAD).Trim()
+    $dir = if ($lock.path -eq ".") { $root } else { Join-Path $root $lock.path.Replace("/", "\") }
+    if (-not (Test-Path (Join-Path $dir "module.txt"))) {
+        Remove-Item -Recurse -Force $root -ErrorAction SilentlyContinue
+        throw "$name $version is older than engine modules as module.txt (it has engine-module.txt): pick a newer version"
+    }
+    return @{ dir = $dir; source = "engine $name $version v$version $commit $($lock.url)" }
+}
+
 function Get-ModuleSource([string]$spec, [string]$want) {
     $root = ""
     $source = ""
+    if (-not (Test-Path $spec) -and $spec -match $engineNamePattern -and (Find-EngineModule $spec.Split("@", 2)[0])) {
+        $ename, $ever = $spec.Split("@", 2)
+        return Get-EngineModuleSource $ename $ever
+    }
     if (-not (Test-Path $spec) -and $spec -match $registryNamePattern) {
         $rname, $rver = $spec.Split("@", 2)
         $module = Find-RegistryModule $rname
@@ -206,12 +272,20 @@ function Remove-Cache([hashtable]$src) {
     }
 }
 
+# A module the project has: a folder in modules/, a kernel module, or an engine module when the project has no engine copies (it builds with all of them)
+function Test-HasModule([string]$name) {
+    if (Test-Path (Join-Path $modulesDir "$name\module.txt")) { return $true }
+    if ($kernelNames -contains $name) { return $true }
+    if ((Find-EngineModule $name) -and -not (Get-Installed | Where-Object { (Read-ModuleInfo $_.FullName).type -eq "engine" })) { return $true }
+    return $false
+}
+
 function Test-ModuleWarnings([hashtable]$info) {
     if ($info.engine -and $info.engine -ne $engineMinor) {
         Write-Host "warning: $($info.name) $($info.version) is made for engine $($info.engine), this engine is $(Get-MealKitVersion)" -ForegroundColor Yellow
     }
     foreach ($r in $info.requires) {
-        if (-not (Test-Path (Join-Path $modulesDir "$r\module.txt"))) {
+        if (-not (Test-HasModule $r)) {
             Write-Host "warning: $($info.name) needs the module '$r' - add it too (the build stops without it)" -ForegroundColor Yellow
         }
     }
@@ -249,6 +323,14 @@ switch ($Command) {
                 $st = Get-ModuleState $m.FullName
                 Write-Output (@("installed", $st.info.name, $st.info.version, $st.modified, $st.pending, (& $clean $st.source)) -join "`t")
             }
+            # The engine's own modules (type engine): one line each, like registry modules, with "engine" first in the tags
+            foreach ($d in Get-ChildItem (Join-Path $engineRoot "modules") -Directory | Sort-Object Name) {
+                if (-not (Find-EngineModule $d.Name) -or $d.Name -eq "editor") { continue }
+                $ei = Read-ModuleInfo $d.FullName
+                $lock = Get-EngineLock $d.Name
+                $repo = if ($lock) { $lock.url } else { "-" }
+                Write-Output (@("module", $ei.name, $ei.version, $ei.version, $engineMinor, $ei.name, (& $clean $ei.summary), ("engine " + $ei.tags).Trim(), "MealKit", $repo) -join "`t")
+            }
             try { $all = @((Get-Registry).modules) } catch { Write-Output "error`t$(& $clean $_.Exception.Message)"; $all = @() }
             foreach ($m in $all) {
                 $fit = @($m.versions | Where-Object { $_.engine -eq $engineMinor })
@@ -259,12 +341,22 @@ switch ($Command) {
             break
         }
         $words = @("$Target".ToLowerInvariant() -split '\s+' | Where-Object { $_ })
-        $hits = @((Get-Registry).modules | Where-Object {
+        foreach ($d in Get-ChildItem (Join-Path $engineRoot "modules") -Directory | Sort-Object Name) {
+            if (-not (Find-EngineModule $d.Name) -or $d.Name -eq "editor") { continue }
+            $ei = Read-ModuleInfo $d.FullName
+            $text = "$($ei.name) $($ei.summary) engine $($ei.tags)".ToLowerInvariant()
+            if (($Tag -and "engine $($ei.tags)" -notmatch "\b$([regex]::Escape($Tag))\b") -or ($words | Where-Object { -not $text.Contains($_) })) { continue }
+            $mark = if ($modulesDir -and (Test-Path (Join-Path $modulesDir "$($ei.name)\module.txt"))) { "  [installed]" } else { "" }
+            Write-Host ("{0} {1}  engine module{2}" -f $ei.name, $ei.version, $mark)
+            Write-Host "    $($ei.summary)"
+        }
+        try { $registryModules = @((Get-Registry).modules) } catch { Write-Host "warning: $($_.Exception.Message)" -ForegroundColor Yellow; $registryModules = @() }
+        $hits = @($registryModules | Where-Object {
             $m = $_
             $text = "$($m.name) $($m.title) $($m.summary) $($m.tags -join ' ') $($m.author)".ToLowerInvariant()
             (-not $Tag -or $m.tags -contains $Tag) -and -not ($words | Where-Object { -not $text.Contains($_) })
         })
-        if ($hits.Count -eq 0) { Write-Host "No modules found"; break }
+        if ($hits.Count -eq 0) { break }
         # Those with a version for this engine MINOR first
         $hits = $hits | Sort-Object @{ Expression = { @($_.versions | Where-Object { $_.engine -eq $engineMinor }).Count -eq 0 } }, name
         foreach ($m in $hits) {
@@ -282,16 +374,35 @@ switch ($Command) {
         if ($installed.Count -eq 0) { Write-Host "No modules in $modulesDir"; break }
         foreach ($m in $installed) {
             $st = Get-ModuleState $m.FullName
-            Write-Host ("{0} {1}  modified {2}, .new {3}  from {4}" -f $st.info.name, $st.info.version, $st.modified, $st.pending, $st.source)
+            Write-Host ("{0} {1} ({2})  modified {3}, .new {4}  from {5}" -f $st.info.name, $st.info.version, $st.info.type, $st.modified, $st.pending, $st.source)
         }
     }
 
     "add" {
+        if ($Preset) {
+            # Every engine module of a preset (cmake/MealKit.cmake MEALKIT_PRESETS): all but editor; solo also without net and online*
+            if ($Preset -notin @("standard", "solo")) { Write-Error "no preset '$Preset' (standard, solo)"; exit 1 }
+            $names = @(Get-ChildItem (Join-Path $engineRoot "modules") -Directory | Sort-Object Name | ForEach-Object { $_.Name } |
+                Where-Object { (Find-EngineModule $_) -and $_ -ne "editor" })
+            if ($Preset -eq "solo") { $names = @($names | Where-Object { $_ -ne "net" -and $_ -ne "online" -and $_ -notlike "online-*" }) }
+            $env:MEALKIT_MODULE_BATCH = "1" # requires are checked once at the end, not while half the preset is in
+            foreach ($n in $names) {
+                if (Test-Path (Join-Path $modulesDir "$n\module.txt")) { Write-Host "have $n"; continue }
+                & $PSCommandPath add $n -Project $Project
+                if ($LASTEXITCODE -ne 0) { exit 1 }
+            }
+            $env:MEALKIT_MODULE_BATCH = ""
+            foreach ($m in Get-Installed) { Test-ModuleWarnings (Read-ModuleInfo $m.FullName) }
+            break
+        }
         if (-not $Target) { Write-Error "add needs a module name, a folder or a git address"; exit 1 }
+        $hadEngine = @(Get-Installed | Where-Object { (Read-ModuleInfo $_.FullName).type -eq "engine" }).Count -gt 0
         $src = Get-ModuleSource $Target $Name
         try {
             $info = Read-ModuleInfo $src.dir
-            if ($info.name -notmatch '^[a-z0-9_]+$') { throw "module name '$($info.name)' must be lowercase letters, digits and _" }
+            $namePattern = if ($info.type -eq "engine") { '^[a-z0-9_-]+$' } else { '^[a-z0-9_]+$' }
+            if ($info.name -notmatch $namePattern) { throw "module name '$($info.name)' must be lowercase letters, digits and _" }
+            if ($info.type -eq "engine" -and $info.name -eq "editor") { throw "the editor module isn't part of a game" }
             $dest = Join-Path $modulesDir $info.name
             if (Test-Path $dest) { throw "modules/$($info.name) already exists - use 'update'" }
             $hashes = @{}
@@ -306,17 +417,20 @@ switch ($Command) {
             if ($src.source.StartsWith("registry ")) {
                 Write-Host "Note: module code runs inside the editor and the game. The registry checks that it builds, not what it does - read what you add." -ForegroundColor Yellow
             }
-            $missing = @($info.requires | Where-Object { -not (Test-Path (Join-Path $modulesDir "$_\module.txt")) })
+            if ($info.type -eq "engine" -and -not $hadEngine -and -not $env:MEALKIT_MODULE_BATCH) {
+                Write-Host "Note: the game now builds with only the engine modules in modules/. Add the others it uses too (add -Preset standard adds all of them)." -ForegroundColor Yellow
+            }
+            $missing = @($info.requires | Where-Object { -not (Test-HasModule $_) })
             if ($WithRequires) {
                 foreach ($req in $missing) {
                     Write-Host "Adding required module $req"
                     & $PSCommandPath add $req -Project $Project -Index $Index -WithRequires
                     if ($LASTEXITCODE -ne 0) { throw "could not add the required module $req" }
                 }
-            } elseif ($missing.Count) {
+            } elseif ($missing.Count -and -not $env:MEALKIT_MODULE_BATCH) {
                 Write-Host "Also add: $($missing -join ', ') (or add again with -WithRequires)" -ForegroundColor Yellow
             }
-            Test-ModuleWarnings $info
+            if (-not $env:MEALKIT_MODULE_BATCH) { Test-ModuleWarnings $info }
             $docs = Join-Path $dest "docs\index.md"
             if (Test-Path $docs) { Write-Host "Next: connect it to the game as its docs say ('Adding' section): $docs" }
         } finally { Remove-Cache $src }
@@ -330,7 +444,7 @@ switch ($Command) {
         $spec = $From
         if (-not $spec) {
             if ($record.source -match '^folder\s+(.+)$') { $spec = $Matches[1] }
-            elseif ($record.source -match '^registry\s+(\S+)') { $spec = if ($To) { "$($Matches[1])@$To" } else { $Matches[1] } }
+            elseif ($record.source -match '^(registry|engine)\s+(\S+)') { $spec = if ($To) { "$($Matches[2])@$To" } else { $Matches[2] } }
             elseif ($record.source -match '^git\s+(\S+)\s+(\S+)') { $spec = if ($Matches[2] -eq "-") { $Matches[1] } else { "$($Matches[1])#$($Matches[2])" } }
             else { Write-Error "modules/$Target has no recorded source - give one with -From"; exit 1 }
         }
@@ -398,10 +512,16 @@ switch ($Command) {
         foreach ($m in Get-Installed) {
             if ($m.Name -ne $Target -and (Read-ModuleInfo $m.FullName).requires -contains $Target) { $blockers += "module $($m.Name) requires it" }
         }
-        $sourceDir = Join-Path $Project "source"
-        if (Test-Path $sourceDir) {
-            $pattern = '#\s*include\s*["<]' + [regex]::Escape($Target) + '/'
+        $isEngine = (Read-ModuleInfo $dest).type -eq "engine"
+        $codeDirs = if ($isEngine) { @("source", "sim", "view", "app") } else { @("source") }
+        $pattern = if ($isEngine) { '#\s*include\s*["<]mealkit/' + [regex]::Escape($Target) + '/' } else { '#\s*include\s*["<]' + [regex]::Escape($Target) + '/' }
+        foreach ($cd in $codeDirs) {
+            $sourceDir = Join-Path $Project $cd
+            if (-not (Test-Path $sourceDir)) { continue }
+            # Code that keeps an engine module's uses inside #if MEALKIT_HAS_<NAME> already builds without it
+            $guard = "MEALKIT_HAS_" + $Target.ToUpperInvariant().Replace("-", "_")
             Get-ChildItem $sourceDir -Recurse -File -Include *.h, *.hpp, *.cpp | Select-String -Pattern $pattern | ForEach-Object {
+                if ($isEngine -and (Select-String -LiteralPath $_.Path -Pattern $guard -SimpleMatch -Quiet)) { return }
                 $blockers += "$($_.Path.Substring($Project.Length + 1)):$($_.LineNumber): $($_.Line.Trim())"
             }
         }

@@ -7,6 +7,8 @@ Differences from draft 1 (user feedback 2026-10-28): official modules aren't kep
 
 ## Summary
 
+Since 2026-11-09 engine modules live in the same `modules/<name>/` with the same `module.txt` (plus `type engine`) and the same `tools\module.ps1` (`docs/ENGINE_MODULES.md` "Module selection and versions"). This document is about source modules; where engine modules differ, that document says so.
+
 A module is **a source folder copied into the project's `modules/<name>/`**. The build gathers that folder's `sim/` and `view/` like game code and includes them in SimCheck and the simulation version hash. Assets are read via `modules/<name>/...` paths.
 Game code puts module state in as a `WorldState` field and calls module functions from `World::step()`. The engine doesn't call them automatically.
 **One module = one git repo**, official or not. When a one-line info file per module is placed in the repo **`MealKit-Modules` (registry)**, CI verifies it and builds `index.json` and a search site. The editor, Manager, and `tools\module.ps1` find modules by name in that list and add them.
@@ -60,6 +62,8 @@ summary TickTimer bundles for skill cooldowns, with a cooldown icon .ui
 tags gameplay timer ui
 requires
 ```
+
+`type` is `source` when absent; `type engine` marks an engine module. In `requires`, a name may be an engine module of the build (a minimap needs `render`), with an optional minimum version after it.
 
 | Key | Meaning |
 |---|---|

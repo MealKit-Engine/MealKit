@@ -367,9 +367,9 @@ elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
 endif()
 
 # The PUBLIC settings below live on the core target (the Game build's mealkit inherits them by linking the core PUBLIC)
-# Engine modules (docs/ENGINE_MODULES.md): the kernel in engine/core/<name>/, the rest in modules/<name>/, each with an engine-module.txt.
+# Engine modules (docs/ENGINE_MODULES.md): the kernel in engine/core/<name>/, the rest in modules/<name>/, each with a module.txt (type engine).
 # include/ holds the headers other modules and games may include (still "mealkit/<module>/X.h"), src/ the module's own files and private headers.
-file(GLOB mealkit_module_manifests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/core/*/engine-module.txt ${CMAKE_CURRENT_SOURCE_DIR}/../modules/*/engine-module.txt)
+file(GLOB mealkit_module_manifests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/core/*/module.txt ${CMAKE_CURRENT_SOURCE_DIR}/../modules/*/module.txt)
 set(MEALKIT_MODULE_INCLUDES "")
 set(MEALKIT_MODULE_SOURCES_DIRS "")
 set(MEALKIT_MODULE_EDITOR_DIRS "")

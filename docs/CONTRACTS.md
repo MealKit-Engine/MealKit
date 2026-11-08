@@ -29,7 +29,7 @@ Every text format starts with `@format <kind> <N>` after its comment header (no 
 | `assets/terrain/*.scatter` | `scatter` | 1 |
 | `tests/*.scenario` | none (version 1) | 1 |
 | `mealkit-tool.txt` (tool manifest) | `tool` | 1 |
-| `engine-module.txt` (engine module manifest) | `engine-module` | 1 |
+| `module.txt` with `type engine` (engine module manifest, same format as source modules) | `module` | 1 |
 | `modules.lock` (engine) | `module-lock` | 1 |
 | `assets/sounds.events` | `audio-events` | owned by MealKit-Audio, versioned by MealKit-Contract (`docs/CONTRACT.md` there) |
 
@@ -43,7 +43,7 @@ Every text format starts with `@format <kind> <N>` after its comment header (no 
 
 ## Engine modules
 
-- `mealkit.project` `enginePreset` (`standard`, `solo`) and `engineModules` keep their meaning in v1.x; v1.x may add presets and modules, not remove them (`docs/ENGINE_MODULES.md`).
+- Engine modules are chosen by the folders in a project's `modules/` (`type engine`, `tools\module.ps1`); the 0.9.1 `mealkit.project` lines `enginePreset`/`engineModules`/`engineWithout`/`engineModuleVersion` were dropped in 0.9.2 (`upgrade_project.ps1` converts them).
 - A game builds against an engine version (`VERSION` + `modules.lock`), never against module versions one by one. A module's public headers are part of the game API when they are in `engine/public_headers.txt`.
 - `#if MEALKIT_HAS_<NAME>` is how game code checks for an optional module, and `game::MatchService::multiplayerAvailable()` tells a menu whether this build has `net`.
 

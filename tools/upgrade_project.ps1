@@ -5,7 +5,9 @@
 #   source/ and assets/ aren't touched (except with -Source).
 # - Files the user didn't edit (matching the hash in .mealkit-template) are replaced with the new template. Edited files aren't overwritten;
 #   the new content is left as <file>.new to show the difference. -Force replaces edited files too.
-# - mealkit.project only gets its engine and engineVersion lines changed (and enginePreset standard added when missing) (name/start scene/game items unchanged, line format unchanged too).
+# - mealkit.project only gets its engine and engineVersion lines changed (name/start scene/game items unchanged, line format unchanged too).
+#   Engine 0.9.1 lines enginePreset/engineModules/engineWithout/engineModuleVersion are dropped: "enginePreset standard" alone meant every engine
+#   module (what a project without engine modules in modules/ gets); any other choice becomes engine module copies in modules/ (tools\module.ps1).
 # - Files from before the change are kept in .upgrade_backup\<time>\.
 # - -Source: replaces source/ game code with the code of the template the project was made from (mealkit.project "templateName": arena = samples/sandbox,
 #   empty = templates/empty + the shared screen flow). Used to move projects that didn't edit the template code to a new engine structure. source/sim/view/app files not in the sample are deleted (backed up). Only missing files are added to assets/ (no overwriting).
@@ -58,7 +60,8 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
         # Old "key=value" lines keep their format (an edited build.bat may only read the old format).
         $current = [IO.File]::ReadAllText($target, $MealKitUtf8)
         $lines = [Collections.Generic.List[string]]::new()
-        $seenEngine = $false; $seenVersion = $false; $seenPreset = $false; $separator = " "
+        $seenEngine = $false; $seenVersion = $false; $separator = " "
+        $oldPreset = ""; $oldWithout = @(); $oldPins = @(); $oldOther = $false
         foreach ($line in ($current -split "`r?`n")) {
             if ($line -match '^\s*(engine|engineVersion)(\s*=\s*|\s+|$)') {
                 $sep = if ($Matches[2] -match '=') { "=" } else { " " }
@@ -66,16 +69,36 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
                 if ($Matches[1] -eq "engine") { $lines.Add("engine$sep$MealKitEngine"); $seenEngine = $true }
                 else { $lines.Add("engineVersion$sep$version"); $seenVersion = $true }
             }
-            else {
-                if ($line -match '^\s*enginePreset(\s|=|$)') { $seenPreset = $true }
-                $lines.Add($line)
+            elseif ($line -match '^\s*(enginePreset|engineModules|engineWithout|engineModuleVersion)(?:\s*=\s*|\s+)(.*)$') {
+                $words = @($Matches[2].Trim() -split '\s+' | Where-Object { $_ })
+                switch ($Matches[1]) {
+                    "enginePreset" { $oldPreset = $words[0] }
+                    "engineWithout" { $oldWithout += $words }
+                    "engineModuleVersion" { if ($words.Count -ge 2) { $oldPins += , @($words[0], $words[1].TrimStart("v")) } }
+                    default { } # engineModules only added to a preset; the copies below have every module
+                }
+                if ($Matches[1] -ne "enginePreset" -or $words[0] -ne "standard") { $oldOther = $true }
             }
+            else { $lines.Add($line) }
         }
         while ($lines.Count -gt 0 -and $lines[$lines.Count - 1] -eq "") { $lines.RemoveAt($lines.Count - 1) }
         if (-not $seenEngine) { $lines.Add("engine$separator$MealKitEngine") }
         if (-not $seenVersion) { $lines.Add("engineVersion$separator$version") }
-        # Engine 0.9.1: engine modules per project (docs/ENGINE_MODULES.md "Presets"). Existing projects keep every module
-        if (-not $seenPreset) { $lines.Add("enginePreset${separator}standard") }
+        # Engine 0.9.1's choice of engine modules → copies in modules/ like source modules (docs/ENGINE_MODULES.md "Module selection")
+        if ($oldOther -and -not $DryRun) {
+            $tool = Join-Path $PSScriptRoot "module.ps1"
+            $preset = if ($oldPreset) { $oldPreset } else { "standard" }
+            & powershell -NoProfile -ExecutionPolicy Bypass -File $tool add -Preset $preset -Project $Project | Out-Null
+            foreach ($w in $oldWithout) {
+                foreach ($d in @(Get-ChildItem (Join-Path $Project "modules") -Directory | Where-Object { $_.Name -eq $w -or $_.Name -like "$w-*" })) {
+                    & powershell -NoProfile -ExecutionPolicy Bypass -File $tool remove $d.Name -Project $Project -Force | Out-Null
+                }
+            }
+            foreach ($pin in $oldPins) {
+                & powershell -NoProfile -ExecutionPolicy Bypass -File $tool update $pin[0] -To $pin[1] -Project $Project -Force | Out-Null
+            }
+            Report "updated" "modules (engine modules from the old enginePreset/engineWithout/engineModuleVersion lines)" Green
+        }
         $merged = ($lines -join "`r`n") + "`r`n"
         if ($merged.Replace("`r`n", "`n") -ne $current.Replace("`r`n", "`n")) {
             Report "updated" $rel Green

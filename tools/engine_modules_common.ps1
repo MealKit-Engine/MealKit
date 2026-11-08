@@ -10,7 +10,7 @@ function Get-EngineModules([string]$root) {
     foreach ($base in @((Join-Path $root "engine\core"), (Join-Path $root "modules"))) {
         if (-not (Test-Path $base)) { continue }
         foreach ($d in Get-ChildItem -Path $base -Directory | Sort-Object Name) {
-            if (-not (Test-Path (Join-Path $d.FullName "engine-module.txt"))) { continue }
+            if (-not (Test-Path (Join-Path $d.FullName "module.txt"))) { continue }
             $out += [pscustomobject]@{ Name = $d.Name; Dir = $d.FullName; Kernel = ($base -like "*engine\core") }
         }
     }

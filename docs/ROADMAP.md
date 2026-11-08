@@ -810,6 +810,7 @@ The engine becomes a kernel, and every subsystem an engine module in its own rep
 - [x] 10. Workspace notes and tools, rules, CODING_MODEL, CONTRACTS, docs repo, publication order — 2026-11-08, details in `docs/CHANGELOG.md`
 - [x] 11. Engine modules used like source modules: any combination per project, a version per module, layer tags — 2026-11-08, details in `docs/CHANGELOG.md` (`audio` optional since 2026-11-08; `game` still needs the other framework modules: `ui`, `feedback`, `settings`, `input`, `loc`, `render`, `rhi`)
 - [x] 12. A game's own engine module copies in its `modules/` folder (`modules.ps1 add -Project`) — 2026-11-09, details in `docs/CHANGELOG.md`
+- [x] 13. Engine and source modules handled the same way (`module.txt` `type engine`, `tools\module.ps1`, the game's `modules/` is the selection) — 2026-11-09, details in `docs/CHANGELOG.md`
 
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 

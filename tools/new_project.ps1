@@ -64,6 +64,11 @@ if ($Template -eq "arena" -and (Test-Path $modules)) {
     Get-ChildItem $modules -Directory | ForEach-Object { Copy-Item $_.FullName (Join-Path $dest "modules") -Recurse -Force }
 }
 
+# 5) Engine modules: every module of the standard preset into modules/<name>/ like source modules (docs/ENGINE_MODULES.md "Module selection").
+#    The game keeps the ones it uses: tools\module.ps1 remove audio, add/update for other versions
+& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "module.ps1") add -Preset standard -Project $dest | Out-Null
+if ($LASTEXITCODE -ne 0) { Write-Error "could not add the engine modules (tools\module.ps1 add -Preset standard -Project $dest)"; exit 1 }
+
 Write-Host "Created $dest ($Template template, engine $(Get-MealKitVersion))" -ForegroundColor Green
 Write-Host "  engine : $engine"
 Write-Host "  build  : $dest\build.bat        (first build compiles the engine too, a few minutes)"

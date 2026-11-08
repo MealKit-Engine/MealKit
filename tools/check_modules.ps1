@@ -1,6 +1,6 @@
 ﻿# Engine module check (docs/ENGINE_MODULES.md "Manifest" and "Checks"). Called by check.ps1 and CI. Replaces the old folder order check.
 #   powershell -ExecutionPolicy Bypass -File tools\check_modules.ps1     exit code 1 on problems
-# Every folder in engine/core/ (kernel) and modules/ is an engine module with an engine-module.txt. This checks that:
+# Every folder in engine/core/ (kernel) and modules/ is an engine module with an module.txt. This checks that:
 #   - each manifest parses (format line, known keys, name = folder, kind, semver, kernel = engine MINOR)
 #   - requires names exist and form a graph without cycles; kernel modules (core, platform, jobs) require nothing and are implied for all
 #   - each file includes only its own module, the kernel and its requires (plus transitional ones)
@@ -16,7 +16,7 @@ $warnings = @()
 
 $version = ([IO.File]::ReadAllText((Join-Path $root "VERSION"))).Trim()
 $engineMinor = ($version -split '\.')[0..1] -join '.'
-$known = @("name", "version", "kernel", "kind", "layer", "requires", "transitional", "optional", "tag", "summary", "provides")
+$known = @("type", "name", "version", "engine", "kind", "layer", "requires", "transitional", "optional", "tags", "summary", "provides")
 $kinds = @("kernel", "sim", "view", "tool")
 # Layers, low to high (docs/ENGINE_MODULES.md "Manifest"): a module includes only its own layer and the ones below. The kernel modules
 # (platform, core, jobs) form the base and include each other
@@ -25,10 +25,10 @@ $layers = @("platform", "kernel", "core", "framework", "app")
 # ---- Read manifests
 $mods = [ordered]@{}
 foreach ($dir in Get-EngineModules $root | ForEach-Object { Get-Item $_.Dir }) {
-    $path = Join-Path $dir.FullName "engine-module.txt"
+    $path = Join-Path $dir.FullName "module.txt"
     $rel = $path.Substring($root.Length + 1)
     if (-not (Test-Path $path)) { $problems += "${rel}: missing (every engine folder is a module)"; continue }
-    $m = @{ name = ""; kind = ""; layer = ""; version = ""; kernel = ""; requires = @(); optional = @(); transitional = @(); rel = $rel }
+    $m = @{ name = ""; kind = ""; layer = ""; version = ""; engine = ""; type = ""; requires = @(); optional = @(); transitional = @(); rel = $rel }
     $sawFormat = $false
     $n = 0
     foreach ($line in [IO.File]::ReadAllLines($path)) {
@@ -36,7 +36,7 @@ foreach ($dir in Get-EngineModules $root | ForEach-Object { Get-Item $_.Dir }) {
         $t = $line.Trim()
         if ($t -eq "" -or $t.StartsWith("#")) { continue }
         if (-not $sawFormat) {
-            if ($t -ne "@format engine-module 1") { $problems += "${rel}:${n}: first line must be '@format engine-module 1'" }
+            if ($t -ne "@format module 1") { $problems += "${rel}:${n}: first line must be '@format module 1'" }
             $sawFormat = $true
             continue
         }
@@ -66,7 +66,8 @@ foreach ($dir in Get-EngineModules $root | ForEach-Object { Get-Item $_.Dir }) {
     if ($kinds -notcontains $m.kind) { $problems += "${rel}: kind '$($m.kind)' must be one of $($kinds -join ', ')" }
     if ($layers -notcontains $m.layer) { $problems += "${rel}: layer '$($m.layer)' must be one of $($layers -join ', ')" }
     if ($m.version -notmatch '^\d+\.\d+\.\d+$') { $problems += "${rel}: version '$($m.version)' isn't semver" }
-    if ($m.kernel -ne $engineMinor) { $problems += "${rel}: kernel '$($m.kernel)' doesn't match the engine $engineMinor (VERSION)" }
+    if ($m.type -ne "engine") { $problems += "${rel}: type must be 'engine' (a module.txt without it is a source module)" }
+    if ($m.engine -ne $engineMinor) { $problems += "${rel}: engine '$($m.engine)' doesn't match the engine $engineMinor (VERSION)" }
     $mods[$dir.Name] = $m
 }
 

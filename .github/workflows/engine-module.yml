@@ -56,7 +56,7 @@ jobs:
         run: |
           $sim = $false
           foreach ($m in "${{ inputs.modules }}".Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) {
-            if (Select-String -Path "MealKit/modules/$m/engine-module.txt" -Pattern '^kind sim' -Quiet) { $sim = $true }
+            if (Select-String -Path "MealKit/modules/$m/module.txt" -Pattern '^kind sim' -Quiet) { $sim = $true }
           }
           if ($sim) { powershell -ExecutionPolicy Bypass -File MealKit/tools/ci_test.ps1 -Bin MealKit/build/Presets/bin -Name module-windows }
 
@@ -86,7 +86,7 @@ jobs:
         run: |
           $sim = $false
           foreach ($m in "${{ inputs.modules }}".Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) {
-            if (Select-String -Path "MealKit/modules/$m/engine-module.txt" -Pattern '^kind sim' -Quiet) { $sim = $true }
+            if (Select-String -Path "MealKit/modules/$m/module.txt" -Pattern '^kind sim' -Quiet) { $sim = $true }
           }
           if ($sim) {
             pwsh MealKit/build.ps1 Headless

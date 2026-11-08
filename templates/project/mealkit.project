@@ -3,6 +3,5 @@
 name @NAME@
 engine @MEALKIT_ROOT@
 engineVersion @ENGINE_VERSION@
-enginePreset standard
 scene scenes/arena.scene
 created @CREATED@

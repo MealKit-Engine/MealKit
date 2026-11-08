@@ -77,7 +77,7 @@ TagStats stats(Tag tag);          // shown in FrameStats and the editor [Debug] 
 
 ```
 MealKit-Render/               repo root = the module
-  engine-module.txt           manifest (below)
+  module.txt                  manifest (below)
   LICENSE                     MIT
   include/mealkit/render/     public headers only
   src/                        implementation and private headers
@@ -92,24 +92,29 @@ MealKit-Render/               repo root = the module
 - A module's `editor/` folder holds the panels about it ([Look Dev] with `render`, [Sound] with `audio`). The `editor` module gathers them.
 - Library code that doesn't need MealKit headers stays a separate library inside its module repo, checked by `check_libs.ps1` (`mkui` inside MealKit-UI; `mkaudio` stays the engine-free runtime in MealKit-Audio, with the glue module beside it).
 
-### Manifest `engine-module.txt`
+### Manifest `module.txt`
+
+The same file as a source module's (`docs/MODULES.md`), with `type engine` (since 2026-11-09; before, `engine-module.txt`):
 
 ```
-@format engine-module 1
+@format module 1
+type engine
 name render
-version 0.1.0
-kernel 0.10
+version 0.1.1
+engine 0.9
 kind view
-requires window 0.1 rhi 0.1 asset 0.1
-tag render
-public Renderer.h DrawList.h SceneLights.h
+layer framework
+requires rhi 0.1 scene 0.1
+tags render
+summary Renderer (forward pipeline, lights, shadows, post, particles)
 ```
 
 | Key | Meaning |
 |---|---|
 | `name` | CMake target `mealkit_<name>`, namespace `mealkit::<name>`, memory tag, folder under `modules/` once vendored |
 | `version` | The module's semver, matching the repo tag `v<version>` |
-| `kernel` | The kernel MINOR it builds against |
+| `type` | `engine` (a `module.txt` without it is a source module) |
+| `engine` | The engine (kernel) MINOR it builds against, as for source modules |
 | `layer` | `platform` (OS and API backends), `kernel`, `core` (simulation), `framework` (window, drawing, sound, input, UI), `app` (game, editor, debug tools). A module includes only its own layer and the layers below (`check_modules.ps1`) |
 | `kind` | `sim` (in the simulation version hash, follows the determinism rules, allowed from `sim/`), `view` (not allowed from `sim/`), `tool` (editor and dev builds only, never in shipping) |
 | `requires` | Modules this one may include and link, as `name minVersion`. Must form a graph without cycles. Replaces the folder order in `check_layers.ps1` |
@@ -120,37 +125,28 @@ public Renderer.h DrawList.h SceneLights.h
 
 ### Module selection and versions
 
+Engine modules are chosen like source modules (decided 2026-11-09): the folders in the game's `modules/` are the modules it uses, one tool adds, updates and removes both kinds, and the editor's [Modules] window and the Manager list both.
+
 ```
-# mealkit.project
-enginePreset standard              # starting point (standard, solo)
-engineModules camera               # added to the preset
-engineWithout audio net            # taken out of the preset
-engineModuleVersion render v0.2.0  # this module at another tag than the engine's lock
+powershell -ExecutionPolicy Bypass -File <engine>\tools\module.ps1 add -Preset standard -Project <folder>   # every engine module of a preset (new projects get this)
+powershell -ExecutionPolicy Bypass -File <engine>\tools\module.ps1 add camera@0.1.2 -Project <folder>        # one module at a version (tag v0.1.2 of its repo)
+powershell -ExecutionPolicy Bypass -File <engine>\tools\module.ps1 update render -Project <folder>           # to the engine's copy; -To <version> for another
+powershell -ExecutionPolicy Bypass -File <engine>\tools\module.ps1 remove audio -Project <folder>
+powershell -ExecutionPolicy Bypass -File <engine>\tools\module.ps1 list -Project <folder>
 ```
 
 - Layers in use: `platform` = the kernel's `platform`; `kernel` = `core`, `jobs`; `core` = physics, sim, data, scene, asset, session, net; `framework` = rhi, render, input, audio, ui, loc, settings, feedback, camera, live (the dev connection, used by audio and game), online and its backends (a backend takes its interface's layer); `app` = game, editor, debug.
-- The modules a build uses are the preset, plus `engineModules`, minus `engineWithout`. Modules that require a left-out module go with it (leaving out `net` also leaves out `online`); only `game` stops the build instead, naming what it needs. `editor` is never part of a game's selection. Kernel modules can't be taken out. Taking out a module that another chosen module requires (not `optional`) stops configuring with both names.
+- `add <name>` takes the engine's copy (its `modules/<name>`, the locked version); `add <name>@<version>` takes tag `v<version>` of the module's repo from `modules.lock` (the checkout beside the engine when there is one). Files and where they came from go in `module.files`, so `update` replaces only files the game didn't change and writes `<file>.new` for the others, as for source modules. Copied: every file but `.git/`, `.github/`, `backends/` (separate modules), `CLAUDE.md`, `README*`.
+- `remove` refuses while another module's `requires` lists it or game code includes `mealkit/<name>/` outside `#if MEALKIT_HAS_<NAME>` (`-Force` anyway).
+- A project with no engine modules in `modules/` builds with every engine module of its engine folder (the engine's samples do, so engine changes reach them at once; projects from before 0.9.2 too). Once it has one, only those in `modules/` are used: `add` says so when the first goes in.
+- Modules that require a missing module go with it (no `net` also means no `online`); only `game` stops configuring instead, naming the root module and the `module.ps1 add` line. `editor` is never part of a game. Kernel modules can't be left out.
 - Code that works without a module has it as `optional` and keeps its uses inside `#if MEALKIT_HAS_<NAME>`; every module gets `MEALKIT_HAS_<NAME>` 0 or 1.
-- Versions: the engine's `modules.lock` gives every module's default. `engineModuleVersion` picks another tag; `tools\modules.ps1 fetch -Project <folder>` puts that tag's files in `%LOCALAPPDATA%\MealKit\modules\<name>@<tag>`, and the build uses them instead of the vendored copy. Each chosen version's `requires name minVersion` is checked against the others.
-- The engine builds one set of engine libraries per distinct module list and version set in the build (`mealkit_core_<key>`, `mealkit_<key>`); the standard set with the locked versions is the plain `mealkit_core`/`mealkit`.
+- Each module's `requires name minVersion` is checked against the versions in `modules/`. A source module's `requires` may name engine modules (a minimap needs `render`).
+- The build compiles each module from the project's folder, with the engine's file list for that module (new `.cpp` files at the top of `src/mealkit/<name>/` are added). One set of engine libraries is built per distinct selection (`mealkit_core_<key>`, `mealkit_<key>`); the engine's full set is the plain `mealkit_core`/`mealkit`.
 - The simulation version covers the kernel and the sim modules this build uses, from the folders it builds them from.
-- The editor's `mealkit.dll` has every module at the locked version. A project's version pins apply to its shipping and headless builds; the editor warns when a project pins versions.
-
-### The game's own copies (like source modules)
-
-A project can instead keep its engine modules in its own `modules/` folder, next to its source modules: `modules/<name>/engine-module.txt`. When the folder has any, those folders are the selection (no `enginePreset`/`engineModules`/`engineWithout`/`engineModuleVersion` lines, configuring stops if there are) and the build compiles them from there, so the game can carry its own version or its own changes of a module.
-
-```
-powershell -ExecutionPolicy Bypass -File tools\modules.ps1 add -Project <folder> -Preset standard   # every module of the preset
-powershell -ExecutionPolicy Bypass -File tools\modules.ps1 add -Project <folder> camera -Tag v0.1.0 # one module at a tag (-Force replaces a copy)
-powershell -ExecutionPolicy Bypass -File tools\modules.ps1 remove -Project <folder> audio
-powershell -ExecutionPolicy Bypass -File tools\modules.ps1 status -Project <folder>   # version, tag, files changed in the copy
-```
-
-- `add` copies the module repo's files at the tag (default: the engine's locked one) and writes `engine-module.from` (`from <repo> <tag> <commit>`), which `status -Project` compares the copy with. A module without its own repo yet (`audio`) is copied from the engine's vendored folder.
-- The rules are the same as for the lines above: a module whose requirement is missing goes with it, and `game` missing one stops configuring with the `modules.ps1 add` line to run. Module names are the engine's; a new module that the engine doesn't list can't be added this way yet.
-- The build uses the engine's file list for each module (new `.cpp` files at the top of `src/mealkit/<name>/` are added), like a pinned version. The editor's `mealkit.dll` still has the engine's copies.
-- Engine updates don't reach these copies: the game moves each one with `add -Force -Tag <tag>`. The engine's own samples keep using the engine's copies.
+- The editor's `mealkit.dll` has every module at the engine's version; a project's own copies apply to its shipping and headless builds.
+- Engine updates don't change a game's copies: the game moves each with `module.ps1 update`.
+- Presets (`standard`; `solo` = without `net` and `online`) are only names for `add -Preset` and for the engine's own checks (`build.bat Presets`: `sandbox_solo`, `sandbox_noaudio`). The 0.9.1 project lines `enginePreset`/`engineModules`/`engineWithout`/`engineModuleVersion` are gone: `tools\upgrade_project.ps1` turns them into copies (`enginePreset standard` alone is just dropped).
 
 ### Module list (first cut = current folders)
 
@@ -191,25 +187,15 @@ Every module also requires `core`, which isn't written.
 - `MatchService` keeps `host`/`join`/`hostOnline`/`joinOnline` in every build; without `net` they fail with a message and `multiplayerAvailable()` is false, so one screen flow serves both presets (changed 2026-11-08 in step 7: a build error would force `#if` into every game's menu code). `playOffline` always works.
 - The determinism rules, SimCheck and the simulation version stay for every game, with or without `net`.
 
-### Presets and the project's module list
-
-```
-# mealkit.project
-enginePreset standard
-engineModules online online-eos       # additions to the preset
-# rhi backend: still the build configuration (Vulkan builds)
-```
+### Presets
 
 | Preset | Modules | Who uses it |
 |---|---|---|
-| `kernel` | core | engine CI only: proves the kernel builds and tests alone |
-| `headless` | core physics sim data scene asset game-sim net | `*_headless` exes, Linux/macOS CI determinism, dedicated servers later |
-| `solo` | headless without net + window rhi render loc input settings audio ui feedback camera game | single-player games |
-| `standard` | solo + net | both reference samples and both templates (the default) |
+| `solo` | every module but `net`, `online`, `online-*` (and `editor`) | `module.ps1 add -Preset solo`; `build.bat Presets` builds `sandbox_solo` |
+| `standard` | every module but `editor` | new projects (`tools\new_project.ps1` copies them into `modules/`) |
 
-- The shipping exe links only the project's modules. The editor links all of them, and when a game DLL includes a module its project hasn't enabled, the build fails with the module's name.
-- Changing a project's module list rebuilds the game.
-- `tools\upgrade_project.ps1` writes `enginePreset standard` into existing projects, so nothing changes for them.
+- The shipping exe links only the project's modules. The editor links all of them.
+- Changing a project's modules rebuilds the game.
 
 ### Services and `GameContext`
 
@@ -226,7 +212,7 @@ engineModules online online-eos       # additions to the preset
 
 ### Engine modules and source modules
 
-Two different things, so the docs say **engine module** (a compiled library with its own repo, chosen per project) and **source module** (gameplay code copied into `modules/<name>/`, `docs/MODULES.md`). Source modules' `module.txt` gets an optional `engine-modules` key listing what they need (a minimap needs `render`), which `module.ps1 add` checks against the project's list.
+The docs say **engine module** (`type engine`: built into the engine libraries, in the editor's `mealkit.dll` too, one repo each) and **source module** (gameplay code built into the game, `docs/MODULES.md`). Both live in the game's `modules/<name>/` with a `module.txt`, and `tools\module.ps1` handles both the same way.
 
 ## Repositories
 
@@ -254,7 +240,7 @@ module physics https://github.com/MealKit-Engine/MealKit-Physics v0.1.0  9c1d…
 ```
 
 - **An engine version is a tested set**: the root `VERSION` plus `modules.lock`. Games pin an engine version, not module versions one by one, so the combinations that exist are the ones CI tested.
-- The engine repo **vendors** each locked module into `modules/<name>/` (source copies of `engine-module.txt`, `include/`, `src/`, `shaders/`, `editor/`, `tests/`, `third_party/`, `LICENSE`), the way `third_party/mkaudio` works today. Cloning `MealKit` alone is still enough to build, offline, and the simulation version hashes what's in the folder.
+- The engine repo **vendors** each locked module into `modules/<name>/` (source copies of `module.txt`, `include/`, `src/`, `shaders/`, `editor/`, `tests/`, `third_party/`, `LICENSE`), the way `third_party/mkaudio` works today. Cloning `MealKit` alone is still enough to build, offline, and the simulation version hashes what's in the folder.
 - `tools\modules.ps1` keeps both in step: `sync` (copy the locked tags, check commits), `bump <name> [<tag>]` (update the lock and the copy in one engine commit), `status` (vendored copy vs lock vs local checkout). It generalizes `update_mkaudio.ps1`.
 - **Local mode**: `tools\modules.ps1 local on [name]` turns `modules/<name>` into a junction to the sibling checkout `..\MealKit-<Name>` (changed 2026-11-08 in step 9 from a CMake switch: the build keeps one set of paths), for changes that span repos; `local off` restores the vendored copy. When the change is done, each module repo gets a commit and tag, and `bump` brings them into the engine in one commit.
 

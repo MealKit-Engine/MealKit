@@ -1,7 +1,6 @@
 # MealKit project: the engine repo reference sample sandbox (physics party versus). Open this folder in the editor.
 @format project 1
 name sandbox
-enginePreset standard
 scene scenes/arena.scene
 game.defaultPort 27015
 game.defaultMaxPlayers 4
