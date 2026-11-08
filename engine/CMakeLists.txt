@@ -372,6 +372,7 @@ endif()
 file(GLOB mealkit_module_manifests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/core/*/engine-module.txt ${CMAKE_CURRENT_SOURCE_DIR}/../modules/*/engine-module.txt)
 set(MEALKIT_MODULE_INCLUDES "")
 set(MEALKIT_MODULE_SOURCES_DIRS "")
+set(MEALKIT_MODULE_EDITOR_DIRS "")
 foreach(manifest ${mealkit_module_manifests})
     get_filename_component(module_dir ${manifest} DIRECTORY)
     get_filename_component(module_dir ${module_dir} ABSOLUTE)
@@ -379,6 +380,9 @@ foreach(manifest ${mealkit_module_manifests})
         list(APPEND MEALKIT_MODULE_INCLUDES ${module_dir}/include)
     endif()
     list(APPEND MEALKIT_MODULE_SOURCES_DIRS ${module_dir}/src)
+    if(EXISTS ${module_dir}/editor) # the module's editor panels (docs/ENGINE_MODULES.md "Module layout"): mealkit_editor only
+        list(APPEND MEALKIT_MODULE_EDITOR_DIRS ${module_dir}/editor)
+    endif()
 endforeach()
 target_include_directories(${mealkit_core_target} PUBLIC ${MEALKIT_MODULE_INCLUDES} PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS})
 # Optional engine modules present in this library (docs/ENGINE_MODULES.md "Presets"). Preset variants below set them to 0
@@ -609,7 +613,7 @@ function(mealkit_preset_variant base preset)
     foreach(src ${sources})
         set(drop OFF)
         foreach(m ${MEALKIT_PRESET_${preset}_OFF})
-            if(src MATCHES "/modules/${m}/")
+            if(src MATCHES "/modules/${m}(-[a-z0-9]+)?/") # a module and its backends (online-steam)
                 set(drop ON)
             endif()
         endforeach()
@@ -682,7 +686,7 @@ set(MEALKIT_STEAM_DLL "" CACHE INTERNAL "")
 set(MEALKIT_EOS_DLL "" CACHE INTERNAL "")
 if(mealkit_online STREQUAL "Steam")
     message(STATUS "MealKit: online backend Steam - Steam lobbies and relay networking enabled")
-    target_sources(mealkit PRIVATE ../modules/online/src/mealkit/online/OnlineSteam.cpp)
+    target_sources(mealkit PRIVATE ../modules/online-steam/src/mealkit/online/OnlineSteam.cpp)
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_STEAMWORKS_SDK}/public)
     target_link_libraries(mealkit PUBLIC ${MEALKIT_STEAMWORKS_SDK}/redistributable_bin/win64/steam_api64.lib)
     target_compile_definitions(mealkit PUBLIC MEALKIT_STEAM=1)
@@ -703,8 +707,8 @@ elseif(mealkit_online STREQUAL "EOS")
             message(FATAL_ERROR "third_party/eos/credentials.txt has no '${key}: <value>' line")
         endif()
     endforeach()
-    configure_file(../modules/online/src/mealkit/online/EosCredentials.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/EosCredentials.h @ONLY)
-    target_sources(mealkit PRIVATE ../modules/online/src/mealkit/online/OnlineEOS.cpp)
+    configure_file(../modules/online-eos/src/mealkit/online/EosCredentials.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/EosCredentials.h @ONLY)
+    target_sources(mealkit PRIVATE ../modules/online-eos/src/mealkit/online/OnlineEOS.cpp)
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_EOS_SDK}/Include ${CMAKE_CURRENT_BINARY_DIR}/generated)
     target_link_libraries(mealkit PUBLIC ${MEALKIT_EOS_SDK}/Lib/EOSSDK-Win64-Shipping.lib)
     target_compile_definitions(mealkit PUBLIC MEALKIT_EOS=1)
@@ -789,24 +793,24 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         ../modules/editor/src/mealkit/editor/FieldEditor.cpp
         ../modules/editor/src/mealkit/editor/PlaySession.h
         ../modules/editor/src/mealkit/editor/PlaySession.cpp
-        ../modules/editor/src/mealkit/editor/TablesPanel.h
-        ../modules/editor/src/mealkit/editor/TablesPanel.cpp
-        ../modules/editor/src/mealkit/editor/SoundPanel.h
-        ../modules/editor/src/mealkit/editor/SoundPanel.cpp
-        ../modules/editor/src/mealkit/editor/FeedbackPanel.h
-        ../modules/editor/src/mealkit/editor/FeedbackPanel.cpp
-        ../modules/editor/src/mealkit/editor/UiPanel.h
-        ../modules/editor/src/mealkit/editor/UiPanel.cpp
-        ../modules/editor/src/mealkit/editor/UiPanelEdit.cpp
-        ../modules/editor/src/mealkit/editor/UiPanelDrag.cpp
-        ../modules/editor/src/mealkit/editor/LookdevPanel.h
-        ../modules/editor/src/mealkit/editor/LookdevPanel.cpp
+        ../modules/data/editor/mealkit/editor/TablesPanel.h
+        ../modules/data/editor/mealkit/editor/TablesPanel.cpp
+        ../modules/audio/editor/mealkit/editor/SoundPanel.h
+        ../modules/audio/editor/mealkit/editor/SoundPanel.cpp
+        ../modules/feedback/editor/mealkit/editor/FeedbackPanel.h
+        ../modules/feedback/editor/mealkit/editor/FeedbackPanel.cpp
+        ../modules/ui/editor/mealkit/editor/UiPanel.h
+        ../modules/ui/editor/mealkit/editor/UiPanel.cpp
+        ../modules/ui/editor/mealkit/editor/UiPanelEdit.cpp
+        ../modules/ui/editor/mealkit/editor/UiPanelDrag.cpp
+        ../modules/render/editor/mealkit/editor/LookdevPanel.h
+        ../modules/render/editor/mealkit/editor/LookdevPanel.cpp
         ../modules/editor/src/mealkit/editor/ImportServer.h
         ../modules/editor/src/mealkit/editor/ImportServer.cpp
         ../modules/editor/src/mealkit/editor/Tools.h
         ../modules/editor/src/mealkit/editor/Tools.cpp
-        ../modules/editor/src/mealkit/editor/UiCheck.h
-        ../modules/editor/src/mealkit/editor/UiCheck.cpp
+        ../modules/ui/editor/mealkit/editor/UiCheck.h
+        ../modules/ui/editor/mealkit/editor/UiCheck.cpp
         ../modules/editor/src/mealkit/editor/TuningPanel.h
         ../modules/editor/src/mealkit/editor/TuningPanel.cpp
         ../modules/editor/src/mealkit/editor/ProjectSettingsPanel.h
@@ -829,11 +833,11 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         ../modules/editor/src/mealkit/editor/Strings.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit PRIVATE mkcontract mkui) # mealkit.dll exports only its own objects, not mkcontract's or mkui's (UI editing: mkui/Source.h)
     target_compile_definitions(mealkit_editor PUBLIC MEALKIT_EDITOR=1)
-    target_include_directories(mealkit_editor PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS})
+    target_include_directories(mealkit_editor PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS} ${MEALKIT_MODULE_EDITOR_DIRS})
 
     add_executable(MealKitEditor ../modules/editor/src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)
     target_link_libraries(MealKitEditor PRIVATE mealkit_editor)
-    target_include_directories(MealKitEditor PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS})
+    target_include_directories(MealKitEditor PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS} ${MEALKIT_MODULE_EDITOR_DIRS})
     # GUI program: no console window behind it (run from a command prompt, attachParentConsole attaches)
     target_link_options(MealKitEditor PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
     # Engine folder used by the project manager's new project creation (the editor isn't distributed)

@@ -1,7 +1,8 @@
 # Where engine modules live (docs/ENGINE_MODULES.md "Layout"). Dot-sourced by the check scripts so the locations are written once.
 #   . "$PSScriptRoot\engine_modules_common.ps1"
 #   Get-EngineModules $root       -> objects with Name, Dir (module root), Kernel (bool)
-#   Get-EngineModuleFiles $root   -> *.h/*.cpp of every module, each with .Module (name)
+#   Get-EngineModuleFiles $root   -> *.h/*.cpp of every module, each with .Module (name). A module's editor/ folder (its editor panels,
+#                                    Editor builds only) counts as the editor module, which requires that module
 #   Resolve-EngineHeader $root "core/Types.h" -> full path of include/mealkit/core/Types.h, or $null
 # Kernel modules are engine/core/<name>/; the rest are modules/<name>/ (vendored copies of the module repos after step 9).
 function Get-EngineModules([string]$root) {
@@ -19,8 +20,10 @@ function Get-EngineModules([string]$root) {
 function Get-EngineModuleFiles([string]$root) {
     $files = @()
     foreach ($m in Get-EngineModules $root) {
+        $editorDir = (Join-Path $m.Dir "editor") + "\"
         foreach ($f in Get-ChildItem -Path $m.Dir -Recurse -Include *.cpp, *.h) {
-            $f | Add-Member -NotePropertyName Module -NotePropertyValue $m.Name -Force
+            $owner = if ($f.FullName.StartsWith($editorDir, [StringComparison]::OrdinalIgnoreCase)) { "editor" } else { $m.Name }
+            $f | Add-Member -NotePropertyName Module -NotePropertyValue $owner -Force
             $files += $f
         }
     }

@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 8: module editor panels and online backends (v0.9.1, 2026-11-08)
+
+- Panels about one module live in that module's `editor/mealkit/editor/` (include paths unchanged): [Look Dev] in `render`, [Sound] in `audio`, [Feedback] in `feedback`, [Tables] in `data`, the [UI] panel and the UI check in `ui`. `engine/CMakeLists.txt` adds every module's `editor/` to `mealkit_editor` and `MealKitEditor` only; `check_modules.ps1` counts those files as the `editor` module (`engine_modules_common.ps1`), since they use editor internals.
+- Panels about the game as a whole (tuning, balance, build, tests, project settings, terrain) stay in `editor`.
+- `online-steam` and `online-eos` are their own modules (`provides online-backend`, `requires online`); `online` keeps the interface and `OnlineNone.cpp`. Presets that leave out a module also leave out its `-<backend>` modules.
+
 ## Engine module split 7: presets and the project's module list (v0.9.1, 2026-11-08)
 
 - `mealkit.project` gets `enginePreset` (`standard` = every module, `solo` = without `net` and `online`) and `engineModules` (additions). The keys are `enginePreset`/`engineModules` rather than `engine.preset`, because `engine` is already the engine path field. `cmake/MealKit.cmake` reads them (`mealkit_project_preset`); `mealkit_add_game(... PRESET <name>)` overrides for checks.
