@@ -20,6 +20,6 @@ module render https://github.com/MealKit-Engine/MealKit-Render v0.1.1 9ca6e85045
 module rhi https://github.com/MealKit-Engine/MealKit-RHI v0.1.1 cac000f44c9e249e29cb7055f7ef8812ff8e5d96 .
 module scene https://github.com/MealKit-Engine/MealKit-Scene v0.1.1 1029f5167db90708a9c7d2799baa7c4fad0fd623 .
 module session https://github.com/MealKit-Engine/MealKit-Session v0.1.1 e88850acddce5f05fdfa03023271a0e982e62227 .
-module settings https://github.com/MealKit-Engine/MealKit-Settings v0.1.2 181682854661e55fb45525394e76f2fb38eea857 .
+module settings https://github.com/MealKit-Engine/MealKit-Settings v0.1.3 dd3599fc7f36bef9a2df433d120d5b3a72fa5f41 .
 module sim https://github.com/MealKit-Engine/MealKit-Sim v0.1.1 468ac1bcb3b6cf77a64bf6e6b311067781d59893 .
 module ui https://github.com/MealKit-Engine/MealKit-UI v0.1.1 475e4417a5d080ec0bbc4d5ca14acad79af03647 .

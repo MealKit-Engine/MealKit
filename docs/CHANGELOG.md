@@ -7,7 +7,7 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 
 - `engineWithout audio` builds a game without the audio module: `game`, `feedback` and `settings` have `optional audio`. Without it there's no `GameContext::audio` (and no `audio::Engine` service), feedback rows skip their sounds (`feedback::Player()` without an engine), settings don't set bus volumes, and the frame stats have no sound line. Game code keeps its sound calls inside `#if MEALKIT_HAS_AUDIO` (sandbox `app/GameSession` does).
 - Build configuration `Presets` also builds `sandbox_noaudio.exe` (`MEALKIT_EXTRA_PRESETS` entry `standard/audio` = a preset without the named modules; `mealkit_add_game(... WITHOUT audio)`). Size: `sandbox.exe` 4.65 MB, `sandbox_noaudio.exe` 4.18 MB. The headless exe is the same either way (no sound there), and audio is a view module, so a game without audio plays with peers that have it.
-- Not done: the settings screen still lists the volume rows in a build without audio. Module repos `MealKit-Game`, `-Feedback`, `-Settings` at `v0.1.2`.
+- The settings screen has no volume tab in a build without audio (`settings` shows the tabs of `kShownTabs`). Module repos `MealKit-Game`, `-Feedback` at `v0.1.2`, `MealKit-Settings` at `v0.1.3`.
 
 ## Engine module split 11: any combination, a version per module, layers (v0.9.1, 2026-11-08)
 
