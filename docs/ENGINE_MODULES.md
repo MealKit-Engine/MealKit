@@ -136,6 +136,22 @@ engineModuleVersion render v0.2.0  # this module at another tag than the engine'
 - The simulation version covers the kernel and the sim modules this build uses, from the folders it builds them from.
 - The editor's `mealkit.dll` has every module at the locked version. A project's version pins apply to its shipping and headless builds; the editor warns when a project pins versions.
 
+### The game's own copies (like source modules)
+
+A project can instead keep its engine modules in its own `modules/` folder, next to its source modules: `modules/<name>/engine-module.txt`. When the folder has any, those folders are the selection (no `enginePreset`/`engineModules`/`engineWithout`/`engineModuleVersion` lines, configuring stops if there are) and the build compiles them from there, so the game can carry its own version or its own changes of a module.
+
+```
+powershell -ExecutionPolicy Bypass -File tools\modules.ps1 add -Project <folder> -Preset standard   # every module of the preset
+powershell -ExecutionPolicy Bypass -File tools\modules.ps1 add -Project <folder> camera -Tag v0.1.0 # one module at a tag (-Force replaces a copy)
+powershell -ExecutionPolicy Bypass -File tools\modules.ps1 remove -Project <folder> audio
+powershell -ExecutionPolicy Bypass -File tools\modules.ps1 status -Project <folder>   # version, tag, files changed in the copy
+```
+
+- `add` copies the module repo's files at the tag (default: the engine's locked one) and writes `engine-module.from` (`from <repo> <tag> <commit>`), which `status -Project` compares the copy with. A module without its own repo yet (`audio`) is copied from the engine's vendored folder.
+- The rules are the same as for the lines above: a module whose requirement is missing goes with it, and `game` missing one stops configuring with the `modules.ps1 add` line to run. Module names are the engine's; a new module that the engine doesn't list can't be added this way yet.
+- The build uses the engine's file list for each module (new `.cpp` files at the top of `src/mealkit/<name>/` are added), like a pinned version. The editor's `mealkit.dll` still has the engine's copies.
+- Engine updates don't reach these copies: the game moves each one with `add -Force -Tag <tag>`. The engine's own samples keep using the engine's copies.
+
 ### Module list (first cut = current folders)
 
 The first cut follows the current folders, so it's mostly moving files. Finer splits (terrain out of `render`, ragdoll out of `sim`) wait until a game needs them.

@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine modules in the game's modules/ folder (v0.9.1, 2026-11-09)
+
+- Decided with the user (`docs/DECISIONS.md` 2026-11-09): engine modules can live in the project's `modules/<name>/` like source modules. `cmake/MealKit.cmake` `mealkit_project_engine` globs `<project>/modules/*/engine-module.txt`; when there are any, they are the selection (cascade and `game` checks as before, the error names the root module and the `modules.ps1 add` line) and every one is built from its folder. The engine* project lines and the folders can't be mixed.
+- `tools\modules.ps1`: `add -Project <folder> [-Preset standard|solo] [name ...] [-Tag] [-Force]`, `remove -Project`, `status -Project` (version, tag, files changed against `engine-module.from`). `tools\check_layout.ps1` skips engine module folders among the source modules.
+- Fixed on the way: an engine variant added a module's front-library files to the core variant when the module has files in both (`game`); the simulation version took `game`'s sim files from the engine even when `game` came from another folder; samples with their own copies get variants for the `Presets` extras too.
+- Checked: sandbox with all 22 modules copied in (`add -Preset standard`): `Presets` build, `sandbox.exe --bot`, headless seed 7 hash the same for Release, Presets, `_noaudio` and `_solo`; taking `ui` out stops configuring naming `settings (left out with ui)`. The copies were removed again: the samples use the engine's copies. Not checked: a game outside the engine folder, an Editor build of a project with copies.
+
 ## Engine modules: audio is optional (v0.9.1, 2026-11-08)
 
 - `engineWithout audio` builds a game without the audio module: `game`, `feedback` and `settings` have `optional audio`. Without it there's no `GameContext::audio` (and no `audio::Engine` service), feedback rows skip their sounds (`feedback::Player()` without an engine), settings don't set bus volumes, and the frame stats have no sound line. Game code keeps its sound calls inside `#if MEALKIT_HAS_AUDIO` (sandbox `app/GameSession` does).

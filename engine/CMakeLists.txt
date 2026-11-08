@@ -648,7 +648,7 @@ function(mealkit_engine_variant base key)
         # Files the engine lists for this module anywhere (both libraries), and which library takes new ones: the core when it has the module
         get_target_property(core_sources mealkit_core SOURCES)
         set(all_sources ${core_sources})
-        if(TARGET mealkit AND NOT base STREQUAL "mealkit_core")
+        if(TARGET mealkit) # a file the front library lists is not new for the core either
             get_target_property(front_sources mealkit SOURCES)
             list(APPEND all_sources ${front_sources})
         endif()

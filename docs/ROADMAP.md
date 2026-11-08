@@ -809,6 +809,7 @@ The engine becomes a kernel, and every subsystem an engine module in its own rep
 - [x] 9. Module repos extracted with history, `modules.lock`, `tools\modules.ps1`, shared module workflow — 2026-11-08, details in `docs/CHANGELOG.md`. Left for the user: create the 20 GitHub repos under `MealKit-Engine` and push them with their `v0.1.0` tags, then tag the engine `v1` for the shared workflow. `audio` stays in the engine until its glue moves into `MealKit-Audio`
 - [x] 10. Workspace notes and tools, rules, CODING_MODEL, CONTRACTS, docs repo, publication order — 2026-11-08, details in `docs/CHANGELOG.md`
 - [x] 11. Engine modules used like source modules: any combination per project, a version per module, layer tags — 2026-11-08, details in `docs/CHANGELOG.md` (`audio` optional since 2026-11-08; `game` still needs the other framework modules: `ui`, `feedback`, `settings`, `input`, `loc`, `render`, `rhi`)
+- [x] 12. A game's own engine module copies in its `modules/` folder (`modules.ps1 add -Project`) — 2026-11-09, details in `docs/CHANGELOG.md`
 
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)
 

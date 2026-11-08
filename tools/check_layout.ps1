@@ -96,6 +96,7 @@ $moduleTop = @("module.txt", "module.files", "sim", "view", "assets", "art", "do
 $modulesDir = Join-Path $Project "modules"
 if (Test-Path $modulesDir) {
     foreach ($m in Get-ChildItem $modulesDir -Directory -Force) {
+        if (Test-Path (Join-Path $m.FullName "engine-module.txt")) { continue } # the game's own engine module copy (docs/ENGINE_MODULES.md)
         $metaFile = Join-Path $m.FullName "module.txt"
         if (-not (Test-Path $metaFile)) { Err $m.FullName "module.txt is missing (name, version, engine, requires)"; continue }
         $name = ""
