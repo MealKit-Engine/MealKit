@@ -15,10 +15,10 @@ Contributions are accepted under the [Developer Certificate of Origin](https://d
 ## Absolute rules
 
 - Always 3D and always multiplayer-capable. The default preset stays light and fast; features over its budget are opt-in with no GPU cost when off.
-- OS APIs are called only inside `engine/src/mealkit/platform/<os>/`, graphics APIs only inside `engine/src/mealkit/rhi/<api>/` (`tools\check_platform.ps1`). The renderer uses only `rhi::Device`/`CommandList`, and shader bindings have one shape in `shaders/Bindless.hlsli`. DX12 is the reference backend; a graphics feature is done when it works on Vulkan too. No external RHI libraries, no OpenGL/DX11.
+- OS APIs are called only inside `engine/core/platform/src/mealkit/platform/<os>/`, graphics APIs only inside `modules/rhi/src/mealkit/rhi/<api>/` (`tools\check_platform.ps1`). The renderer uses only `rhi::Device`/`CommandList`, and shader bindings have one shape in `shaders/Bindless.hlsli`. DX12 is the reference backend; a graphics feature is done when it works on Vulkan too. No external RHI libraries, no OpenGL/DX11.
 - Console SDKs and code built on them (NDA) never go in this repository.
 - The engine builds only the deterministic simulation, lockstep networking, the renderer and the editor; everything else uses finished external tools and libraries. Workflows with no suitable free tool become separate MealKit tool repositories (MIT).
-- Simulation code (`samples/*/sim/`, a project's `source/sim/`, `engine/src/mealkit/physics`) follows the determinism rules in `docs/CODING_MODEL.md`: no CRT trigonometry (`mealkit/core/DetMath.h`), `/fp:precise`, only `Pcg32` for randomness, fixed iteration and body creation order, and state that lives across ticks is a `MEALKIT_FIELD` inside `WorldState`. Game `sim/` is checked by SimCheck at build time.
+- Simulation code (`samples/*/sim/`, a project's `source/sim/`, `modules/physics`) follows the determinism rules in `docs/CODING_MODEL.md`: no CRT trigonometry (`mealkit/core/DetMath.h`), `/fp:precise`, only `Pcg32` for randomness, fixed iteration and body creation order, and state that lives across ticks is a `MEALKIT_FIELD` inside `WorldState`. Game `sim/` is checked by SimCheck at build time.
 - Don't change `CROSS_PLATFORM_DETERMINISTIC=ON` or the disabled AVX/FMA in the Jolt options (`cmake/MealKit.cmake`). Clang/GCC use `-ffp-contract=off`; `-ffast-math` is forbidden. No platform branches (`#ifdef`, per-platform libraries) in simulation code.
 
 ## Code style

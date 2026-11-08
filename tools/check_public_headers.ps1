@@ -7,7 +7,7 @@
 param([string[]]$Path = @())
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$engineSrc = Join-Path $root "engine\src\mealkit"
+. "$PSScriptRoot\engine_modules_common.ps1"
 $listFile = Join-Path $root "engine\public_headers.txt"
 
 $public = @{}
@@ -16,7 +16,7 @@ foreach ($line in [IO.File]::ReadAllLines($listFile)) {
     $h = ($line -replace '#.*$', '').Trim()
     if (-not $h) { continue }
     $public[$h] = $true
-    if (-not (Test-Path (Join-Path $engineSrc $h))) { $problems += "engine\public_headers.txt: mealkit/$h does not exist" }
+    if (-not (Resolve-EngineHeader $root $h)) { $problems += "engine\public_headers.txt: mealkit/$h isn't in that module's include/ folder" }
 }
 
 $dirs = @()

@@ -357,15 +357,27 @@ function(mealkit_add_game name)
     # The simulation version is a hash of sources that touch the simulation (game sim/ + headless file + engine core folders + Jolt version):
     # same source gives the same value even across executables (other OS/compiler), so this is compared on connect instead of the executable (mealkit/game/BuildInfo.h)
     set(build_info_dir "${CMAKE_CURRENT_BINARY_DIR}/${name}_build_info")
-    set(engine_src "${MEALKIT_ENGINE_DIR}/engine/src/mealkit")
-    file(GLOB_RECURSE engine_sim_sources CONFIGURE_DEPENDS
-        "${engine_src}/core/*.h" "${engine_src}/core/*.cpp" "${engine_src}/net/*.h" "${engine_src}/net/*.cpp"
-        "${engine_src}/physics/*.h" "${engine_src}/physics/*.cpp" "${engine_src}/sim/*.h"
-        "${engine_src}/data/*.h" "${engine_src}/data/*.cpp" "${engine_src}/scene/*.h" "${engine_src}/scene/*.cpp"
-        "${engine_src}/asset/*.h" "${engine_src}/asset/*.cpp")
+    # Engine side: the kernel (engine/core) and every engine module whose manifest says "kind sim" (docs/ENGINE_MODULES.md)
+    file(GLOB_RECURSE engine_sim_sources CONFIGURE_DEPENDS "${MEALKIT_ENGINE_DIR}/engine/core/*.h" "${MEALKIT_ENGINE_DIR}/engine/core/*.cpp")
+    file(GLOB engine_module_manifests CONFIGURE_DEPENDS "${MEALKIT_ENGINE_DIR}/modules/*/engine-module.txt")
+    foreach(manifest ${engine_module_manifests})
+        file(STRINGS ${manifest} module_kind REGEX "^kind ")
+        if(module_kind STREQUAL "kind sim")
+            get_filename_component(module_dir ${manifest} DIRECTORY)
+            file(GLOB_RECURSE module_sim_sources CONFIGURE_DEPENDS "${module_dir}/*.h" "${module_dir}/*.cpp")
+            list(APPEND engine_sim_sources ${module_sim_sources})
+        endif()
+    endforeach()
     list(SORT engine_sim_sources)
-    list(APPEND engine_sim_sources "${engine_src}/game/Simulation.h" "${engine_src}/game/GameData.h" "${engine_src}/game/GameData.cpp"
-        "${engine_src}/game/Loadout.h" "${engine_src}/game/InputRecord.h" "${engine_src}/game/InputRecord.cpp"
+    set(engine_game "${MEALKIT_ENGINE_DIR}/modules/game")
+    foreach(f include/mealkit/game/Simulation.h include/mealkit/game/GameData.h src/mealkit/game/GameData.cpp
+              include/mealkit/game/Loadout.h include/mealkit/game/InputRecord.h src/mealkit/game/InputRecord.cpp)
+        if(NOT EXISTS "${engine_game}/${f}")
+            message(FATAL_ERROR "simulation version source ${engine_game}/${f} moved: update cmake/MealKit.cmake")
+        endif()
+        list(APPEND engine_sim_sources "${engine_game}/${f}")
+    endforeach()
+    list(APPEND engine_sim_sources
         "${MEALKIT_ENGINE_DIR}/third_party/JoltPhysics/mealkit.txt")
     set(build_info_sources ${sim_sources})
     list(SORT build_info_sources)

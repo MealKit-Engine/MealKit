@@ -1,6 +1,6 @@
 ﻿# Engine module check (docs/ENGINE_MODULES.md "Manifest" and "Checks"). Called by check.ps1 and CI. Replaces the old folder order check.
 #   powershell -ExecutionPolicy Bypass -File tools\check_modules.ps1     exit code 1 on problems
-# Every folder in engine/src/mealkit/ is an engine module with an engine-module.txt. This checks that:
+# Every folder in engine/core/ (kernel) and modules/ is an engine module with an engine-module.txt. This checks that:
 #   - each manifest parses (format line, known keys, name = folder, kind, semver, kernel = engine MINOR)
 #   - requires names exist and form a graph without cycles; kernel modules (core, platform, jobs) require nothing and are implied for all
 #   - each file includes only its own module, the kernel and its requires (plus transitional ones)
@@ -10,7 +10,7 @@
 # platform/<os>/ implementation files implement headers from several modules (net/Socket.h etc.), so they're excluded; check_platform.ps1 covers them.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$engineSrc = Join-Path $root "engine\src\mealkit"
+. "$PSScriptRoot\engine_modules_common.ps1"
 $problems = @()
 $warnings = @()
 
@@ -21,9 +21,9 @@ $kinds = @("kernel", "sim", "view", "tool")
 
 # ---- Read manifests
 $mods = [ordered]@{}
-foreach ($dir in Get-ChildItem -Path $engineSrc -Directory | Sort-Object Name) {
+foreach ($dir in Get-EngineModules $root | ForEach-Object { Get-Item $_.Dir }) {
     $path = Join-Path $dir.FullName "engine-module.txt"
-    $rel = "engine\src\mealkit\$($dir.Name)\engine-module.txt"
+    $rel = $path.Substring($root.Length + 1)
     if (-not (Test-Path $path)) { $problems += "${rel}: missing (every engine folder is a module)"; continue }
     $m = @{ name = ""; kind = ""; version = ""; kernel = ""; requires = @(); transitional = @(); rel = $rel }
     $sawFormat = $false
@@ -98,13 +98,13 @@ function KindAllows([string]$from, [string]$to) {
         default { return $true }
     }
 }
-$files = Get-ChildItem -Path $engineSrc -Recurse -Include *.cpp, *.h |
+$files = Get-EngineModuleFiles $root |
     Where-Object { $_.FullName -notmatch '\\mealkit\\platform\\(win32|posix)\\' }
 $edges = 0
 $used = @{}
 foreach ($f in $files) {
     $rel = $f.FullName.Substring($root.Length + 1)
-    $from = $f.FullName.Substring($engineSrc.Length + 1).Split('\')[0]
+    $from = $f.Module
     if (-not $mods.Contains($from)) { continue } # reported above
     $m = $mods[$from]
     $n = 0
@@ -141,11 +141,12 @@ foreach ($name in $mods.Keys) {
 $cmake = [IO.File]::ReadAllText((Join-Path $root "engine\CMakeLists.txt")) -replace '#[^\r\n]*', '' # so parentheses in comments don't break the list
 $core = @{}
 foreach ($block in [regex]::Matches($cmake, '(?s)(?:set|list\(APPEND)\s*\(?\s*MEALKIT_CORE_SOURCES\b(.*?)\)')) {
-    foreach ($mm in [regex]::Matches($block.Groups[1].Value, 'src/(mealkit/[\w/]+\.(?:h|cpp))')) { $core[$mm.Groups[1].Value] = $true }
+    foreach ($mm in [regex]::Matches($block.Groups[1].Value, '(?:include|src)/(mealkit/[\w/]+\.(?:h|cpp))')) { $core[$mm.Groups[1].Value] = $true }
 }
 $coreEdges = 0
 foreach ($f in $files) {
-    $key = "mealkit/" + $f.FullName.Substring($engineSrc.Length + 1).Replace('\', '/')
+    if ($f.FullName -notmatch '\\(?:include|src)\\(mealkit\\.+)$') { continue }
+    $key = $Matches[1].Replace('\', '/')
     if (-not $core.ContainsKey($key)) { continue }
     $rel = $f.FullName.Substring($root.Length + 1)
     $n = 0

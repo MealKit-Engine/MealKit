@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 3–4: kernel and module folders (v0.9.x, 2026-11-08)
+
+- `engine/src/mealkit/` is gone. The kernel is `engine/core/{core,platform,jobs}/`, every other module `modules/<name>/` (repo root), each with `engine-module.txt`, `include/mealkit/<name>/` and `src/mealkit/<name>/`. 281 files moved with `git mv`; include paths in code are unchanged (`mealkit/<name>/X.h`).
+- Public vs private headers: a header is in `include/` when anything outside its module includes it (other modules, tests, samples, templates), when `engine/public_headers.txt` lists it, or when a public header includes it; 93 public, 35 private. Private headers are on the include path only of engine targets (`MEALKIT_MODULE_SOURCES_DIRS`), so games and the exported `MealKitTargets.cmake` see only `include/`.
+- `engine/CMakeLists.txt` keeps its explicit source lists with the new paths and gathers module include folders from the manifests. The simulation version hashes the whole kernel plus every `kind sim` module (read from the manifests in `cmake/MealKit.cmake`) and the same `game/` files as before, so it changed once.
+- Scripts read module locations from one place, `tools\engine_modules_common.ps1` (`check_modules`, `check_platform`, `check_public_headers`); `check.ps1` path rules use `engine/core/<name>/` and `modules/<name>/`. The editor recognizes the engine folder by `engine/core`. Engine-wide notes moved to `engine/CLAUDE.md`.
+- Not yet: one CMake target per module (the editor's single `mealkit.dll` and the flags set on `mealkit_core`/`mealkit` make that part of the repo split, where each repo needs its own build anyway), `sim/` containers into the kernel and `asset`'s GPU parts into `render` (`transitional render rhi` stays). `templates/project/.vscode/settings.json` still names `engine/src` in a comment (fixed with the template change in step 7).
+- Checked: Release and Editor builds, `check_modules.ps1`. Nothing else was run (the user runs the checks at the end).
+
 ## Engine module split 2: manifests on the current folders (v0.9.x, 2026-11-08)
 
 - `engine-module.txt` in all 23 folders of `engine/src/mealkit/` (`@format engine-module 1`: name, version 0.1.0, kernel 0.9, kind, requires, tag, summary). `requires` was generated from the real cross-folder includes, so nothing in the code changed. Kernel: `core`, `platform`, `jobs`. Sim: `net`, `physics`, `sim`, `data`, `scene`, `asset`. Tool: `live`, `debug`, `editor`. The rest are view.

@@ -34,7 +34,7 @@ $detKeyFile = Join-Path $stateDir "det.key"
 
 $allGroups = @("static", "unit", "det", "game", "tools", "render", "editor", "project", "export")
 
-# Groups that run when an engine folder (engine/src/mealkit/<folder>) is modified. core/platform (and folders not in the table) run everything except export.
+# Groups that run when an engine folder (engine/core/<module> or modules/<module>) is modified. core/platform (and folders not in the table) run everything except export.
 # Unit tests run only the area with the same name (TEST_CASE(area, ...)). "det!" = the determinism group regardless of the determinism key
 $folderGroups = @{
     jobs = "unit det game editor render"; net = "unit det game editor"; physics = "unit det game editor"; sim = "unit det game editor"; data = "unit det game editor"
@@ -47,7 +47,7 @@ $folderGroups = @{
 $pathRules = @(
     @('\.md$', ''), @('^docs/', ''), @('^\.github/', ''), @('^\.claude/', ''), @('^\.git(ignore|attributes)$', ''),
     @('^samples/[^/]+/art/ui/preview/', 'tools'), @('^samples/[^/]+/art/', ''),
-    @('^engine/public_headers\.txt$', 'static'), @('^engine/src/mealkit/[^/]+/engine-module\.txt$', 'static'), @('^engine/src/mealkit/([^/]+)/', 'folder:$1'), @('^engine/libs/mkui/', 'folder:ui'), @('^engine/shaders/', 'folder:render'),
+    @('^engine/public_headers\.txt$', 'static'), @('^(engine/core|modules)/[^/]+/engine-module\.txt$', 'static'), @('^(?:engine/core|modules)/([^/]+)/', 'folder:$1'), @('^engine/libs/mkui/', 'folder:ui'), @('^engine/shaders/', 'folder:render'),
     @('^engine/tests/golden/', 'render'), @('^engine/tests/perf/', 'game'), @('^engine/tests/', 'unit-all'),
     @('^engine/tools/SimCheck', 'editor project'), @('^engine/tools/', 'game'), @('^engine/res/', 'editor'),
     @('^third_party/mkaudio/', 'folder:audio'), @('^third_party/', 'full'),

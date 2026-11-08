@@ -106,155 +106,155 @@ endif()
 # Game build: mealkit_core (static) + mealkit (static, links the core PUBLIC). The shipping exe uses mealkit, <game>_headless only mealkit_core.
 # Editor build: both combined into mealkit.dll (shared by the editor and game DLL).
 set(MEALKIT_CORE_SOURCES
-    src/mealkit/core/Types.h
-    src/mealkit/core/Version.h
-    src/mealkit/core/Log.h
-    src/mealkit/core/Log.cpp
-    src/mealkit/core/Clock.h
-    src/mealkit/core/Math.h
-    src/mealkit/core/DetMath.h
-    src/mealkit/core/Reflect.h
-    src/mealkit/core/Reflect.cpp
-    src/mealkit/core/TextFormat.h
-    src/mealkit/core/TextFormat.cpp
-    src/mealkit/core/Random.h
-    src/mealkit/core/Hash.h
-    src/mealkit/core/Compress.h
-    src/mealkit/core/Compress.cpp
-    src/mealkit/core/Zip.h
-    src/mealkit/core/Zip.cpp
-    src/mealkit/core/Profile.h
-    src/mealkit/core/Memory.h
-    src/mealkit/core/Memory.cpp
-    src/mealkit/game/GameContext.h
-    src/mealkit/game/GameInstance.h
-    src/mealkit/game/BuildInfo.h
-    src/mealkit/game/DesyncDump.h
-    src/mealkit/game/GameData.h
-    src/mealkit/game/GameData.cpp
-    src/mealkit/data/Tables.h
-    src/mealkit/data/Tables.cpp
-    src/mealkit/game/GameOptions.h
-    src/mealkit/game/GameOptions.cpp
-    src/mealkit/game/Headless.h
-    src/mealkit/game/Headless.cpp
-    src/mealkit/game/InputRecord.h
-    src/mealkit/game/InputRecord.cpp
-    src/mealkit/game/Scenario.h
-    src/mealkit/game/Scenario.cpp
-    src/mealkit/game/ProjectSettings.h
-    src/mealkit/game/ProjectSettings.cpp
-    src/mealkit/game/Save.h
-    src/mealkit/game/Save.cpp
-    src/mealkit/game/WorldSnapshot.h
-    src/mealkit/game/SimDebug.h
-    src/mealkit/game/Simulation.h
-    src/mealkit/sim/Pool.h
-    src/mealkit/sim/TickEvents.h
-    src/mealkit/sim/TickTimer.h
-    src/mealkit/sim/MatchFlow.h
-    src/mealkit/sim/Movement.h
-    src/mealkit/sim/Ragdoll.h
-    src/mealkit/sim/NavGrid.h
-    src/mealkit/sim/Table.h
-    src/mealkit/sim/Commands.h
-    src/mealkit/input/Actions.h
-    src/mealkit/input/Actions.cpp
-    src/mealkit/loc/Strings.h
-    src/mealkit/loc/Strings.cpp
-    src/mealkit/jobs/Jobs.h
-    src/mealkit/jobs/Jobs.cpp
-    src/mealkit/jobs/JoltAllocator.h
-    src/mealkit/jobs/JoltAllocator.cpp
-    src/mealkit/physics/PhysicsWorld.h
-    src/mealkit/physics/PhysicsWorld.cpp
-    src/mealkit/platform/Paths.h
-    src/mealkit/platform/Paths.cpp
-    src/mealkit/platform/Pack.h
-    src/mealkit/platform/Pack.cpp
-    src/mealkit/platform/System.h
-    src/mealkit/platform/System.cpp
-    src/mealkit/platform/Input.h   # header only (key/mouse state, read by input actions)
-    src/mealkit/platform/Gamepad.h # PadState is read by input actions. Gamepads implementation is front end (win32/Gamepad.cpp)
-    src/mealkit/scene/Scene.h
-    src/mealkit/scene/Scene.cpp
-    src/mealkit/asset/Budget.h
-    src/mealkit/asset/TextureCache.h # header only (texture upload in ModelCache.h). Implementation is front end
-    src/mealkit/asset/ModelCache.h
-    src/mealkit/asset/Environment.h # declarations only (baking in Environment.cpp is front end, called by the ModelCache::setRenderer inline)
-    src/mealkit/asset/ModelCache.cpp
-    src/mealkit/asset/Cooked.h
-    src/mealkit/asset/Cooked.cpp
-    src/mealkit/asset/ModelImport.cpp # glTF import, only with MEALKIT_ASSET_IMPORT (empty in shipping builds)
-    src/mealkit/asset/Terrain.h
-    src/mealkit/asset/Scatter.h
-    src/mealkit/asset/Scatter.cpp
-    src/mealkit/asset/Terrain.cpp # heightmap PNG decode/encode (static stb_image + stb_image_write copies, headless too)
-    src/mealkit/asset/Animation.h
-    src/mealkit/asset/Animation.cpp
-    src/mealkit/asset/AnimStates.h
-    src/mealkit/asset/AnimStates.cpp
-    src/mealkit/asset/Cutscene.h
-    src/mealkit/asset/Cutscene.cpp
-    src/mealkit/render/DrawList.h
-    src/mealkit/render/Culling.h
-    src/mealkit/render/Mesh.h
-    src/mealkit/render/Mesh.cpp
-    src/mealkit/render/Renderer.h
-    src/mealkit/rhi/Rhi.h # header only (GpuInfo in Renderer.h). Backend implementations are front end
-    src/mealkit/net/Socket.h
-    src/mealkit/net/Socket.cpp
-    src/mealkit/net/Transport.h
-    src/mealkit/net/Lockstep.h
-    src/mealkit/net/Lockstep.cpp
-    src/mealkit/net/Conditions.h
-    src/mealkit/net/Conditions.cpp
-    src/mealkit/net/Rooms.h
-    src/mealkit/net/Rooms.cpp)
+    core/core/include/mealkit/core/Types.h
+    core/core/include/mealkit/core/Version.h
+    core/core/include/mealkit/core/Log.h
+    core/core/src/mealkit/core/Log.cpp
+    core/core/include/mealkit/core/Clock.h
+    core/core/include/mealkit/core/Math.h
+    core/core/include/mealkit/core/DetMath.h
+    core/core/include/mealkit/core/Reflect.h
+    core/core/src/mealkit/core/Reflect.cpp
+    core/core/include/mealkit/core/TextFormat.h
+    core/core/src/mealkit/core/TextFormat.cpp
+    core/core/include/mealkit/core/Random.h
+    core/core/include/mealkit/core/Hash.h
+    core/core/include/mealkit/core/Compress.h
+    core/core/src/mealkit/core/Compress.cpp
+    core/core/include/mealkit/core/Zip.h
+    core/core/src/mealkit/core/Zip.cpp
+    core/core/include/mealkit/core/Profile.h
+    core/core/include/mealkit/core/Memory.h
+    core/core/src/mealkit/core/Memory.cpp
+    ../modules/game/include/mealkit/game/GameContext.h
+    ../modules/game/include/mealkit/game/GameInstance.h
+    ../modules/game/include/mealkit/game/BuildInfo.h
+    ../modules/game/include/mealkit/game/DesyncDump.h
+    ../modules/game/include/mealkit/game/GameData.h
+    ../modules/game/src/mealkit/game/GameData.cpp
+    ../modules/data/include/mealkit/data/Tables.h
+    ../modules/data/src/mealkit/data/Tables.cpp
+    ../modules/game/include/mealkit/game/GameOptions.h
+    ../modules/game/src/mealkit/game/GameOptions.cpp
+    ../modules/game/include/mealkit/game/Headless.h
+    ../modules/game/src/mealkit/game/Headless.cpp
+    ../modules/game/include/mealkit/game/InputRecord.h
+    ../modules/game/src/mealkit/game/InputRecord.cpp
+    ../modules/game/include/mealkit/game/Scenario.h
+    ../modules/game/src/mealkit/game/Scenario.cpp
+    ../modules/game/include/mealkit/game/ProjectSettings.h
+    ../modules/game/src/mealkit/game/ProjectSettings.cpp
+    ../modules/game/include/mealkit/game/Save.h
+    ../modules/game/src/mealkit/game/Save.cpp
+    ../modules/game/include/mealkit/game/WorldSnapshot.h
+    ../modules/game/include/mealkit/game/SimDebug.h
+    ../modules/game/include/mealkit/game/Simulation.h
+    ../modules/sim/include/mealkit/sim/Pool.h
+    ../modules/sim/include/mealkit/sim/TickEvents.h
+    ../modules/sim/include/mealkit/sim/TickTimer.h
+    ../modules/sim/include/mealkit/sim/MatchFlow.h
+    ../modules/sim/include/mealkit/sim/Movement.h
+    ../modules/sim/include/mealkit/sim/Ragdoll.h
+    ../modules/sim/include/mealkit/sim/NavGrid.h
+    ../modules/sim/include/mealkit/sim/Table.h
+    ../modules/sim/include/mealkit/sim/Commands.h
+    ../modules/input/include/mealkit/input/Actions.h
+    ../modules/input/src/mealkit/input/Actions.cpp
+    ../modules/loc/include/mealkit/loc/Strings.h
+    ../modules/loc/src/mealkit/loc/Strings.cpp
+    core/jobs/include/mealkit/jobs/Jobs.h
+    core/jobs/src/mealkit/jobs/Jobs.cpp
+    core/jobs/include/mealkit/jobs/JoltAllocator.h
+    core/jobs/src/mealkit/jobs/JoltAllocator.cpp
+    ../modules/physics/include/mealkit/physics/PhysicsWorld.h
+    ../modules/physics/src/mealkit/physics/PhysicsWorld.cpp
+    core/platform/include/mealkit/platform/Paths.h
+    core/platform/src/mealkit/platform/Paths.cpp
+    core/platform/include/mealkit/platform/Pack.h
+    core/platform/src/mealkit/platform/Pack.cpp
+    core/platform/include/mealkit/platform/System.h
+    core/platform/src/mealkit/platform/System.cpp
+    core/platform/include/mealkit/platform/Input.h   # header only (key/mouse state, read by input actions)
+    core/platform/include/mealkit/platform/Gamepad.h # PadState is read by input actions. Gamepads implementation is front end (win32/Gamepad.cpp)
+    ../modules/scene/include/mealkit/scene/Scene.h
+    ../modules/scene/src/mealkit/scene/Scene.cpp
+    ../modules/asset/include/mealkit/asset/Budget.h
+    ../modules/asset/include/mealkit/asset/TextureCache.h # header only (texture upload in ModelCache.h). Implementation is front end
+    ../modules/asset/include/mealkit/asset/ModelCache.h
+    ../modules/asset/include/mealkit/asset/Environment.h # declarations only (baking in Environment.cpp is front end, called by the ModelCache::setRenderer inline)
+    ../modules/asset/src/mealkit/asset/ModelCache.cpp
+    ../modules/asset/include/mealkit/asset/Cooked.h
+    ../modules/asset/src/mealkit/asset/Cooked.cpp
+    ../modules/asset/src/mealkit/asset/ModelImport.cpp # glTF import, only with MEALKIT_ASSET_IMPORT (empty in shipping builds)
+    ../modules/asset/include/mealkit/asset/Terrain.h
+    ../modules/asset/include/mealkit/asset/Scatter.h
+    ../modules/asset/src/mealkit/asset/Scatter.cpp
+    ../modules/asset/src/mealkit/asset/Terrain.cpp # heightmap PNG decode/encode (static stb_image + stb_image_write copies, headless too)
+    ../modules/asset/include/mealkit/asset/Animation.h
+    ../modules/asset/src/mealkit/asset/Animation.cpp
+    ../modules/asset/include/mealkit/asset/AnimStates.h
+    ../modules/asset/src/mealkit/asset/AnimStates.cpp
+    ../modules/asset/include/mealkit/asset/Cutscene.h
+    ../modules/asset/src/mealkit/asset/Cutscene.cpp
+    ../modules/render/include/mealkit/render/DrawList.h
+    ../modules/render/include/mealkit/render/Culling.h
+    ../modules/render/include/mealkit/render/Mesh.h
+    ../modules/render/src/mealkit/render/Mesh.cpp
+    ../modules/render/include/mealkit/render/Renderer.h
+    ../modules/rhi/include/mealkit/rhi/Rhi.h # header only (GpuInfo in Renderer.h). Backend implementations are front end
+    ../modules/net/include/mealkit/net/Socket.h
+    ../modules/net/src/mealkit/net/Socket.cpp
+    ../modules/net/include/mealkit/net/Transport.h
+    ../modules/net/include/mealkit/net/Lockstep.h
+    ../modules/net/src/mealkit/net/Lockstep.cpp
+    ../modules/net/include/mealkit/net/Conditions.h
+    ../modules/net/src/mealkit/net/Conditions.cpp
+    ../modules/net/include/mealkit/net/Rooms.h
+    ../modules/net/src/mealkit/net/Rooms.cpp)
 set(MEALKIT_FRONT_SOURCES
-    src/mealkit/platform/Window.h
-    src/mealkit/platform/Process.h
-    src/mealkit/platform/DynamicLibrary.h
-    src/mealkit/platform/FileDialog.h
-    src/mealkit/platform/Image.h
-    src/mealkit/online/Online.h
-    src/mealkit/audio/Audio.h
-    src/mealkit/audio/Audio.cpp
-    src/mealkit/feedback/Feedback.h
-    src/mealkit/feedback/Feedback.cpp
-    src/mealkit/camera/Brain.h
-    src/mealkit/camera/Brain.cpp
-    src/mealkit/ui/Document.h
-    src/mealkit/ui/Ui.h
-    src/mealkit/ui/Ui.cpp
-    src/mealkit/ui/StbImpl.cpp
-    src/mealkit/settings/Settings.h
-    src/mealkit/settings/Settings.cpp
-    src/mealkit/live/Server.h
-    src/mealkit/live/Server.cpp
-    src/mealkit/game/FrameStats.h
-    src/mealkit/game/FrameStats.cpp
-    src/mealkit/game/Benchmark.h
-    src/mealkit/game/Benchmark.cpp
-    src/mealkit/game/Frontend.h
-    src/mealkit/game/Frontend.cpp
-    src/mealkit/game/RenderStyle.h
-    src/mealkit/game/RenderStyle.cpp
-    src/mealkit/game/MatchService.h
-    src/mealkit/game/MatchService.cpp
-    src/mealkit/game/GameMain.h
-    src/mealkit/game/GameMain.cpp
-    src/mealkit/game/BugReport.h
-    src/mealkit/game/BugReport.cpp
-    src/mealkit/game/Cook.h
-    src/mealkit/game/Cook.cpp
-    src/mealkit/render/Renderer.cpp
-    src/mealkit/asset/TextureCache.cpp
-    src/mealkit/asset/Environment.cpp
-    src/mealkit/render/ShaderReload.h
-    src/mealkit/rhi/GpuCapture.h
-    src/mealkit/rhi/GpuCapture.cpp
-    src/mealkit/render/ShaderReload.cpp
+    core/platform/include/mealkit/platform/Window.h
+    core/platform/include/mealkit/platform/Process.h
+    core/platform/include/mealkit/platform/DynamicLibrary.h
+    core/platform/include/mealkit/platform/FileDialog.h
+    core/platform/include/mealkit/platform/Image.h
+    ../modules/online/include/mealkit/online/Online.h
+    ../modules/audio/include/mealkit/audio/Audio.h
+    ../modules/audio/src/mealkit/audio/Audio.cpp
+    ../modules/feedback/include/mealkit/feedback/Feedback.h
+    ../modules/feedback/src/mealkit/feedback/Feedback.cpp
+    ../modules/camera/include/mealkit/camera/Brain.h
+    ../modules/camera/src/mealkit/camera/Brain.cpp
+    ../modules/ui/include/mealkit/ui/Document.h
+    ../modules/ui/include/mealkit/ui/Ui.h
+    ../modules/ui/src/mealkit/ui/Ui.cpp
+    ../modules/ui/src/mealkit/ui/StbImpl.cpp
+    ../modules/settings/include/mealkit/settings/Settings.h
+    ../modules/settings/src/mealkit/settings/Settings.cpp
+    ../modules/live/include/mealkit/live/Server.h
+    ../modules/live/src/mealkit/live/Server.cpp
+    ../modules/game/include/mealkit/game/FrameStats.h
+    ../modules/game/src/mealkit/game/FrameStats.cpp
+    ../modules/game/src/mealkit/game/Benchmark.h
+    ../modules/game/src/mealkit/game/Benchmark.cpp
+    ../modules/game/include/mealkit/game/Frontend.h
+    ../modules/game/src/mealkit/game/Frontend.cpp
+    ../modules/game/include/mealkit/game/RenderStyle.h
+    ../modules/game/src/mealkit/game/RenderStyle.cpp
+    ../modules/game/include/mealkit/game/MatchService.h
+    ../modules/game/src/mealkit/game/MatchService.cpp
+    ../modules/game/include/mealkit/game/GameMain.h
+    ../modules/game/src/mealkit/game/GameMain.cpp
+    ../modules/game/include/mealkit/game/BugReport.h
+    ../modules/game/src/mealkit/game/BugReport.cpp
+    ../modules/game/src/mealkit/game/Cook.h
+    ../modules/game/src/mealkit/game/Cook.cpp
+    ../modules/render/src/mealkit/render/Renderer.cpp
+    ../modules/asset/src/mealkit/asset/TextureCache.cpp
+    ../modules/asset/src/mealkit/asset/Environment.cpp
+    ../modules/render/src/mealkit/render/ShaderReload.h
+    ../modules/rhi/include/mealkit/rhi/GpuCapture.h
+    ../modules/rhi/src/mealkit/rhi/GpuCapture.cpp
+    ../modules/render/src/mealkit/render/ShaderReload.cpp
     shaders/Forward.hlsl
     shaders/Ui.hlsl
     shaders/Bindless.hlsli
@@ -264,46 +264,46 @@ set(MEALKIT_FRONT_SOURCES
 # posix/ has what headless (Linux/macOS) needs (time, files, UDP, logging) and dynamic libraries. Window, input, dialogs, images are Windows only (stage 5).
 if(WIN32)
     list(APPEND MEALKIT_CORE_SOURCES
-        src/mealkit/platform/win32/Clock.cpp
-        src/mealkit/platform/win32/Paths.cpp
-        src/mealkit/platform/win32/Socket.cpp
-        src/mealkit/platform/win32/System.cpp)
+        core/platform/src/mealkit/platform/win32/Clock.cpp
+        core/platform/src/mealkit/platform/win32/Paths.cpp
+        core/platform/src/mealkit/platform/win32/Socket.cpp
+        core/platform/src/mealkit/platform/win32/System.cpp)
     list(APPEND MEALKIT_FRONT_SOURCES
-        src/mealkit/platform/win32/DynamicLibrary.cpp
-        src/mealkit/platform/win32/Gamepad.cpp
-        src/mealkit/platform/win32/FileDialog.cpp
-        src/mealkit/platform/win32/Image.cpp
-        src/mealkit/platform/win32/Process.cpp
-        src/mealkit/platform/win32/Window.cpp)
+        core/platform/src/mealkit/platform/win32/DynamicLibrary.cpp
+        core/platform/src/mealkit/platform/win32/Gamepad.cpp
+        core/platform/src/mealkit/platform/win32/FileDialog.cpp
+        core/platform/src/mealkit/platform/win32/Image.cpp
+        core/platform/src/mealkit/platform/win32/Process.cpp
+        core/platform/src/mealkit/platform/win32/Window.cpp)
 else()
     list(APPEND MEALKIT_CORE_SOURCES
-        src/mealkit/platform/posix/Clock.cpp
-        src/mealkit/platform/posix/Paths.cpp
-        src/mealkit/platform/posix/Socket.cpp
-        src/mealkit/platform/posix/System.cpp)
-    list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/platform/posix/DynamicLibrary.cpp)
+        core/platform/src/mealkit/platform/posix/Clock.cpp
+        core/platform/src/mealkit/platform/posix/Paths.cpp
+        core/platform/src/mealkit/platform/posix/Socket.cpp
+        core/platform/src/mealkit/platform/posix/System.cpp)
+    list(APPEND MEALKIT_FRONT_SOURCES core/platform/src/mealkit/platform/posix/DynamicLibrary.cpp)
 endif()
 
 # RHI backend (MEALKIT_RHI, cmake/MealKit.cmake): graphics APIs are called only inside rhi/<api>/ (tools\check_platform.ps1)
 if(MEALKIT_RHI STREQUAL "Vulkan")
     list(APPEND MEALKIT_FRONT_SOURCES
-        src/mealkit/rhi/vulkan/Vk.h
-        src/mealkit/rhi/vulkan/VkDevice.cpp
-        src/mealkit/rhi/vulkan/VkLibs.cpp) # volk + VMA implementation
-    set(mealkit_rhi_imgui src/mealkit/rhi/vulkan/VkImGui.cpp)
+        ../modules/rhi/src/mealkit/rhi/vulkan/Vk.h
+        ../modules/rhi/src/mealkit/rhi/vulkan/VkDevice.cpp
+        ../modules/rhi/src/mealkit/rhi/vulkan/VkLibs.cpp) # volk + VMA implementation
+    set(mealkit_rhi_imgui ../modules/rhi/src/mealkit/rhi/vulkan/VkImGui.cpp)
 else()
     list(APPEND MEALKIT_FRONT_SOURCES
-        src/mealkit/rhi/dx12/Dx12.h
-        src/mealkit/rhi/dx12/Dx12Device.cpp)
-    set(mealkit_rhi_imgui src/mealkit/rhi/dx12/Dx12ImGui.cpp)
+        ../modules/rhi/src/mealkit/rhi/dx12/Dx12.h
+        ../modules/rhi/src/mealkit/rhi/dx12/Dx12Device.cpp)
+    set(mealkit_rhi_imgui ../modules/rhi/src/mealkit/rhi/dx12/Dx12ImGui.cpp)
 endif()
 
 # Debug UI (MEALKIT_DEBUG_UI, cmake/MealKit.cmake): ImGui glue layer. Shared by the editor and the dev game exe's overlay
 if(MEALKIT_DEBUG_UI)
-    list(APPEND MEALKIT_FRONT_SOURCES src/mealkit/debug/ImGuiLayer.h src/mealkit/debug/ImGuiLayer.cpp
-        src/mealkit/debug/DebugDraw.h src/mealkit/debug/DebugDrawRender.h src/mealkit/debug/DebugDraw.cpp
-        src/mealkit/core/AllocCount.h src/mealkit/core/AllocCount.cpp
-        src/mealkit/platform/ImGuiPlatform.h src/mealkit/platform/win32/ImGuiPlatform.cpp
+    list(APPEND MEALKIT_FRONT_SOURCES ../modules/debug/include/mealkit/debug/ImGuiLayer.h ../modules/debug/src/mealkit/debug/ImGuiLayer.cpp
+        ../modules/debug/include/mealkit/debug/DebugDraw.h ../modules/debug/include/mealkit/debug/DebugDrawRender.h ../modules/debug/src/mealkit/debug/DebugDraw.cpp
+        core/core/include/mealkit/core/AllocCount.h core/core/src/mealkit/core/AllocCount.cpp
+        core/platform/include/mealkit/platform/ImGuiPlatform.h core/platform/src/mealkit/platform/win32/ImGuiPlatform.cpp
         ${mealkit_rhi_imgui}
         # Texture compression (asset/TextureCache.cpp): dev builds only create it; shipping builds only read the compressed cache
         ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp)
@@ -311,7 +311,7 @@ endif()
 
 # Frame allocation counter (core/AllocCount.h): replaces operator new only in the dev game exe (static), not in mealkit.dll
 if(MEALKIT_DEBUG_UI AND NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
-    set_source_files_properties(src/mealkit/core/AllocCount.cpp PROPERTIES COMPILE_DEFINITIONS MEALKIT_ALLOC_COUNT=1)
+    set_source_files_properties(core/core/src/mealkit/core/AllocCount.cpp PROPERTIES COMPILE_DEFINITIONS MEALKIT_ALLOC_COUNT=1)
 endif()
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
@@ -334,7 +334,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
         else()
             list(JOIN MEALKIT_DXIL_FLAGS " " mealkit_hot_flags)
         endif()
-        set_source_files_properties(src/mealkit/render/ShaderReload.cpp PROPERTIES COMPILE_DEFINITIONS
+        set_source_files_properties(../modules/render/src/mealkit/render/ShaderReload.cpp PROPERTIES COMPILE_DEFINITIONS
             "MEALKIT_SHADER_HOT_RELOAD=1;MEALKIT_SHADER_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/shaders\";MEALKIT_SHADER_HOT_DIR=\"${MEALKIT_SHADER_OUT}/hot\";MEALKIT_SHADER_DXC_PATH=\"${MEALKIT_SHADER_DXC}\";MEALKIT_SHADER_HOT_FLAGS=\"${mealkit_hot_flags}\"")
     endif()
 endif()
@@ -359,7 +359,23 @@ elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
 endif()
 
 # The PUBLIC settings below live on the core target (the Game build's mealkit inherits them by linking the core PUBLIC)
-target_include_directories(${mealkit_core_target} PUBLIC src)
+# Engine modules (docs/ENGINE_MODULES.md): the kernel in engine/core/<name>/, the rest in modules/<name>/, each with an engine-module.txt.
+# include/ holds the headers other modules and games may include (still "mealkit/<module>/X.h"), src/ the module's own files and private headers.
+file(GLOB mealkit_module_manifests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/core/*/engine-module.txt ${CMAKE_CURRENT_SOURCE_DIR}/../modules/*/engine-module.txt)
+set(MEALKIT_MODULE_INCLUDES "")
+set(MEALKIT_MODULE_SOURCES_DIRS "")
+foreach(manifest ${mealkit_module_manifests})
+    get_filename_component(module_dir ${manifest} DIRECTORY)
+    get_filename_component(module_dir ${module_dir} ABSOLUTE)
+    if(EXISTS ${module_dir}/include)
+        list(APPEND MEALKIT_MODULE_INCLUDES ${module_dir}/include)
+    endif()
+    list(APPEND MEALKIT_MODULE_SOURCES_DIRS ${module_dir}/src)
+endforeach()
+target_include_directories(${mealkit_core_target} PUBLIC ${MEALKIT_MODULE_INCLUDES} PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS})
+if(TARGET mealkit AND NOT mealkit_core_target STREQUAL "mealkit")
+    target_include_directories(mealkit PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS})
+endif()
 target_include_directories(${mealkit_core_target} SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/cgltf ${MEALKIT_THIRD_PARTY}/stb)
 # Contract between tools: mkcontract (separate repo MealKit-Contract, version-pinned in third_party/mkcontract). Text format lines, live connection info,
 # the editor's tool/project/module lists. Only the library without the client (the engine is the live server; sockets stay in platform/).
@@ -405,7 +421,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
                                ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp
                                ${MEALKIT_THIRD_PARTY}/bc7enc)   # asset/TextureCache.cpp
     if(MSVC)
-        set_source_files_properties(src/mealkit/ui/StbImpl.cpp
+        set_source_files_properties(../modules/ui/src/mealkit/ui/StbImpl.cpp
             ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp PROPERTIES COMPILE_OPTIONS "/W0")
     endif()
 endif()
@@ -463,7 +479,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
         target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_VULKAN_INCLUDES})
         target_compile_definitions(mealkit PRIVATE VK_NO_PROTOTYPES VK_USE_PLATFORM_WIN32_KHR)
         if(MSVC)
-            set_source_files_properties(src/mealkit/rhi/vulkan/VkLibs.cpp PROPERTIES COMPILE_OPTIONS "/W0")
+            set_source_files_properties(../modules/rhi/src/mealkit/rhi/vulkan/VkLibs.cpp PROPERTIES COMPILE_OPTIONS "/W0")
         endif()
     else()
         target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid)
@@ -544,7 +560,7 @@ set(MEALKIT_STEAM_DLL "" CACHE INTERNAL "")
 set(MEALKIT_EOS_DLL "" CACHE INTERNAL "")
 if(mealkit_online STREQUAL "Steam")
     message(STATUS "MealKit: online backend Steam - Steam lobbies and relay networking enabled")
-    target_sources(mealkit PRIVATE src/mealkit/online/OnlineSteam.cpp)
+    target_sources(mealkit PRIVATE ../modules/online/src/mealkit/online/OnlineSteam.cpp)
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_STEAMWORKS_SDK}/public)
     target_link_libraries(mealkit PUBLIC ${MEALKIT_STEAMWORKS_SDK}/redistributable_bin/win64/steam_api64.lib)
     target_compile_definitions(mealkit PUBLIC MEALKIT_STEAM=1)
@@ -565,8 +581,8 @@ elseif(mealkit_online STREQUAL "EOS")
             message(FATAL_ERROR "third_party/eos/credentials.txt has no '${key}: <value>' line")
         endif()
     endforeach()
-    configure_file(src/mealkit/online/EosCredentials.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/EosCredentials.h @ONLY)
-    target_sources(mealkit PRIVATE src/mealkit/online/OnlineEOS.cpp)
+    configure_file(../modules/online/src/mealkit/online/EosCredentials.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/EosCredentials.h @ONLY)
+    target_sources(mealkit PRIVATE ../modules/online/src/mealkit/online/OnlineEOS.cpp)
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_EOS_SDK}/Include ${CMAKE_CURRENT_BINARY_DIR}/generated)
     target_link_libraries(mealkit PUBLIC ${MEALKIT_EOS_SDK}/Lib/EOSSDK-Win64-Shipping.lib)
     target_compile_definitions(mealkit PUBLIC MEALKIT_EOS=1)
@@ -583,7 +599,7 @@ else()
     if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
         message(STATUS "MealKit: no online SDK (third_party/steamworks/sdk, third_party/eos/sdk) - building without online backend")
     endif()
-    target_sources(mealkit PRIVATE src/mealkit/online/OnlineNone.cpp)
+    target_sources(mealkit PRIVATE ../modules/online/src/mealkit/online/OnlineNone.cpp)
 endif()
 
 # --- Dear ImGui (MEALKIT_DEBUG_UI): built into the engine library ---
@@ -627,67 +643,69 @@ endif()
 # --- General-purpose editor (Editor build): MealKitEditor.exe = mealkit.dll (+ Dear ImGui + ImGuizmo). Not in the shipping exe ---
 if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     add_library(mealkit_editor STATIC
-        src/mealkit/editor/ImGuiLayer.h
-        src/mealkit/editor/Editor.h
-        src/mealkit/editor/Editor.cpp
-        src/mealkit/editor/EditorData.cpp
-        src/mealkit/editor/TestsPanel.cpp
-        src/mealkit/editor/BalancePanel.cpp
-        src/mealkit/editor/SharedBuild.cpp
-        src/mealkit/editor/AssetThumbnails.cpp
-        src/mealkit/editor/Project.h
-        src/mealkit/editor/Project.cpp
-        src/mealkit/editor/ProjectManager.h
-        src/mealkit/editor/ProjectManager.cpp
-        src/mealkit/editor/GameModuleHost.h
-        src/mealkit/editor/GameModuleHost.cpp
-        src/mealkit/editor/FieldEditor.h
-        src/mealkit/editor/FieldEditor.cpp
-        src/mealkit/editor/PlaySession.h
-        src/mealkit/editor/PlaySession.cpp
-        src/mealkit/editor/TablesPanel.h
-        src/mealkit/editor/TablesPanel.cpp
-        src/mealkit/editor/SoundPanel.h
-        src/mealkit/editor/SoundPanel.cpp
-        src/mealkit/editor/FeedbackPanel.h
-        src/mealkit/editor/FeedbackPanel.cpp
-        src/mealkit/editor/UiPanel.h
-        src/mealkit/editor/UiPanel.cpp
-        src/mealkit/editor/UiPanelEdit.cpp
-        src/mealkit/editor/UiPanelDrag.cpp
-        src/mealkit/editor/LookdevPanel.h
-        src/mealkit/editor/LookdevPanel.cpp
-        src/mealkit/editor/ImportServer.h
-        src/mealkit/editor/ImportServer.cpp
-        src/mealkit/editor/Tools.h
-        src/mealkit/editor/Tools.cpp
-        src/mealkit/editor/UiCheck.h
-        src/mealkit/editor/UiCheck.cpp
-        src/mealkit/editor/TuningPanel.h
-        src/mealkit/editor/TuningPanel.cpp
-        src/mealkit/editor/ProjectSettingsPanel.h
-        src/mealkit/editor/ProjectSettingsPanel.cpp
-        src/mealkit/editor/BuildPanel.h
-        src/mealkit/editor/BuildPanel.cpp
-        src/mealkit/editor/ModulesPanel.cpp
-        src/mealkit/editor/LogPanel.h
-        src/mealkit/editor/LogPanel.cpp
-        src/mealkit/editor/EditorCommands.cpp
-        src/mealkit/editor/EditorAssets.cpp
-        src/mealkit/editor/EditorTerrain.cpp
-        src/mealkit/editor/Preferences.h
-        src/mealkit/editor/Preferences.cpp
-        src/mealkit/editor/PerfPanel.h
-        src/mealkit/editor/PerfPanel.cpp
-        src/mealkit/editor/CodeLink.h
-        src/mealkit/editor/CodeLink.cpp
-        src/mealkit/editor/Strings.h
-        src/mealkit/editor/Strings.cpp)
+        ../modules/editor/src/mealkit/editor/ImGuiLayer.h
+        ../modules/editor/src/mealkit/editor/Editor.h
+        ../modules/editor/src/mealkit/editor/Editor.cpp
+        ../modules/editor/src/mealkit/editor/EditorData.cpp
+        ../modules/editor/src/mealkit/editor/TestsPanel.cpp
+        ../modules/editor/src/mealkit/editor/BalancePanel.cpp
+        ../modules/editor/src/mealkit/editor/SharedBuild.cpp
+        ../modules/editor/src/mealkit/editor/AssetThumbnails.cpp
+        ../modules/editor/src/mealkit/editor/Project.h
+        ../modules/editor/src/mealkit/editor/Project.cpp
+        ../modules/editor/src/mealkit/editor/ProjectManager.h
+        ../modules/editor/src/mealkit/editor/ProjectManager.cpp
+        ../modules/editor/src/mealkit/editor/GameModuleHost.h
+        ../modules/editor/src/mealkit/editor/GameModuleHost.cpp
+        ../modules/editor/src/mealkit/editor/FieldEditor.h
+        ../modules/editor/src/mealkit/editor/FieldEditor.cpp
+        ../modules/editor/src/mealkit/editor/PlaySession.h
+        ../modules/editor/src/mealkit/editor/PlaySession.cpp
+        ../modules/editor/src/mealkit/editor/TablesPanel.h
+        ../modules/editor/src/mealkit/editor/TablesPanel.cpp
+        ../modules/editor/src/mealkit/editor/SoundPanel.h
+        ../modules/editor/src/mealkit/editor/SoundPanel.cpp
+        ../modules/editor/src/mealkit/editor/FeedbackPanel.h
+        ../modules/editor/src/mealkit/editor/FeedbackPanel.cpp
+        ../modules/editor/src/mealkit/editor/UiPanel.h
+        ../modules/editor/src/mealkit/editor/UiPanel.cpp
+        ../modules/editor/src/mealkit/editor/UiPanelEdit.cpp
+        ../modules/editor/src/mealkit/editor/UiPanelDrag.cpp
+        ../modules/editor/src/mealkit/editor/LookdevPanel.h
+        ../modules/editor/src/mealkit/editor/LookdevPanel.cpp
+        ../modules/editor/src/mealkit/editor/ImportServer.h
+        ../modules/editor/src/mealkit/editor/ImportServer.cpp
+        ../modules/editor/src/mealkit/editor/Tools.h
+        ../modules/editor/src/mealkit/editor/Tools.cpp
+        ../modules/editor/src/mealkit/editor/UiCheck.h
+        ../modules/editor/src/mealkit/editor/UiCheck.cpp
+        ../modules/editor/src/mealkit/editor/TuningPanel.h
+        ../modules/editor/src/mealkit/editor/TuningPanel.cpp
+        ../modules/editor/src/mealkit/editor/ProjectSettingsPanel.h
+        ../modules/editor/src/mealkit/editor/ProjectSettingsPanel.cpp
+        ../modules/editor/src/mealkit/editor/BuildPanel.h
+        ../modules/editor/src/mealkit/editor/BuildPanel.cpp
+        ../modules/editor/src/mealkit/editor/ModulesPanel.cpp
+        ../modules/editor/src/mealkit/editor/LogPanel.h
+        ../modules/editor/src/mealkit/editor/LogPanel.cpp
+        ../modules/editor/src/mealkit/editor/EditorCommands.cpp
+        ../modules/editor/src/mealkit/editor/EditorAssets.cpp
+        ../modules/editor/src/mealkit/editor/EditorTerrain.cpp
+        ../modules/editor/src/mealkit/editor/Preferences.h
+        ../modules/editor/src/mealkit/editor/Preferences.cpp
+        ../modules/editor/src/mealkit/editor/PerfPanel.h
+        ../modules/editor/src/mealkit/editor/PerfPanel.cpp
+        ../modules/editor/src/mealkit/editor/CodeLink.h
+        ../modules/editor/src/mealkit/editor/CodeLink.cpp
+        ../modules/editor/src/mealkit/editor/Strings.h
+        ../modules/editor/src/mealkit/editor/Strings.cpp)
     target_link_libraries(mealkit_editor PUBLIC mealkit PRIVATE mkcontract mkui) # mealkit.dll exports only its own objects, not mkcontract's or mkui's (UI editing: mkui/Source.h)
     target_compile_definitions(mealkit_editor PUBLIC MEALKIT_EDITOR=1)
+    target_include_directories(mealkit_editor PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS})
 
-    add_executable(MealKitEditor src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)
+    add_executable(MealKitEditor ../modules/editor/src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)
     target_link_libraries(MealKitEditor PRIVATE mealkit_editor)
+    target_include_directories(MealKitEditor PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS})
     # GUI program: no console window behind it (run from a command prompt, attachParentConsole attaches)
     target_link_options(MealKitEditor PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
     # Engine folder used by the project manager's new project creation (the editor isn't distributed)

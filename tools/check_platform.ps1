@@ -1,12 +1,12 @@
 ﻿# Platform layer check (docs/CODING_MODEL.md "Graphics APIs and OS features"). Called by check.ps1.
 #   powershell -ExecutionPolicy Bypass -File tools\check_platform.ps1     exit code 1 on problems
-# OS APIs (header includes, representative Win32/POSIX functions) are used only inside engine/src/mealkit/platform/<os>/.
-# Graphics APIs (d3d12/dxgi/vulkan headers) are used only inside RHI backends (engine/src/mealkit/rhi/<api>/). Backends handle window handles/events,
+# OS APIs (header includes, representative Win32/POSIX functions) are used only inside engine/core/platform/src/mealkit/platform/<os>/.
+# Graphics APIs (d3d12/dxgi/vulkan headers) are used only inside RHI backends (modules/rhi/src/mealkit/rhi/<api>/). Backends handle window handles/events,
 # so they may include OS headers too, but for the OS functions below (string conversion, files, DLLs etc.) they use the platform layer's.
 # Game code (samples/*) doesn't use OS APIs (it receives them via GameContext).
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-$engineSrc = Join-Path $root "engine\src\mealkit"
+. "$PSScriptRoot\engine_modules_common.ps1"
 
 $osHeaders = 'windows\.h|winsock2?\.h|ws2tcpip\.h|mstcpip\.h|shobjidl\.h|shlobj\.h|shellapi\.h|commdlg\.h|wincodec\.h|dwmapi\.h|' +
     'unistd\.h|pthread\.h|dlfcn\.h|fcntl\.h|netdb\.h|sys/\w+\.h|arpa/\w+\.h|' +
@@ -19,14 +19,14 @@ $callPattern = '\b(MultiByteToWideChar|WideCharToMultiByte|_wfopen(_s)?|LoadLibr
     'CreateProcess\w*|QueryPerformanceCounter|WSAStartup|dlopen|dlsym|getenv)\s*\('
 
 $files = @()
-$files += Get-ChildItem -Path $engineSrc -Recurse -Include *.cpp, *.h |
+$files += Get-EngineModuleFiles $root |
     Where-Object { $_.FullName -notmatch '\\mealkit\\platform\\(win32|posix)\\' }
 $files += Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Include *.cpp, *.h
 
 $problems = @()
 foreach ($f in $files) {
     $rel = $f.FullName.Substring($root.Length + 1)
-    $rhiBackend = $rel -match '^engine\\src\\mealkit\\rhi\\\w+\\'
+    $rhiBackend = $rel -match '^modules\\rhi\\src\\mealkit\\rhi\\\w+\\'
     $n = 0
     foreach ($line in [IO.File]::ReadAllLines($f.FullName)) {
         $n++

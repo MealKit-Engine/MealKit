@@ -800,8 +800,8 @@ The engine becomes a kernel, and every subsystem an engine module in its own rep
 
 - [x] 1. Kernel memory — 2026-11-08, details in `docs/CHANGELOG.md` (miniaudio hooks and per-tag budgets left for later)
 - [x] 2. Manifests and `check_modules.ps1` — 2026-11-08, details in `docs/CHANGELOG.md`
-- [ ] 3. Kernel target `engine/core/` (`mealkit_core`), `sim/` containers moved into it
-- [ ] 4. Module targets in `modules/<name>/`, leaves first (camera … editor)
+- [x] 3. Kernel in `engine/core/` — 2026-11-08, details in `docs/CHANGELOG.md`
+- [x] 4. Modules in `modules/<name>/` — 2026-11-08, details in `docs/CHANGELOG.md` (per-module CMake targets and `asset`'s GPU parts moving to `render` left for the repo split)
 - [ ] 5. Kernel service registry and dependency-order init; `GameContext::get<T>()`
 - [ ] 6. Session interface (`game::Session`, `LocalSession`), `net` optional, `solo` preset plays sandbox offline
 - [ ] 7. Project module lists and presets in `mealkit.project`, upgrade migration, template change (`VERSION`), `kApiVersion`, exe size per preset
