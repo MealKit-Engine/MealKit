@@ -6,3 +6,7 @@
 #   view/ camera, local input, drawing
 #   app/  main (shipping exe), GameSession (runs one match), GameModule (editor entry point)
 mealkit_add_game(sandbox SOURCE_DIR .)
+# Preset check (build.bat Presets): the same game built without the net module, plays solo only (docs/ENGINE_MODULES.md "Presets")
+if("solo" IN_LIST MEALKIT_EXTRA_PRESETS)
+    mealkit_add_game(sandbox_solo SOURCE_DIR . PRESET solo)
+endif()

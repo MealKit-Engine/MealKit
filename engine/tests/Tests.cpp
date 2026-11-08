@@ -27,7 +27,7 @@
 #include "mealkit/core/Clock.h"
 #include "mealkit/net/Lockstep.h"
 #include "mealkit/net/Rooms.h"
-#include "mealkit/net/Socket.h"
+#include "mealkit/platform/Socket.h"
 #include "mealkit/core/Reflect.h"
 #include "mealkit/core/TextFormat.h"
 #if MEALKIT_TEST_FRONT // front end (bug reports, audio): not in the Linux/macOS headless build

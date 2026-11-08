@@ -803,8 +803,8 @@ The engine becomes a kernel, and every subsystem an engine module in its own rep
 - [x] 3. Kernel in `engine/core/` — 2026-11-08, details in `docs/CHANGELOG.md`
 - [x] 4. Modules in `modules/<name>/` — 2026-11-08, details in `docs/CHANGELOG.md` (per-module CMake targets and `asset`'s GPU parts moving to `render` left for the repo split)
 - [x] 5. Service registry and module order — 2026-11-08, details in `docs/CHANGELOG.md`
-- [ ] 6. Session interface — parts 1–2 done 2026-11-08 (`session` module, game code on `session::Session`, `session::LocalSession` for solo play and replays, details in `docs/CHANGELOG.md`). Left: `#if` guards so `game` builds without `net` and the `solo` preset playing sandbox offline (both need the per-module targets of step 7)
-- [ ] 7. Project module lists and presets in `mealkit.project`, upgrade migration, template change (`VERSION`), `kApiVersion`, exe size per preset
+- [x] 6. Session interface — 2026-11-08, details in `docs/CHANGELOG.md`
+- [x] 7. Project module lists and presets — 2026-11-08 (engine 0.9.1), details in `docs/CHANGELOG.md` (presets `standard` and `solo`; `kernel`/`headless` as named presets, and the editor refusing a game DLL that includes a module its project left out, wait for per-module libraries in step 9)
 - [ ] 8. Editor panels into modules' `editor/` folders; online backends as modules
 - [ ] 9. Module repos extracted with history, `modules.lock`, `tools\modules.ps1` (sync, bump, status, local mode), shared module workflow. GitHub repos created and pushed by the user
 - [ ] 10. Workspace notes and tools, CLAUDE.md rules, CODING_MODEL, CONTRACTS, docs repo (English and Korean), publication order with the new repos

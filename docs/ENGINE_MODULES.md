@@ -153,16 +153,16 @@ Every module also requires `core`, which isn't written.
 
 - `game-sim` gets the **session interface** (`game::Session`: local players, confirmed inputs and commands for a tick, input delay, hashes for checks) and a `LocalSession` that confirms local input at once. Offline play, local multiplayer on one PC, replays and scenario tests use it.
 - `net` provides `LockstepSession` implementing the same interface, plus everything only peers need (sockets, LAN rooms, relays through `online`, host migration, mid-match joining, desync dumps). One virtual call per tick, not per object.
-- `MatchService` offers `host`/`join`/`hostOnline`/`joinOnline` only when `net` is enabled (declared in a header `net` provides, so calling them without `net` is a build error). `playOffline` always works.
+- `MatchService` keeps `host`/`join`/`hostOnline`/`joinOnline` in every build; without `net` they fail with a message and `multiplayerAvailable()` is false, so one screen flow serves both presets (changed 2026-11-08 in step 7: a build error would force `#if` into every game's menu code). `playOffline` always works.
 - The determinism rules, SimCheck and the simulation version stay for every game, with or without `net`.
 
 ### Presets and the project's module list
 
 ```
 # mealkit.project
-engine.preset standard
-engine.modules online online-eos      # additions to the preset
-engine.rhi dx12                       # which rhi-backend (Vulkan builds pass vulkan)
+enginePreset standard
+engineModules online online-eos       # additions to the preset
+# rhi backend: still the build configuration (Vulkan builds)
 ```
 
 | Preset | Modules | Who uses it |
@@ -174,7 +174,7 @@ engine.rhi dx12                       # which rhi-backend (Vulkan builds pass vu
 
 - The shipping exe links only the project's modules. The editor links all of them, and when a game DLL includes a module its project hasn't enabled, the build fails with the module's name.
 - Changing a project's module list rebuilds the game.
-- `tools\upgrade_project.ps1` writes `engine.preset standard` into existing projects, so nothing changes for them.
+- `tools\upgrade_project.ps1` writes `enginePreset standard` into existing projects, so nothing changes for them.
 
 ### Services and `GameContext`
 

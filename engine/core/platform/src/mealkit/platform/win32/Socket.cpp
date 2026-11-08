@@ -2,7 +2,7 @@
 #include <ws2tcpip.h>
 #include <mstcpip.h>
 
-#include "mealkit/net/Socket.h"
+#include "mealkit/platform/Socket.h"
 
 #include "mealkit/core/Log.h"
 

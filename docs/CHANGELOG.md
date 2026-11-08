@@ -3,6 +3,16 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 7: presets and the project's module list (v0.9.1, 2026-11-08)
+
+- `mealkit.project` gets `enginePreset` (`standard` = every module, `solo` = without `net` and `online`) and `engineModules` (additions). The keys are `enginePreset`/`engineModules` rather than `engine.preset`, because `engine` is already the engine path field. `cmake/MealKit.cmake` reads them (`mealkit_project_preset`); `mealkit_add_game(... PRESET <name>)` overrides for checks.
+- The engine libraries are the `standard` preset. Each other preset a project in the build uses becomes `mealkit_core_<preset>` / `mealkit_<preset>`: the same sources without the left-out modules and with `MEALKIT_HAS_<NAME>=0` (`mealkit_preset_variant` in `engine/CMakeLists.txt`, made at the end of configuration from the finished targets). The editor's `mealkit.dll` always has every module.
+- `net` is optional: manifests get an `optional` line (`game`: `net online`), read by `check_modules.ps1` and the CMake module order. `game` keeps net code inside `#if MEALKIT_HAS_NET` (`MatchService`, `GameMain`, `Headless`). Without `net`, `MatchService::host`/`join` fail with a message instead of failing to build, so one screen flow (`app/Flow.cpp`) builds for both presets; `MatchService::multiplayerAvailable()` lets menus hide them (changed from the design, see `docs/ENGINE_MODULES.md`).
+- To make that possible: `net/Socket.h` moved to the kernel as `platform/Socket.h` (its code was already in `platform/`), so `live` no longer needs `net`; `AutoDelay`, `delayForRtt`, `buildId`, `determinismGroup` and `platformName` moved to `session` (`net` keeps `using` names). Headless runs use `game::HeadlessSession` (lockstep with `net`, `session::LocalSession` without).
+- Build configuration `Presets`: Release plus `sandbox_solo.exe`/`sandbox_solo_headless.exe` (`MEALKIT_EXTRA_PRESETS=solo`). Exe size: `sandbox.exe` 4.65 MB, `sandbox_solo.exe` 4.53 MB, `sandbox_headless.exe` 2.08 MB, `sandbox_solo_headless.exe` 1.98 MB.
+- `templates/project/mealkit.project` and the samples get `enginePreset standard`; `tools\upgrade_project.ps1` adds it to projects without one. Engine `VERSION` 0.9.1, `kApiVersion` 24.
+- Step 6 is done with this: `game` builds without `net`, and sandbox plays solo through `session::LocalSession`.
+
 ## Engine module split 6, part 2: a session without a network (v0.9.x, 2026-11-08)
 
 - `session::LocalSession` (`modules/session`): solo play and replays without `net`. Its ticks follow `net::LockstepSession`'s offline host path (input delay 1, the first delay ticks confirmed empty, commands packed into the tick my input confirms, the engine input delay command), so saved replays and recorded matches play the same.

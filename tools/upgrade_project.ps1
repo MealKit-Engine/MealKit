@@ -5,7 +5,7 @@
 #   source/ and assets/ aren't touched (except with -Source).
 # - Files the user didn't edit (matching the hash in .mealkit-template) are replaced with the new template. Edited files aren't overwritten;
 #   the new content is left as <file>.new to show the difference. -Force replaces edited files too.
-# - mealkit.project only gets its engine and engineVersion lines changed (name/start scene/game items unchanged, line format unchanged too).
+# - mealkit.project only gets its engine and engineVersion lines changed (and enginePreset standard added when missing) (name/start scene/game items unchanged, line format unchanged too).
 # - Files from before the change are kept in .upgrade_backup\<time>\.
 # - -Source: replaces source/ game code with the code of the template the project was made from (mealkit.project "templateName": arena = samples/sandbox,
 #   empty = templates/empty + the shared screen flow). Used to move projects that didn't edit the template code to a new engine structure. source/sim/view/app files not in the sample are deleted (backed up). Only missing files are added to assets/ (no overwriting).
@@ -58,7 +58,7 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
         # Old "key=value" lines keep their format (an edited build.bat may only read the old format).
         $current = [IO.File]::ReadAllText($target, $MealKitUtf8)
         $lines = [Collections.Generic.List[string]]::new()
-        $seenEngine = $false; $seenVersion = $false; $separator = " "
+        $seenEngine = $false; $seenVersion = $false; $seenPreset = $false; $separator = " "
         foreach ($line in ($current -split "`r?`n")) {
             if ($line -match '^\s*(engine|engineVersion)(\s*=\s*|\s+|$)') {
                 $sep = if ($Matches[2] -match '=') { "=" } else { " " }
@@ -66,11 +66,16 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
                 if ($Matches[1] -eq "engine") { $lines.Add("engine$sep$MealKitEngine"); $seenEngine = $true }
                 else { $lines.Add("engineVersion$sep$version"); $seenVersion = $true }
             }
-            else { $lines.Add($line) }
+            else {
+                if ($line -match '^\s*enginePreset(\s|=|$)') { $seenPreset = $true }
+                $lines.Add($line)
+            }
         }
         while ($lines.Count -gt 0 -and $lines[$lines.Count - 1] -eq "") { $lines.RemoveAt($lines.Count - 1) }
         if (-not $seenEngine) { $lines.Add("engine$separator$MealKitEngine") }
         if (-not $seenVersion) { $lines.Add("engineVersion$separator$version") }
+        # Engine 0.9.1: engine modules per project (docs/ENGINE_MODULES.md "Presets"). Existing projects keep every module
+        if (-not $seenPreset) { $lines.Add("enginePreset${separator}standard") }
         $merged = ($lines -join "`r`n") + "`r`n"
         if ($merged.Replace("`r`n", "`n") -ne $current.Replace("`r`n", "`n")) {
             Report "updated" $rel Green

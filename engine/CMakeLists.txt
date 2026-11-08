@@ -206,12 +206,12 @@ set(MEALKIT_CORE_SOURCES
     ../modules/render/src/mealkit/render/Mesh.cpp
     ../modules/render/include/mealkit/render/Renderer.h
     ../modules/rhi/include/mealkit/rhi/Rhi.h # header only (GpuInfo in Renderer.h). Backend implementations are front end
-    ../modules/net/include/mealkit/net/Socket.h
+    core/platform/include/mealkit/platform/Socket.h
     ../modules/session/include/mealkit/session/Session.h
     ../modules/session/include/mealkit/session/LocalSession.h
     ../modules/session/src/mealkit/session/Session.cpp
     ../modules/session/src/mealkit/session/LocalSession.cpp
-    ../modules/net/src/mealkit/net/Socket.cpp
+    core/platform/src/mealkit/platform/Socket.cpp
     ../modules/net/include/mealkit/net/Transport.h
     ../modules/net/include/mealkit/net/Lockstep.h
     ../modules/net/src/mealkit/net/Lockstep.cpp
@@ -381,6 +381,8 @@ foreach(manifest ${mealkit_module_manifests})
     list(APPEND MEALKIT_MODULE_SOURCES_DIRS ${module_dir}/src)
 endforeach()
 target_include_directories(${mealkit_core_target} PUBLIC ${MEALKIT_MODULE_INCLUDES} PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS})
+# Optional engine modules present in this library (docs/ENGINE_MODULES.md "Presets"). Preset variants below set them to 0
+target_compile_definitions(${mealkit_core_target} PUBLIC MEALKIT_HAS_NET=1)
 
 # Dependency order of the modules for core/Modules.h: each module after its requires (and transitional), ties by name (Kahn's algorithm)
 set(mealkit_module_pending "")
@@ -398,7 +400,7 @@ foreach(manifest ${mealkit_module_manifests})
             set(m_version ${CMAKE_MATCH_1})
         elseif(line MATCHES "^kind (.+)$")
             set(m_kind ${CMAKE_MATCH_1})
-        elseif(line MATCHES "^(requires|transitional) (.+)$")
+        elseif(line MATCHES "^(requires|transitional|optional) (.+)$")
             string(REPLACE " " ";" words "${CMAKE_MATCH_2}")
             foreach(w ${words})
                 if(NOT w MATCHES "^[0-9.]+$")
@@ -592,6 +594,51 @@ if(MEALKIT_IS_ENGINE)
     endif()
 endif()
 
+
+# --- Presets (docs/ENGINE_MODULES.md "Presets and the project's module list") ---
+# The libraries above are the standard preset (every module). A preset without some modules is the same library built again without
+# their sources and with MEALKIT_HAS_<NAME>=0: mealkit_core_<preset> / mealkit_<preset>, made only when a project here asks for it
+# (mealkit_add_game picks by mealkit.project enginePreset). Called at the end of the configuration, once the targets are complete.
+function(mealkit_preset_variant base preset)
+    set(variant ${base}_${preset})
+    if(TARGET ${variant})
+        return()
+    endif()
+    get_target_property(sources ${base} SOURCES)
+    set(kept "")
+    foreach(src ${sources})
+        set(drop OFF)
+        foreach(m ${MEALKIT_PRESET_${preset}_OFF})
+            if(src MATCHES "/modules/${m}/")
+                set(drop ON)
+            endif()
+        endforeach()
+        if(NOT drop)
+            list(APPEND kept ${src})
+        endif()
+    endforeach()
+    add_library(${variant} STATIC ${kept})
+    foreach(prop INCLUDE_DIRECTORIES COMPILE_DEFINITIONS COMPILE_OPTIONS COMPILE_FEATURES LINK_LIBRARIES PRECOMPILE_HEADERS
+                 INTERFACE_INCLUDE_DIRECTORIES INTERFACE_SYSTEM_INCLUDE_DIRECTORIES INTERFACE_COMPILE_DEFINITIONS
+                 INTERFACE_COMPILE_OPTIONS INTERFACE_LINK_LIBRARIES INTERFACE_LINK_OPTIONS MSVC_RUNTIME_LIBRARY CXX_STANDARD)
+        get_target_property(value ${base} ${prop})
+        if(value)
+            foreach(m ${MEALKIT_PRESET_${preset}_OFF})
+                string(TOUPPER ${m} upper)
+                string(REPLACE "MEALKIT_HAS_${upper}=1" "MEALKIT_HAS_${upper}=0" value "${value}")
+            endforeach()
+            list(TRANSFORM value REPLACE "^mealkit_core$" "mealkit_core_${preset}")
+            list(TRANSFORM value REPLACE "^[$]<LINK_ONLY:mealkit_core>$" "$<LINK_ONLY:mealkit_core_${preset}>")
+            set_property(TARGET ${variant} PROPERTY ${prop} "${value}")
+        endif()
+    endforeach()
+endfunction()
+if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
+    foreach(preset ${MEALKIT_PRESETS_USED})
+        mealkit_preset_variant(mealkit_core ${preset})
+    endforeach()
+endif()
+
 if(MEALKIT_HEADLESS_ONLY)
     return() # Linux/macOS: headless only (online services/editor in stage 5)
 endif()
@@ -713,6 +760,12 @@ if(MEALKIT_DEBUG_UI)
     if(NOT MEALKIT_RHI STREQUAL "Vulkan")
         target_link_libraries(mealkit PUBLIC d3dcompiler) # shaders for the ImGui DX12 backend
     endif()
+endif()
+
+if(NOT MEALKIT_BUILD_KIND STREQUAL "Editor")
+    foreach(preset ${MEALKIT_PRESETS_USED})
+        mealkit_preset_variant(mealkit ${preset})
+    endforeach()
 endif()
 
 # --- General-purpose editor (Editor build): MealKitEditor.exe = mealkit.dll (+ Dear ImGui + ImGuizmo). Not in the shipping exe ---

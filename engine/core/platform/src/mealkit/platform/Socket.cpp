@@ -1,5 +1,5 @@
 // Address display (common to all platforms). Sockets are in platform/win32/Socket.cpp and platform/posix/Socket.cpp.
-#include "mealkit/net/Socket.h"
+#include "mealkit/platform/Socket.h"
 
 #include <cstdio>
 

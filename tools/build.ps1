@@ -9,6 +9,7 @@
 #     ClangCL   Windows: Release built with clang-cl in <project>/build/ClangCL/bin (determinism comparison with MSVC, not shipped)
 #     Vulkan    Release game with the Vulkan RHI backend in <project>/build/Vulkan/bin (backend comparison, not shipped on Windows)
 #     VulkanEditor  editor build with the Vulkan backend in <project>/build/VulkanEditor/bin (like Editor)
+#     Presets   Release plus every engine preset (engine repository: also <sample>_solo.exe built without net, docs/ENGINE_MODULES.md "Presets")
 #     EOS       Release with the EOS online backend (build/EOS, needs third_party/eos)
 #     Headless  Linux/macOS until their window/editor exist: headless game + tests in <project>/build/Headless/bin
 #     Editor    editor build in <project>/build/Editor/bin:
@@ -57,11 +58,12 @@ switch ($Config) {
     "ClangCL" { $buildType = "Release" }
     "Vulkan" { $buildType = "Release"; $extra = @("-DMEALKIT_RHI=Vulkan") }
     "EOS" { $buildType = "Release"; $extra = @("-DMEALKIT_ONLINE=EOS") }
+    "Presets" { $buildType = "Release"; $extra = @("-DMEALKIT_EXTRA_PRESETS=solo") }
     "Headless" { $buildType = "Release" }
     "HeadlessOnly" { $buildType = "Release"; $extra = @("-DMEALKIT_FORCE_HEADLESS_ONLY=ON") }
     "VulkanEditor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor", "-DMEALKIT_RHI=Vulkan"); $isEditor = $true }
     "Editor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor"); $isEditor = $true }
-    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, Editor, ClangCL, Vulkan, VulkanEditor, EOS, Headless, HeadlessOnly)" }
+    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, Editor, ClangCL, Vulkan, VulkanEditor, EOS, Presets, Headless, HeadlessOnly)" }
 }
 
 if ($onWindows) {

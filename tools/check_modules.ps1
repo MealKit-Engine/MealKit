@@ -7,7 +7,7 @@
 #   - kinds: kernel includes only kernel; sim only kernel and sim; view anything but editor; tool anything
 #   - transitional lists only includes that break the kind rule and are still there (stale entries fail)
 #   - core files (MEALKIT_CORE_SOURCES in engine/CMakeLists.txt, linked by headless/Linux/macOS) include only core headers
-# platform/<os>/ implementation files implement headers from several modules (net/Socket.h etc.), so they're excluded; check_platform.ps1 covers them.
+# platform/<os>/ implementation files implement headers from several modules (platform/Socket.h etc.), so they're excluded; check_platform.ps1 covers them.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 . "$PSScriptRoot\engine_modules_common.ps1"
@@ -16,7 +16,7 @@ $warnings = @()
 
 $version = ([IO.File]::ReadAllText((Join-Path $root "VERSION"))).Trim()
 $engineMinor = ($version -split '\.')[0..1] -join '.'
-$known = @("name", "version", "kernel", "kind", "requires", "transitional", "tag", "summary", "provides")
+$known = @("name", "version", "kernel", "kind", "requires", "transitional", "optional", "tag", "summary", "provides")
 $kinds = @("kernel", "sim", "view", "tool")
 
 # ---- Read manifests
@@ -25,7 +25,7 @@ foreach ($dir in Get-EngineModules $root | ForEach-Object { Get-Item $_.Dir }) {
     $path = Join-Path $dir.FullName "engine-module.txt"
     $rel = $path.Substring($root.Length + 1)
     if (-not (Test-Path $path)) { $problems += "${rel}: missing (every engine folder is a module)"; continue }
-    $m = @{ name = ""; kind = ""; version = ""; kernel = ""; requires = @(); transitional = @(); rel = $rel }
+    $m = @{ name = ""; kind = ""; version = ""; kernel = ""; requires = @(); optional = @(); transitional = @(); rel = $rel }
     $sawFormat = $false
     $n = 0
     foreach ($line in [IO.File]::ReadAllLines($path)) {
@@ -48,6 +48,9 @@ foreach ($dir in Get-EngineModules $root | ForEach-Object { Get-Item $_.Dir }) {
                     if ($rest[$i + 1] -notmatch '^\d+\.\d+(\.\d+)?$') { $problems += "${rel}:${n}: '$($rest[$i + 1])' isn't a version for $($rest[$i])" }
                     $m.requires += $rest[$i]
                 }
+            }
+            "optional" { # modules a project may leave out: includes from them sit inside #if MEALKIT_HAS_<NAME> (docs/ENGINE_MODULES.md "Presets")
+                for ($i = 0; $i -lt $rest.Count; $i += 2) { $m.optional += $rest[$i] }
             }
             "transitional" { $m.transitional = $rest }
             "summary" { }
@@ -72,6 +75,7 @@ foreach ($name in $mods.Keys) {
         elseif ($mods[$r].kind -eq "kernel") { $problems += "$($m.rel): '$r' is kernel, which every module has; don't list it" }
         elseif ($r -eq $name) { $problems += "$($m.rel): requires itself" }
     }
+    foreach ($r in $m.optional) { if (-not $mods.Contains($r)) { $problems += "$($m.rel): optional names unknown module '$r'" } }
     foreach ($r in $m.transitional) { if (-not $mods.Contains($r)) { $problems += "$($m.rel): transitional names unknown module '$r'" } }
 }
 
@@ -83,7 +87,7 @@ function Visit([string]$name, [string[]]$path) {
     if ($state[$name] -eq 1) { $script:problems += "cycle: " + (($path + $name) -join " -> "); return }
     $state[$name] = 1
     $m = $mods[$name]
-    foreach ($r in @($m.requires) + @($m.transitional)) { if ($mods.Contains($r)) { Visit $r ($path + $name) } }
+    foreach ($r in @($m.requires) + @($m.optional) + @($m.transitional)) { if ($mods.Contains($r)) { Visit $r ($path + $name) } }
     $state[$name] = 2
     $order.Add($name)
 }
@@ -119,7 +123,7 @@ foreach ($f in $files) {
         $used["$from>$to"] = $true
         $toKind = $mods[$to].kind
         if ($toKind -eq "kernel") { continue }
-        $declared = $m.requires -contains $to
+        $declared = ($m.requires -contains $to) -or ($m.optional -contains $to)
         $transitional = $m.transitional -contains $to
         if (-not $declared -and -not $transitional) { $problems += "${rel}:${n}: $from includes $to/, not in its requires ($($m.rel))"; continue }
         if ($to -eq "editor") { $problems += "${rel}:${n}: $from includes editor/ (only the editor app may)"; continue }
