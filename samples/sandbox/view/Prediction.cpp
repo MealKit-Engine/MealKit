@@ -10,7 +10,7 @@ using namespace mealkit;
 
 namespace sandbox {
 
-void LocalPrediction::addInput(const World& world, u8 player, const net::PlayerInput& input) {
+void LocalPrediction::addInput(const World& world, u8 player, const session::PlayerInput& input) {
     GameInput g;
     std::memcpy(&g, input.bytes, sizeof(g));
     const BodyKind* body = bodyOf(world, player);

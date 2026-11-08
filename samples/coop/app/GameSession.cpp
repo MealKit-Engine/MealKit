@@ -28,7 +28,7 @@ namespace {
 // Lobby body choice: string keys in tables/bodies.table row order (the same keys as the select box in ui/lobby.ui)
 constexpr const char* kBodyKeys[] = {"body.normal", "body.light", "body.heavy"};
 
-u32 memberBody(const net::LobbyMember& member) {
+u32 memberBody(const session::LobbyMember& member) {
     Loadout l;
     game::readLobbyLoadout(member, l);
     return l.body;
@@ -43,7 +43,7 @@ void GameSession::loadSave(const std::string& userFolder) {
 }
 
 // Before the match: loadout (bots get a different body per player, humans the body chosen in the lobby = save). The lobby screen picks the body (app/Flow.cpp)
-void GameSession::lobby(net::LockstepSession& session, const game::PlayOptions& options, const std::string& userFolder) {
+void GameSession::lobby(session::Session& session, const game::PlayOptions& options, const std::string& userFolder) {
     if (options.bot) {
         Headless::botLoadout(session.localPlayer(), session);
         return;
@@ -55,7 +55,7 @@ void GameSession::lobby(net::LockstepSession& session, const game::PlayOptions& 
 }
 
 void GameSession::start(game::GameContext& ctx, const scene::Scene& scene, const game::PlayOptions& options) {
-    const net::LockstepSession& session = ctx.session;
+    const session::Session& session = ctx.session;
     m_scene = scene::flattened(scene); // flattens the parent/child hierarchy to world coordinates (simulation and drawing only see the flat list)
     m_sceneSource = &scene;
     m_options = options;
@@ -99,7 +99,7 @@ void GameSession::stop(game::GameContext& ctx) {
 }
 
 void GameSession::update(game::GameContext& ctx, f64 dt) {
-    net::LockstepSession& session = ctx.session;
+    session::Session& session = ctx.session;
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     loadSave(ctx.userFolder);
     // Screen flow: opens screens matching the session phase and handles buttons (menu/lobby/pause/results/chat)
@@ -150,7 +150,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
             Headless::botCommands(tick, session.localPlayer(), session);
             return Headless::botInput(tick, session.localPlayer());
         }
-        net::PlayerInput pi;
+        session::PlayerInput pi;
         std::memcpy(pi.bytes, &gi, sizeof(gi));
         return pi;
     };
@@ -184,11 +184,11 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     const World& world = sim().world();
     const u8 me = session.localPlayer();
     m_prediction.begin();
-    sim().forEachPendingInput([&](u32, const net::PlayerInput& in) { m_prediction.addInput(world, me, in); });
+    sim().forEachPendingInput([&](u32, const session::PlayerInput& in) { m_prediction.addInput(world, me, in); });
     m_prediction.update(static_cast<f32>(dt), look.prediction, world.state.flow.phase == MatchPhase::Playing && playerPawn(world.state, me));
 
     // Game screen UI: state → view model, button actions (changes to the simulation go through confirmed commands)
-    std::array<std::string, net::kMaxPlayers> names;
+    std::array<std::string, session::kMaxPlayers> names;
     for (u32 i = 0; i < names.size(); ++i) names[i] = Flow::playerName(session, i);
     fillHud(sim().world(), session.localPlayer(), look, names, m_hudVm);
     m_save.playSeconds += static_cast<f32>(dt);

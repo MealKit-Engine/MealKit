@@ -3,7 +3,7 @@
 #include "sim/World.h"
 #include "view/ViewTuning.h"
 
-#include "mealkit/net/Lockstep.h"
+#include "mealkit/session/Session.h"
 
 // Moves only my character's appearance ahead (ROADMAP stage 1 "Predict only my character's appearance"): during input delay (tens to hundreds of ms)
 // my character is drawn ahead by my movement inputs sent but not yet executed. The simulation is unchanged (unrelated to determinism),
@@ -15,7 +15,7 @@ struct LocalPrediction {
 
     // Every frame: receives the movement to add this time (sum of not yet executed inputs) and smoothly moves offset toward it
     void begin() { m_target = {}; }
-    void addInput(const World& world, u8 player, const mealkit::net::PlayerInput& input);
+    void addInput(const World& world, u8 player, const mealkit::session::PlayerInput& input);
     void update(f32 dt, const PredictionLook& look, bool active);
     void reset() { offset = m_target = {}; }
 

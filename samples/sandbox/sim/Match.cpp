@@ -8,8 +8,8 @@ namespace {
 
 using mealkit::sim::FlowEvent;
 
-std::array<mealkit::sim::MatchPlayer, mealkit::net::kMaxPlayers> matchPlayers(const World& world) {
-    std::array<mealkit::sim::MatchPlayer, mealkit::net::kMaxPlayers> players{};
+std::array<mealkit::sim::MatchPlayer, mealkit::session::kMaxPlayers> matchPlayers(const World& world) {
+    std::array<mealkit::sim::MatchPlayer, mealkit::session::kMaxPlayers> players{};
     for (u32 i = 0; i < world.state.playerCount; ++i) {
         const PlayerSlot& slot = world.state.slots[i];
         players[i].present = slot.connected;

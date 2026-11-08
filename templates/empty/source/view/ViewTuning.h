@@ -43,7 +43,7 @@ MEALKIT_STRUCT(CameraTuning) {
     MEALKIT_FIELD(mealkit::scene::VirtualCameraFields, menu, defaultMenuCamera(), "메뉴 뒤 카메라");
 };
 
-using PlayerColors = std::array<Color, mealkit::net::kMaxPlayers>;
+using PlayerColors = std::array<Color, mealkit::session::kMaxPlayers>;
 
 MEALKIT_STRUCT(ViewTuning) {
     MEALKIT_FIELD(CameraTuning, camera, {}, "카메라");

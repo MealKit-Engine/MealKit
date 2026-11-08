@@ -30,6 +30,7 @@ sim/Table.h
 physics/PhysicsWorld.h
 jobs/Jobs.h
 net/Lockstep.h
+session/Session.h
 
 # Data and assets
 data/Tables.h

@@ -339,7 +339,7 @@ void removeFallenPawns(World& world) {
 // A disconnected player's hero is removed
 void setPresence(World& world, const mealkit::sim::Presence& presence) {
     WorldState& s = world.state;
-    if (presence.player >= mealkit::net::kMaxPlayers) return;
+    if (presence.player >= mealkit::session::kMaxPlayers) return;
     PlayerSlot& slot = s.slots[presence.player];
     if (!presence.connected) {
         slot.connected = false;

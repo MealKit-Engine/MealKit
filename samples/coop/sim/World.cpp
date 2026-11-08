@@ -116,7 +116,7 @@ void World::setTuning(const Tuning& value) {
     physics.setGravity(tuning.gravity);
 }
 
-void World::step(const mealkit::net::TickInputs& tickInputs) {
+void World::step(const mealkit::session::TickInputs& tickInputs) {
     MEALKIT_ZONE("World::step");
     for (u32 i = 0; i < state.playerCount; ++i) std::memcpy(&inputs[i], tickInputs.players[i].bytes, sizeof(GameInput));
     events.clear();

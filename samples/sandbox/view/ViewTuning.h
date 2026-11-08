@@ -83,7 +83,7 @@ MEALKIT_STRUCT(PredictionLook) {
     MEALKIT_FIELD(f32, follow, 14.0f, "따라가는 빠르기 (1/s, 클수록 바로)");
 };
 
-using PlayerColors = std::array<Color, mealkit::net::kMaxPlayers>;
+using PlayerColors = std::array<Color, mealkit::session::kMaxPlayers>;
 using PropColors = std::array<Color, kPropColorCount>;
 
 MEALKIT_STRUCT(ViewTuning) {

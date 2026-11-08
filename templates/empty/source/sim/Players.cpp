@@ -85,7 +85,7 @@ void sensePawns(World& world) {
 // Someone joined or left mid-match. A leaving player's character is removed (the slot and score remain); a joining player gets one next tick
 void setPresence(World& world, const mealkit::sim::Presence& presence) {
     WorldState& s = world.state;
-    if (presence.player >= mealkit::net::kMaxPlayers) return;
+    if (presence.player >= mealkit::session::kMaxPlayers) return;
     PlayerSlot& slot = s.slots[presence.player];
     slot.connected = presence.connected;
     if (!presence.connected) {

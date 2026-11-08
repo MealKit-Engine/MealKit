@@ -32,7 +32,7 @@ void onPlayerFell(World& world, u32 slot);  // scoring and lives (removeFallenPa
 
 // Commands.cpp
 inline constexpr u32 kMaxShockwavePushes = 8; // number of pushes one debug command can do (so a bad value doesn't stall)
-void applyCommands(World& world, const mealkit::net::TickInputs& inputs); // confirmed commands (at the start of step)
+void applyCommands(World& world, const mealkit::session::TickInputs& inputs); // confirmed commands (at the start of step)
 
 // Props.cpp
 void spawnProps(World& world, u64 seed); // count boxes per box spawn area (scene order, same random sequence)

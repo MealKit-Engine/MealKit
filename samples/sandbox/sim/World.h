@@ -3,7 +3,7 @@
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/core/Math.h"
 #include "mealkit/core/Random.h"
-#include "mealkit/net/Lockstep.h"
+#include "mealkit/session/Session.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/scene/Scene.h"
 #include "mealkit/sim/MatchFlow.h"
@@ -48,7 +48,7 @@ struct GameInput {
     u8 buttons = 0;
     u8 reserved[5] = {};
 };
-static_assert(sizeof(GameInput) == mealkit::net::kInputBytes);
+static_assert(sizeof(GameInput) == mealkit::session::kInputBytes);
 
 // ---------------------------------------------------------------- Players and characters (docs/ROADMAP.md "Separating players and characters")
 // PlayerSlot: a connected person. Persists through the match (score etc.).
@@ -145,7 +145,7 @@ MEALKIT_STRUCT(WorldState) {
     MEALKIT_FIELD(u32, tick, 0, "틱");
     MEALKIT_FIELD(mealkit::sim::MatchFlow, flow, {}, "매치 흐름 (단계, 라운드, 승자)");
     MEALKIT_FIELD(u32, playerCount, 0, "플레이어 수");
-    MEALKIT_ARRAY(PlayerSlot, mealkit::net::kMaxPlayers, slots, "플레이어 슬롯");
+    MEALKIT_ARRAY(PlayerSlot, mealkit::session::kMaxPlayers, slots, "플레이어 슬롯");
     MEALKIT_FIELD(mealkit::sim::Pool<Controller>, controllers, {}, "컨트롤러");
     MEALKIT_FIELD(mealkit::sim::Pool<Pawn>, pawns, {}, "Pawn");
     MEALKIT_FIELD(mealkit::Pcg32, aiRng, {}, "AI 난수");
@@ -171,7 +171,7 @@ struct World {
                u32 tickRate, u32 physicsThreads = 0);
     // Changes tuning mid-match (editor solo play only: in multiplayer, differing per peer would desync)
     void setTuning(const Tuning& value);
-    void step(const mealkit::net::TickInputs& inputs);
+    void step(const mealkit::session::TickInputs& inputs);
     u64 hash() const;
     u32 activeBodies() const { return physics.activeBodyCount(); }
 
@@ -195,7 +195,7 @@ struct World {
 
     // State
     WorldState state;
-    GameInput inputs[mealkit::net::kMaxPlayers] = {}; // this tick's inputs (filled at the start of step)
+    GameInput inputs[mealkit::session::kMaxPlayers] = {}; // this tick's inputs (filled at the start of step)
     mealkit::physics::PhysicsWorld physics;
 
     // This tick's view notifications (cleared at the start of step, not hashed)

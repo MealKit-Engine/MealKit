@@ -71,7 +71,7 @@ void World::reset(u64 seed, u32 playerCount, const Tuning& tuningValue, const sc
     loadScene(*this, scene, models);
     state.playerCount = playerCount;
     for (u32 i = 0; i < playerCount; ++i) state.slots[i].connected = true;
-    state.pawns.init(mealkit::net::kMaxPlayers * 2); // with a 0-tick respawn wait, the old and new character coexist within one tick
+    state.pawns.init(mealkit::session::kMaxPlayers * 2); // with a 0-tick respawn wait, the old and new character coexist within one tick
     respawnPawns(*this);
     state.pawns.endTick();
     sensePawns(*this);
@@ -85,7 +85,7 @@ void World::setTuning(const Tuning& value) {
     physics.setGravity(tuning.gravity);
 }
 
-void World::step(const mealkit::net::TickInputs& tickInputs) {
+void World::step(const mealkit::session::TickInputs& tickInputs) {
     MEALKIT_ZONE("World::step");
     for (u32 i = 0; i < state.playerCount; ++i) std::memcpy(&inputs[i], tickInputs.players[i].bytes, sizeof(GameInput));
     events.clear();

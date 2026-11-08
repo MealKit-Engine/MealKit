@@ -22,7 +22,7 @@ void GameSession::loadSave(const std::string& userFolder) {
 }
 
 // Before the match: match start data (mealkit/game/Loadout.h) goes here, e.g. game::setLoadout(session, loadout) from a lobby choice
-void GameSession::lobby(net::LockstepSession& session, const game::PlayOptions& options, const std::string& userFolder) {
+void GameSession::lobby(session::Session& session, const game::PlayOptions& options, const std::string& userFolder) {
     (void)session;
     (void)options;
     loadSave(userFolder);
@@ -58,7 +58,7 @@ void GameSession::stop(game::GameContext& ctx) {
 }
 
 void GameSession::update(game::GameContext& ctx, f64 dt) {
-    net::LockstepSession& session = ctx.session;
+    session::Session& session = ctx.session;
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     loadSave(ctx.userFolder);
     // Screen flow: opens screens matching the session phase and handles buttons (menu/lobby/pause/results/chat)
@@ -97,7 +97,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
         if (m_flow.blocksInput()) gi = GameInput{};
         m_input.clearLatches();
         if (m_options.bot) return Headless::botInput(tick, session.localPlayer());
-        net::PlayerInput pi;
+        session::PlayerInput pi;
         std::memcpy(pi.bytes, &gi, sizeof(gi));
         return pi;
     };

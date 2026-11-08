@@ -15,7 +15,7 @@
 #include "mealkit/asset/ModelCache.h"
 #include "mealkit/audio/Audio.h"
 #include "mealkit/game/SimulationGame.h"
-#include "mealkit/net/Lockstep.h"
+#include "mealkit/session/Session.h"
 #include "mealkit/render/DrawList.h"
 #include "mealkit/render/Renderer.h"
 #include "mealkit/scene/Scene.h"
@@ -45,7 +45,7 @@ public:
     void update(mealkit::game::GameContext& ctx, mealkit::f64 dt) override;
     void buildFrame(mealkit::game::GameContext& ctx, mealkit::f64 now, mealkit::render::FrameParams& frame,
                     mealkit::render::DrawList& out) override;
-    void lobby(mealkit::net::LockstepSession& session, const mealkit::game::PlayOptions& options,
+    void lobby(mealkit::session::Session& session, const mealkit::game::PlayOptions& options,
                const std::string& userFolder) override;
     void loadSave(const std::string& userFolder);
     void debugUi(mealkit::game::GameContext& ctx) override;
@@ -74,7 +74,7 @@ private:
     SaveData m_save;
     bool m_saveLoaded = false;
     mealkit::f64 m_saveTimer = 0.0;
-    std::array<NameTagVm, mealkit::net::kMaxPlayers> m_tagVms; // must live until drawAt draws them
+    std::array<NameTagVm, mealkit::session::kMaxPlayers> m_tagVms; // must live until drawAt draws them
     // State drawn during hitstop: the two tick states and interpolation fraction at the moment it started (the simulation keeps running)
     bool m_frozen = false;
     WorldState m_frozenPrevious, m_frozenCurrent;

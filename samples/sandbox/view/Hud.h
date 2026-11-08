@@ -35,7 +35,7 @@ MEALKIT_VIEWMODEL(HudVm) {
     MEALKIT_FIELD(bool, alive, true, "내 캐릭터가 있다");
     MEALKIT_FIELD(mealkit::u32, totalFalls, 0, "기록: 모든 매치에서 떨어진 횟수 (세이브)");
     MEALKIT_FIELD(mealkit::u32, playMinutes, 0, "기록: 플레이 시간 (분, 세이브)");
-    MEALKIT_LIST(PlayerRowVm, players, mealkit::net::kMaxPlayers, "플레이어");
+    MEALKIT_LIST(PlayerRowVm, players, mealkit::session::kMaxPlayers, "플레이어");
     MEALKIT_LIST(ChatLineVm, chat, 5, "채팅 (최근, 잠시 보인다)");
     MEALKIT_FIELD(bool, chatOpen, false, "채팅을 치는 중");
     MEALKIT_FIELD(std::string, waiting, {}, "입력을 기다리는 플레이어 (멈췄을 때, 플레이어 설정으로 끈다)");
@@ -50,6 +50,6 @@ MEALKIT_VIEWMODEL(NameTagVm) {
 
 // State → HUD (every frame). names: a name per player index (set in the lobby)
 void fillHud(const WorldState& state, const Tuning& tuning, u8 localPlayer, const ViewTuning& look,
-             const std::array<std::string, mealkit::net::kMaxPlayers>& names, HudVm& vm);
+             const std::array<std::string, mealkit::session::kMaxPlayers>& names, HudVm& vm);
 
 } // namespace sandbox

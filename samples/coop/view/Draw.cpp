@@ -118,7 +118,7 @@ void drawWorld(const World& world, const WorldState& previous, const WorldState&
         if (b.velocity.x * b.velocity.x + b.velocity.z * b.velocity.z > pl.turnMinSpeed * pl.turnMinSpeed)
             yaw = std::atan2(b.velocity.x, b.velocity.z);
         const Quat facing = quatFromAxisAngle({0, 1, 0}, yaw);
-        const Color color = b.downed ? pl.downedColor : player != kNoPlayer ? look.playerColors[player % net::kMaxPlayers] : pl.aiColor;
+        const Color color = b.downed ? pl.downedColor : player != kNoPlayer ? look.playerColors[player % session::kMaxPlayers] : pl.aiColor;
         if (b.downed && b.revive > 0) { // revive bar above the downed hero, growing with the progress
             const f32 p = reviveProgress(world, b);
             out.add(box, {pos + Vec3{0.0f, pl.reviveBarHeight, 0.0f}, pl.reviveColor.value, {},

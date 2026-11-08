@@ -23,8 +23,8 @@ constexpr i32 kPauseLayer = 20;
 
 } // namespace
 
-std::string Flow::playerName(const net::LockstepSession& session, u32 slot) {
-    for (const net::LobbyMember& m : session.lobbyMembers())
+std::string Flow::playerName(const session::Session& session, u32 slot) {
+    for (const session::LobbyMember& m : session.lobbyMembers())
         if (m.player == slot && !m.name.empty()) return m.name;
     return "P" + std::to_string(slot + 1);
 }
@@ -91,7 +91,7 @@ void Flow::stop(game::GameContext& ctx) {
 
 void Flow::update(game::GameContext& ctx, const FlowGame& game, SaveData& save, HudVm& hud, ui::ScreenId hudScreen, f64 dt) {
     m_time += dt;
-    net::LockstepSession& session = ctx.session;
+    session::Session& session = ctx.session;
     if (!m_nameLoaded) { // first time: the name from the save (or the engine's default name: account/user name)
         m_nameLoaded = true;
         if (!save.playerName.empty()) session.setLocalName(save.playerName);
@@ -131,7 +131,7 @@ void Flow::update(game::GameContext& ctx, const FlowGame& game, SaveData& save, 
         break;
     case Screen::Message:
         m_message.text = endText(ctx);
-        m_message.title = ctx.strings.get(ctx.session.rejectInfo().reason != net::RejectReason::None ? "message.rejected" : "message.title");
+        m_message.title = ctx.strings.get(ctx.session.rejectInfo().reason != session::RejectReason::None ? "message.rejected" : "message.title");
         for (const ui::Action& a : ctx.ui.actions())
             if (a.name == "message.ok") {
                 ctx.match.leave();
@@ -145,26 +145,26 @@ void Flow::update(game::GameContext& ctx, const FlowGame& game, SaveData& save, 
 
 // Disconnect reason: for connection rejections, what differs (version, platform, game data), otherwise the session's reason
 std::string Flow::endText(game::GameContext& ctx) const {
-    const net::RejectInfo& r = ctx.session.rejectInfo();
+    const session::RejectInfo& r = ctx.session.rejectInfo();
     switch (r.reason) {
-    case net::RejectReason::Version:
+    case session::RejectReason::Version:
         return ctx.strings.format("reject.version", {{"mine", ctx.match.config().build.gameVersion}, {"host", r.hostVersion}});
-    case net::RejectReason::Platform: return ctx.strings.format("reject.platform", {{"host", r.hostGroup}});
-    case net::RejectReason::Content: {
+    case session::RejectReason::Platform: return ctx.strings.format("reject.platform", {{"host", r.hostGroup}});
+    case session::RejectReason::Content: {
         static const char* keys[] = {"content.scene", "content.models", "content.tuning", "content.project", "content.tables"};
         std::string parts;
         for (u32 i = 0; i < 5; ++i)
             if (r.contentMask & (1u << i)) parts += (parts.empty() ? "" : ", ") + ctx.strings.get(keys[i]);
         return ctx.strings.format("reject.content", {{"parts", parts}});
     }
-    case net::RejectReason::Full: return ctx.strings.get("reject.full");
-    case net::RejectReason::InProgress: return ctx.strings.get("reject.started");
-    case net::RejectReason::Input: {
+    case session::RejectReason::Full: return ctx.strings.get("reject.full");
+    case session::RejectReason::InProgress: return ctx.strings.get("reject.started");
+    case session::RejectReason::Input: {
         static constexpr const char* kInputKeys[] = {"lobby.inputKeyboard", "lobby.inputGamepad", "lobby.inputTouch"};
         return ctx.strings.format("reject.input", {{"host", ctx.strings.get(kInputKeys[static_cast<u32>(r.hostInput)])}});
     }
-    case net::RejectReason::Crossplay: return ctx.strings.format("reject.crossplay", {{"host", r.hostPlatform}});
-    case net::RejectReason::None: break;
+    case session::RejectReason::Crossplay: return ctx.strings.format("reject.crossplay", {{"host", r.hostPlatform}});
+    case session::RejectReason::None: break;
     }
     return ctx.match.error();
 }
@@ -227,7 +227,7 @@ void Flow::updateJoin(game::GameContext& ctx) {
 }
 
 void Flow::updateLobby(game::GameContext& ctx, const FlowGame& game, SaveData& save) {
-    net::LockstepSession& session = ctx.session;
+    session::Session& session = ctx.session;
     const game::MatchPhase phase = ctx.match.phase();
     m_lobby.connecting = phase != game::MatchPhase::Lobby;
     m_lobby.isHost = session.isHost() && !m_lobby.connecting;
@@ -249,11 +249,11 @@ void Flow::updateLobby(game::GameContext& ctx, const FlowGame& game, SaveData& s
     }
     m_lobby.choice = save.lobbyChoice;
 
-    const std::vector<net::LobbyMember>& members = session.lobbyMembers();
-    m_lobby.playersCount = std::min<u32>(static_cast<u32>(members.size()), net::kMaxPlayers);
+    const std::vector<session::LobbyMember>& members = session.lobbyMembers();
+    m_lobby.playersCount = std::min<u32>(static_cast<u32>(members.size()), session::kMaxPlayers);
     bool allReady = true;
     for (u32 i = 0; i < m_lobby.playersCount; ++i) {
-        const net::LobbyMember& m = members[i];
+        const session::LobbyMember& m = members[i];
         LobbyRowVm& row = m_lobby.players[i];
         row.name = m.name;
         row.ready = m.ready;
@@ -276,7 +276,7 @@ void Flow::updateLobby(game::GameContext& ctx, const FlowGame& game, SaveData& s
     m_lobby.slowWarning.clear();
     if (const u32 slow = ctx.match.slowPlayers()) { // people farther than the input delay cap (mealkit.project)
         std::string names;
-        for (const net::LobbyMember& m : members)
+        for (const session::LobbyMember& m : members)
             if (m.player < 32 && (slow & (1u << m.player))) names += (names.empty() ? "" : ", ") + m.name;
         m_lobby.slowWarning = ctx.strings.format("lobby.slow", {{"names", names}});
     }
@@ -295,8 +295,8 @@ void Flow::updateLobby(game::GameContext& ctx, const FlowGame& game, SaveData& s
     }
 }
 
-void Flow::fillChat(const net::LockstepSession& session, ChatLineVm* lines, u32& count, u32 capacity) {
-    const std::vector<net::ChatMessage>& log = session.chatLog();
+void Flow::fillChat(const session::Session& session, ChatLineVm* lines, u32& count, u32 capacity) {
+    const std::vector<session::ChatMessage>& log = session.chatLog();
     count = std::min<u32>(static_cast<u32>(log.size()), capacity);
     const size_t first = log.size() - count;
     for (u32 i = 0; i < count; ++i) {
@@ -306,8 +306,8 @@ void Flow::fillChat(const net::LockstepSession& session, ChatLineVm* lines, u32&
 }
 
 void Flow::fillResults(game::GameContext& ctx, const FlowGame& game) {
-    std::array<u32, net::kMaxPlayers> order{};
-    const u32 count = std::min<u32>(game.playerCount, net::kMaxPlayers);
+    std::array<u32, session::kMaxPlayers> order{};
+    const u32 count = std::min<u32>(game.playerCount, session::kMaxPlayers);
     for (u32 i = 0; i < count; ++i) order[i] = i;
     // Best score first (player index order on ties)
     std::stable_sort(order.begin(), order.begin() + count, [&](u32 a, u32 b) {
@@ -331,7 +331,7 @@ void Flow::fillResults(game::GameContext& ctx, const FlowGame& game) {
 }
 
 void Flow::updateMatch(game::GameContext& ctx, const FlowGame& game, HudVm& hud, ui::ScreenId hudScreen) {
-    net::LockstepSession& session = ctx.session;
+    session::Session& session = ctx.session;
 
     // Results: when the simulation says it's over (on the same tick for everyone)
     if (game.results && !m_ids.results) {
@@ -363,7 +363,7 @@ void Flow::updateMatch(game::GameContext& ctx, const FlowGame& game, HudVm& hud,
     } else if (m_chatOpen && !ctx.ui.editingText()) {
         m_chatOpen = false;
     }
-    const std::vector<net::ChatMessage>& log = session.chatLog();
+    const std::vector<session::ChatMessage>& log = session.chatLog();
     if (!log.empty() && log.back().serial != m_lastChatSerial) {
         m_lastChatSerial = log.back().serial;
         m_chatShownUntil = m_time + game.chatShowSeconds;

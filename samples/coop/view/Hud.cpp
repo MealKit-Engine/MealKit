@@ -8,7 +8,7 @@ using namespace mealkit;
 namespace coop {
 
 void fillHud(const World& world, u8 localPlayer, const ViewTuning& look,
-             const std::array<std::string, net::kMaxPlayers>& names, HudVm& vm) {
+             const std::array<std::string, session::kMaxPlayers>& names, HudVm& vm) {
     const WorldState& state = world.state;
     const Tuning& tuning = world.tuning;
     const f32 rate = static_cast<f32>(reflect::tickRate());
@@ -23,7 +23,7 @@ void fillHud(const World& world, u8 localPlayer, const ViewTuning& look,
                                                        : 0.0f;
         vm.go = state.flow.phase == MatchPhase::Playing && tuning.roundLength.value - left < static_cast<u32>(rate);
     }
-    vm.playersCount = std::min<u32>(state.playerCount, net::kMaxPlayers);
+    vm.playersCount = std::min<u32>(state.playerCount, session::kMaxPlayers);
     for (u32 i = 0; i < vm.playersCount; ++i) {
         PlayerRowVm& row = vm.players[i];
         row.name = names[i];

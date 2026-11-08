@@ -26,6 +26,6 @@ void updateMatch(World& world); // phase changes (start of step) and the goal ch
 bool matchPlaying(const World& world);
 
 // Commands.cpp
-void applyCommands(World& world, const mealkit::net::TickInputs& inputs);
+void applyCommands(World& world, const mealkit::session::TickInputs& inputs);
 
 } // namespace coop

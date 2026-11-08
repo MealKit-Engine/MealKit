@@ -35,7 +35,7 @@ void Headless::startWorld(World& world, const game::MatchInfo& match, const Tuni
 }
 
 // Outside the simulation, so trig is fine (only the resulting bytes go in as input)
-net::PlayerInput Headless::botInput(u32 tick, u8 player) {
+session::PlayerInput Headless::botInput(u32 tick, u8 player) {
     GameInput g;
     // Heads for the goal corner (+x +z in the sample scene) weaving a little, and stands still for 3 of every 12 seconds
     // (so the team bunches up, chasers catch someone, and teammates nearby revive them)
@@ -45,16 +45,16 @@ net::PlayerInput Headless::botInput(u32 tick, u8 player) {
     g.moveZ = resting ? 0 : quantize(0.7f + 0.3f * std::cos(a));
     if ((tick + player * 11u) % 70u == 0) g.buttons |= kButtonPush;
     if ((tick + player * 7u) % 75u == 0) g.buttons |= kButtonJump;
-    net::PlayerInput pi;
+    session::PlayerInput pi;
     std::memcpy(pi.bytes, &g, sizeof(g));
     return pi;
 }
 
-void Headless::botCommands(u32 tick, u8 player, net::LockstepSession& session) {
+void Headless::botCommands(u32 tick, u8 player, session::Session& session) {
     if ((tick + player * 53u) % 300u == 150u) sim::sendCommand(session, DebugStunAll{});
 }
 
-void Headless::botLoadout(u8 player, net::LockstepSession& session) {
+void Headless::botLoadout(u8 player, session::Session& session) {
     Loadout l;
     l.body = player % 3u; // normal, light, heavy (bodies.table order, all active ragdolls)
     game::setLoadout(session, l);

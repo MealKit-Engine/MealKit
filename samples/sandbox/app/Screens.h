@@ -3,7 +3,7 @@
 #include "view/Hud.h"
 
 #include "mealkit/core/Reflect.h"
-#include "mealkit/net/Lockstep.h"
+#include "mealkit/session/Session.h"
 
 #include <string>
 
@@ -61,7 +61,7 @@ MEALKIT_VIEWMODEL(LobbyVm) {
     MEALKIT_FIELD(bool, needReady, false, "방장: 모두 준비하기를 기다린다");
     MEALKIT_FIELD(std::string, slowWarning, {}, "핑이 입력 지연 상한보다 큰 사람 (매치가 멈칫거린다)");
     MEALKIT_FIELD(std::string, version, {}, "게임 버전 (v0.1.0 (커밋))");
-    MEALKIT_LIST(LobbyRowVm, players, mealkit::net::kMaxPlayers, "플레이어");
+    MEALKIT_LIST(LobbyRowVm, players, mealkit::session::kMaxPlayers, "플레이어");
     MEALKIT_LIST(ChatLineVm, chat, 8, "채팅 (최근)");
     MEALKIT_FIELD(std::string, chatDraft, {}, "보낼 채팅 (글자 입력)");
 };
@@ -81,7 +81,7 @@ MEALKIT_STRUCT(ResultRowVm) {
 };
 
 MEALKIT_VIEWMODEL(ResultsVm) {
-    MEALKIT_LIST(ResultRowVm, rows, mealkit::net::kMaxPlayers, "순위");
+    MEALKIT_LIST(ResultRowVm, rows, mealkit::session::kMaxPlayers, "순위");
     MEALKIT_FIELD(bool, isHost, false, "방장 (로비로 버튼)");
     MEALKIT_FIELD(mealkit::u32, secondsLeft, 0, "자동으로 로비로 돌아가기까지 (방장)");
 };

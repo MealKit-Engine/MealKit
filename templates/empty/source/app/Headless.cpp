@@ -19,13 +19,13 @@ void Headless::startWorld(World& world, const game::MatchInfo& match, const Tuni
 }
 
 // Outside the simulation, so trig is fine (only the resulting bytes go in as input)
-net::PlayerInput Headless::botInput(u32 tick, u8 player) {
+session::PlayerInput Headless::botInput(u32 tick, u8 player) {
     GameInput g;
     const f32 a = static_cast<f32>(tick) * 0.05f + static_cast<f32>(player) * 1.7f;
     g.moveX = quantize(std::sin(a));
     g.moveZ = quantize(std::cos(a));
     if ((tick + player * 7u) % 75u == 0) g.buttons |= kButtonJump;
-    net::PlayerInput pi;
+    session::PlayerInput pi;
     std::memcpy(pi.bytes, &g, sizeof(g));
     return pi;
 }

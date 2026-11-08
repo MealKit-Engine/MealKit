@@ -39,7 +39,7 @@ public:
     void update(mealkit::game::GameContext& ctx, mealkit::f64 dt) override;
     void buildFrame(mealkit::game::GameContext& ctx, mealkit::f64 now, mealkit::render::FrameParams& frame,
                     mealkit::render::DrawList& out) override;
-    void lobby(mealkit::net::LockstepSession& session, const mealkit::game::PlayOptions& options,
+    void lobby(mealkit::session::Session& session, const mealkit::game::PlayOptions& options,
                const std::string& userFolder) override;
 
 private:

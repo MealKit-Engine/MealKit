@@ -6,7 +6,7 @@
 
 namespace coop {
 
-void applyCommands(World& world, const mealkit::net::TickInputs& inputs) {
+void applyCommands(World& world, const mealkit::session::TickInputs& inputs) {
     mealkit::sim::forEachCommand(inputs, [&](const mealkit::sim::Command& c) {
         if (mealkit::sim::Presence p; mealkit::sim::readPresence(c, p)) {
             setPresence(world, p);

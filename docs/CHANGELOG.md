@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 6, part 1: the session interface (v0.9.x, 2026-11-08)
+
+- New module `session` (kind sim, no requires): `session::Session`, the abstract match session game code sees (state, lobby, loadouts, chat, ticks, commands, late join; 48 functions), and the types it uses, moved out of `net/Lockstep.h` (`PlayerInput`, `TickInputs`, `forEachCommand`, `SessionState`, `LobbyMember`, `ChatMessage`, `RejectInfo`, the `k*` limits, `clampUtf8`, `inputKindName`). `net` keeps `using` names for them, so engine net code is unchanged.
+- `net::LockstepSession` is `final : public session::Session`; setup (host, join, transports, conditions, auto delay, build and content hashes) stays on it, and `game::MatchService` still owns it and returns the concrete type.
+- Game-facing code takes `session::Session&`: `GameContext::session`, `GameInstance::lobby`, headless bot hooks, `game::Simulation`, `matchInfo`, `setLoadout`, `FrameStats`, `sim::sendCommand`; `sim` now requires `session` instead of `net`. Samples, the empty template and FuseTag were converted by script (`net::LockstepSession&` → `session::Session&`, moved names → `session::`, and `#include "mealkit/net/Lockstep.h"` → `mealkit/session/Session.h` where nothing else from net is used). `session/Session.h` joined `engine/public_headers.txt`.
+- One virtual call per session function, a few per tick.
+- Not done (part 2): a `LocalSession` and building without `net`. Offline play and replays still run through `LockstepSession`, whose 2,300-line implementation mixes the lockstep core with sockets, so `net` can't leave a build until that file is split.
+- Checked: Release and Editor builds of the engine and FuseTag (Editor). Nothing was run.
+
 ## Engine module split 5: service registry and module order (v0.9.x, 2026-11-08)
 
 - `core/Services.h`: `services::provide/withdraw/find/get<T>()` keyed by the type's name (from `__FUNCSIG__`/`__PRETTY_FUNCTION__`), so `mealkit.dll` and a game DLL agree without exported template statics; `ServiceScope<T>` provides for a scope and withdraws in reverse order. Providing a type again shadows the earlier one until it withdraws (editor play inside the editor). No allocation per provide: keys view the string literals.
