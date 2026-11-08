@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 2: manifests on the current folders (v0.9.x, 2026-11-08)
+
+- `engine-module.txt` in all 23 folders of `engine/src/mealkit/` (`@format engine-module 1`: name, version 0.1.0, kernel 0.9, kind, requires, tag, summary). `requires` was generated from the real cross-folder includes, so nothing in the code changed. Kernel: `core`, `platform`, `jobs`. Sim: `net`, `physics`, `sim`, `data`, `scene`, `asset`. Tool: `live`, `debug`, `editor`. The rest are view.
+- `asset` (sim) still includes `render` and `rhi` for the texture cache and GPU model parts: declared as `transitional render rhi`, removed when step 4 moves those parts to `render`.
+- `tools\check_modules.ps1` replaces `check_layers.ps1` (check.ps1 static group, CI): manifest format, unknown modules, cycles, includes outside `requires`, kind rules, stale `transitional` entries, and the core source list check moved over unchanged. Unused `requires` are warnings. Dependency order printed on success.
+- `platform/<os>/` files stay excluded (they implement `net/Socket.h`). No `public` lines yet (`engine/public_headers.txt` stays the one list until step 4); manifests aren't read by C++ yet, so mkcontract waits for step 7.
+- Checked: `check_modules.ps1` passes and fails as expected on a planted include and a planted cycle. The full check.ps1 wasn't run.
+
 ## Engine module split 1: kernel memory (v0.9.x, 2026-11-08)
 
 - `core/Memory.h`: memory tags by name (`mem::tag("render")`, at most 64, "other" for the rest), counted with relaxed atomics (bytes now, peak, allocation calls). `mem::allocate/deallocate`, `mem::heap(tag)` (a `std::pmr::memory_resource` per tag), `mem::Allocator<T, Name>` (stateless, for containers that must stay plain std types), `mem::Arena` (linear, `reset`/`trim`, pages from the heap under its tag, pmr resource) and `mem::FixedPool` (same-size blocks, free list).

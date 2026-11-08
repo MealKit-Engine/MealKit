@@ -799,7 +799,7 @@ A 2026-11-04 pass over every game development role: how each should work, and wh
 The engine becomes a kernel, and every subsystem an engine module in its own repo (`docs/DECISIONS.md` 2026-11-08, design and details in `docs/ENGINE_MODULES.md`). Built now, before "Publication preparation" finishes, since repo layout and contract paths change. Each item is done when the Editor and Release builds, render goldens on DX12 and Vulkan, and the determinism group pass.
 
 - [x] 1. Kernel memory — 2026-11-08, details in `docs/CHANGELOG.md` (miniaudio hooks and per-tag budgets left for later)
-- [ ] 2. `engine-module.txt` manifests on the current folders, `check_modules.ps1` replaces `check_layers.ps1`
+- [x] 2. Manifests and `check_modules.ps1` — 2026-11-08, details in `docs/CHANGELOG.md`
 - [ ] 3. Kernel target `engine/core/` (`mealkit_core`), `sim/` containers moved into it
 - [ ] 4. Module targets in `modules/<name>/`, leaves first (camera … editor)
 - [ ] 5. Kernel service registry and dependency-order init; `GameContext::get<T>()`

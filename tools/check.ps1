@@ -47,7 +47,7 @@ $folderGroups = @{
 $pathRules = @(
     @('\.md$', ''), @('^docs/', ''), @('^\.github/', ''), @('^\.claude/', ''), @('^\.git(ignore|attributes)$', ''),
     @('^samples/[^/]+/art/ui/preview/', 'tools'), @('^samples/[^/]+/art/', ''),
-    @('^engine/public_headers\.txt$', 'static'), @('^engine/src/mealkit/([^/]+)/', 'folder:$1'), @('^engine/libs/mkui/', 'folder:ui'), @('^engine/shaders/', 'folder:render'),
+    @('^engine/public_headers\.txt$', 'static'), @('^engine/src/mealkit/[^/]+/engine-module\.txt$', 'static'), @('^engine/src/mealkit/([^/]+)/', 'folder:$1'), @('^engine/libs/mkui/', 'folder:ui'), @('^engine/shaders/', 'folder:render'),
     @('^engine/tests/golden/', 'render'), @('^engine/tests/perf/', 'game'), @('^engine/tests/', 'unit-all'),
     @('^engine/tools/SimCheck', 'editor project'), @('^engine/tools/', 'game'), @('^engine/res/', 'editor'),
     @('^third_party/mkaudio/', 'folder:audio'), @('^third_party/', 'full'),
@@ -240,9 +240,9 @@ Invoke-Check static "Platform layer (OS APIs)" {
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
-Invoke-Check static "Engine layers (include order)" {
+Invoke-Check static "Engine modules (manifests and includes)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layers.ps1" 2>&1
+    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_modules.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }

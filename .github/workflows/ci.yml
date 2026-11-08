@@ -54,10 +54,10 @@ jobs:
         if: matrix.checks
         shell: powershell
         run: tools\check_platform.ps1
-      - name: Engine layers (check_layers)
+      - name: Engine modules (check_modules)
         if: matrix.checks
         shell: powershell
-        run: tools\check_layers.ps1
+        run: tools\check_modules.ps1
       - name: Project layout and notices (check_layout, gen_notices -Check)
         if: matrix.checks
         shell: powershell
