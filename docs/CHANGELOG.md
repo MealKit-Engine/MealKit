@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 6, part 2: a session without a network (v0.9.x, 2026-11-08)
+
+- `session::LocalSession` (`modules/session`): solo play and replays without `net`. Its ticks follow `net::LockstepSession`'s offline host path (input delay 1, the first delay ticks confirmed empty, commands packed into the tick my input confirms, the engine input delay command), so saved replays and recorded matches play the same.
+- `session::SessionSwitch` forwards to the current session. `game::MatchService` owns a `LocalSession` and a `LockstepSession`: `playOffline`/`playReplay` use the local one, host/join/online the network one. `MatchService::session()` is now `session::Session&` and the reference never changes; `network()` gives the lockstep session for setup and tests, and `setCrossplay`/`setLocalInputKind` reach both.
+- Not yet: `net::LockstepSession` still has its own offline path (tests, headless `--offline`). `game` still includes `net` unconditionally, so a build without `net` waits for the per-module targets of step 7.
+
 ## Engine module split 6, part 1: the session interface (v0.9.x, 2026-11-08)
 
 - New module `session` (kind sim, no requires): `session::Session`, the abstract match session game code sees (state, lobby, loadouts, chat, ticks, commands, late join; 48 functions), and the types it uses, moved out of `net/Lockstep.h` (`PlayerInput`, `TickInputs`, `forEachCommand`, `SessionState`, `LobbyMember`, `ChatMessage`, `RejectInfo`, the `k*` limits, `clampUtf8`, `inputKindName`). `net` keeps `using` names for them, so engine net code is unchanged.

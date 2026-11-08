@@ -208,7 +208,9 @@ set(MEALKIT_CORE_SOURCES
     ../modules/rhi/include/mealkit/rhi/Rhi.h # header only (GpuInfo in Renderer.h). Backend implementations are front end
     ../modules/net/include/mealkit/net/Socket.h
     ../modules/session/include/mealkit/session/Session.h
+    ../modules/session/include/mealkit/session/LocalSession.h
     ../modules/session/src/mealkit/session/Session.cpp
+    ../modules/session/src/mealkit/session/LocalSession.cpp
     ../modules/net/src/mealkit/net/Socket.cpp
     ../modules/net/include/mealkit/net/Transport.h
     ../modules/net/include/mealkit/net/Lockstep.h
