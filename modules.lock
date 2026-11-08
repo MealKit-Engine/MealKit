@@ -6,8 +6,8 @@ module camera https://github.com/MealKit-Engine/MealKit-Camera v0.1.1 fa541db528
 module data https://github.com/MealKit-Engine/MealKit-Data v0.1.1 b2bd743b4945300691cf9ee8a9a51c65d732b6b5 .
 module debug https://github.com/MealKit-Engine/MealKit-Debug v0.1.1 ffdfe48409f4e265032240a853324d7ad68e3a8f .
 module editor https://github.com/MealKit-Engine/MealKit-Editor v0.1.1 a61c9d1fde23941170365f86677c68ef9eaa78b2 .
-module feedback https://github.com/MealKit-Engine/MealKit-Feedback v0.1.1 e6b3260b52e95a74b1a5466618ba076effaffdef .
-module game https://github.com/MealKit-Engine/MealKit-Game v0.1.1 bce2a8864ee71251b593a49d55a926ca9274b035 .
+module feedback https://github.com/MealKit-Engine/MealKit-Feedback v0.1.2 ebf953b30b06364ed7c20c108cad683d19106f9c .
+module game https://github.com/MealKit-Engine/MealKit-Game v0.1.2 4657c1d589023e9d356e243d89aaa5de5c293ce1 .
 module input https://github.com/MealKit-Engine/MealKit-Input v0.1.1 918481c2e4c2a3c918753471b1ac1d679075d808 .
 module live https://github.com/MealKit-Engine/MealKit-Live v0.1.1 ee086a4da409e2148aba59f37d1825cb3509c848 .
 module loc https://github.com/MealKit-Engine/MealKit-Loc v0.1.1 42e9488ffbe71dbe3cd0158a8a712cd11f72992c .
@@ -20,6 +20,6 @@ module render https://github.com/MealKit-Engine/MealKit-Render v0.1.1 9ca6e85045
 module rhi https://github.com/MealKit-Engine/MealKit-RHI v0.1.1 cac000f44c9e249e29cb7055f7ef8812ff8e5d96 .
 module scene https://github.com/MealKit-Engine/MealKit-Scene v0.1.1 1029f5167db90708a9c7d2799baa7c4fad0fd623 .
 module session https://github.com/MealKit-Engine/MealKit-Session v0.1.1 e88850acddce5f05fdfa03023271a0e982e62227 .
-module settings https://github.com/MealKit-Engine/MealKit-Settings v0.1.1 0207f624171a56f94dccb6f6d4f5be7a6654a2e2 .
+module settings https://github.com/MealKit-Engine/MealKit-Settings v0.1.2 181682854661e55fb45525394e76f2fb38eea857 .
 module sim https://github.com/MealKit-Engine/MealKit-Sim v0.1.1 468ac1bcb3b6cf77a64bf6e6b311067781d59893 .
 module ui https://github.com/MealKit-Engine/MealKit-UI v0.1.1 475e4417a5d080ec0bbc4d5ca14acad79af03647 .

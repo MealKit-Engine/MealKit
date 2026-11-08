@@ -13,7 +13,9 @@
 #include "view/ViewTuning.h"
 
 #include "mealkit/asset/ModelCache.h"
+#if MEALKIT_HAS_AUDIO // the audio engine module is optional (mealkit.project engineWithout audio)
 #include "mealkit/audio/Audio.h"
+#endif
 #include "mealkit/game/SimulationGame.h"
 #include "mealkit/session/Session.h"
 #include "mealkit/render/DrawList.h"
