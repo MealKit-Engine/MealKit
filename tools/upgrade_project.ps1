@@ -6,8 +6,8 @@
 # - Files the user didn't edit (matching the hash in .mealkit-template) are replaced with the new template. Edited files aren't overwritten;
 #   the new content is left as <file>.new to show the difference. -Force replaces edited files too.
 # - mealkit.project only gets its engine and engineVersion lines changed (name/start scene/game items unchanged, line format unchanged too).
-#   Engine 0.9.1 lines enginePreset/engineModules/engineWithout/engineModuleVersion are dropped: "enginePreset standard" alone meant every engine
-#   module (what a project without engine modules in modules/ gets); any other choice becomes engine module copies in modules/ (tools\module.ps1).
+#   Engine 0.9.1 lines enginePreset/engineModules/engineWithout/engineModuleVersion are dropped and become engine module copies in modules/.
+# - A project with no engine modules in modules/ gets the standard ones copied in (tools\module.ps1 add -Preset standard), like a new project.
 # - Files from before the change are kept in .upgrade_backup\<time>\.
 # - -Source: replaces source/ game code with the code of the template the project was made from (mealkit.project "templateName": arena = samples/sandbox,
 #   empty = templates/empty + the shared screen flow). Used to move projects that didn't edit the template code to a new engine structure. source/sim/view/app files not in the sample are deleted (backed up). Only missing files are added to assets/ (no overwriting).
@@ -85,7 +85,10 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
         if (-not $seenEngine) { $lines.Add("engine$separator$MealKitEngine") }
         if (-not $seenVersion) { $lines.Add("engineVersion$separator$version") }
         # Engine 0.9.1's choice of engine modules → copies in modules/ like source modules (docs/ENGINE_MODULES.md "Module selection")
-        if ($oldOther -and -not $DryRun) {
+        $hasEngineCopies = @(Get-ChildItem (Join-Path $Project "modules") -Directory -ErrorAction SilentlyContinue |
+            Where-Object { (Test-Path (Join-Path $_.FullName "module.txt")) -and (Select-String -LiteralPath (Join-Path $_.FullName "module.txt") -Pattern '^\s*type\s+engine\s*$' -Quiet) }).Count -gt 0
+        if ($DryRun -and -not $hasEngineCopies) { Report "added" "modules (the standard engine modules)" Green }
+        if (-not $hasEngineCopies -and -not $DryRun) {
             $tool = Join-Path $PSScriptRoot "module.ps1"
             $preset = if ($oldPreset) { $oldPreset } else { "standard" }
             & powershell -NoProfile -ExecutionPolicy Bypass -File $tool add -Preset $preset -Project $Project | Out-Null
@@ -97,7 +100,7 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
             foreach ($pin in $oldPins) {
                 & powershell -NoProfile -ExecutionPolicy Bypass -File $tool update $pin[0] -To $pin[1] -Project $Project -Force | Out-Null
             }
-            Report "updated" "modules (engine modules from the old enginePreset/engineWithout/engineModuleVersion lines)" Green
+            Report "added" "modules (engine modules$(if ($oldOther) { ', from the old enginePreset/engineWithout/engineModuleVersion lines' }))" Green
         }
         $merged = ($lines -join "`r`n") + "`r`n"
         if ($merged.Replace("`r`n", "`n") -ne $current.Replace("`r`n", "`n")) {
