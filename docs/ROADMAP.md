@@ -806,7 +806,7 @@ The engine becomes a kernel, and every subsystem an engine module in its own rep
 - [x] 6. Session interface — 2026-11-08, details in `docs/CHANGELOG.md`
 - [x] 7. Project module lists and presets — 2026-11-08 (engine 0.9.1), details in `docs/CHANGELOG.md` (presets `standard` and `solo`; `kernel`/`headless` as named presets, and the editor refusing a game DLL that includes a module its project left out, wait for per-module libraries in step 9)
 - [x] 8. Editor panels into modules' `editor/` folders; online backends as modules — 2026-11-08, details in `docs/CHANGELOG.md`
-- [ ] 9. Module repos extracted with history, `modules.lock`, `tools\modules.ps1` (sync, bump, status, local mode), shared module workflow. GitHub repos created and pushed by the user
+- [x] 9. Module repos extracted with history, `modules.lock`, `tools\modules.ps1`, shared module workflow — 2026-11-08, details in `docs/CHANGELOG.md`. Left for the user: create the 20 GitHub repos under `MealKit-Engine` and push them with their `v0.1.0` tags, then tag the engine `v1` for the shared workflow. `audio` stays in the engine until its glue moves into `MealKit-Audio`
 - [ ] 10. Workspace notes and tools, CLAUDE.md rules, CODING_MODEL, CONTRACTS, docs repo (English and Korean), publication order with the new repos
 
 ## QA, optimization and audio, then repository publication (decided 2026-11-02)

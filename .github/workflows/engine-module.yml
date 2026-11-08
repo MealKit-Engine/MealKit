@@ -1,0 +1,94 @@
+# Shared CI for engine module repos (docs/ENGINE_MODULES.md "Module CI"). Each module repo calls it with one job:
+#   jobs:
+#     module:
+#       uses: MealKit-Engine/MealKit/.github/workflows/engine-module.yml@v1
+#       with:
+#         modules: "render"            # engine modules in this repo (MealKit-Online: "online online-steam online-eos")
+# It checks out the engine, replaces those modules' vendored copies with the repo under test, builds, and runs the engine tests of
+# those areas. Modules of kind sim also run the headless determinism checks on Windows and Linux.
+name: engine-module
+on:
+  workflow_call:
+    inputs:
+      modules:
+        required: true
+        type: string
+      engine-ref:
+        required: false
+        type: string
+        default: main
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: MealKit-Engine/MealKit
+          ref: ${{ inputs.engine-ref }}
+          path: MealKit
+      - uses: actions/checkout@v4
+        with:
+          path: module
+      - name: Replace the vendored copies with this repo
+        shell: pwsh
+        run: |
+          foreach ($m in "${{ inputs.modules }}".Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) {
+            $src = if (Test-Path "module/backends/$m") { "module/backends/$m" } else { "module" }
+            $dst = "MealKit/modules/$m"
+            Get-ChildItem $dst -Recurse -File | Remove-Item -Force
+            Get-ChildItem $src -Force | Where-Object { $_.Name -notin @(".git", ".github", "README.md", "backends") } |
+              Copy-Item -Destination $dst -Recurse -Force
+          }
+      - name: Module rules
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File MealKit/tools/check_modules.ps1
+      - name: Build (Release and the solo preset)
+        shell: cmd
+        run: cd MealKit && build.bat Presets
+      - name: Engine tests of these modules
+        shell: pwsh
+        run: |
+          $areas = "${{ inputs.modules }}".Replace(" ", ",")
+          MealKit/build/Presets/bin/mealkit_tests.exe --only $areas
+      - name: Determinism (kind sim modules)
+        shell: pwsh
+        run: |
+          $sim = $false
+          foreach ($m in "${{ inputs.modules }}".Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) {
+            if (Select-String -Path "MealKit/modules/$m/engine-module.txt" -Pattern '^kind sim' -Quiet) { $sim = $true }
+          }
+          if ($sim) { powershell -ExecutionPolicy Bypass -File MealKit/tools/ci_test.ps1 -Bin MealKit/build/Presets/bin -Name module-windows }
+
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          repository: MealKit-Engine/MealKit
+          ref: ${{ inputs.engine-ref }}
+          path: MealKit
+      - uses: actions/checkout@v4
+        with:
+          path: module
+      - name: Replace the vendored copies with this repo
+        shell: pwsh
+        run: |
+          foreach ($m in "${{ inputs.modules }}".Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) {
+            $src = if (Test-Path "module/backends/$m") { "module/backends/$m" } else { "module" }
+            $dst = "MealKit/modules/$m"
+            Get-ChildItem $dst -Recurse -File | Remove-Item -Force
+            Get-ChildItem $src -Force | Where-Object { $_.Name -notin @(".git", ".github", "README.md", "backends") } |
+              Copy-Item -Destination $dst -Recurse -Force
+          }
+      - name: Headless build and determinism (kind sim modules only)
+        shell: pwsh
+        run: |
+          $sim = $false
+          foreach ($m in "${{ inputs.modules }}".Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) {
+            if (Select-String -Path "MealKit/modules/$m/engine-module.txt" -Pattern '^kind sim' -Quiet) { $sim = $true }
+          }
+          if ($sim) {
+            pwsh MealKit/build.ps1 Headless
+            pwsh MealKit/tools/ci_test.ps1 -Bin MealKit/build/Headless/bin -Name module-linux
+          }

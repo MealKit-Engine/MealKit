@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Engine module split 9: module repos and the lock file (v0.9.1, 2026-11-08)
+
+- Each `modules/<name>/` was extracted with its history (`git filter-repo` from a fresh clone; each file's `--follow` history renamed to its current path, stopping where rename detection jumps to another module's file) into a local repo beside the engine: `MealKit-Asset`, `-Camera`, `-Data`, `-Debug`, `-Editor`, `-Feedback`, `-Game`, `-Input`, `-Live`, `-Loc`, `-Net`, `-Physics`, `-Render`, `-RHI`, `-Scene`, `-Session`, `-Settings`, `-Sim`, `-UI`, and `MealKit-Online` (`online` at the root, `online-steam`/`online-eos` in `backends/`). Each has `LICENSE` (MIT, KingProtea99), a README with the beta notice, `.github/workflows/ci.yml` calling the shared workflow, and the tag `v0.1.0`. Nothing is pushed.
+- `audio` is not extracted: its glue goes into the existing `MealKit-Audio` repo (`module/`), a change in that repo left for later. `mkui` stays in `engine/libs/` for now; `MealKit-UI` holds the `ui` glue.
+- `modules.lock` (`@format module-lock 1`: name, repo URL, tag, commit, path in the repo) pins every vendored module. `tools\modules.ps1`: `status` (vendored copy vs the locked commit, and where the checkout is), `sync [name]` (rewrite from the locked commit, keeping local `CLAUDE.md`), `bump <name> [tag]` (moves every module of that repo together), `local on|off [name]`. Repos come from the sibling checkouts, or a cache clone in `%LOCALAPPDATA%\MealKit\modules`.
+- Local mode is a junction from `modules/<name>` to the sibling checkout instead of the CMake switch the design named: the build needs no second set of paths, and `local off` restores the vendored files from git. `local on` refuses a module with uncommitted vendored changes.
+- Vendored copies gained each repo's `LICENSE`; sources are unchanged (`modules.ps1 status` reports every module ok).
+- `.github/workflows/engine-module.yml` (`workflow_call`, input `modules`): checks out the engine, replaces the vendored copies with the repo under test, runs `check_modules.ps1`, builds the `Presets` configuration, runs `mealkit_tests --only <modules>`, and for `kind sim` modules `ci_test.ps1` on Windows and a headless Linux build.
+
 ## Engine module split 8: module editor panels and online backends (v0.9.1, 2026-11-08)
 
 - Panels about one module live in that module's `editor/mealkit/editor/` (include paths unchanged): [Look Dev] in `render`, [Sound] in `audio`, [Feedback] in `feedback`, [Tables] in `data`, the [UI] panel and the UI check in `ui`. `engine/CMakeLists.txt` adds every module's `editor/` to `mealkit_editor` and `MealKitEditor` only; `check_modules.ps1` counts those files as the `editor` module (`engine_modules_common.ps1`), since they use editor internals.
