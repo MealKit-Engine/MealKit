@@ -22,4 +22,4 @@ module scene https://github.com/MealKit-Engine/module-scene v0.1.2 02986c1a7db6f
 module session https://github.com/MealKit-Engine/module-session v0.1.2 31b2239bb50c6fc18e9d641c9e026f069b45e200 .
 module settings https://github.com/MealKit-Engine/module-settings v0.1.4 87231d99be6b411420ff6aec931c3f5893787f36 .
 module sim https://github.com/MealKit-Engine/module-sim v0.1.2 776572f56dcdfb04c9fd1e263dbfe17913d062df .
-module ui https://github.com/MealKit-Engine/module-ui v0.1.6 3b2ae12f80314b3b863f6dea09f16c60451d6fc2 .
+module ui https://github.com/MealKit-Engine/module-ui v0.1.7 9ff434c02765f49ad6f4d7e9808fd65245fefcf2 .

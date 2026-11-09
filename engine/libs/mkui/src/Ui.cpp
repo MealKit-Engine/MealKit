@@ -1766,6 +1766,17 @@ void System::layout(const Viewport& viewport) {
     }
 }
 
+std::vector<ScreenId> System::screens() const {
+    std::vector<ScreenId> out;
+    for (const Screen& s : m->screens) out.push_back(s.id);
+    return out;
+}
+
+Model System::model(ScreenId screen) const {
+    const Screen* s = m->find(screen);
+    return s ? s->vm : Model{};
+}
+
 ScreenInfo System::info(ScreenId screen) const {
     ScreenInfo out;
     if (Screen* s = m->find(screen)) {
@@ -1788,7 +1799,9 @@ std::vector<NodeBox> System::boxes(ScreenId screen) const {
     if (Screen* s = m->find(screen))
         for (const RNode& n : s->nodes) {
             const Node& d = s->doc.nodes[n.src];
-            out.push_back({d.name, d.id, n.rect.x, n.rect.y, n.rect.w, n.rect.h, d.depth, n.visible, d.kind == NodeKind::Text, n.src});
+            const bool text = d.kind == NodeKind::Text;
+            const bool overflow = text && n.visible && (n.shaped.truncated || n.shaped.width > n.rect.w + 0.5f || n.shaped.height > n.rect.h + 0.5f);
+            out.push_back({d.name, d.id, n.rect.x, n.rect.y, n.rect.w, n.rect.h, d.depth, n.visible, text, n.src, overflow});
         }
     return out;
 }

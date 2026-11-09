@@ -39,6 +39,7 @@ struct Shaped {
     std::vector<ShapedGlyph> glyphs;
     std::vector<ShapedLine> lines;
     f32 width = 0.0f, height = 0.0f;
+    bool truncated = false;      // lines were dropped or an ellipsis cut the text (editor overflow warnings)
     std::vector<u32> codepoints; // decoded text (kept so reshaping allocates nothing once warm)
 };
 

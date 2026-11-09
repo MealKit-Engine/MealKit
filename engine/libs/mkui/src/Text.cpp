@@ -198,6 +198,7 @@ void breakLines(const Node& d, Shaped& s, f32 wrapWidth, f32 maxHeight, Atlas& a
         if (d.ellipsis) keep = std::min(keep, std::max(fit, 1u));
     }
     const bool truncated = keep < s.lines.size();
+    s.truncated = truncated;
     s.lines.resize(keep);
     if (d.ellipsis && !s.lines.empty() && (truncated || (wrapWidth >= 0.0f && s.lines.back().width > wrapWidth + 0.01f))) {
         ShapedLine& last = s.lines.back();
@@ -218,6 +219,7 @@ void breakLines(const Node& d, Shaped& s, f32 wrapWidth, f32 maxHeight, Atlas& a
         s.glyphs.push_back(dots);
         last.end = static_cast<u32>(s.glyphs.size());
         measureLine(d, s, last, atlas);
+        s.truncated = true;
     }
     s.width = 0.0f;
     s.height = 0.0f;

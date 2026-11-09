@@ -83,6 +83,7 @@ struct NodeBox {
     bool visible;
     bool text; // text node (layout comparison is looser by font differences)
     u32 node;  // index in the screen's Document::nodes (list rows repeat their template's index)
+    bool overflow = false; // text node: the text is cut (maxLines, ellipsis) or larger than its box (editor warnings)
 };
 
 class System {
@@ -119,6 +120,8 @@ public:
     void layout(const Viewport& viewport);
 
     ScreenInfo info(ScreenId screen) const;
+    std::vector<ScreenId> screens() const; // open screens (editor: the game's screens while playing), world templates included
+    Model model(ScreenId screen) const;    // the bound view model (empty if none)
     std::vector<NodeBox> boxes(ScreenId screen) const;
     // Editor: show this .ui text instead of the screen's file (unsaved edits); nullptr goes back to the file
     void setDraft(ScreenId screen, const std::string* text);
