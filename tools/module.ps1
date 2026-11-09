@@ -325,7 +325,7 @@ function Get-ModuleState([string]$dir) {
 }
 
 function Get-Installed {
-    if (-not (Test-Path $modulesDir)) { return @() }
+    if (-not $modulesDir -or -not (Test-Path $modulesDir)) { return @() }
     return @(Get-ChildItem $modulesDir -Directory | Where-Object { Test-Path (Join-Path $_.FullName "module.txt") } | Sort-Object Name)
 }
 
