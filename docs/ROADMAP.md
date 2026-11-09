@@ -584,20 +584,20 @@ Every game screen is hand-written `.ui` text because there is no designer, and F
 ### [ ] UI workspace window (decided 2026-11-09, `docs/DECISIONS.md` "Game UI editing gets its own workspace window")
 - **Why**: the editing tools of the item above were stacked in one narrow column of [Previews] and the screen was drawn over the 3D scene.
 1. [x] — 2026-11-09, details in `docs/CHANGELOG.md`. Was: Workspace: a [UI] tab beside the Viewport with a toolbar row (save, undo, add nodes, resolution, scale, language), screens and node tree on the left, the canvas on its own backdrop in the middle, properties, preview values, focus and problems on the right; resizable columns. [Previews] keeps look dev and cutscenes.
-2. [ ] Theme tokens: edit `theme.ui` values in the workspace (colors with pickers, sizes), see where a token is used.
-3. [ ] Bindings by drag and drop: the chosen view model's fields listed under the tree; dropping a field on a node writes its binding; binding errors marked on the tree rows.
+2. [x] — 2026-11-09, details in `docs/CHANGELOG.md` (use counts per token, not the nodes). Was: Theme tokens: edit `theme.ui` values in the workspace (colors with pickers, sizes), see where a token is used.
+3. [x] — 2026-11-09, details in `docs/CHANGELOG.md` (the field list is above the layers). Was: Bindings by drag and drop: the chosen view model's fields listed under the tree; dropping a field on a node writes its binding; binding errors marked on the tree rows.
 4. [ ] Components: make a selection into `ui/components/<name>.ui` + `use`, edit a component in place; Penpot imports merge by node id instead of opening read-only.
 - **Checks**: editor capture of the workspace (`--ui <file>`), `--ui-select`/`--ui-drag` tests still pass, writer round trip unchanged.
 
-### [ ] UI workspace developer conveniences (proposed 2026-11-09, ★ items done)
-A review of the [UI] workspace from the side of a developer editing screens all day (code and 1600×900 captures). Editor-only, inside the 2026-11-09 workspace decision; the open items aren't scheduled. ★ = done 2026-11-09, details in `docs/CHANGELOG.md` (ui 0.1.6, editor 0.1.11).
-- **Canvas**: [x] ★ hover outline and name (canvas and layer rows); [x] ★ name and `W × H` under the selection; [x] ★ zoom keys (`Shift+0` 100%, `Shift+1` fit, `Shift+2`/`F` selection); [x] ★ custom resolution; [ ] layout outlines (every frame's bounds, flex direction, gap); [ ] safe area overlay; [ ] distances between boxes with Alt (Figma measuring); [ ] rulers, grid and grid snapping.
-- **Keyboard**: [x] ★ arrows nudge 1 (`Shift` 10); [x] ★ `Esc` parent, `Enter` first child; [x] ★ `Alt`+arrows reorder among siblings; [x] ★ keys in the help tooltip and the F1 list.
-- **Layers**: [x] ★ find by name or kind; [x] ★ rename with `F2` or double-click; [x] ★ binding problem badges; [ ] drag and drop to reorder and reparent; [ ] editor-only hide and lock; [ ] marks for bound and `hidden` nodes; [ ] expand/collapse all.
-- **Screens**: [x] ★ new screen (empty board); [x] ★ right-click: open in the code editor, show in Explorer, copy path; [x] ★ filter; [ ] duplicate and rename a screen (needs a decision on fixing `ui/x.ui` references in game code).
-- **Inspector**: [x] ★ widgets for children layout, justify, align, gap, padding, radius, opacity, text content, font size and alignment; [x] ★ drawn box (layout result); [x] ★ unknown property names in red; [x] ★ open the node in the code editor at its line; [ ] copy and paste style; token and binding pickers are items 2 and 3 above.
-- **Preview**: [x] ★ the workspace remembers screen, resolution, language, scale and columns (`panels.txt`); [ ] named preview value sets (empty, full, long text); [ ] pseudo-localization language (+40% text) to find overflow; [ ] text overflow warnings on the canvas and in the problems; [ ] interact mode (press buttons on the canvas, log the actions); [ ] real view model values while playing (`docs/DECISIONS.md` 2026-10-20 candidate); [ ] save the canvas as PNG; [ ] node, quad and layout time readout.
-- **Safety**: [ ] notice when the file was reread after an outside change; [ ] diff of unsaved lines before saving; [ ] undo history list.
+### [x] UI workspace developer conveniences — 2026-11-09, details in `docs/CHANGELOG.md` (ui 0.1.6/editor 0.1.11, then ui 0.1.7/editor 0.1.12)
+A review of the [UI] workspace from the side of a developer editing screens all day (code and 1600×900 captures). Editor-only, inside the 2026-11-09 workspace decision (choices in `docs/DECISIONS.md` "UI workspace tools").
+- **Canvas**: [x] hover outline and name; [x] name and `W × H` under the selection; [x] zoom keys; [x] custom resolution; [x] layout outlines (boxes, flex direction, gaps); [x] safe area; [x] Alt distances; [x] rulers, grid and grid snapping.
+- **Keyboard**: [x] arrows nudge; [x] `Esc`/`Enter` parent and child; [x] `Alt`+arrows reorder; [x] keys in the help tooltip, F1 list and palette commands.
+- **Layers**: [x] find; [x] rename; [x] binding problem badges; [x] drag and drop to reorder and reparent; [x] editor-only hide and lock; [x] marks for bound and `hidden` nodes; [x] expand/collapse all.
+- **Screens**: [x] new screen; [x] open in the code editor, show in Explorer, copy path; [x] filter; [x] duplicate and rename (references in project files replaced, listed first).
+- **Inspector**: [x] layout and text widgets; [x] drawn box; [x] unknown property names in red; [x] open the node in the code editor; [x] copy and paste style; [x] `$token` pickers.
+- **Preview**: [x] the workspace remembers its state; [x] named value sets; [x] pseudo-localization; [x] text overflow marks and problems; [x] interact mode; [x] the game's live values while playing (kept as preview values); [x] save the canvas as PNG; [x] quad count and layout time.
+- **Safety**: [x] notice after an outside change; [x] unsaved lines against the file; [x] undo history list.
 
 ## Editor usability proposals (proposed 2026-11-04, every ★ item done, the rest not scheduled)
 
