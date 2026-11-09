@@ -385,6 +385,9 @@ struct System::Impl {
         if (scratch.size() < maxDepth + 1) scratch.resize(maxDepth + 1);
         s.rebuild = true;
         s.focus = s.hover = s.pressed = -1;
+        // The laid-out nodes index the old document (RNode::src): drop them, or queries before the next layout (boxes, info, press)
+        // read past the new one. The editor rereads boxes right after an edit sets a draft (a crash on add + delete)
+        s.nodes.clear();
     }
 
     // ---------------------------------------------------------------- Bindings

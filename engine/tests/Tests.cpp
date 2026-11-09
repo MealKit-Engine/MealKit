@@ -1278,6 +1278,26 @@ TEST_CASE(ui, ui_extract_component) {
     setProjectRoot(oldRoot);
 }
 
+// Editor drafts: a smaller document set before the next layout must not leave boxes pointing past it (the add + delete crash)
+TEST_CASE(ui, ui_draft_before_layout) {
+    const std::string oldRoot = projectRoot();
+    const std::string dir = executableDirectory() + "/test_ui_draft";
+    createDirectories(dir + "/assets/ui");
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/d.ui", "board d 100 100\n  frame a\n    size 10 10\n  end\n  frame b\n    size 10 10\n  end\nend\n"));
+    setProjectRoot(dir);
+    ui::System sys;
+    sys.init(nullptr, nullptr);
+    const ui::ScreenId s = sys.open("ui/d.ui");
+    sys.layout({0, 0, 100, 100});
+    TEST_CHECK(sys.boxes(s).size() == 3);
+    const std::string smaller = "board d 100 100\nend\n";
+    sys.setDraft(s, &smaller);
+    TEST_CHECK(sys.boxes(s).empty() && sys.info(s).focus.empty()); // nothing laid out for the new document yet
+    sys.layout({0, 0, 100, 100});
+    TEST_CHECK(sys.boxes(s).size() == 1);
+    setProjectRoot(oldRoot);
+}
+
 // Editor preview inputs: focus moves like the ui.* actions and is reported by name
 TEST_CASE(ui, ui_preview_focus) {
     const std::string oldRoot = projectRoot();

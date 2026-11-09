@@ -41,8 +41,8 @@ foreach ($file in Get-ChildItem $editorDirs -File -Include *.cpp, *.h -Recurse) 
     $name = $file.Name
     # Comments are ignored (line comments and after " // ")
     $text = [regex]::Replace($raw, '(?m)(^\s*//.*$| // .*$)', '')
-    # Concatenated strings like tr("a" "b") count as one
-    foreach ($m in [regex]::Matches($text, '\b(?:tr|trl|trf)\(\s*((?:' + $literal + '\s*)+)')) {
+    # Concatenated strings like tr("a" "b") count as one. trn("...") only marks text that tr() translates later (tables of labels)
+    foreach ($m in [regex]::Matches($text, '\b(?:tr|trl|trf|trn)\(\s*((?:' + $literal + '\s*)+)')) {
         $joined = ([regex]::Matches($m.Groups[1].Value, $literal) | ForEach-Object { $_.Groups[1].Value }) -join ""
         Add-Key (Key-Of (Unescape-C $joined)) $name
     }
