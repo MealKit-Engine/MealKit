@@ -6,7 +6,7 @@
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 add    -Project <folder> -Preset standard|solo    (every engine module of that preset)
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 update -Project <folder> <module> [-To <version>] [-From <folder | git url[#tag]>] [-DryRun] [-Force]
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 update -Project <folder> -All [-DryRun]   (every registry/engine module with a newer version for this engine)
-#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 remove -Project <folder> <module> [-Force]
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 remove -Project <folder> <module> [-DryRun] [-Tsv] [-Force]   (-DryRun: only say what blocks it)
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 resolve -Project <folder> <module> -File <path in the module> -Use new|mine
 #       a <file>.new left by update: new = take the module's version, mine = keep yours; either way the .new goes and the record moves on
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 versions <module> [-Project <folder>] [-Tsv]   (versions to update or go back to)
@@ -14,7 +14,7 @@
 # - The source is a module folder (module.txt at its root) or a git repo containing such folders. If the repo has several modules/<name>/module.txt, pick one with -Name.
 #   A name of an engine module (this engine's modules/<name>, e.g. render, audio, online-steam) takes the engine's copy; name@version takes that tag
 #   (v<version>) of the module's repo in the engine's modules.lock (the checkout beside the engine when there is one).
-#   A project with no engine modules in modules/ builds with every engine module of its engine; once it has one, only those in modules/.
+#   A project builds with only the engine modules in its modules/ (none = only the kernel; the engine's own samples use all of them).
 #   Names are looked up in the registry (MealKit-Modules) index.json: fetches the newest version for this engine MINOR by tag and checks the commit matches the list.
 #   The list can be changed with -Index or the environment variable MEALKIT_MODULE_INDEX (URL or file). The fetched list is kept in %LOCALAPPDATA%\MealKit\module-index.json and used when offline.
 # - What's copied: module.txt, sim/, view/, assets/, art/, docs/, LICENSE*/README* at the root (excluding *.new); for an engine module every file but
@@ -22,7 +22,8 @@
 # - update follows the same rules as upgrade_project.ps1: only unmodified files (hash matches the record) are replaced; modified files are kept and <file>.new is written.
 #   Files gone in the new version are deleted if unmodified, kept and reported if modified. -Force replaces modified files too.
 # - remove refuses if another module's requires lists it or game code includes it (source/ for source modules; source/, sim/, view/, app/ including
-#   mealkit/<name>/ for engine modules) (force with -Force). Undo is git's job.
+#   mealkit/<name>/ for engine modules) (force with -Force). It lists the modules to
+#   remove first in order. Undo is git's job.
 param(
     [Parameter(Mandatory = $true, Position = 0)][ValidateSet("search", "list", "add", "update", "remove", "resolve", "versions")][string]$Command,
     [Parameter(Position = 1)][string]$Target = "",
@@ -42,6 +43,13 @@ param(
     [switch]$Force
 )
 $ErrorActionPreference = "Stop"
+# The editor and Manager read this output through a pipe as UTF-8 (a console keeps its code page: ninja needs it, see build.ps1)
+if ([Console]::IsOutputRedirected) { [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false }
+# A failure is one "error: <message>" line, not a PowerShell error record (position, CategoryInfo ... in the console's language)
+trap {
+    Write-Host "error: $($_.Exception.Message)" -ForegroundColor Red
+    exit 1
+}
 . "$PSScriptRoot\project_common.ps1"
 
 $modulesDir = ""
@@ -279,12 +287,10 @@ function Remove-Cache([hashtable]$src) {
     }
 }
 
-# A module the project has: a folder in modules/, a kernel module, or an engine module when the project has no engine copies (it builds with all of them)
+# A module the project has: a folder in modules/ or a kernel module (a game builds with only the engine modules in its modules/)
 function Test-HasModule([string]$name) {
     if (Test-Path (Join-Path $modulesDir "$name\module.txt")) { return $true }
-    if ($kernelNames -contains $name) { return $true }
-    if ((Find-EngineModule $name) -and -not (Get-Installed | Where-Object { (Read-ModuleInfo $_.FullName).type -eq "engine" })) { return $true }
-    return $false
+    return $kernelNames -contains $name
 }
 
 function Test-ModuleWarnings([hashtable]$info) {
@@ -426,7 +432,6 @@ switch ($Command) {
             break
         }
         if (-not $Target) { Write-Error "add needs a module name, a folder or a git address"; exit 1 }
-        $hadEngine = @(Get-Installed | Where-Object { (Read-ModuleInfo $_.FullName).type -eq "engine" }).Count -gt 0
         $src = Get-ModuleSource $Target $Name
         try {
             $info = Read-ModuleInfo $src.dir
@@ -446,9 +451,6 @@ switch ($Command) {
             Write-Host "Added $($info.name) $($info.version) ($($hashes.Count) files) to modules/$($info.name)" -ForegroundColor Green
             if ($src.source.StartsWith("registry ")) {
                 Write-Host "Note: module code runs inside the editor and the game. The registry checks that it builds, not what it does - read what you add." -ForegroundColor Yellow
-            }
-            if ($info.type -eq "engine" -and -not $hadEngine -and -not $env:MEALKIT_MODULE_BATCH) {
-                Write-Host "Note: the game now builds with only the engine modules in modules/. Add the others it uses too (add -Preset standard adds all of them)." -ForegroundColor Yellow
             }
             $missing = @($info.requires | Where-Object { -not (Test-HasModule $_) })
             if ($WithRequires) {
@@ -549,28 +551,65 @@ switch ($Command) {
         if (-not $Target) { Write-Error "remove needs a module name"; exit 1 }
         $dest = Join-Path $modulesDir $Target
         if (-not (Test-Path $dest)) { Write-Error "modules/$Target is not installed"; exit 1 }
-        $blockers = @()
-        foreach ($m in Get-Installed) {
-            if ($m.Name -ne $Target -and (Read-ModuleInfo $m.FullName).requires -contains $Target) { $blockers += "module $($m.Name) requires it" }
+        $installed = @(Get-Installed)
+        $requires = @{}
+        foreach ($m in $installed) { $requires[$m.Name] = @((Read-ModuleInfo $m.FullName).requires) }
+        # Modules that require it directly, and everything that has to go before it (direct and indirect), in an order that removes them one by one
+        $neededBy = @($installed | Where-Object { $_.Name -ne $Target -and $requires[$_.Name] -contains $Target } | ForEach-Object Name)
+        $chain = [System.Collections.Generic.List[string]]::new()
+        $visit = {
+            param($name)
+            foreach ($m in $installed) {
+                if ($m.Name -eq $name -or $chain.Contains($m.Name) -or $requires[$m.Name] -notcontains $name) { continue }
+                & $visit $m.Name # what requires it goes before it
+                if (-not $chain.Contains($m.Name)) { $chain.Add($m.Name) }
+            }
         }
+        & $visit $Target
         $isEngine = (Read-ModuleInfo $dest).type -eq "engine"
         $codeDirs = if ($isEngine) { @("source", "sim", "view", "app") } else { @("source") }
         $pattern = if ($isEngine) { '#\s*include\s*["<]mealkit/' + [regex]::Escape($Target) + '/' } else { '#\s*include\s*["<]' + [regex]::Escape($Target) + '/' }
+        $guard = "MEALKIT_HAS_" + $Target.ToUpperInvariant().Replace("-", "_")
+        $uses = @()
         foreach ($cd in $codeDirs) {
             $sourceDir = Join-Path $Project $cd
             if (-not (Test-Path $sourceDir)) { continue }
             # Code that keeps an engine module's uses inside #if MEALKIT_HAS_<NAME> already builds without it
-            $guard = "MEALKIT_HAS_" + $Target.ToUpperInvariant().Replace("-", "_")
             Get-ChildItem $sourceDir -Recurse -File -Include *.h, *.hpp, *.cpp | Select-String -Pattern $pattern | ForEach-Object {
                 if ($isEngine -and (Select-String -LiteralPath $_.Path -Pattern $guard -SimpleMatch -Quiet)) { return }
-                $blockers += "$($_.Path.Substring($Project.Length + 1)):$($_.LineNumber): $($_.Line.Trim())"
+                $uses += @{ file = $_.Path.Substring($Project.Length + 1); line = $_.LineNumber; text = $_.Line.Trim() }
             }
         }
-        if ($blockers.Count -gt 0 -and -not $Force) {
-            $blockers | ForEach-Object { Write-Host "  $_" -ForegroundColor Yellow }
-            Write-Error "modules/$Target is still used (above). Remove those uses first, or -Force"
-            exit 1
+        $blocked = $neededBy.Count -gt 0 -or $uses.Count -gt 0
+
+        if ($Tsv) {
+            # Lines for the editor [Modules] window (with -DryRun: nothing is removed):
+            #   needed-by <module>   a module whose requires lists it
+            #   chain <module>       remove these first, in this order (needed-by and what requires them)
+            #   code <file> <line> <text>   game code that includes it
+            #   ok | blocked
+            $clean = { param($s) "$s" -replace "[`t`r`n]", " " }
+            foreach ($n in $neededBy) { Write-Output "needed-by`t$n" }
+            foreach ($n in $chain) { Write-Output "chain`t$n" }
+            foreach ($u in $uses) { Write-Output "code`t$(& $clean $u.file)`t$($u.line)`t$(& $clean $u.text)" }
+            Write-Output $(if ($blocked) { "blocked" } else { "ok" })
+            if ($DryRun) { break }
+        } elseif ($blocked) {
+            Write-Host "$Target is still in use:" -ForegroundColor Yellow
+            if ($neededBy.Count) {
+                Write-Host "  Required by the modules: $($neededBy -join ', ')" -ForegroundColor Yellow
+                Write-Host "  To remove it, remove these first, in this order: $($chain -join ', ')" -ForegroundColor Yellow
+            }
+            if ($uses.Count) {
+                Write-Host "  Included by game code ($($uses.Count) line(s)):" -ForegroundColor Yellow
+                foreach ($u in $uses) { Write-Host "    $($u.file):$($u.line)  $($u.text)" -ForegroundColor Yellow }
+                Write-Host "  Delete those includes, or keep the code inside #if $guard." -ForegroundColor Yellow
+            }
+        } elseif ($DryRun) {
+            Write-Host "Nothing uses $Target - it can be removed"
         }
+        if ($DryRun) { break }
+        if ($blocked -and -not $Force) { throw "modules/$Target was not removed (-Force removes it anyway)" }
         Remove-Item -Recurse -Force $dest
         Write-Host "Removed modules/$Target" -ForegroundColor Green
     }

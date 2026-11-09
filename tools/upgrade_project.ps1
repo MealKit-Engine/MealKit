@@ -7,7 +7,8 @@
 #   the new content is left as <file>.new to show the difference. -Force replaces edited files too.
 # - mealkit.project only gets its engine and engineVersion lines changed (name/start scene/game items unchanged, line format unchanged too).
 #   Engine 0.9.1 lines enginePreset/engineModules/engineWithout/engineModuleVersion are dropped and become engine module copies in modules/.
-# - A project with no engine modules in modules/ gets the standard ones copied in (tools\module.ps1 add -Preset standard), like a new project.
+# - A project from before 0.9.2 with no engine modules in modules/ gets the standard ones copied in (tools\module.ps1 add -Preset standard), like a new
+#   project. From 0.9.2 on, none in modules/ means only the kernel, so it is left alone.
 # - Files from before the change are kept in .upgrade_backup\<time>\.
 # - -Source: replaces source/ game code with the code of the template the project was made from (mealkit.project "templateName": arena = samples/sandbox,
 #   empty = templates/empty + the shared screen flow). Used to move projects that didn't edit the template code to a new engine structure. source/sim/view/app files not in the sample are deleted (backed up). Only missing files are added to assets/ (no overwriting).
@@ -87,6 +88,10 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
         # Engine 0.9.1's choice of engine modules → copies in modules/ like source modules (docs/ENGINE_MODULES.md "Module selection")
         $hasEngineCopies = @(Get-ChildItem (Join-Path $Project "modules") -Directory -ErrorAction SilentlyContinue |
             Where-Object { (Test-Path (Join-Path $_.FullName "module.txt")) -and (Select-String -LiteralPath (Join-Path $_.FullName "module.txt") -Pattern '^\s*type\s+engine\s*$' -Quiet) }).Count -gt 0
+        # Only projects from before 0.9.2 (no copies yet, every engine module): since then none in modules/ is a choice (only the kernel)
+        $beforeCopies = $true
+        try { if ($fromVersion -ne "(none)") { $beforeCopies = [version]$fromVersion -lt [version]"0.9.2" } } catch { }
+        if (-not $beforeCopies) { $hasEngineCopies = $true }
         if ($DryRun -and -not $hasEngineCopies) { Report "added" "modules (the standard engine modules)" Green }
         if (-not $hasEngineCopies -and -not $DryRun) {
             $tool = Join-Path $PSScriptRoot "module.ps1"
