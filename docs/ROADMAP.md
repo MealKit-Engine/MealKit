@@ -605,8 +605,7 @@ A list of candidates from a 2026-11-04 review of the editor code and 1600×900 c
 
 ### [x] UI workspace for newcomers and crash fixes — 2026-11-09, details in `docs/CHANGELOG.md` (ui 0.1.9/editor 0.1.13; choices in `docs/DECISIONS.md` "UI workspace for newcomers")
 
-### [ ] UI workspace: multi-select and align (proposed 2026-11-09)
-- Shift/Ctrl+click and a marquee on the canvas select several nodes; move, delete, duplicate and wrap act on all of them; align (left, center, right, top, middle, bottom) and distribute evenly, like Figma and Unity UI Builder. The selection is one path today, so selection, overlay, undo steps and the inspector (shared values, mixed marks) all change.
+### [x] UI workspace: multi-select and align — 2026-11-09, details in `docs/CHANGELOG.md` (ui 0.1.10/editor 0.1.14; choices in `docs/DECISIONS.md` "UI multi-select")
 
 ### [x] Check first: problems seen during the review
 - [x] The `input.bindings` table showed no rows: details in `docs/CHANGELOG.md`.
