@@ -161,8 +161,8 @@ Features that must not be missing to actually ship a game. Most are independent 
 - [x] Game screen UI part 2: Penpot plugin (`tools/penpot-plugin`) + editor import server + Grid runtime + layout/pixel comparison (`--ui-check`, `--ui-render`, check.ps1) — 2026-10-20, verified in real Penpot (2.18), details in `docs/CHANGELOG.md`
 
 ### [ ] Game screen UI part 3: Penpot sources for the default screen templates + component reuse (when a designer appears)
-- **Penpot sources for the default screen flow templates** (`art/ui/`): replace the current 8 hand-written screens (title, menu, join, lobby, loading, pause, results, message) and settings/HUD with files redrawn in Penpot and exported. Many screens have lists (`list`) and view models, so together with a designer. Saving Penpot sources doesn't work via the plugin in the current Penpot version, so by hand (`DECISIONS.md` 2026-10-20).
-- **Components → reusable `.ui` (`use`)**: currently component instances are flattened on export (the look is the same). When the same button is on several screens, one `.ui` in `ui/components/` + `use`.
+- **Penpot sources for the default screen flow templates** (`art/ui/`): replace the current 8 hand-written screens (title, menu, join, lobby, loading, pause, results, message) and settings/HUD with files redrawn in Penpot and exported. Many screens have lists (`list`) and view models, so together with a designer. Saving Penpot sources doesn't work via the plugin in the current Penpot version, so by hand (`DECISIONS.md` 2026-10-20). Since 2026-11-04 screens are edited in the editor's [UI] workspace, so this is only for a designer who works in Penpot.
+- ~~Components → reusable `.ui` (`use`)~~: done in the editor ("UI workspace window" 4, 2026-11-09). Penpot exports still flatten component instances; merging Penpot imports by node id was dropped (`docs/DECISIONS.md` 2026-11-09).
 - **Checking state variants in real Penpot**: conversion was tested only with fixed data (the sample screens have no variants). Theme variations per token set at that time too.
 
 - [x] Code cleanup (2026-10-19 review: match data in one place, one options struct, splitting editor panels, core include check, join windows via `runGame`, splitting out `ui/Text.cpp`, sharing the join window command line) — 2026-10-20, details in `docs/CHANGELOG.md`
@@ -581,12 +581,12 @@ Every game screen is hand-written `.ui` text because there is no designer, and F
 - **Docs**: docs repo "Manual > Game UI" in English and Korean (placing screens in the panel; Penpot as the optional path).
 - **Determinism**: no effect (view side, editor only).
 
-### [ ] UI workspace window (decided 2026-11-09, `docs/DECISIONS.md` "Game UI editing gets its own workspace window")
+### [x] UI workspace window (decided 2026-11-09, `docs/DECISIONS.md` "Game UI editing gets its own workspace window")
 - **Why**: the editing tools of the item above were stacked in one narrow column of [Previews] and the screen was drawn over the 3D scene.
 1. [x] — 2026-11-09, details in `docs/CHANGELOG.md`. Was: Workspace: a [UI] tab beside the Viewport with a toolbar row (save, undo, add nodes, resolution, scale, language), screens and node tree on the left, the canvas on its own backdrop in the middle, properties, preview values, focus and problems on the right; resizable columns. [Previews] keeps look dev and cutscenes.
 2. [x] — 2026-11-09, details in `docs/CHANGELOG.md` (use counts per token, not the nodes). Was: Theme tokens: edit `theme.ui` values in the workspace (colors with pickers, sizes), see where a token is used.
 3. [x] — 2026-11-09, details in `docs/CHANGELOG.md` (the field list is above the layers). Was: Bindings by drag and drop: the chosen view model's fields listed under the tree; dropping a field on a node writes its binding; binding errors marked on the tree rows.
-4. [ ] Components: make a selection into `ui/components/<name>.ui` + `use`, edit a component in place; Penpot imports merge by node id instead of opening read-only.
+4. [x] — 2026-11-09, details in `docs/CHANGELOG.md` (editing opens the component file with a way back; no Penpot merge, `docs/DECISIONS.md`). Was: Components: make a selection into `ui/components/<name>.ui` + `use`, edit a component in place; Penpot imports merge by node id instead of opening read-only.
 - **Checks**: editor capture of the workspace (`--ui <file>`), `--ui-select`/`--ui-drag` tests still pass, writer round trip unchanged.
 
 ### [x] UI workspace developer conveniences — 2026-11-09, details in `docs/CHANGELOG.md` (ui 0.1.6/editor 0.1.11, then ui 0.1.7/editor 0.1.12)

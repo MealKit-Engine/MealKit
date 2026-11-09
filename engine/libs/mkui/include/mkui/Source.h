@@ -66,4 +66,12 @@ bool wrapNode(Source& source, const SourcePath& path, SourceNode frame, SourcePa
 // Moves a node under newParent at position at (after the move). Refused into its own subtree or for the board. Returns the new path
 bool moveNode(Source& source, const SourcePath& path, const SourcePath& newParent, u32 at, SourcePath* moved = nullptr);
 
+// Turns the frame at path into a component: `component` becomes a file "board <name> <w> <h>" holding the frame's lines and
+// children, and the frame becomes "use <frame name> <componentPath>" that keeps only the lines saying where it sits
+// (isPlacementLine), which override the board's on the use. w, h: the frame's drawn size (the board size). Comments go with
+// the look. false (nothing changed) for the board, a non-frame or a bad path
+bool isPlacementLine(const std::string& line); // pos size min max margin absolute constraints rotation alignSelf justifySelf cell
+bool extractComponent(Source& source, const SourcePath& path, const std::string& name, const std::string& componentPath, i32 w, i32 h,
+                      Source& component);
+
 } // namespace mkui

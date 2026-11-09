@@ -1216,6 +1216,68 @@ TEST_CASE(ui, penpot_expected) {
     TEST_CHECK(doc.nodes[0].id == "id-pause");
 }
 
+// Editor "Make component": a frame moved into ui/components/<name>.ui + use lays out exactly as before (in a layout and free)
+TEST_CASE(ui, ui_extract_component) {
+    const std::string oldRoot = projectRoot();
+    const std::string dir = executableDirectory() + "/test_ui_component";
+    createDirectories(dir + "/assets/ui/components");
+    const std::string screen = "board s 800 400\n"
+                               "  frame bar\n    pos 0 0\n    size 800 100\n    layout row\n    gap 10\n    padding 10\n"
+                               "    frame button\n      # the look\n      size hug 60\n      layout row\n      padding 8 16\n      fill #334455\n"
+                               "      radius 6\n      button play\n      text label\n        content Play\n        fontSize 24\n      end\n    end\n"
+                               "    frame grow\n      size fill 20\n    end\n"
+                               "  end\n"
+                               "  frame corner\n    pos 600 300\n    size 200 100\n    constraints right bottom\n    fill #FF0000\n"
+                               "    frame dot\n      pos 10 10\n      size 20 20\n    end\n  end\n"
+                               "end\n";
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/s.ui", screen));
+    setProjectRoot(dir);
+    auto layoutBoxes = [](const std::string& file) {
+        ui::System sys;
+        sys.init(nullptr, nullptr);
+        const ui::ScreenId id = sys.open(file);
+        sys.layout({0, 0, 1600, 800});
+        return sys.boxes(id);
+    };
+    const std::vector<ui::NodeBox> before = layoutBoxes("ui/s.ui");
+
+    ui::Source source;
+    TEST_CHECK(ui::parseSource(screen, source));
+    ui::Source a, b;
+    TEST_CHECK(!ui::extractComponent(source, {}, "x", "ui/components/x.ui", 1, 1, a));      // the board
+    TEST_CHECK(!ui::extractComponent(source, {0, 0, 0}, "x", "ui/components/x.ui", 1, 1, a)); // a text
+    const ui::NodeBox* button = nullptr;
+    for (const ui::NodeBox& box : before)
+        if (box.name == "button") button = &box;
+    TEST_CHECK(button && ui::extractComponent(source, {0, 0}, "big_button", "ui/components/big_button.ui", static_cast<i32>(button->w + 0.5f),
+                                              static_cast<i32>(button->h + 0.5f), a));
+    TEST_CHECK(ui::extractComponent(source, {1}, "panel", "ui/components/panel.ui", 200, 100, b));
+    const ui::SourceNode* use = ui::findNode(source, {0, 0});
+    std::string v;
+    TEST_CHECK(use && use->kind == "use" && use->name == "button" && use->args == "ui/components/big_button.ui" && use->children.empty());
+    TEST_CHECK(ui::getProperty(*use, "size", v) && v == "hug 60" && !ui::getProperty(*use, "fill", v));
+    TEST_CHECK(ui::findNode(a, {})->name == "big_button" && ui::getProperty(*ui::findNode(a, {}), "button", v) && v == "play");
+    TEST_CHECK(ui::findNode(a, {0}) && ui::findNode(a, {0})->name == "label");
+    TEST_CHECK(ui::getProperty(*ui::findNode(source, {1}), "constraints", v) && !ui::getProperty(*ui::findNode(b, {}), "constraints", v));
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/components/big_button.ui", ui::writeSource(a)));
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/components/panel.ui", ui::writeSource(b)));
+    TEST_CHECK(writeTextFile(dir + "/assets/ui/s2.ui", ui::writeSource(source)));
+    ui::Source reread;
+    TEST_CHECK(ui::parseSource(ui::writeSource(a), reread) && ui::writeSource(reread) == ui::writeSource(a));
+
+    const std::vector<ui::NodeBox> after = layoutBoxes("ui/s2.ui");
+    TEST_CHECK(after.size() == before.size());
+    for (size_t i = 0; i < before.size() && i < after.size(); ++i) {
+        const bool same = before[i].name == after[i].name && std::fabs(before[i].x - after[i].x) < 0.01f && std::fabs(before[i].y - after[i].y) < 0.01f &&
+                          std::fabs(before[i].w - after[i].w) < 0.01f && std::fabs(before[i].h - after[i].h) < 0.01f;
+        if (!same)
+            std::printf("  %s %.1f %.1f %.1f %.1f -> %s %.1f %.1f %.1f %.1f\n", before[i].name.c_str(), before[i].x, before[i].y, before[i].w, before[i].h,
+                        after[i].name.c_str(), after[i].x, after[i].y, after[i].w, after[i].h);
+        TEST_CHECK(same);
+    }
+    setProjectRoot(oldRoot);
+}
+
 // Editor preview inputs: focus moves like the ui.* actions and is reported by name
 TEST_CASE(ui, ui_preview_focus) {
     const std::string oldRoot = projectRoot();

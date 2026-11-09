@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI components in the workspace: ui 0.1.8 (2026-11-09)
+
+- ROADMAP "UI workspace window" item 4, which finishes that item; the component part of "Game screen UI part 3" is done here. Choices in `docs/DECISIONS.md` "Components in the UI workspace" (no Penpot merge by node id).
+- mkui `extractComponent(source, path, name, componentPath, w, h, component)` and `isPlacementLine`: the frame at path becomes a `use` with only its placement lines (`pos size min max margin absolute constraints rotation alignSelf justifySelf cell`), and a new `Source` holds `board <name> <w> <h>` with the rest of its lines (comments included) and its children. Refuses the board and non-frames. The glue exports both in `mealkit/ui/Document.h`.
+- Editor: **Make component** (toolbar link button, node menu on a frame) asks for a name (letters, digits, `_ -`, refused if `assets/ui/components/<name>.ui` exists), uses the frame's drawn size for the board, writes the component file at once and leaves the screen edit unsaved (undo brings the frame back; the file stays). The screens list also lists `assets/ui/components/*.ui` as `components/<name>`. **Edit component** (node menu, button beside a `use` path; only for `ui/...` files in the list, not module components) opens the file, asking to save first; a back button before the screen name returns and selects the `use` again (`m_returnScreen`, cleared when a screen is picked by hand). Korean strings in `engine/res/strings/ko.txt`.
+- Manual: `manual/ui.md` "Components" bullet (en, ko).
+- Checked: Editor build, `mealkit_tests --only ui` (new `ui_extract_component`: a button inside a flex row and a free corner panel turned into components lay out with the same boxes; the board and a text are refused; the component file writes back unchanged), editor capture of the workspace with a frame selected (the button is enabled), `check_strings.ps1`, docs `build.py check`. Not checked by hand: clicking Make component / Edit component / back in the real editor (captures can't click). The test runs without fonts, so text sizes in it are zero.
+
 ## UI workspace tools: ui 0.1.7, editor 0.1.12 (2026-11-09)
 
 - The rest of ROADMAP "UI workspace developer conveniences" (22 items), plus "UI workspace window" items 2 (theme tokens) and 3 (binding by drag and drop). Choices in `docs/DECISIONS.md` "UI workspace tools". New file `UiPanelTools.cpp`.

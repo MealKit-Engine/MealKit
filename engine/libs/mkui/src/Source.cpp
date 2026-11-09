@@ -336,4 +336,37 @@ bool moveNode(Source& source, const SourcePath& path, const SourcePath& newParen
     return true;
 }
 
+bool isPlacementLine(const std::string& line) {
+    const size_t space = line.find(' ');
+    const std::string k = line.substr(0, space);
+    for (const char* p : {"pos", "size", "min", "max", "margin", "absolute", "constraints", "rotation", "alignSelf", "justifySelf", "cell"})
+        if (k == p) return true;
+    return false;
+}
+
+bool extractComponent(Source& source, const SourcePath& path, const std::string& name, const std::string& componentPath, i32 w, i32 h,
+                      Source& component) {
+    if (path.empty() || name.empty() || componentPath.empty()) return false;
+    SourceNode* n = findNode(source, path);
+    if (!n || n->kind != "frame") return false;
+    Source out;
+    if (!parseSource("# MealKit UI (hand-written): component " + name + "\n@format ui 1\nboard " + name + " " + std::to_string(w) + " " +
+                         std::to_string(h) + "\nend\n",
+                     out))
+        return false;
+    SourceNode& board = out.root.children[0];
+    SourceNode use;
+    use.kind = "use";
+    use.name = n->name;
+    use.args = componentPath;
+    for (SourceItem& item : n->items) {
+        if (item.child < 0 && isPlacementLine(item.line)) use.items.push_back(std::move(item));
+        else board.items.push_back(std::move(item)); // look, behaviour, comments, children (indices unchanged)
+    }
+    board.children = std::move(n->children);
+    *n = std::move(use);
+    component = std::move(out);
+    return true;
+}
+
 } // namespace mkui
