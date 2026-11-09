@@ -581,6 +581,14 @@ Every game screen is hand-written `.ui` text because there is no designer, and F
 - **Docs**: docs repo "Manual > Game UI" in English and Korean (placing screens in the panel; Penpot as the optional path).
 - **Determinism**: no effect (view side, editor only).
 
+### [ ] UI workspace window (decided 2026-11-09, `docs/DECISIONS.md` "Game UI editing gets its own workspace window")
+- **Why**: the editing tools of the item above were stacked in one narrow column of [Previews] and the screen was drawn over the 3D scene.
+1. [x] — 2026-11-09, details in `docs/CHANGELOG.md`. Was: Workspace: a [UI] tab beside the Viewport with a toolbar row (save, undo, add nodes, resolution, scale, language), screens and node tree on the left, the canvas on its own backdrop in the middle, properties, preview values, focus and problems on the right; resizable columns. [Previews] keeps look dev and cutscenes.
+2. [ ] Theme tokens: edit `theme.ui` values in the workspace (colors with pickers, sizes), see where a token is used.
+3. [ ] Bindings by drag and drop: the chosen view model's fields listed under the tree; dropping a field on a node writes its binding; binding errors marked on the tree rows.
+4. [ ] Components: make a selection into `ui/components/<name>.ui` + `use`, edit a component in place; Penpot imports merge by node id instead of opening read-only.
+- **Checks**: editor capture of the workspace (`--ui <file>`), `--ui-select`/`--ui-drag` tests still pass, writer round trip unchanged.
+
 ## Editor usability proposals (proposed 2026-11-04, every ★ item done, the rest not scheduled)
 
 A list of candidates from a 2026-11-04 review of the editor code and 1600×900 captures of `samples/sandbox`, with Odin Inspector and Unity editor-enhancer packages as references. Every ★ item is done. **The open items aren't decided**: pick them before work starts, and put open design questions in `docs/DECISIONS.md` first. All of it is editor-only and doesn't change the shipping exe. Per criterion ④, it adds no authoring tools inside the editor (visual scripting, material graphs, particle editors). ★ marks the highest-value items. Parentheses after `[x]` say what a done item left out.

@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI workspace window: ui 0.1.3, editor 0.1.8 (ROADMAP "UI workspace window" 1, 2026-11-09)
+
+- `UiPanel` (module-ui `editor/`) lays itself out as a workspace inside the editor's new `UI###UiWorkspace` window, a tab beside the Viewport: a toolbar row (save, undo, redo, add frame/text/image/component, duplicate, copy, wrap, paste; resolution, UI scale, language, show focus) that wraps in a narrow tab, then a three-column resizable table (shares 0.22 / 0.50 / 0.28): screens and the node tree, the canvas, and the selection's properties with preview values, focus, problems and Penpot sections.
+- The window has no background: `UiPanel::render` draws one backdrop quad over the whole workspace (so the 3D scene never shows through) and fits the screen inside the canvas column with a 24 px margin. Only the visible tab renders, takes the mouse (canvas hover from the table cell, not the scene view) and owns undo, save and delete.
+- The workspace always edits (the Edit checkbox is gone; Penpot exports stay read-only). [Previews] keeps look dev and cutscenes; `PreviewPage::Ui` stays in the enum so saved page numbers keep their meaning and is redirected to the workspace.
+- [Window] > [UI], the `UI` command (toggle), panel state key `ui`, [Window] > [Layout] > UI and the `UI Layout` command (narrow side columns, short bottom row, the workspace in front). `--ui <file>` keeps bringing the tab forward until it shows.
+- Checked: editor build, captures of the workspace in the default and UI layouts, the check.ps1 "Editor UI edit (select, drag)" commands by hand (same drag results, file unchanged), `check_strings.ps1`, docs `build.py check`. Not done: theme tokens, bindings by drag and drop, components (ROADMAP items 2-4).
+
 ## Editor feedback pass: editor 0.1.7 (2026-11-09)
 
 - Viewport toolbar is one row docked along the top of the viewport tab; the 3D picture starts below it. The row stays during play (play status) so starting and stopping don't resize the picture.

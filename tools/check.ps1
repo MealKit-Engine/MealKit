@@ -1,4 +1,4 @@
-﻿# MealKit engine verification: prints PASS/FAIL and elapsed time per item, exit code 1 if any fail.
+# MealKit engine verification: prints PASS/FAIL and elapsed time per item, exit code 1 if any fail.
 #   powershell -ExecutionPolicy Bypass -File tools\check.ps1            everything (about 5 minutes; only when the user asks for it)
 #   ... -Changed           only the groups matching modified files (git working tree, and since that commit with -Base <commit>). The default, also before committing
 #   ... -Quick             build + unit tests + determinism tests only
@@ -554,7 +554,7 @@ if (-not $Quick) {
         $code = Run $log $editor "--project `"$sandbox`" --frames 60 --select 25 --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]")
     }
-    # [UI] panel edit mode (ROADMAP "Game UI editor in the editor"): source read for editing, node selected and outlined, nothing written
+    # [UI] workspace (ROADMAP "Game UI editor in the editor", "UI workspace window"): source read for editing, node selected and outlined, nothing written
     Invoke-Check editor "Editor UI edit (select, drag)" {
         param($log)
         $png = Join-Path $out "editor-ui-edit.png"
