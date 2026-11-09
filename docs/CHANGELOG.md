@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## asset without render: GPU parts into the render module (v0.9.3, 2026-11-09)
+
+- The last `transitional` dependency is gone: `asset` (sim) no longer includes `render` or `rhi`. module-asset 0.2.0, module-render 0.2.0 (`requires asset 0.2`), module-game 0.2.0, module-editor 0.1.6; `kApiVersion` 25 (the editor refuses older game DLLs).
+- **Data down**: `asset/MeshData.h` holds `Vertex`, `SkinWeights`, `BoneMatrix`, `MeshData`, `packHalf2`, `makeBox`, `MeshId`/`kNoMesh`, `MaterialData`/`kNoTexture`/`kMaterial*`, `TextureUsage` and `CompressedTexture` (was `render/Mesh.h`, `render/Renderer.h`, `asset/TextureCache.h`). `render/Mesh.h` and `Renderer.h` name them with `using`, so `render::Vertex` etc. still work. `CompressedTexture::format` is `asset::TextureFormat` with the `rhi::Format` values (a `static_assert` in `render/TextureCache.h`), so cooked models and texture cache files are byte-identical.
+- **View up**: `TextureCache` and `Environment` (sky HDRI baking, LUTs, probes) moved to `render` (namespace `render::`). `asset/ModelGpu.h` is the interface `ModelCache` uploads through (`setGpu`, replacing `setRenderer` and its function pointers); `render/ModelDraw.h` has `render::ModelUploader` and the drawing that was on `ModelCache`: `render::addModel` (was `asset::addModel`), `render::addTerrain(out, models, terrain, ...)`, `render::addScatter(out, models, layer, ...)`, `render::postParams(models, fields)`, `render::probes(models, scene, out)`. `ModelCache::buildTerrainMeshes` and `probeLimit()` are what they need from the cache.
+- Game code: `view/Draw.h` includes `mealkit/render/ModelDraw.h`; the samples and `templates/empty` call the `render::` functions (engine 0.9.3; `upgrade_project.ps1` replaces unmodified `Draw.cpp`/`Draw.h`, a game that changed them gets `.new` and moves its calls by hand, and its engine module copies need `module.ps1 update` to asset 0.2 / render 0.2 / game 0.2 together).
+- The simulation version changed (asset sources), simulation results did not: saved replays play unchanged.
+- Checked: Editor, Release and Presets builds, `check_modules.ps1` (no transitional), `check_public_headers.ps1`, `check_platform.ps1`, `mealkit_tests`, both saved replays (`REPLAY ok`), `mp_test -Headless -Clients 3`, sandbox and coop screenshots (models, terrain, scatter, sky), cooking both samples and playing coop from its pack. Render goldens (DX12/Vulkan) and `check.ps1` not run.
+
 ## Module review after publishing (2026-11-09)
 
 - `modules.lock` points at `github.com/MealKit-Engine/module-<name>` where the repos were published (it still said KingProtea99); module tags pushed; the engine got the `v1` tag the module repos' CI calls `engine-module.yml` with (their runs failed at once without it).

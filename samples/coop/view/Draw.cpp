@@ -19,7 +19,7 @@ void applyEnvironment(const scene::Environment& env, asset::ModelCache& models, 
     frame.environment = models.environment(env.hdri);
     frame.environmentIntensity = env.hdriIntensity;
     frame.environmentRotation = env.hdriRotation * (3.14159265f / 180.0f);
-    frame.post = models.postParams(env.post);
+    frame.post = render::postParams(models, env.post);
 }
 
 void applyLights(const scene::Scene& scene, const WorldView& view, f64 viewTime, std::vector<render::PointLight>& lights,
@@ -36,7 +36,7 @@ void applyLights(const scene::Scene& scene, const WorldView& view, f64 viewTime,
 
 void applyProbes(const scene::Scene& scene, asset::ModelCache& models, std::vector<render::ReflectionProbe>& probes,
                  render::FrameParams& frame) {
-    models.probes(scene, probes);
+    render::probes(models, scene, probes);
     frame.probes = probes.data();
     frame.probeCount = static_cast<u32>(probes.size());
 }
@@ -46,17 +46,17 @@ void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3&
     for (const scene::Entity& e : scene.entities) {
         if (!scene::visibleInGame(e, &reflect::moduleObjectTypes())) continue; // spawn points/areas are invisible in the game
         if (e.is(scene::kTypeScatter)) { // view-only instances painted in the editor
-            models.addScatter(out, e, eye);
+            render::addScatter(out, models, e, eye);
             continue;
         }
         if (e.is(scene::kTypeTerrain)) {
             if (asset::Terrain* terrain = models.terrain(scene::terrainFile(e)))
-                models.addTerrain(out, *terrain, e.position, e.scale, e.color, e.flags, eye);
+                render::addTerrain(out, models, *terrain, e.position, e.scale, e.color, e.flags, eye);
             continue;
         }
         const asset::Model* model = e.model.empty() ? nullptr : models.get(e.model);
         const render::MeshId mesh = model ? models.pickLod(*model, eye, e.position, e.scale) : box;
-        if (model) asset::addModel(out, *model, mesh, {e.position, e.color, e.rotation, e.scale, e.flags}, scene::animField(e), viewTime);
+        if (model) render::addModel(out, *model, mesh, {e.position, e.color, e.rotation, e.scale, e.flags}, scene::animField(e), viewTime);
         else out.add(mesh, {e.position, e.color, e.rotation, e.scale, e.flags});
     }
 }

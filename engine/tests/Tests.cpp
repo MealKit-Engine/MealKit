@@ -47,9 +47,10 @@
 #include "mealkit/asset/AnimStates.h"
 #include "mealkit/asset/Cooked.h"
 #include "mealkit/asset/Cutscene.h"
-#include "mealkit/asset/Environment.h"
+#include "mealkit/render/Environment.h"
+#include "mealkit/render/TextureCache.h"
 #include "mealkit/render/SceneLights.h"
-#include "mealkit/asset/ModelCache.h"
+#include "mealkit/render/ModelDraw.h" // asset::ModelCache + its drawing
 #include "mealkit/asset/Scatter.h"
 #include "mealkit/asset/Terrain.h"
 #include "mealkit/render/Culling.h"
@@ -1507,7 +1508,7 @@ TEST_CASE(asset, cube_lut) {
                              "0 0 0\n0 0 1\n0 1 0\n0 1 1\n1 0 0\n1 0 1\n1 1 0\n1 1 1\n";
     std::vector<f32> lut;
     std::string error;
-    TEST_CHECK(asset::parseCubeLut(swap, lut, error));
+    TEST_CHECK(render::parseCubeLut(swap, lut, error));
     constexpr u32 n = render::kLutSize;
     TEST_CHECK(lut.size() == static_cast<size_t>(n) * n * n * 3);
     const auto at = [&](u32 r, u32 g, u32 b, u32 c) { return lut[((static_cast<size_t>(b) * n + g) * n + r) * 3 + c]; };
@@ -1517,41 +1518,41 @@ TEST_CASE(asset, cube_lut) {
     // The neutral LUT file reads back as identity
     const std::string path = std::string(MEALKIT_ENGINE_DIR) + "/build/check/neutral_test.cube";
     createDirectories(parentDirectory(path));
-    TEST_CHECK(asset::saveNeutralCubeLut(path));
-    TEST_CHECK(asset::loadCubeLut(path, lut, error));
+    TEST_CHECK(render::saveNeutralCubeLut(path));
+    TEST_CHECK(render::loadCubeLut(path, lut, error));
     TEST_CHECK(std::abs(at(7, 13, 29, 0) - 7.0f / 31.0f) < 1e-5f && std::abs(at(7, 13, 29, 2) - 29.0f / 31.0f) < 1e-5f);
     removeFile(path);
 
-    TEST_CHECK(!asset::parseCubeLut("LUT_1D_SIZE 4\n0 0 0\n", lut, error));
-    TEST_CHECK(!asset::parseCubeLut("LUT_3D_SIZE 2\n0 0 0\n", lut, error) && error.find("expected 8") != std::string::npos);
+    TEST_CHECK(!render::parseCubeLut("LUT_1D_SIZE 4\n0 0 0\n", lut, error));
+    TEST_CHECK(!render::parseCubeLut("LUT_3D_SIZE 2\n0 0 0\n", lut, error) && error.find("expected 8") != std::string::npos);
 }
 
 TEST_CASE(asset, environment_bake) {
     for (const f32 v : {0.0f, 0.001f, 0.5f, 1.0f, 3.7f, 250.0f}) {
         f32 back[3];
-        asset::unpackRgb9e5(asset::packRgb9e5(v, v * 0.5f, 0.0f), back);
+        render::unpackRgb9e5(render::packRgb9e5(v, v * 0.5f, 0.0f), back);
         TEST_CHECK(std::abs(back[0] - v) <= v * 0.01f + 1e-6f && std::abs(back[1] - v * 0.5f) <= v * 0.01f + 1e-6f && back[2] == 0.0f);
     }
     f32 neg[3];
-    asset::unpackRgb9e5(asset::packRgb9e5(-1.0f, 1e9f, 0.25f), neg); // negatives become 0, too large becomes max (the shared exponent makes small channels 0)
+    render::unpackRgb9e5(render::packRgb9e5(-1.0f, 1e9f, 0.25f), neg); // negatives become 0, too large becomes max (the shared exponent makes small channels 0)
     TEST_CHECK(neg[0] == 0.0f && neg[1] > 60000.0f && neg[2] < 1.0f);
-    const Vec3 px = asset::cubeDirection(0, 0, 0), py = asset::cubeDirection(2, 0, 0), nz = asset::cubeDirection(5, 0, 0);
+    const Vec3 px = render::cubeDirection(0, 0, 0), py = render::cubeDirection(2, 0, 0), nz = render::cubeDirection(5, 0, 0);
     TEST_CHECK(px.x > 0.99f && py.y > 0.99f && nz.z < -0.99f);
-    const Vec3 corner = asset::cubeDirection(4, 1, -1); // top right of the +Z face = +x, +y
+    const Vec3 corner = render::cubeDirection(4, 1, -1); // top right of the +Z face = +x, +y
     TEST_CHECK(corner.x > 0.5f && corner.y > 0.5f && corner.z > 0.5f);
 
     std::vector<f32> flat(64 * 32 * 3, 1.0f);
-    asset::EnvironmentMap env;
-    asset::bakeEnvironment(flat.data(), 64, 32, env);
+    render::EnvironmentMap env;
+    render::bakeEnvironment(flat.data(), 64, 32, env);
     TEST_CHECK(env.skySize == 16 && env.sky.size() == 16u * 16 * 6 && env.reflectMips == 6);
     for (const Vec3 n : {Vec3{0, 1, 0}, Vec3{0, -1, 0}, Vec3{1, 0, 0}, normalize(Vec3{1, 1, -1})}) {
-        const Vec3 a = asset::evalSh(env.sh, n);
+        const Vec3 a = render::evalSh(env.sh, n);
         TEST_CHECK(std::abs(a.x - 1.0f) < 0.03f && std::abs(a.y - 1.0f) < 0.03f && std::abs(a.z - 1.0f) < 0.03f);
     }
     f32 texel[3];
-    asset::unpackRgb9e5(env.sky[123], texel);
+    render::unpackRgb9e5(env.sky[123], texel);
     TEST_CHECK(std::abs(texel[0] - 1.0f) < 0.02f);
-    asset::unpackRgb9e5(env.reflect.back(), texel); // roughest mip
+    render::unpackRgb9e5(env.reflect.back(), texel); // roughest mip
     TEST_CHECK(std::abs(texel[1] - 1.0f) < 0.02f);
 }
 
@@ -1564,7 +1565,7 @@ TEST_CASE(asset, reflection_probe) {
         const Mat4 viewProj = lookAtLH({}, kForward[face], kUp[face]) * proj;
         for (const f32 s : {-0.5f, 0.25f})
             for (const f32 t : {-0.75f, 0.5f}) {
-                const Vec3 d = asset::cubeDirection(face, s, t);
+                const Vec3 d = render::cubeDirection(face, s, t);
                 const f32 x = d.x * viewProj.m[0][0] + d.y * viewProj.m[1][0] + d.z * viewProj.m[2][0] + viewProj.m[3][0];
                 const f32 y = d.x * viewProj.m[0][1] + d.y * viewProj.m[1][1] + d.z * viewProj.m[2][1] + viewProj.m[3][1];
                 const f32 w = d.x * viewProj.m[0][3] + d.y * viewProj.m[1][3] + d.z * viewProj.m[2][3] + viewProj.m[3][3];
@@ -1576,19 +1577,19 @@ TEST_CASE(asset, reflection_probe) {
     std::vector<f32> faces(size * size * 18);
     for (u32 face = 0; face < 6; ++face)
         for (u32 i = 0; i < size * size; ++i) faces[(face * size * size + i) * 3 + face % 3] = 1.0f;
-    asset::ProbeMap probe;
-    asset::bakeProbe(faces.data(), size, probe);
+    render::ProbeMap probe;
+    render::bakeProbe(faces.data(), size, probe);
     TEST_CHECK(probe.size == 32 && probe.mips == 4); // 32 → 4
     f32 texel[3];
-    asset::unpackRgb9e5(probe.reflect[size * size / 2 + size / 2], texel); // center of the +X face = red
+    render::unpackRgb9e5(probe.reflect[size * size / 2 + size / 2], texel); // center of the +X face = red
     TEST_CHECK(texel[0] > 0.95f && texel[1] < 0.05f && texel[2] < 0.05f);
     const std::string path = executableDirectory() + "/test_probe.mkprobe";
-    TEST_CHECK(asset::saveProbe(path, probe));
-    asset::ProbeMap back;
+    TEST_CHECK(render::saveProbe(path, probe));
+    render::ProbeMap back;
     std::string error;
-    TEST_CHECK(asset::loadProbe(path, back, error) && back.size == probe.size && back.mips == probe.mips && back.reflect == probe.reflect);
+    TEST_CHECK(render::loadProbe(path, back, error) && back.size == probe.size && back.mips == probe.mips && back.reflect == probe.reflect);
     removeFile(path);
-    TEST_CHECK(!asset::loadProbe(path, back, error) && !error.empty());
+    TEST_CHECK(!render::loadProbe(path, back, error) && !error.empty());
 }
 
 // Point lights: a built-in kind but with fields; scene object → render::PointLight (world position, linear color × intensity, disabled lights excluded)
@@ -1827,13 +1828,13 @@ TEST_CASE(asset, texture_mips) {
         for (u32 x = 0; x < 4; ++x)
             for (u32 c = 0; c < 4; ++c) rgba[(y * 4 + x) * 4 + c] = (x < 2 || c == 3) ? 255 : 0;
     std::vector<std::vector<u8>> mips;
-    asset::buildMips(rgba.data(), 4, 2, true, false, mips);
+    render::buildMips(rgba.data(), 4, 2, true, false, mips);
     TEST_CHECK(mips.size() == 3 && mips[1].size() == 2 * 1 * 4 && mips[2].size() == 4);
     TEST_CHECK(mips[2][0] == 188 && mips[2][3] == 255); // linear average of white/black 0.5 = sRGB 188
-    asset::buildMips(rgba.data(), 4, 2, false, false, mips);
+    render::buildMips(rgba.data(), 4, 2, false, false, mips);
     TEST_CHECK(mips[2][0] == 128);
     std::vector<u8> normals = {255, 128, 128, 255, 0, 128, 128, 255}; // +x, -x → average points toward z
-    asset::buildMips(normals.data(), 2, 1, false, true, mips);
+    render::buildMips(normals.data(), 2, 1, false, true, mips);
     TEST_CHECK(mips.size() == 2 && mips[1][0] == 128);
     TEST_CHECK(render::packHalf2(1.0f, 0.5f) == (0x3C00u | (0x3800u << 16)) && render::packHalf2(0.0f, -2.0f) == (0xC000u << 16));
 }

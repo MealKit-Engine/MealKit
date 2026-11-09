@@ -8,7 +8,7 @@
 #            uses the checkout's working files). off: removes the junctions and restores the vendored copies from git.
 # Repos are read from sibling checkouts (D:\MealKit-Engine\module-<name>), cloned from the lock's URL into
 # %LOCALAPPDATA%\MealKit\modules when missing. A vendored copy is the repo's files at the locked commit without README.md and .github/;
-# local notes (CLAUDE.md) are left alone.
+# local notes (CLAUDE.md) are left alone; local on keeps them under .git\mealkit-local-notes until local off.
 param(
     [Parameter(Mandatory = $true, Position = 0)][ValidateSet("status", "sync", "bump", "local")][string]$Command,
     [Parameter(Position = 1, ValueFromRemainingArguments = $true)][string[]]$Names = @()
@@ -177,6 +177,14 @@ switch ($Command) {
                 if ((Is-Junction $target) -or -not (Test-Path $sibling)) { continue }
                 $dirty = & git -C $engine status --porcelain -- "modules/$($e.Name)"
                 if ($dirty) { Write-Host "skipped $($e.Name): modules\$($e.Name) has uncommitted changes"; continue }
+                # Local notes (untracked CLAUDE.md files) would go with the folder: kept under .git until local off
+                $notes = Join-Path $engine ".git\mealkit-local-notes\$($e.Name)"
+                Get-ChildItem -LiteralPath $target -Recurse -File -Filter "CLAUDE.md" | ForEach-Object {
+                    $rel = $_.FullName.Substring($target.Length + 1)
+                    $dest = Join-Path $notes $rel
+                    New-Item -ItemType Directory -Force -Path (Split-Path $dest) | Out-Null
+                    Copy-Item -LiteralPath $_.FullName -Destination $dest -Force
+                }
                 Remove-Item -Recurse -Force $target
                 New-Item -ItemType Junction -Path $target -Target $sibling | Out-Null
                 Write-Host "local $($e.Name) -> $sibling"
@@ -184,6 +192,15 @@ switch ($Command) {
                 if (-not (Is-Junction $target)) { continue }
                 (Get-Item $target).Delete() # removes the junction only, not the checkout's files
                 & git -C $engine checkout -- "modules/$($e.Name)"
+                $notes = Join-Path $engine ".git\mealkit-local-notes\$($e.Name)"
+                if (Test-Path $notes) {
+                    Get-ChildItem -LiteralPath $notes -Recurse -File | ForEach-Object {
+                        $dest = Join-Path $target $_.FullName.Substring($notes.Length + 1)
+                        New-Item -ItemType Directory -Force -Path (Split-Path $dest) | Out-Null
+                        Copy-Item -LiteralPath $_.FullName -Destination $dest -Force
+                    }
+                    Remove-Item -Recurse -Force $notes
+                }
                 Write-Host "vendored $($e.Name) restored"
             }
         }

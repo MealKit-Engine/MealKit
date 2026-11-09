@@ -56,6 +56,7 @@ game/Save.h
 platform/Window.h
 render/Renderer.h
 render/DrawList.h
+render/ModelDraw.h
 render/SceneLights.h
 camera/Brain.h
 input/Actions.h

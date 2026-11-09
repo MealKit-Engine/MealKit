@@ -1,4 +1,4 @@
-#include "mealkit/asset/Environment.h"
+#include "mealkit/render/Environment.h"
 #include "mealkit/asset/Cooked.h"
 
 #include "mealkit/core/Hash.h"
@@ -18,7 +18,7 @@
 #include "stb_image.h"
 #endif
 
-namespace mealkit::asset {
+namespace mealkit::render {
 namespace {
 
 // Cache file: "MKEV", format version, sky face size, reflection face size, reflection mip count, 0, SH 27 floats, sky texels, reflection texels (RGB9E5)
@@ -487,7 +487,7 @@ bool parseCubeLut(const std::string& text, std::vector<f32>& out, std::string& e
 
     // Trilinear interpolation over the source grid (input 0..1 → source domain → grid coordinates)
     auto fetch = [&](u32 r, u32 g, u32 b, u32 c) { return cells[((static_cast<size_t>(b) * size + g) * size + r) * 3 + c]; };
-    constexpr u32 n = render::kLutSize;
+    constexpr u32 n = kLutSize;
     out.resize(static_cast<size_t>(n) * n * n * 3);
     for (u32 b = 0; b < n; ++b)
         for (u32 g = 0; g < n; ++g)
@@ -524,7 +524,7 @@ bool loadCubeLut(const std::string& path, std::vector<f32>& out, std::string& er
 }
 
 bool saveNeutralCubeLut(const std::string& path) {
-    constexpr u32 n = render::kLutSize;
+    constexpr u32 n = kLutSize;
     std::string text = "# MealKit neutral LUT (grade the capture next to this file, then export a .cube)\nTITLE \"MealKit neutral\"\nLUT_3D_SIZE 32\n";
     char line[64];
     for (u32 b = 0; b < n; ++b)
@@ -548,7 +548,7 @@ std::string environmentCacheFile(const std::string& hdrPath) {
 
 bool loadEnvironment(const std::string& hdrPath, EnvironmentMap& out, std::string& error) {
     MEALKIT_ZONE("Environment cache");
-    const std::string_view cooked = kCookedEnvironmentSuffix;
+    const std::string_view cooked = asset::kCookedEnvironmentSuffix;
     if (hdrPath.size() > cooked.size() && hdrPath.compare(hdrPath.size() - cooked.size(), cooked.size(), cooked) == 0) {
         if (readCache(hdrPath, out)) return true; // cooked into the pack: the cache file as is
         error = "cooked environment of another engine version (cook the game again)";
@@ -594,4 +594,4 @@ bool loadEnvironment(const std::string& hdrPath, EnvironmentMap& out, std::strin
 #endif
 }
 
-} // namespace mealkit::asset
+} // namespace mealkit::render

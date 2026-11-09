@@ -183,9 +183,10 @@ set(MEALKIT_CORE_SOURCES
     ../modules/scene/include/mealkit/scene/Scene.h
     ../modules/scene/src/mealkit/scene/Scene.cpp
     ../modules/asset/include/mealkit/asset/Budget.h
-    ../modules/asset/include/mealkit/asset/TextureCache.h # header only (texture upload in ModelCache.h). Implementation is front end
+    ../modules/asset/include/mealkit/asset/MeshData.h
+    ../modules/asset/src/mealkit/asset/MeshData.cpp
+    ../modules/asset/include/mealkit/asset/ModelGpu.h # implemented by render::ModelUploader (front end)
     ../modules/asset/include/mealkit/asset/ModelCache.h
-    ../modules/asset/include/mealkit/asset/Environment.h # declarations only (baking in Environment.cpp is front end, called by the ModelCache::setRenderer inline)
     ../modules/asset/src/mealkit/asset/ModelCache.cpp
     ../modules/asset/include/mealkit/asset/Cooked.h
     ../modules/asset/src/mealkit/asset/Cooked.cpp
@@ -203,7 +204,6 @@ set(MEALKIT_CORE_SOURCES
     ../modules/render/include/mealkit/render/DrawList.h
     ../modules/render/include/mealkit/render/Culling.h
     ../modules/render/include/mealkit/render/Mesh.h
-    ../modules/render/src/mealkit/render/Mesh.cpp
     ../modules/render/include/mealkit/render/Renderer.h
     ../modules/rhi/include/mealkit/rhi/Rhi.h # header only (GpuInfo in Renderer.h). Backend implementations are front end
     core/platform/include/mealkit/platform/Socket.h
@@ -257,8 +257,12 @@ set(MEALKIT_FRONT_SOURCES
     ../modules/game/src/mealkit/game/Cook.h
     ../modules/game/src/mealkit/game/Cook.cpp
     ../modules/render/src/mealkit/render/Renderer.cpp
-    ../modules/asset/src/mealkit/asset/TextureCache.cpp
-    ../modules/asset/src/mealkit/asset/Environment.cpp
+    ../modules/render/include/mealkit/render/TextureCache.h
+    ../modules/render/src/mealkit/render/TextureCache.cpp
+    ../modules/render/include/mealkit/render/Environment.h
+    ../modules/render/src/mealkit/render/Environment.cpp
+    ../modules/render/include/mealkit/render/ModelDraw.h
+    ../modules/render/src/mealkit/render/ModelDraw.cpp
     ../modules/render/src/mealkit/render/ShaderReload.h
     ../modules/rhi/include/mealkit/rhi/GpuCapture.h
     ../modules/rhi/src/mealkit/rhi/GpuCapture.cpp
@@ -313,7 +317,7 @@ if(MEALKIT_DEBUG_UI)
         core/core/include/mealkit/core/AllocCount.h core/core/src/mealkit/core/AllocCount.cpp
         core/platform/include/mealkit/platform/ImGuiPlatform.h core/platform/src/mealkit/platform/win32/ImGuiPlatform.cpp
         ${mealkit_rhi_imgui}
-        # Texture compression (asset/TextureCache.cpp): dev builds only create it; shipping builds only read the compressed cache
+        # Texture compression (render/TextureCache.cpp): dev builds only create it; shipping builds only read the compressed cache
         ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp)
 endif()
 
@@ -506,7 +510,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     # Disable warnings for external code implementation files
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb
                                ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp
-                               ${MEALKIT_THIRD_PARTY}/bc7enc)   # asset/TextureCache.cpp
+                               ${MEALKIT_THIRD_PARTY}/bc7enc)   # render/TextureCache.cpp
     if(MSVC)
         set_source_files_properties(../modules/ui/src/mealkit/ui/StbImpl.cpp
             ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp PROPERTIES COMPILE_OPTIONS "/W0")

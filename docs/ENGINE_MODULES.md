@@ -158,14 +158,14 @@ The first cut follows the current folders, so it's mostly moving files. Finer sp
 | `sim` | sim | physics | `sim/` MatchFlow, Movement, Ragdoll, NavGrid, Commands, Table |
 | `data` | sim | — | `data/` table reading |
 | `scene` | sim | data | `scene/` |
-| `asset` | sim | data scene | `asset/` (texture cache and other view parts move to `render`) |
+| `asset` | sim | data scene | `asset/` CPU data only: models, `MeshData`/`MaterialData`, terrain, scatter, cooking; GPU uploads through `asset::ModelGpu` (texture cache, sky HDRI and model drawing are in `render` since 2026-11-09) |
 | `game-sim` | sim | sim data scene asset | `game/` Simulation, GameData, Loadout, InputRecord, Headless, the session interface (below) |
 | `net` | sim | game-sim | `net/` lockstep, sockets, LAN rooms, host migration, mid-match joining |
 | `live` | tool | — | `live/` dev connection server |
 | `window` | view | — | `platform/Window`, `Input`, `Gamepad`, `FileDialog`, `ImGuiPlatform` |
 | `rhi` | view | window | `rhi/` interface |
 | `rhi-dx12`, `rhi-vulkan` | view | rhi | `rhi/dx12/`, `rhi/vulkan/` (`provides rhi-backend`) |
-| `render` | view | rhi asset | `render/` |
+| `render` | view | rhi asset | `render/`, plus `ModelDraw` (`ModelUploader`, `addModel`/`addTerrain`/`addScatter`/`postParams`/`probes`), `TextureCache`, `Environment` |
 | `loc`, `settings` | view | data | same folders |
 | `input` | view | window data | `input/` |
 | `audio` | view | data | `audio/` glue + mkaudio |

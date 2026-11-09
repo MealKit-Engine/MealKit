@@ -3,7 +3,7 @@
 #include "sim/World.h"
 #include "view/ViewTuning.h"
 
-#include "mealkit/asset/ModelCache.h"
+#include "mealkit/render/ModelDraw.h" // asset::ModelCache + its drawing
 #include "mealkit/render/DrawList.h"
 #include "mealkit/render/Renderer.h"
 #include "mealkit/scene/Scene.h"

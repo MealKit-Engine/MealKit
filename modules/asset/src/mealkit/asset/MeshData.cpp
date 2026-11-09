@@ -1,8 +1,8 @@
-#include "mealkit/render/Mesh.h"
+#include "mealkit/asset/MeshData.h"
 
 #include <cstring>
 
-namespace mealkit::render {
+namespace mealkit::asset {
 
 namespace {
 u16 toHalf(f32 f) {
@@ -55,4 +55,4 @@ MeshData makeBox() {
     return mesh;
 }
 
-} // namespace mealkit::render
+} // namespace mealkit::asset

@@ -1,4 +1,4 @@
-#include "mealkit/asset/TextureCache.h"
+#include "mealkit/render/TextureCache.h"
 
 #include "mealkit/core/Hash.h"
 #include "mealkit/core/Log.h"
@@ -16,7 +16,7 @@
 #include "rgbcx.h"
 #endif
 
-namespace mealkit::asset {
+namespace mealkit::render {
 namespace {
 
 // Cache file: "MKTX", format version, platform format family (0 = BC, ASTC for mobile in stage 5), rhi::Format, size, mip count, data
@@ -48,10 +48,10 @@ bool readCache(const std::string& path, CompressedTexture& out) {
     out.width = hd.width;
     out.height = hd.height;
     out.mipLevels = hd.mipLevels;
-    out.format = static_cast<rhi::Format>(hd.format);
+    out.format = static_cast<asset::TextureFormat>(hd.format);
     u64 expect = 0;
     for (u32 mip = 0; mip < hd.mipLevels; ++mip)
-        expect += rhi::textureMipBytes(out.format, std::max(1u, hd.width >> mip), std::max(1u, hd.height >> mip));
+        expect += rhi::textureMipBytes(textureFormat(out.format), std::max(1u, hd.width >> mip), std::max(1u, hd.height >> mip));
     if (file.size() != sizeof(Header) + expect) return false;
     out.data.assign(file.begin() + sizeof(Header), file.end());
     return true;
@@ -158,9 +158,9 @@ bool loadCompressedTexture(const void* encoded, size_t bytes, TextureUsage usage
     out.width = static_cast<u32>(w);
     out.height = static_cast<u32>(h);
     out.mipLevels = static_cast<u32>(mips.size());
-    out.format = usage == TextureUsage::Normal ? rhi::Format::Bc5Unorm
-                 : usage == TextureUsage::Color ? rhi::Format::Bc7Srgb
-                                                : rhi::Format::Bc7Unorm;
+    out.format = usage == TextureUsage::Normal ? asset::TextureFormat::Bc5Unorm
+                 : usage == TextureUsage::Color ? asset::TextureFormat::Bc7Srgb
+                                                : asset::TextureFormat::Bc7Unorm;
     out.data.clear();
     for (u32 mip = 0; mip < out.mipLevels; ++mip)
         compress(mips[mip], std::max(1u, out.width >> mip), std::max(1u, out.height >> mip), usage, out.data);
@@ -178,4 +178,4 @@ bool loadCompressedTexture(const void* encoded, size_t bytes, TextureUsage usage
 #endif
 }
 
-} // namespace mealkit::asset
+} // namespace mealkit::render

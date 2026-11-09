@@ -14,7 +14,7 @@
 // Cube face order/orientation follows DX12/Vulkan rules (+X, −X, +Y, −Y, +Z, −Z, MealKit left-handed y-up), texels are RGB9E5.
 // Baking happens only in dev builds (builds with debug UI): shipping builds only read the cache (Export copies it to cache/environments next to the exe).
 // View-only, so unrelated to the simulation and content hash.
-namespace mealkit::asset {
+namespace mealkit::render {
 
 struct EnvironmentMap {
     f32 sh[9][3] = {}; // ambient color = Σ sh[i] · Y_i(n) (Y: real spherical harmonics orders 0~2)
@@ -31,8 +31,8 @@ bool loadEnvironment(const std::string& hdrPath, EnvironmentMap& out, std::strin
 // .hdr files under assets/textures/ (including subfolders) (paths relative to assets like "textures/hdri/x.hdr", sorted by name). Selection list for the editor [Environment] window and lookdev
 std::vector<std::string> listHdris(const std::string& assetsRoot);
 
-// Color grading LUT (.cube, 3D LUT exported by Resolve, Photoshop etc.): sRGB values resampled to render::kLutSize³ cells (red fastest,
-// render::Renderer::createLut). Trilinear interpolation if sizes differ, honors DOMAIN_MIN/MAX. 1D LUTs and bad files return false and a reason
+// Color grading LUT (.cube, 3D LUT exported by Resolve, Photoshop etc.): sRGB values resampled to kLutSize³ cells (red fastest,
+// Renderer::createLut). Trilinear interpolation if sizes differ, honors DOMAIN_MIN/MAX. 1D LUTs and bad files return false and a reason
 bool parseCubeLut(const std::string& text, std::vector<f32>& out, std::string& error);
 bool loadCubeLut(const std::string& path, std::vector<f32>& out, std::string& error);
 // .cube files under assets/lut/ (environment panel selection, kind folder lut)
@@ -65,4 +65,4 @@ Vec3 cubeDirection(u32 face, f32 s, f32 t); // face 0..5, s/t = −1..1 (texel c
 void bakeEnvironment(const f32* rgb, u32 width, u32 height, EnvironmentMap& out);
 Vec3 evalSh(const f32 (&sh)[9][3], Vec3 n); // same computation as the shader
 
-} // namespace mealkit::asset
+} // namespace mealkit::render

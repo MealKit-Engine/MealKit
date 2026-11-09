@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mealkit/asset/MeshData.h"
 #include "mealkit/rhi/Rhi.h"
 
 #include <string>
@@ -11,19 +12,16 @@
 // Compression only happens in dev builds (builds with debug UI: editor/dev exe). Shipping builds only read the compressed cache
 // (Export copies it to cache/textures next to the exe). View-only, so unrelated to the simulation and content hash
 // (the source images are already in the glTF file hash).
-namespace mealkit::asset {
+namespace mealkit::render {
 
-enum class TextureUsage : u8 {
-    Color,  // baseColor·emissive: sRGB BC7
-    Linear, // metallicRoughness: BC7 (linear)
-    Normal, // normal map: BC5 (x, y. The shader reconstructs z)
-};
+using asset::CompressedTexture;
+using asset::TextureUsage;
 
-struct CompressedTexture {
-    u32 width = 0, height = 0, mipLevels = 0;
-    rhi::Format format = rhi::Format::Bc7Unorm;
-    std::vector<u8> data; // from mip 0, rhi::textureMipBytes each (rhi::TextureInit)
-};
+// Cooked models store the format as asset::TextureFormat: the values must stay rhi::Format's
+static_assert(static_cast<u8>(asset::TextureFormat::Bc7Unorm) == static_cast<u8>(rhi::Format::Bc7Unorm) &&
+              static_cast<u8>(asset::TextureFormat::Bc7Srgb) == static_cast<u8>(rhi::Format::Bc7Srgb) &&
+              static_cast<u8>(asset::TextureFormat::Bc5Unorm) == static_cast<u8>(rhi::Format::Bc5Unorm));
+inline rhi::Format textureFormat(asset::TextureFormat f) { return static_cast<rhi::Format>(f); }
 
 // Encoded image (PNG/JPEG bytes in glTF) → read from the cache, or if missing decode, mipmap, compress, and write to cache. On failure, false and a reason
 bool loadCompressedTexture(const void* encoded, size_t bytes, TextureUsage usage, CompressedTexture& out, std::string& error);
@@ -34,4 +32,4 @@ std::string textureCacheFolder();
 // Mipmaps only without compression (for unit tests, RGBA8). With srgb, converts to linear before averaging
 void buildMips(const u8* rgba, u32 width, u32 height, bool srgb, bool normal, std::vector<std::vector<u8>>& mips);
 
-} // namespace mealkit::asset
+} // namespace mealkit::render
