@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI canvas size: ui 0.1.5, editor 0.1.10 (2026-11-09)
+
+- The canvas was small: a middle column of about half the tab, under the viewport tab row and above the bottom row, with a 32 px fit margin. Three fixes, after Unity (`Shift+Space` maximizes the hovered panel) and Figma (`Ctrl+\` hides the side panels).
+- Maximize (`Shift+Space`, the `Maximize UI Canvas` command, a toolbar button): `Editor::uiMaximized()` submits the dockspace with `ImGuiDockNodeFlags_KeepAliveOnly`, which keeps the dock tree but shows none of its windows, and draws the workspace in its own `##UiMaximized` window over the main viewport's work area (menu and status bar stay). The UI tab keeps its dock slot, so restoring returns the same layout. Only in edit mode; the scene view counts as hidden (no gizmo, toolbar or picking).
+- Side columns: toolbar toggles for each, `Ctrl+\` (`Hide UI Side Columns`) hides both or shows both. The table is `Hideable` and the columns are switched with `TableSetColumnEnabled`, so their widths are kept. A hidden column leaves a strip at the canvas edge whose button peeks it in a popup (`Keep open` shows it again).
+- Fit: 12 px margin instead of 32; **Fit width** (`m_fitWidth`, a tall screen starts at its top); a fit above 100% rounds down to whole multiples (it was capped at 100%).
+- Checked: editor build, captures of the UI layout, maximized, maximized with both columns hidden, and the default layout with both columns hidden; `check_strings.ps1`, docs check. Not checked by hand: the peek popups and the shortcuts with a real keyboard (the captures run the commands).
+
 ## UI workspace pass and engine restart: ui 0.1.4, editor 0.1.9 (2026-11-09)
 
 - UI workspace, after UI Builder, Figma and Godot: icon toolbar (screen name with an unsaved dot, save/undo/redo, an **Add** menu, duplicate/wrap/delete/paste) on one row; layers with kind glyphs (kind in the tooltip) and a right-click node menu; a path strip above the canvas whose parts select parents; a view strip below it (resolution, language, UI scale, focus display, zoom out/percent/in/fit); wheel zooms around the mouse, middle or right drag pans (`UiPanel::handleCanvasView`, `m_zoom` 0 = fit); inspector header with the kind glyph and name, Layout/Style/State/All lines groups, an aligned label column, wrapped hints, problems open by themselves when there are any.

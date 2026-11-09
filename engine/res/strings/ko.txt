@@ -1077,3 +1077,12 @@ Restart saves your changes, closes the editor, builds the engine in a console wi
 Save, Restart and Rebuild = 저장하고 다시 시작해 빌드
 This engine has no tools\\rebuild_editor.ps1: close the editor and rebuild the engine's editor = 이 엔진에는 tools\\rebuild_editor.ps1이 없습니다: 에디터를 닫고 엔진의 에디터를 다시 빌드하세요
 Could not start the engine rebuild = 엔진 다시 빌드를 시작하지 못했습니다
+Screens and layers (Ctrl+\\ hides both columns) = 화면과 레이어 (Ctrl+\\: 양쪽 열 숨기기)
+Inspector (Ctrl+\\ hides both columns) = 인스펙터 (Ctrl+\\: 양쪽 열 숨기기)
+Restore (Shift+Space) = 원래대로 (Shift+Space)
+Maximize (Shift+Space) = 최대화 (Shift+Space)
+Screens and layers = 화면과 레이어
+Keep open = 계속 열어 두기
+Fit width = 폭 맞춤
+Maximize UI Canvas = UI 캔버스 최대화
+Hide UI Side Columns = UI 옆 열 숨기기
