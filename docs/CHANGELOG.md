@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Source module `objects` 0.1.0 (ROADMAP source modules ⑨, 2026-11-09)
+
+- New repo `module-objects` (local, not pushed; to be `KingProtea99/module-objects` like `cooldown`), `sim/Objects.h`, no `requires` (DECISIONS 2026-11-09 "Source module `objects`").
+- **Triggers**: `objects::Trigger` (box or sphere, one `u64` mask of slots inside). `update(trigger, slots, points, count)` returns entered/exited masks; `forEachBit` walks them in slot order. Slots must be below 64; a slot not passed in counts as exited. Squared distances only.
+- **Path platforms**: `objects::Path` (up to 8 points, whole-tick leg lengths, `Loop`/`PingPong`/`Once`, `startTick`). `positionAt(path, tick)` is a pure function of the tick (no accumulation, so rewinds and late joins match); `stepDelta` for a kinematic body's velocity. The game moves its own body.
+- **Item spawns**: `objects::ItemSpawn` (`TickTimer` + taken count), `tryTake`, `available`.
+- Docs `docs/index.md` (overview, adding, usage, how it works), README, MIT LICENSE, shared module CI workflow.
+- Checked: the registry's `check_module.ps1` (module.txt, tests build and pass, SimCheck). Not done: the samples don't use it (replays unchanged), no `.ui`, no registry entry or push (the user creates the GitHub repo).
+
 ## One module tool: `module.ps1 engine` (v0.9.3, 2026-11-09)
 
 - `tools\modules.ps1` (the engine's vendored copies and `modules.lock`) became `tools\module.ps1 engine status|sync|bump|local`; the code moved to `tools\module_engine.ps1`, which `module.ps1` calls. `tools\modules.ps1` stays as a forwarder that prints the new command line (removed in a later version).
