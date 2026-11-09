@@ -488,7 +488,7 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 
 The module system is done (stage 4 ①~⑧). The remaining first modules (⑨) are made after cross-platform (stage 5), **one at a time, whenever the user wants one**. One exception: designer independence D9 pulls `objects` forward.
 
-### [ ] Source module system (feature reuse) — ①~⑧ done, ⑨ remaining modules one at a time (`objects` done 2026-11-09)
+### [ ] Source module system (feature reuse) — ①~⑧ done, ⑨ remaining modules one at a time (`objects`, `procgen` done 2026-11-09)
 - **Why**: features that differ slightly per game but are used often, like health bars, skill cooldowns, minimaps, inventories, and procedural map generation, are built from scratch every time.
   Putting them in as built-in engine features makes the engine heavier and forces one design. Prefabs hold only data (placement) and can't carry `sim/` logic. Binary plugins (DLLs) don't fit the static single shipping exe or SimCheck.
 - **Detailed plan**: `docs/MODULES.md` (when done, rules move to `docs/CODING_MODEL.md`, implementation to `docs/CHANGELOG.md`, and it's deleted). The decision is `docs/DECISIONS.md` 2026-10-28 "Source modules".

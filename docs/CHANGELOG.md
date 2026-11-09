@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Source module `procgen` 0.1.0 (ROADMAP source modules ⑨, 2026-11-09)
+
+- New repo `module-procgen` (local, not pushed), `sim/Placement.h`, no `requires`, no state (DECISIONS 2026-11-09 "Source module `procgen`").
+- `scatter(area, scatter, seed, out, maxCount)`: jittered grid on the XZ plane, row by row; `minDistance` is guaranteed; each cell always draws three numbers so `keep` and `maxCount` don't move other points. `pickWeighted` (integer weights), `shuffle` (Fisher-Yates), `subSeed(seed, part)`.
+- Docs `docs/index.md`, README, LICENSE, shared CI workflow.
+- Checked: the registry's `check_module.ps1` (tests: same seed same points, spacing, inside the area, `keep` subset, weights, shuffle; SimCheck). Not done: room/dungeon generation, editor baking into `.scene`, samples don't use it, no registry entry or push.
+
 ## Source module `objects` 0.1.0 (ROADMAP source modules ⑨, 2026-11-09)
 
 - New repo `module-objects` (local, not pushed; to be `KingProtea99/module-objects` like `cooldown`), `sim/Objects.h`, no `requires` (DECISIONS 2026-11-09 "Source module `objects`").
