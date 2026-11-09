@@ -1,4 +1,4 @@
-# Engine modules vendored into modules/<name> (tools\modules.ps1). One engine version = VERSION + this file.
+# Engine modules vendored into modules/<name> (tools\module.ps1 engine). One engine version = VERSION + this file.
 # module <name> <repo url> <tag> <commit> <path in the repo>
 @format module-lock 1
 module asset https://github.com/MealKit-Engine/module-asset v0.2.0 d23bd5c2a2688e8d6b08e30fa7726b8ea45ee859 .

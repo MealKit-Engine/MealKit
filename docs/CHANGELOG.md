@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## One module tool: `module.ps1 engine` (v0.9.3, 2026-11-09)
+
+- `tools\modules.ps1` (the engine's vendored copies and `modules.lock`) became `tools\module.ps1 engine status|sync|bump|local`; the code moved to `tools\module_engine.ps1`, which `module.ps1` calls. `tools\modules.ps1` stays as a forwarder that prints the new command line (removed in a later version).
+- Updated: workspace and engine notes, `CODING_MODEL.md`, `ENGINE_MODULES.md`, `modules.lock` header, docs repo (engine modules page, source layout; English and Korean), the 20 module repos' READMEs (no tags: READMEs aren't vendored). History in CHANGELOG/DECISIONS/ROADMAP keeps the old name.
+- Checked: `module.ps1 engine status`, `engine local on/off render` (notes kept), the forwarder, `module.ps1 list`/`search -Project`, docs `build.py check`. Found, not changed: `module.ps1 search` without `-Project` fails ("Path" is an empty string) in the previous version too.
+
 ## asset without render: GPU parts into the render module (v0.9.3, 2026-11-09)
 
 - The last `transitional` dependency is gone: `asset` (sim) no longer includes `render` or `rhi`. module-asset 0.2.0, module-render 0.2.0 (`requires asset 0.2`), module-game 0.2.0, module-editor 0.1.6; `kApiVersion` 25 (the editor refuses older game DLLs).

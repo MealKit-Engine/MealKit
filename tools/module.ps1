@@ -10,6 +10,8 @@
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 resolve -Project <folder> <module> -File <path in the module> -Use new|mine
 #       a <file>.new left by update: new = take the module's version, mine = keep yours; either way the .new goes and the record moves on
 #   powershell -ExecutionPolicy Bypass -File tools\module.ps1 versions <module> [-Project <folder>] [-Tsv]   (versions to update or go back to)
+#   powershell -ExecutionPolicy Bypass -File tools\module.ps1 engine status|sync|bump|local ...   the engine's own vendored copies and modules.lock
+#       (engine developers; tools\module_engine.ps1 has the details: status, sync [name ...], bump <name> [tag], local on|off [name ...])
 #
 # - The source is a module folder (module.txt at its root) or a git repo containing such folders. If the repo has several modules/<name>/module.txt, pick one with -Name.
 #   A name of an engine module (this engine's modules/<name>, e.g. render, audio, online-steam) takes the engine's copy; name@version takes that tag
@@ -25,8 +27,9 @@
 #   mealkit/<name>/ for engine modules) (force with -Force). It lists the modules to
 #   remove first in order. Undo is git's job.
 param(
-    [Parameter(Mandatory = $true, Position = 0)][ValidateSet("search", "list", "add", "update", "remove", "resolve", "versions")][string]$Command,
+    [Parameter(Mandatory = $true, Position = 0)][ValidateSet("search", "list", "add", "update", "remove", "resolve", "versions", "engine")][string]$Command,
     [Parameter(Position = 1)][string]$Target = "",
+    [Parameter(Position = 2, ValueFromRemainingArguments = $true)][string[]]$Rest = @(),
     [string]$Project = "",
     [string]$Name = "",
     [string]$From = "",
@@ -43,6 +46,11 @@ param(
     [switch]$Force
 )
 $ErrorActionPreference = "Stop"
+if ($Command -eq "engine") { # the engine's vendored copies (modules.lock): one tool for every module job
+    if (-not $Target) { throw "engine status|sync|bump|local ..." }
+    & (Join-Path $PSScriptRoot "module_engine.ps1") $Target @Rest
+    exit $LASTEXITCODE
+}
 # The editor and Manager read this output through a pipe as UTF-8 (a console keeps its code page: ninja needs it, see build.ps1)
 if ([Console]::IsOutputRedirected) { [Console]::OutputEncoding = New-Object Text.UTF8Encoding $false }
 # A failure is one "error: <message>" line, not a PowerShell error record (position, CategoryInfo ... in the console's language)

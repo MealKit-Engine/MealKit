@@ -241,8 +241,8 @@ module physics https://github.com/MealKit-Engine/module-physics v0.1.0  9c1d…
 
 - **An engine version is a tested set**: the root `VERSION` plus `modules.lock`. Games pin an engine version, not module versions one by one, so the combinations that exist are the ones CI tested.
 - The engine repo **vendors** each locked module into `modules/<name>/` (source copies of `module.txt`, `include/`, `src/`, `shaders/`, `editor/`, `tests/`, `third_party/`, `LICENSE`), the way `third_party/mkaudio` works today. Cloning `MealKit` alone is still enough to build, offline, and the simulation version hashes what's in the folder.
-- `tools\modules.ps1` keeps both in step: `sync` (copy the locked tags, check commits), `bump <name> [<tag>]` (update the lock and the copy in one engine commit), `status` (vendored copy vs lock vs local checkout). It generalizes `update_mkaudio.ps1`.
-- **Local mode**: `tools\modules.ps1 local on [name]` turns `modules/<name>` into a junction to the sibling checkout `..\module-<name>` (changed 2026-11-08 in step 9 from a CMake switch: the build keeps one set of paths), for changes that span repos; `local off` restores the vendored copy. When the change is done, each module repo gets a commit and tag, and `bump` brings them into the engine in one commit.
+- `tools\module.ps1 engine` keeps both in step (`tools\modules.ps1` until 2026-11-09, still forwarding): `sync` (copy the locked tags, check commits), `bump <name> [<tag>]` (update the lock and the copy in one engine commit), `status` (vendored copy vs lock vs local checkout). It generalizes `update_mkaudio.ps1`.
+- **Local mode**: `tools\module.ps1 engine local on [name]` turns `modules/<name>` into a junction to the sibling checkout `..\module-<name>` (changed 2026-11-08 in step 9 from a CMake switch: the build keeps one set of paths), for changes that span repos; `local off` restores the vendored copy. When the change is done, each module repo gets a commit and tag, and `bump` brings them into the engine in one commit.
 
 ### Module CI (per module repo)
 
