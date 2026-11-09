@@ -3,6 +3,16 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Editor feedback pass: editor 0.1.7 (2026-11-09)
+
+- Viewport toolbar is one row docked along the top of the viewport tab; the 3D picture starts below it. The row stays during play (play status) so starting and stopping don't resize the picture.
+- The "game code is not built yet" card sits at the top of the viewport under every other window and can be closed until the project is opened again.
+- The scene switcher left the menu bar: the scene name (with `*`) is always at the left of the status bar and opens the scene list. **Project > Project Manager** starts MealKit Manager (or `--builtin-manager`).
+- New projects open Data (bottom row) and Previews (behind the inspector) too; Previews behind another tab draws no UI overlay and no look dev.
+- Gizmo style: thicker lines, bigger round ends and center, softer axis colors, no dashed negative axes, scaled with the UI.
+- Windows renamed Viewport / Hierarchy (DECISIONS 2026-11-09 "Editor names"); window IDs unchanged so saved layouts keep working. Commands `Viewport`, `Hierarchy`, `Find in Hierarchy`.
+- Not done: arrow tips are still ImGuizmo triangles (own move/scale gizmo would be needed), build profiles per platform, a UI workspace window.
+
 ## Source module `procgen` 0.1.0 (ROADMAP source modules ⑨, 2026-11-09)
 
 - New repo `module-procgen` (local, not pushed), `sim/Placement.h`, no `requires`, no state (DECISIONS 2026-11-09 "Source module `procgen`").

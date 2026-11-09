@@ -5,7 +5,7 @@ module asset https://github.com/MealKit-Engine/module-asset v0.2.0 d23bd5c2a2688
 module camera https://github.com/MealKit-Engine/module-camera v0.1.2 9e5f51463ce32806e2a985504d9b4cd7d62db2b8 .
 module data https://github.com/MealKit-Engine/module-data v0.1.2 4f58d548daafa2d2b88204a99f499ac70676a317 .
 module debug https://github.com/MealKit-Engine/module-debug v0.1.2 d8ad98765068c1a233a3f94c852f600ac2517cad .
-module editor https://github.com/MealKit-Engine/module-editor v0.1.6 a114fc051e405e437cfd65331852c9c7ce72ae82 .
+module editor https://github.com/MealKit-Engine/module-editor v0.1.7 d2c72b8484b0fc282883a3a0f82d28bbfc04e17d .
 module feedback https://github.com/MealKit-Engine/module-feedback v0.1.3 2134f7a20b5b321bc8e47a0d8b56df61301f7b1e .
 module game https://github.com/MealKit-Engine/module-game v0.2.0 06b3ac74bb004d2344cdfca459ba5f6de38535df .
 module input https://github.com/MealKit-Engine/module-input v0.1.2 2dcb56c28d9e457775eb5661307b4e387c3bbcb0 .
