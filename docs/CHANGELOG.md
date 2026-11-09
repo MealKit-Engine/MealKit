@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI workspace pass and engine restart: ui 0.1.4, editor 0.1.9 (2026-11-09)
+
+- UI workspace, after UI Builder, Figma and Godot: icon toolbar (screen name with an unsaved dot, save/undo/redo, an **Add** menu, duplicate/wrap/delete/paste) on one row; layers with kind glyphs (kind in the tooltip) and a right-click node menu; a path strip above the canvas whose parts select parents; a view strip below it (resolution, language, UI scale, focus display, zoom out/percent/in/fit); wheel zooms around the mouse, middle or right drag pans (`UiPanel::handleCanvasView`, `m_zoom` 0 = fit); inspector header with the kind glyph and name, Layout/Style/State/All lines groups, an aligned label column, wrapped hints, problems open by themselves when there are any.
+- UI layout: the workspace and viewport over a short bottom row only. Hierarchy, inspector and previews close, but are docked in the bottom row so [Window] reopens them there instead of floating over the workspace.
+- Automated editor runs (`--frames`, captures) use the default layout and save no `layout.ini`/`panels.txt`, so tests no longer change a project's layout.
+- Engine changed under a running editor: a game code build stops at the engine step (mealkit.dll in use, `build.ps1` "Engine editor build failed"). The editor now offers **Save, Restart and Rebuild**: `tools\rebuild_editor.ps1` waits for the editor to exit, builds the engine editor in a console window and reopens the project, which then builds its game code. This was the FuseTag "build fails" report: module bumps rewrote the vendored engine sources while the editor was open.
+- Checked: editor build, captures in the default and UI layouts, the check.ps1 UI edit commands by hand (same drag results, file unchanged), `layout.ini` untouched by an automated run, `check_strings.ps1`, docs check, the rebuild script parses. Not run: the restart flow end to end (needs a stale engine under a running editor).
+
 ## UI workspace window: ui 0.1.3, editor 0.1.8 (ROADMAP "UI workspace window" 1, 2026-11-09)
 
 - `UiPanel` (module-ui `editor/`) lays itself out as a workspace inside the editor's new `UI###UiWorkspace` window, a tab beside the Viewport: a toolbar row (save, undo, redo, add frame/text/image/component, duplicate, copy, wrap, paste; resolution, UI scale, language, show focus) that wraps in a narrow tab, then a three-column resizable table (shares 0.22 / 0.50 / 0.28): screens and the node tree, the canvas, and the selection's properties with preview values, focus, problems and Penpot sections.
