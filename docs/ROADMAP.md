@@ -401,6 +401,22 @@ In practice the source module system ①~⑧ was done first (2026-10-28). **Rema
 
 ### [x] Second reference sample: co-op third person — v0.7.22 (`samples/coop`, sandbox moved to `samples/sandbox/mealkit.project`), details in `docs/CHANGELOG.md`. Cookbook docs moved to right before contracts are frozen (stage 5, "Cookbook docs")
 
+### [ ] 2D on the 3D engine: sprite rendering + editor sprite object (decided 2026-11-10, `docs/DECISIONS.md` "2D games run on the 3D engine")
+- **Done so far**: 2D empty template (`templates/empty2d`), `view2d` editor front view, `PhysicsWorld::setPlane2D`, Unlit by default, template cards with previews (details in `docs/CHANGELOG.md`). The template still draws boxes.
+- **Why**: a 2D game is drawn with images, not boxes. What is missing is a way to put textured, alpha-blended, layered images in the world and edit them in the editor.
+- **Renderer (`modules/render`, DX12 and Vulkan in the same piece of work)**:
+  - A sprite pass in the scene target after opaque objects: world-space textured quads, premultiplied alpha blending, depth test on and depth write off, sorted back to front by `layer` then by distance along the view; one instanced draw per texture/blend run (instance data: transform, UV rect, color, pivot, flip).
+  - Images come from the existing texture cache (bindless `Texture2D[]`); a per-sprite sampler choice: linear or point (pixel art). Optional pixel snapping when the camera is orthographic (`pixelsPerUnit` from the project).
+  - Unlit by default (color x texture); lit sprites (normal maps, 2D point lights) only as a later opt-in.
+  - Budget: a few hundred sprites in one or two draws inside the default preset; a golden test (`--render-golden`) for ordering, blending and point sampling on both backends.
+  - Not the UI quad pass: UI is screen space at native resolution without depth; sprites live in the world and go through post and dynamic resolution. Shader pieces may be shared.
+- **Scene object (`modules/scene`, `MEALKIT_OBJECT`)** `sprite`: image (under `assets`), frame rect or sheet cell (columns, rows, index), pivot, size in meters (or from `pixelsPerUnit`), color tint, `layer` (draw order), flip x/y, sampler (linear/point). View only: nothing enters the simulation; collision stays solid objects (or a solid flag that makes a box of the sprite's size, which then does enter the content hash).
+- **Animation**: flipbook clips on sprite sheets (frames, frames per second, loop), named in a table so the view picks a clip from game state (same idea as the animation state table). Driven by view time, never by `sim/`.
+- **Editor (`modules/editor`)**: [Add] > Sprite; dropping a PNG from the asset browser onto the viewport makes a sprite; inspector rows with an image picker, sheet slicer (columns/rows, preview of the chosen cell), pivot presets and layer; picking and the gizmo work on the quad (rotation about z only in `view2d`); thumbnails in the asset browser; sprites drawn in the 2D front view and in play.
+- **Game side**: `render::addSprite(DrawList&, ...)` from `drawScene`; the 2D template draws its characters and platforms as sprites (sample images in `templates/empty2d/assets/sprites`, CC0 or made by us) and its preview image is retaken.
+- **Later, separate items**: tilemaps (painted grid of sheet cells with merged collision), 2D lights, a parallax layers helper.
+- **Checks**: render golden on DX12/Vulkan, an editor capture of a sprite scene in `view2d`, the 2D template built from scratch, `check.ps1 -Changed`.
+
 ---
 
 ## Stage 5 (v1.x): other platforms, editors on other OSes, crossplay

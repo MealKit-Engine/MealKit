@@ -2617,6 +2617,39 @@ TEST_CASE(physics, physics_snapshot) {
 }
 
 // Late join: a snapshot written as bytes gives the same result even when cleared into and loaded in another World (with other bodies)
+// 2D games (PhysicsWorld::setPlane2D): bodies knocked sideways and spun stay on z = 0 and turn only about z; characters too
+TEST_CASE(physics, physics_plane2d) {
+    physics::PhysicsWorld w;
+    w.init(256, 1);
+    w.setPlane2D(true);
+    w.setGravity({0.0f, -20.0f, 0.0f});
+    physics::BodyDesc ground;
+    ground.motion = physics::Motion::Static;
+    ground.position = {0.0f, -0.5f, 0.0f};
+    w.createBox({20.0f, 0.5f, 20.0f}, ground);
+    physics::BodyDesc slope; // tilted about x: would slide boxes toward -z/+z in 3D
+    slope.motion = physics::Motion::Static;
+    slope.position = {0.0f, 1.0f, 0.0f};
+    slope.rotation = quatFromAxisAngle({1.0f, 0.0f, 0.0f}, 0.5f);
+    w.createBox({2.0f, 0.2f, 2.0f}, slope);
+    physics::BodyDesc d;
+    d.position = {0.3f, 4.0f, 0.0f};
+    const physics::BodyId box = w.createBox({0.3f, 0.3f, 0.3f}, d);
+    w.setLinearVelocity(box, {2.0f, 0.0f, 5.0f});
+    physics::CharacterDesc cd;
+    cd.position = {-4.0f, 1.0f, 0.0f};
+    const physics::CharacterId character = w.createCharacter(cd);
+    for (int i = 0; i < 120; ++i) {
+        w.moveCharacter(character, {1.0f, 0.0f, 3.0f}, {0.0f, -20.0f, 0.0f}, 1.0f / 30.0f, 0.3f, 0.3f);
+        w.step(1.0f / 30.0f);
+    }
+    TEST_CHECK(std::abs(w.position(box).z) < 1e-4f);
+    const Quat q = w.rotation(box); // only about z: x and y parts stay 0
+    TEST_CHECK(std::abs(q.x) < 1e-4f && std::abs(q.y) < 1e-4f);
+    TEST_CHECK(std::abs(w.characterPosition(character).z) < 1e-4f);
+    TEST_CHECK(w.characterPosition(character).x > -3.0f); // it still moved along x
+}
+
 TEST_CASE(physics, physics_snapshot_bytes) {
     auto build = [](physics::PhysicsWorld& w, int count, std::vector<physics::BodyId>& bodies) {
         w.init(1024, 2);

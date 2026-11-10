@@ -3,6 +3,17 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## 2D projects and template cards: physics 0.1.3, editor 0.1.15, game 0.2.1 (2026-11-10)
+
+- Decision: `docs/DECISIONS.md` 2026-11-10 "2D games run on the 3D engine". Sprites are the open ROADMAP item "2D on the 3D engine".
+- Core: `orthographicReversedZ` in `core/Math.h` (the editor's orthographic view uses it too).
+- Physics: `PhysicsWorld::setPlane2D(bool)` (call after `init`): dynamic bodies created afterwards get Jolt `EAllowedDOFs::Plane2D` (x/y translations only with `lockRotation`), recorded as `BodyDesc::plane2d` so snapshots and rewinds recreate them locked; characters (`CharacterVirtual`) have the z of velocity and position cleared every move. Off by default, so 3D games are unchanged. Unit test `physics_plane2d` (a box thrown along z on a slope and a character pushed along z stay at z = 0, the box turns only about z).
+- Project setting `view2d` (`ProjectSettings`, view field): the editor's scene view is always orthographic along +z with yaw/pitch 0, right-drag and Alt-orbit don't turn, W/S move up and down; a 2D project opened on a 3D view gets the camera at the origin with a 16 m tall view.
+- Template `empty2d` (`templates/empty2d`, `tools\new_project.ps1 -Template empty2d`): the empty template turned into a side view: a ground strip, three platforms and four spawns on z = 0, left/right + jump input (W/Up also jump; camera turn actions removed), `World::reset` calls `setPlane2D(true)`, an orthographic follow camera (`CameraTuning` half height, zoom limits, follow height and sharpness), the menu camera stays the perspective orbit, fog off. `new_project.ps1` writes `view2d true` and `lightingModel Unlit`.
+- Template `coop`: a copy of `samples/coop` (code with namespace `coop` renamed, its assets, its start scene). `project_common.ps1` handles folder templates (`empty`, `empty2d`) and sample copies (`arena`, `coop`) the same way.
+- New project window (built-in project manager): four cards with 16:9 previews (`templates/previews/<template>.png`, captured from bot matches and shrunk to 640x360) and names, the chosen one outlined with its description below; 3D empty first. Korean strings added.
+- Checked: Editor build, `mealkit_tests --only physics` (4 tests); projects made from `empty`, `empty2d` and `coop` built and played with `--bot` (captures used as previews); a project manager capture with the cards; an editor capture of a 2D project (front orthographic view). Not run: `check.ps1`, MealKit Manager's own new project screen (separate repo), the user manual.
+
 ## UI multi-select and align: ui 0.1.10, editor 0.1.14 (2026-11-09)
 
 - ROADMAP "UI workspace: multi-select and align". New `UiPanelSelect.cpp`; choices in `docs/DECISIONS.md` "UI multi-select".

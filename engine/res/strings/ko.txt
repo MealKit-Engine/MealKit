@@ -1,4 +1,4 @@
-# 에디터 한국어 표: "영어 원문 = 한국어" (docs/CODING_MODEL.md "에디터 UI 문자열과 언어"). tools\check_strings.ps1이 검사한다.
+﻿# 에디터 한국어 표: "영어 원문 = 한국어" (docs/CODING_MODEL.md "에디터 UI 문자열과 언어"). tools\check_strings.ps1이 검사한다.
 # 원문에는 " = "를 쓰지 않고 #으로 시작하지 않는다. 줄바꿈은 \n, 역슬래시는 \\. printf 형식(%s, %u ...)은 원문과 같은 순서로 둔다.
 
 # ---- 메뉴·창
@@ -591,7 +591,12 @@ Template = 템플릿
 Arena versus (sample game) = 아레나 대전 (예제 게임)
 A copy of the sample game: physics party versus with AI, boxes, jump pads and cutscenes. = 예제 게임을 복사합니다: AI, 상자, 점프대, 컷신이 있는 물리 파티 대전.
 Empty = 빈 프로젝트
-One character per player on a floor, with the title, lobby and results screens. Start your own game here. = 바닥 위에 플레이어마다 캐릭터 하나와 타이틀·로비·결과 화면만 있습니다. 여기서 내 게임을 시작합니다.
+One character per player on a floor, with the title, lobby and results screens. Start your own 3D game here. = 바닥 위에 플레이어마다 캐릭터 하나와 타이틀·로비·결과 화면만 있습니다. 여기서 내 3D 게임을 시작합니다.
+3D empty project = 3D 빈 프로젝트
+2D empty project = 2D 빈 프로젝트
+A side view on the XY plane with an orthographic camera: characters run and jump on platforms. The editor opens it in 2D. = XY 평면을 옆에서 보는 직교 카메라: 캐릭터가 발판 위를 달리고 점프합니다. 에디터도 2D로 엽니다.
+Co-op adventure (sample game) = 협동 모험 (예제 게임)
+A copy of the co-op sample: heroes cross the hills to the goal, chasers knock them down and teammates revive them. = 협동 예제의 복사본: 영웅들이 언덕을 건너 목표로 가고, 추격자가 쓰러뜨리면 동료가 일으켜 세웁니다.
 Location = 위치
 Browse... = 찾아보기...
 Creating... = 만드는 중...
@@ -616,7 +621,8 @@ Start scene (under assets) = 시작 씬 (assets 기준)
 Other scenes to ship (under assets, separated by spaces) = 함께 내보낼 다른 씬 (assets 기준, 공백으로 구분)
 Always put in the pack (files or folders under assets, separated by spaces) = 항상 팩에 넣을 것 (assets 기준 파일 또는 폴더, 공백으로 구분)
 Game icon (PNG, project folder) = 게임 아이콘 (PNG, 프로젝트 폴더 기준)
-Project template it was made from (arena, empty) = 만든 프로젝트 템플릿 (arena, empty)
+Project template it was made from (arena, empty, empty2d, coop) = 만든 프로젝트 템플릿 (arena, empty, empty2d, coop)
+2D game (the editor shows the XY plane from the front, orthographic) = 2D 게임 (에디터가 XY 평면을 정면에서 직교로 보여 줌)
 Development started (YYYY-MM-DD) = 개발 시작일 (YYYY-MM-DD)
 Solid box = 충돌 상자
 Decoration (no collision) = 장식 (충돌 없음)

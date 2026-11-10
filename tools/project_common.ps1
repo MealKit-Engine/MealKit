@@ -96,8 +96,13 @@ function Rename-GameNamespace([string]$text, [string]$from, [string]$to) {
 }
 
 # Project templates (tools\new_project.ps1 -Template): arena = the sample game (samples/sandbox + the engine's assets/),
-# empty = templates/empty (source/ + assets/) plus the screen flow shared with the sample ($MealKitSharedFlow*).
-$MealKitTemplates = @("arena", "empty")
+# empty = templates/empty (source/ + assets/) plus the screen flow shared with the sample ($MealKitSharedFlow*),
+# empty2d = templates/empty2d the same way (side view on the XY plane, mealkit.project view2d), coop = a copy of samples/coop.
+$MealKitTemplates = @("arena", "empty", "empty2d", "coop")
+# Templates made from a folder under templates\ (own source/ + assets/, the shared screen flow, generated strings)
+function Test-FolderTemplate([string]$template) { return $template -eq "empty" -or $template -eq "empty2d" }
+# The sample a copied template comes from, and its C++ namespace
+function Get-TemplateSample([string]$template) { if ($template -eq "coop") { return "coop" } return "sandbox" }
 $MealKitSharedFlowSource = @("app\Flow.h", "app\Flow.cpp", "app\Screens.h")
 $MealKitSharedFlowAssets = @("ui\title.ui", "ui\menu.ui", "ui\join.ui", "ui\lobby.ui", "ui\loading.ui", "ui\pause.ui", "ui\results.ui",
     "ui\message.ui", "ui\settings.ui", "ui\subtitles.ui", "ui\theme.ui", "fonts")
@@ -109,17 +114,17 @@ function Get-ProjectTemplate([string]$project) {
     return "arena"
 }
 
-function Convert-GameSource([string]$text, [string]$name) {
-    $text = $text.Replace("MealKit Sandbox", $name).Replace("sandbox.exe", "$name.exe")
-    return Rename-GameNamespace $text "sandbox" (Get-GameNamespace $name)
+function Convert-GameSource([string]$text, [string]$name, [string]$from = "sandbox") {
+    $text = $text.Replace("MealKit Sandbox", $name).Replace("MealKit Coop", $name).Replace("$from.exe", "$name.exe")
+    return Rename-GameNamespace $text $from (Get-GameNamespace $name)
 }
 
 # Game code of a template: project-relative path ("source\sim\World.h") → text. Template code is written in namespace sandbox like the sample
 function Get-SampleSource([string]$name, [string]$template = "arena") {
     $files = [ordered]@{}
     $sample = Join-Path $MealKitEngine "samples\sandbox"
-    if ($template -eq "empty") {
-        $root = Join-Path $MealKitEngine "templates\empty\source"
+    if (Test-FolderTemplate $template) {
+        $root = Join-Path $MealKitEngine "templates\$template\source"
         Get-ChildItem $root -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | Sort-Object FullName | ForEach-Object {
             $files["source\" + $_.FullName.Substring($root.Length + 1)] = Convert-GameSource ([IO.File]::ReadAllText($_.FullName, $MealKitUtf8)) $name
         }
@@ -128,10 +133,12 @@ function Get-SampleSource([string]$name, [string]$template = "arena") {
         }
         return $files
     }
+    $sampleName = Get-TemplateSample $template
+    $sample = Join-Path $MealKitEngine "samples\$sampleName"
     foreach ($dir in "sim", "view", "app") {
         $from = Join-Path $sample $dir
         Get-ChildItem $from -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | Sort-Object FullName | ForEach-Object {
-            $files["source\$dir\" + $_.FullName.Substring($from.Length + 1)] = Convert-GameSource ([IO.File]::ReadAllText($_.FullName, $MealKitUtf8)) $name
+            $files["source\$dir\" + $_.FullName.Substring($from.Length + 1)] = Convert-GameSource ([IO.File]::ReadAllText($_.FullName, $MealKitUtf8)) $name $sampleName
         }
     }
     return $files
@@ -147,10 +154,13 @@ function Get-SampleAssets([string]$template = "arena") {
             $files["assets\" + $_.FullName.Substring($root.Length + 1)] = $_.FullName
         }
     }
-    if ($template -eq "empty") {
-        $own = Join-Path $MealKitEngine "templates\empty\assets"
+    if (Test-FolderTemplate $template) {
+        $own = Join-Path $MealKitEngine "templates\$template\assets"
         & $add $own $own
         foreach ($rel in $MealKitSharedFlowAssets) { & $add $engineAssets (Join-Path $engineAssets $rel) }
+    } elseif ($template -eq "coop") {
+        $coopAssets = Join-Path $MealKitEngine "samples\coop\assets"
+        & $add $coopAssets $coopAssets
     } else {
         & $add $engineAssets $engineAssets
     }

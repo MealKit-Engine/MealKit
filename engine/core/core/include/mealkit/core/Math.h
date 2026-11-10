@@ -166,4 +166,16 @@ inline Mat4 perspectiveReversedZ(f32 fovY, f32 aspect, f32 zNear, f32 zFar) {
     return r;
 }
 
+// Reversed-Z orthographic projection (2D games, editor orthographic view): halfHeight = half the visible height (m),
+// zNear plane = 1, zFar plane = 0. zNear may be negative so objects behind the camera position are drawn too
+inline Mat4 orthographicReversedZ(f32 halfHeight, f32 aspect, f32 zNear, f32 zFar) {
+    Mat4 r;
+    r.m[0][0] = 1.0f / (halfHeight * aspect);
+    r.m[1][1] = 1.0f / halfHeight;
+    r.m[2][2] = -1.0f / (zFar - zNear);
+    r.m[3][2] = zFar / (zFar - zNear);
+    r.m[3][3] = 1.0f;
+    return r;
+}
+
 } // namespace mealkit

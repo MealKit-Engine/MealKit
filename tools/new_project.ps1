@@ -2,13 +2,15 @@
 # Build files are made by filling in templates/project. Game code and assets come from the chosen template:
 #   arena (default): a copy of the sample game (samples/sandbox, the engine's assets/, modules/)
 #   empty: templates/empty (one character per player on a floor) + the screen flow shared with the sample
-#   powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame [-Path D:\GameEngine\MealKit] [-Template arena|empty]
+#   empty2d: templates/empty2d (2D side view on the XY plane, orthographic camera, mealkit.project view2d) + the same screen flow
+#   coop: a copy of the co-op sample (samples/coop)
+#   powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame [-Path D:\GameEngine\MealKit] [-Template arena|empty|empty2d|coop]
 # Result: <Path>\<Name>\ (build.bat, editor.bat, source\sim|view|app\, assets\). The engine points to this folder (the script's parent folder).
 # Hashes of template files are kept in .mealkit-template (later tools\upgrade_project.ps1 replaces only unmodified files with the new template).
 param(
     [Parameter(Mandatory = $true)][string]$Name,
     [string]$Path = "D:\GameEngine\MealKit",
-    [ValidateSet("arena", "empty")][string]$Template = "arena"
+    [ValidateSet("arena", "empty", "empty2d", "coop")][string]$Template = "arena"
 )
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\project_common.ps1"
@@ -34,7 +36,9 @@ $manifest = @{}
 foreach ($entry in (Get-RenderedTemplate $Name).GetEnumerator()) {
     $text = $entry.Value
     if ($entry.Key -eq "mealkit.project") { # the start scene and the template (tools\upgrade_project.ps1 -Source reads it)
-        if ($Template -eq "empty") { $text = $text.Replace("scene scenes/arena.scene", "scene scenes/main.scene") }
+        if (Test-FolderTemplate $Template) { $text = $text.Replace("scene scenes/arena.scene", "scene scenes/main.scene") }
+        if ($Template -eq "coop") { $text = $text.Replace("scene scenes/arena.scene", "scene " + (Read-ProjectFile (Join-Path $engine "samples\coop"))["scene"]) }
+        if ($Template -eq "empty2d") { $text = $text -replace '(\r?\n)created ', "`$1view2d true`$1lightingModel Unlit`$1created " }
         $text = $text -replace '(\r?\n)created ', "`$1templateName $Template`$1created "
     }
     Write-TextFile (Join-Path $dest $entry.Key) $text
@@ -53,7 +57,7 @@ foreach ($entry in $assets.GetEnumerator()) {
     New-Item -ItemType Directory -Force (Split-Path -Parent $target) | Out-Null
     Copy-Item $entry.Value $target
 }
-if ($Template -eq "empty") {
+if (Test-FolderTemplate $Template) {
     foreach ($entry in (Get-TemplateStrings $Name $source $assets).GetEnumerator()) { Write-TextFile (Join-Path $dest $entry.Key) $entry.Value }
 }
 
