@@ -13,12 +13,12 @@
 
 // Sound (docs/CODING_MODEL.md "How to play sounds"): a sound event name + one parameter.
 //   ctx.audio.play("hit", position, {{"speed", 6.0f}});   // view/ only. sim/ only leaves tick events (SimCheck blocks audio/ headers)
-// Events are in assets/sounds.events (edited by the authoring tool MealKit Audio, format in runtime mkaudio/Events.h): clips, containers (random / switch / blend),
+// Events are in assets/sounds.events (edited by the authoring tool MkAudio, format in runtime mkaudio/Events.h): clips, containers (random / switch / blend),
 // random volume/pitch, parameter curves, attenuation distance, buses, priority, concurrency limit and what to cut on overflow, cooldown, subtitles.
 // View-only (outside the content hash), so edits during play are heard immediately.
 // Voice management (cap on actually mixed voices, virtual voices, same-frame grouping) is the engine's job. The game doesn't choose.
 // Layers (docs/DECISIONS.md 2026-10-26 audio runtime): mixing, voices, buses, containers, and the event file format are done by the runtime mkaudio
-// (separate repo MealKit-Audio, third_party/mkaudio), and this folder is the glue layer: finding and reloading files, clip asset paths, logging,
+// (separate repo MkAudio, third_party/mkaudio), and this folder is the glue layer: finding and reloading files, clip asset paths, logging,
 // profile markers, live connection service audio/ (the authoring tool plays in a running game and sees state).
 // Spatial glue (docs/ROADMAP.md "Spatial audio and interactive music"): occlusion rays through the match's physics world (setOcclusionWorld) and
 // scene reverb zones (setReverbZones) become the runtime's per-voice occlusion and reverb values. Both only read; nothing here touches the simulation.
@@ -145,7 +145,7 @@ private:
     Impl* m = nullptr;
 };
 
-// Live connection service audio/ (used by MealKit Audio, dev build games and the editor):
+// Live connection service audio/ (used by MkAudio, dev build games and the editor):
 //   POST audio/play     body "event=<name>&p.<param>=<value>..." → play at the listener
 //   POST audio/reload   reload the event file now
 //   GET  audio/state    {"file","events","stats":{...},"voices":[...],"buses":[...],"music":{...},"snapshots":[...]}

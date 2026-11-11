@@ -64,7 +64,7 @@ void SoundPanel::drawPreview(audio::Engine& audio) {
         for (const mkaudio::ClipRef& c : def->clips) clips += (clips.empty() ? "" : " ") + c.name;
         ImGui::TextDisabled("%s", trf("%s | bus %s%s", clips.c_str(), def->bus.c_str(), def->loop ? " | loop" : "").c_str());
     }
-    ImGui::TextDisabled("%s", tr("Edit sound events in MealKit Audio (Tools menu)."));
+    ImGui::TextDisabled("%s", tr("Edit sound events in MkAudio (Tools menu)."));
 }
 
 void SoundPanel::drawMonitor(audio::Engine& audio) {

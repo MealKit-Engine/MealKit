@@ -1,10 +1,10 @@
-﻿# Pulls the audio runtime mkaudio (separate repo MealKit-Audio) into the engine's third_party/mkaudio/ (docs/CODING_MODEL.md "Placing external libraries").
-#   powershell -ExecutionPolicy Bypass -File tools\update_mkaudio.ps1 -From D:\MealKit-Audio [-Ref v0.1.0]
+﻿# Pulls the audio runtime mkaudio (separate repo MkAudio) into the engine's third_party/mkaudio/ (docs/CODING_MODEL.md "Placing external libraries").
+#   powershell -ExecutionPolicy Bypass -File tools\update_mkaudio.ps1 -From D:\MkAudio [-Ref v0.1.0]
 # - Extracts the contents of -Ref (tag/commit, default HEAD) with git archive, so files being edited in the checkout don't come in
 # - What's pulled: CMakeLists.txt, include/, src/, LICENSE (tests, CI, and the repo's miniaudio/stb are excluded; the engine's are used)
 # - Changes version in third_party/mkaudio/mealkit.txt to "<tag or CMake version> (<commit>)" and runs tools\gen_notices.ps1
 # While editing the runtime and engine together, don't pull; point to the checkout with the CMake variable MEALKIT_MKAUDIO_DIR:
-#   cmake ... -DMEALKIT_MKAUDIO_DIR=D:/MealKit-Engine/MealKit-Audio   (when done, tag the runtime repo and pull it with this script)
+#   cmake ... -DMEALKIT_MKAUDIO_DIR=D:/MealKit-Engine/MkAudio   (when done, tag the runtime repo and pull it with this script)
 param(
     [Parameter(Mandatory = $true)][string]$From,
     [string]$Ref = "HEAD"

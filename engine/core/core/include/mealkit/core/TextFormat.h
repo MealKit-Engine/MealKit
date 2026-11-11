@@ -11,7 +11,7 @@
 //   @format table 1
 // No line means version 1. Writers always write the latest version; when a format changes, bump N and add a migrate on the reading side.
 // MealKit tools in other repos also recognize files by this line (even feedback.table/input.bindings that share extensions).
-// Formats defined by a tool (MealKit Audio's assets/sounds.events = "audio-events") are read and written by that tool's runtime with the same rules.
+// Formats defined by a tool (MkAudio's assets/sounds.events = "audio-events") are read and written by that tool's runtime with the same rules.
 namespace mealkit::text {
 
 struct Format {

@@ -701,7 +701,7 @@ Needs tool protocol %u, this editor has %u = 도구 약속 버전 %u가 필요�
 Program not found: %s = 실행 파일이 없습니다: %s
 Open Tools Folder = 도구 폴더 열기
 Rescan Tools = 도구 다시 찾기
-Edit sound events in MealKit Audio (Tools menu). = 소리 이벤트는 MealKit Audio([도구] 메뉴)에서 고친다.
+Edit sound events in MkAudio (Tools menu). = 소리 이벤트는 MkAudio([도구] 메뉴)에서 고친다.
 
 # ---- 포스트 프로세싱
 Post processing = 포스트 프로세싱

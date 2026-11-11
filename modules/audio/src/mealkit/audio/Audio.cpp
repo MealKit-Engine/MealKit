@@ -120,7 +120,7 @@ struct Engine::Impl {
             std::string text;
             readTextFile(path, text);
             mkaudio::parseEvents(tableToEvents(text), file, &messages);
-            MEALKIT_WARN("Audio: %s is the old format - tools\\upgrade_project.ps1 converts it to assets/%s (MealKit Audio edits that)",
+            MEALKIT_WARN("Audio: %s is the old format - tools\\upgrade_project.ps1 converts it to assets/%s (MkAudio edits that)",
                          path.c_str(), kEventsFile);
         } else if (!path.empty()) {
             std::string text; // through readTextFile so it also comes from a pack (platform/Pack.h)

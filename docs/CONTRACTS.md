@@ -31,7 +31,7 @@ Every text format starts with `@format <kind> <N>` after its comment header (no 
 | `mealkit-tool.txt` (tool manifest) | `tool` | 1 |
 | `module.txt` with `type engine` (engine module manifest, same format as source modules) | `module` | 1 |
 | `modules.lock` (engine) | `module-lock` | 1 |
-| `assets/sounds.events` | `audio-events` | owned by MealKit-Audio, versioned by MealKit-Contract (`docs/CONTRACT.md` there) |
+| `assets/sounds.events` | `audio-events` | owned by MkAudio, versioned by MealKit-Contract (`docs/CONTRACT.md` there) |
 
 **Player-side files** live on players' PCs and outlive game versions, so they are frozen the same way:
 

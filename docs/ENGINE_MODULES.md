@@ -90,7 +90,7 @@ module-render/               repo root = the module
 
 - **Include paths don't change for games**: `#include "mealkit/render/Renderer.h"` still works. Private headers are in `src/` and can't be included from outside the module.
 - A module's `editor/` folder holds the panels about it ([Look Dev] with `render`, [Sound] with `audio`). The `editor` module gathers them.
-- Library code that doesn't need MealKit headers stays a separate library inside its module repo, checked by `check_libs.ps1` (`mkui` inside module-ui; `mkaudio` stays the engine-free runtime in MealKit-Audio, with the glue module beside it).
+- Library code that doesn't need MealKit headers stays a separate library inside its module repo, checked by `check_libs.ps1` (`mkui` inside module-ui; `mkaudio` stays the engine-free runtime in MkAudio, with the glue module beside it).
 
 ### Manifest `module.txt`
 
@@ -224,9 +224,11 @@ The docs say **engine module** (`type engine`: built into the engine libraries, 
 | `module-<name>` | one engine module each, from the table above (`module-render`, `module-physics`, `module-net`, ...) |
 | `module-rhi` | `rhi` with its backends `rhi-dx12` and `rhi-vulkan` (one folder each under `backends/`, each still its own module and manifest), so a graphics change on both backends stays one commit |
 | `module-online` | `online` with `online-steam` and `online-eos` the same way (SDKs stay outside the repo, stub approach) |
-| `MealKit-Audio` | the existing engine-free `mkaudio` runtime and tool, plus the `audio` glue module in `module/` |
+| `MkAudio` | the existing engine-free `mkaudio` runtime and tool, plus the `audio` glue module in `module/` |
 | `module-ui` | `mkui`, the `ui` glue module, and later the Penpot plugin (pulls ROADMAP "UI 2" forward) |
 | `module-editor` | the `editor` module (the general-purpose editor app) |
+
+Decided 2026-11-11: the view-side libraries become engine-free middleware products MkRender, MkUI, MkAudio and later MkAnim, with glue modules, like MkAudio. See `docs/MIDDLEWARE.md`.
 
 Repos are under `github.com/MealKit-Engine/`, MIT, KingProtea99 as author. The local checkouts sit beside the others in `D:\MealKit-Engine\`.
 

@@ -149,13 +149,13 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
 }
 
 # ---------------------------------------------------------------- Format migrations
-# 0.5.2: sound events assets/sounds.table (engine table) → assets/sounds.events (audio runtime mkaudio format, edited by MealKit Audio).
+# 0.5.2: sound events assets/sounds.table (engine table) → assets/sounds.events (audio runtime mkaudio format, edited by MkAudio).
 # Key names are the same, so "row <name>" becomes "event <name>" and the header/format line change. The table is kept in the backup and deleted
 $oldSounds = Join-Path $Project "assets\sounds.table"
 $newSounds = Join-Path $Project "assets\sounds.events"
 if ((Test-Path $oldSounds) -and -not (Test-Path $newSounds)) {
     $out = [Collections.Generic.List[string]]::new()
-    $out.Add('# MealKit audio events. Edit them in MealKit Audio or by hand: "event <name>" or "bus <name>", then "key value" lines.')
+    $out.Add('# MealKit audio events. Edit them in MkAudio or by hand: "event <name>" or "bus <name>", then "key value" lines.')
     $out.Add("@format audio-events 1")
     foreach ($line in [IO.File]::ReadAllLines($oldSounds, $MealKitUtf8)) {
         if ($line -match '^\s*(#|@format)') { continue }

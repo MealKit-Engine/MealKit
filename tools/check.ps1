@@ -253,7 +253,7 @@ Invoke-Check static "Public headers (game code)" {
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
-# Tool suite runtimes (third_party/mkaudio = separate repo MealKit-Audio) don't use engine headers/macros
+# Tool suite runtimes (third_party/mkaudio = separate repo MkAudio) don't use engine headers/macros
 Invoke-Check static "Engine libs (no engine headers)" {
     param($log)
     $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_libs.ps1" 2>&1

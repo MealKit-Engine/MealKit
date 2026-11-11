@@ -6,7 +6,7 @@
 #include <vector>
 
 // Editor [Sound] panel: sound event preview with parameter sliders, real/virtual voice list, culled sounds and reasons, bus levels and volumes.
-// The events themselves are edited in assets/sounds.events by the authoring tool MealKit Audio ([Tools] menu) (saving makes audio reread them, so they're heard immediately even during play).
+// The events themselves are edited in assets/sounds.events by the authoring tool MkAudio ([Tools] menu) (saving makes audio reread them, so they're heard immediately even during play).
 namespace mealkit::editor {
 
 class SoundPanel {
