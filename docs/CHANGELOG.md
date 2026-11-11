@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI 2a step 3: Designer library, components and new screens (2026-11-11)
+
+- **MkUI v0.3.2** (commit 58ee318, tag `v0.3.2`): **Library** panel (tab beside Files) with the editor's widget set (panel, text, image, button, toggle, slider, progress bar, text input, list, scroll area; same `.ui` lines as `UiPanelLibrary.cpp` `kWidgets`) and the project's `ui/components/*.ui` as `use` nodes; inserted into the selected container (board, or a layout frame that isn't a widget, the editor's `isContainer` rule) or after the selection, every name made unique. Tree: **Make component** (`extractComponent` → `ui/components/<name>.ui`, size from the drawn box, refuses an existing file), **Edit component** on a `use` (asks to save first). **New screen** (Files panel, File menu) writes `ui/<name>.ui` with `@format ui 1` and an empty 1920×1080 board and opens it (refused while the open screen has unsaved edits). The v0.3.0 `+ Frame`/`+ Text` buttons are removed; `+ Text` wrote `text Text` where the property is `content`.
+- **Checked**: Release build, `mkui_tests` 29 checks; capture of coop `menu.ui --select solo`: Library tab, New screen, Make component and the selection with handles drawn.
+- **Not checked**: clicking the widgets, making/editing a component and creating a screen by hand (no scripted input; the library calls the same `addNode`/`extractComponent` the editor uses). Not moved yet: drag from the library onto the canvas, the editor's inspector rows (size modes, anchors, image/font pickers, behaviour), the empty-screen guide.
+
 ## UI 2a step 2: editor UI workspace moves to MkUI; Designer canvas editing (2026-11-11)
 
 - **Decision changed** (with the user, `docs/DECISIONS.md` 2026-11-11 "MkUI Designer is its own app"): the MealKit editor's [UI] workspace is removed once the Designer has its features; `module-ui/editor` then keeps "Open in MkUI", a play-time binding error list and `UiCheck`. ROADMAP UI 2a lists what moves over.
