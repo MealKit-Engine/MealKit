@@ -506,12 +506,21 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     add_subdirectory(${mealkit_mkaudio_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkaudio)
     target_link_libraries(mealkit PRIVATE mkaudio)
     target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${mealkit_mkaudio_dir}/include>)
-    # Game UI: the mkui runtime (engine/libs/mkui, no engine headers; ROADMAP "UI 1") is wrapped by mealkit/ui/ (glue layer).
-    # mealkit/ui/Ui.h uses mkui value types (Action, ScreenInfo ...), so only the include path is passed on.
+    # Game UI: the mkui runtime (separate repo MkUI, version-pinned in third_party/mkui; stb_truetype and mkcontract are the engine's)
+    # is wrapped by mealkit/ui/ (glue layer). mealkit/ui/Ui.h uses mkui value types (Action, ScreenInfo ...), so only the include path is passed on.
+    # When editing together with the runtime: -DMEALKIT_MKUI_DIR=<MkUI checkout> (pull it in with tools\update_mkui.ps1 when done)
+    set(MEALKIT_MKUI_DIR "" CACHE PATH "Local MkUI checkout (empty uses third_party/mkui)")
+    if(MEALKIT_MKUI_DIR)
+        set(mealkit_mkui_dir ${MEALKIT_MKUI_DIR})
+        message(STATUS "MealKit: UI runtime from ${MEALKIT_MKUI_DIR} (local checkout)")
+    else()
+        set(mealkit_mkui_dir ${MEALKIT_THIRD_PARTY}/mkui)
+    endif()
     set(MKUI_STB_DIR ${MEALKIT_THIRD_PARTY}/stb)
-    add_subdirectory(libs/mkui ${CMAKE_CURRENT_BINARY_DIR}/mkui)
+    set(MKUI_BUILD_TESTS OFF)
+    add_subdirectory(${mealkit_mkui_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkui)
     target_link_libraries(mealkit PRIVATE mkui)
-    target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/libs/mkui/include>)
+    target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${mealkit_mkui_dir}/include>)
     # Disable warnings for external code implementation files
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb
                                ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp

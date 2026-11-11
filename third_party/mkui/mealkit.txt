@@ -1,0 +1,12 @@
+# MealKit third-party metadata ("key value" lines). tools\gen_notices.ps1 builds third_party/VERSIONS.txt and
+# THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
+# Update with tools\update_mkui.ps1 -From <MkUI checkout>; work on both with -DMEALKIT_MKUI_DIR=<checkout>.
+name mkui (MkUI runtime)
+version v0.1.0 (9dce1b9)
+license MIT
+licenseFile LICENSE
+source https://github.com/MealKit-Engine/MkUI
+usedIn engine (ui)
+inGame yes
+kept CMakeLists.txt, include/, src/ (tests and its own stb/mkcontract copies are left out; the engine's are used)
+why the game screen UI runtime of the MealKit tool family (.ui screens, layout, text, view model binding to quads). Its own repository so other engines and the UI tools can use it (docs/MIDDLEWARE.md, docs/DECISIONS.md 2026-11-11).

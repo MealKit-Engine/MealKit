@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI 2 step 1: mkui moved to its own repo MkUI (2026-11-11)
+
+- **New repo** `D:\MealKit-Engine\MkUI` (commit 9dce1b9, tag `v0.1.0`, GitHub `MealKit-Engine/MkUI` to be created and pushed by the user): `include/`/`src/` moved unchanged from `engine/libs/mkui`. `CMakeLists.txt` builds standalone: `third_party/stb` (stb_truetype) and `third_party/mkcontract` (v0.3.0) are used when the including side gives no `MKUI_STB_DIR`, and an existing `mkcontract` target is reused; `MKUI_BUILD_TESTS` only when top level; `MKUI_VERSION` define. `tests/UiTests.cpp` runs without an engine or GPU (in-memory `Host`, no-op atlas upload): document parsing, source round trip and `setProperty`, opening a screen, board scaling to the viewport, a pressed button's action, steady-frame output. README, MIT LICENSE, CI (Windows MSVC, Linux Clang, macOS ARM64 Clang: build + ctest), same shape as MkAudio.
+- **Engine**: `engine/libs/mkui` deleted, replaced by `third_party/mkui/` (`mealkit.txt` `version v0.1.0 (9dce1b9)`), pulled with the new `tools\update_mkui.ps1 -From <checkout> [-Ref <tag>]` (copy of `update_mkaudio.ps1`). Local checkout: CMake `-DMEALKIT_MKUI_DIR=<checkout>`. stb and mkcontract are passed from the engine. `check.ps1 -Changed` maps `third_party/mkui/` to the `ui` groups; `check_libs.ps1` now checks it as a `third_party` library (3 libraries). `VERSIONS.txt`/`THIRD_PARTY_NOTICES.txt` regenerated. Game API, `.ui` format and `module-ui` glue unchanged, so no `VERSION` bump.
+- **Checked**: `mkui_tests` (13 checks) in the MkUI repo; engine Release and Editor builds; `mealkit_tests --only ui` (7 tests); `check_libs.ps1`; a sandbox title screen capture (text and layout drawn as before). `check.ps1` not run.
+- **Left in UI 2**: the draw backend interface, font/image loader hooks, a public API without `MEALKIT_VIEWMODEL`, then binding, styles/templates, triggers and resource dictionaries; moving the Penpot plugin.
+
 ## Text size from a field: mkui (2026-11-11)
 
 - `fontSizeField field` on a text node takes the font size from a number field each layout (glyphs are SDF, so any size is sharp); the shaped lines are rebuilt when the size changes. Asked for by a game placing a Scratch project's text at its sprites' size %. Test: `ui_document` parses it.

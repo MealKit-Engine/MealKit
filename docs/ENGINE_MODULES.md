@@ -169,7 +169,7 @@ The first cut follows the current folders, so it's mostly moving files. Finer sp
 | `loc`, `settings` | view | data | same folders |
 | `input` | view | window data | `input/` |
 | `audio` | view | data | `audio/` glue + mkaudio |
-| `ui` | view | render loc input | `ui/` glue + `engine/libs/mkui` |
+| `ui` | view | render loc input | `ui/` glue + `third_party/mkui` (MkUI repo) |
 | `feedback`, `camera` | view | render audio | same folders |
 | `online` | view | net | `online/` interface; `online-steam`, `online-eos` as `provides online-backend` |
 | `debug` | tool | render | debug UI, ImGui |

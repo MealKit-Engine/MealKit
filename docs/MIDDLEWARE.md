@@ -1,6 +1,6 @@
 # Middleware split
 
-**Status: decided 2026-11-11 with the user (`docs/DECISIONS.md` 2026-11-11 "View-side middleware"), not started.** Extends `docs/ENGINE_MODULES.md`: some engine modules become **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) already is. Work items are in the ROADMAP ("Tool suite"); this document follows the same life as `ENGINE_MODULES.md`.
+**Status: decided 2026-11-11 with the user (`docs/DECISIONS.md` 2026-11-11 "View-side middleware"). MkUI has its own repo (v0.1.0, 2026-11-11); its API work and the others are not started.** Extends `docs/ENGINE_MODULES.md`: some engine modules become **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) already is. Work items are in the ROADMAP ("Tool suite"); this document follows the same life as `ENGINE_MODULES.md`.
 
 ## The idea
 
@@ -30,7 +30,7 @@ Taken from MkAudio, which already works this way:
 
 ### UI — MkUI (NoesisGUI alternative) — possible, recommended first
 
-- **Where it stands**: `mkui` is already engine-free inside `module-ui` (Flex layout, multi-style text, SDF shapes and text, widgets, focus, themes, components, lists, world-space UI, view models via `MEALKIT_VIEWMODEL`). Half the boundary exists.
+- **Where it stands**: `mkui` is engine-free and lives in its own repo MkUI since 2026-11-11 (pinned in `third_party/mkui`) (Flex layout, multi-style text, SDF shapes and text, widgets, focus, themes, components, lists, world-space UI, view models via `MEALKIT_VIEWMODEL`). Half the boundary exists.
 - **What "XAML-style" adds**: markup that declares the tree; **data binding** (`{Binding Health}`, one-way/two-way, converters) to view models; **styles and templates** (a control's look is replaceable data); **triggers and state animations** (hover, pressed, focused, value changes); resource dictionaries (shared colors, brushes, styles). All of this fits on top of the current `.ui` runtime.
 - **What not to promise**: XAML/WPF compatibility. Noesis is a full WPF reimplementation (hundreds of classes, years of work). MkUI should be *XAML-like* — the same ideas, its own text format — and say so. Loading real `.xaml` files is a later, optional importer for a subset.
 - **What's missing for a standalone library**: the draw backend interface (today it draws through the engine's 2D pass), a font/image loader hook, and a public C++ API to create views and push view-model values without `MEALKIT_VIEWMODEL` (the glue module keeps the macro).
