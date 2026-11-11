@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI 2a step 2: editor UI workspace moves to MkUI; Designer canvas editing (2026-11-11)
+
+- **Decision changed** (with the user, `docs/DECISIONS.md` 2026-11-11 "MkUI Designer is its own app"): the MealKit editor's [UI] workspace is removed once the Designer has its features; `module-ui/editor` then keeps "Open in MkUI", a play-time binding error list and `UiCheck`. ROADMAP UI 2a lists what moves over.
+- **MkUI v0.3.1** (commit c423e03, tag `v0.3.1`): preview zoom at the mouse (wheel, 10%-1600%), pan (middle drag or Space + drag), F fits; click selects and drags a node with a number `pos` (layout children aren't dragged, like the editor), eight handles resize and turn only the dragged axes into numbers (left/top edges need a `pos`), Shift snaps to 10 units, one drag is one undo step; selection outline with handles, name and drawn size. `--select <node>` and `--zoom` for captures.
+- **Fix**: the Designer parsed the text for its node map without the theme, so files with number tokens (`$gap`) mapped nothing and click selection and the selection outline didn't work in v0.3.0. It now loads `ui/theme.ui` first and uses what was read even with errors.
+- **Checked**: Release build, `mkui_tests` 29 checks; capture of coop `menu.ui` with `--select panel --zoom 1.6`: outline, handles and "panel 600 x 545" in place, properties listed.
+- **Not checked**: dragging and resizing by hand, wheel zoom and pan by hand (only the code path and the captured state); no snapping to siblings or a grid setting yet (the editor has both), no multi-select or reorder in layouts.
+
 ## UI 2a step 1: MkUI Designer (2026-11-11)
 
 - **Decision** (with the user, `docs/DECISIONS.md` 2026-11-11 "MkUI Designer is its own app"): MIDDLEWARE.md's pattern says each product brings its own tool, so MkUI gets one like MkAudio; it comes before the XAML-like layer so binding and style syntax can be tried in it.
