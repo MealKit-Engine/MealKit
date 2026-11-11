@@ -16,5 +16,4 @@ mealkit_editor.ini
 third_party/steamworks/
 # EOS SDK and Epic Developer Portal values (credentials.txt): not committed per Epic's terms, and client secrets don't go in the repo
 third_party/eos/
-tools/penpot-plugin/node_modules/
 __pycache__/

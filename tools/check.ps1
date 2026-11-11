@@ -1,4 +1,4 @@
-# MealKit engine verification: prints PASS/FAIL and elapsed time per item, exit code 1 if any fail.
+﻿# MealKit engine verification: prints PASS/FAIL and elapsed time per item, exit code 1 if any fail.
 #   powershell -ExecutionPolicy Bypass -File tools\check.ps1            everything (about 5 minutes; only when the user asks for it)
 #   ... -Changed           only the groups matching modified files (git working tree, and since that commit with -Base <commit>). The default, also before committing
 #   ... -Quick             build + unit tests + determinism tests only
@@ -59,7 +59,7 @@ $pathRules = @(
     @('^samples/[^/]+/(view|app|modules)/', 'static game editor'), @('^samples/', 'game editor'),
     @('^templates/', 'static project'),
     @('^(VERSION$|tools/(new|upgrade|rename)_project|tools/project_common|tools/module\.ps1$)', 'project'),
-    @('^tools/(penpot-plugin|blender-addon)/', 'tools'),
+    @('^tools/blender-addon/', 'tools'),
     @('^tools/(mp_test|record_replay|ci_|desync_diff)', 'det!'), @('^tools/(live_probe|compare_images)', 'game render tools'),
     @('^tools/(check_|gen_notices)', 'static'), @('^tools/check\.ps1$', ''), @('^tools/update_mkaudio', 'folder:audio'),
     @('^(cmake/|CMakeLists\.txt$|engine/CMakeLists\.txt$|build\.bat$|editor\.bat$|tools/build_project)', 'full')
@@ -503,14 +503,6 @@ if (-not $Quick) {
         [IO.File]::WriteAllText("$dir\old\mealkit-tool.txt", "@format tool 1`nname Old Tool`nexe old.exe`nprotocol 999`n")
         $code = Run $log $editor "--list-tools --tool-path `"$dir`""
         return $code -eq 0 -and (Has $log "^tool: Check Tool 1\.0 protocol 1 .*sandbox\.exe$") -and (Has $log "^tool: Old Tool .*\(protocol differs\)")
-    }
-    # Penpot plugin (ROADMAP "Game screen UI part 2"): converter tests (when Node.js is present), layout of screens exported from Penpot = Penpot boxes.
-    # Compared with the English table (Penpot's source text is English, so text nodes draw the same text)
-    Invoke-Check tools "Penpot plugin (converter tests)" {
-        param($log)
-        if (-not (Get-Command node -ErrorAction SilentlyContinue)) { return "SKIP: no Node.js" }
-        $code = Run $log "node" "--test `"$root\tools\penpot-plugin\test\convert.test.ts`""
-        return $code -eq 0
     }
     # Blender add-on (ROADMAP "Blender export add-on"): runs Blender LTS without a window for check/export tests (SKIP if absent).
     # Whether the supported range schema matches the engine is checked by the asset_schema unit test

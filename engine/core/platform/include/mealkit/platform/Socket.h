@@ -47,7 +47,7 @@ private:
     u64 m_socket = ~0ull;
 };
 
-// Non-blocking TCP connection (the editor's localhost import server, mealkit/editor/ImportServer.h). Only accepted connections are used.
+// Non-blocking TCP connection (the live connection server, mealkit/live/Server.h). Only accepted connections are used.
 class TcpStream {
 public:
     TcpStream() = default;

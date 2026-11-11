@@ -3,6 +3,30 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI 2a step 8: the Penpot plugin moves to MkUI; UI 2a done (2026-11-12)
+
+- Decided with the user (`docs/DECISIONS.md` 2026-11-12 "The MkUI Designer serves the Penpot plugin").
+- **MkUI v0.6.0** (`c25f9b2`):
+  - The plugin moved from `tools/penpot-plugin` to the MkUI repo `penpot-plugin/`. Its texts now name the MkUI Designer, `dist` was rebuilt, and the 4 node tests pass.
+  - The Designer runs `tool/PenpotServer`, a small server on 127.0.0.1:27240 (the next 9 if in use) with the same origin and path rules as the editor's old `ImportServer`. The token is kept per project in `%APPDATA%\MealKit\MkUI\penpot-tokens.txt`, so the install address stays the same between runs.
+  - A **Penpot plugin** button in Files copies the address. Finished exports rescan the files.
+  - `api/project` sends no view-model fields for now.
+  - The converter's expected files are checked in `mkui_tests` (moved from the engine's `ui_penpot_expected`). MkUI CI runs the plugin tests and the type check.
+- **module-editor v0.1.20**: `ImportServer`, `--penpot-token` and `Editor::setViewModels` were removed. **module-ui v0.1.13**: the [UI] tab points to the Designer for Penpot.
+- Engine:
+  - Removed: `tools/penpot-plugin`, the `ui_penpot_expected` test and the penpot dir in `ui_source`, and the check.ps1 "Penpot plugin (converter tests)" step.
+  - `--ui-check` and `--ui-render` stay.
+  - CODING_MODEL rows were updated.
+- Manual (Penpot install and export, live internals, command line, tool contract) updated in English and Korean.
+- Verified against a copy of sandbox:
+  - The manifest is served with the token paths filled in.
+  - `api/project` answered.
+  - An export from the server's own origin was written.
+  - Origins `https://evil.example` (GET) and `https://design.penpot.app` (POST export) were refused with 403.
+  - The token stayed the same on a second run.
+  - Engine `--only ui` tests PASS (6), `check_strings` OK, Editor build OK.
+- Not verified: an export from real Penpot in a browser, and the full `check.ps1`.
+
 ## UI 2a step 7: the editor's [UI] workspace is removed (2026-11-12)
 
 - As decided (`docs/DECISIONS.md` 2026-11-11 "MkUI Designer is its own app"), screens are now edited only in the MkUI Designer. **module-ui v0.1.12**: `UiPanel` shrinks from about 4,600 lines (`UiPanelEdit/Drag/Tools/Library/Select.cpp` removed) to a small tab. While editing it lists `assets/ui` with **Open in MkUI** and shows the Penpot plugin address. While playing it lists the game's open screens with their values and binding errors. `UiPanel::collectBindingProblems` feeds the editor's problem list from the play session's screens. `UiCheck` (`--ui-check`, `--ui-render`) stays.

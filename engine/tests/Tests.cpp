@@ -1199,24 +1199,6 @@ TEST_CASE(ui, ui_layout) {
     TEST_CHECK(itemsY() == -35.0f); // scrolled to the end (135 - 100), not past it
     setProjectRoot(oldRoot);
 }
-// The engine parser reads the Penpot plugin converter's expected files (tools/penpot-plugin/test/expected, made by node --test) without errors
-TEST_CASE(ui, penpot_expected) {
-    const std::string dir = std::string(MEALKIT_ENGINE_DIR) + "/tools/penpot-plugin/test/expected/";
-    ui::Theme theme;
-    std::string themeText;
-    TEST_CHECK(readTextFile(dir + "theme.ui", themeText));
-    // theme.ui is in theme format: color/number per line
-    TEST_CHECK(themeText.rfind("# MealKit UI exported from Penpot", 0) == 0 && themeText.find("color accent #FFC83D") != std::string::npos);
-    theme.colors.emplace_back("accent", 0xFF3DC8FFu);
-    std::string text;
-    TEST_CHECK(readTextFile(dir + "pause.ui", text));
-    ui::Document doc;
-    const bool ok = ui::parseDocument(text, "ui/pause.ui", doc, &theme);
-    for (const std::string& e : doc.errors) std::printf("  %s\n", e.c_str());
-    TEST_CHECK(ok && doc.exported && doc.navigation && doc.firstFocus == "resume" && doc.nodes.size() == 12);
-    TEST_CHECK(doc.nodes[0].id == "id-pause");
-}
-
 // Editor "Make component": a frame moved into ui/components/<name>.ui + use lays out exactly as before (in a layout and free)
 TEST_CASE(ui, ui_extract_component) {
     const std::string oldRoot = projectRoot();
@@ -1361,7 +1343,7 @@ TEST_CASE(ui, ui_image_field) {
 
 TEST_CASE(ui, ui_source) {
     const std::string engine = std::string(MEALKIT_ENGINE_DIR);
-    std::vector<std::string> dirs = {engine + "/templates/empty/assets/ui", engine + "/tools/penpot-plugin/test/expected"};
+    std::vector<std::string> dirs = {engine + "/templates/empty/assets/ui"};
     for (const std::string& sample : listDirectories(engine + "/samples")) {
         dirs.push_back(engine + "/samples/" + sample + "/assets/ui");
         for (const std::string& module : listDirectories(engine + "/samples/" + sample + "/modules"))

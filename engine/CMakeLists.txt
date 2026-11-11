@@ -891,8 +891,6 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         ../modules/ui/editor/mealkit/editor/UiPanel.cpp
         ../modules/render/editor/mealkit/editor/LookdevPanel.h
         ../modules/render/editor/mealkit/editor/LookdevPanel.cpp
-        ../modules/editor/src/mealkit/editor/ImportServer.h
-        ../modules/editor/src/mealkit/editor/ImportServer.cpp
         ../modules/editor/src/mealkit/editor/Tools.h
         ../modules/editor/src/mealkit/editor/Tools.cpp
         ../modules/ui/editor/mealkit/editor/UiCheck.h
