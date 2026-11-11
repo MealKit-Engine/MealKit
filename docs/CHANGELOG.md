@@ -3,6 +3,25 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI 2a step 7: the editor's [UI] workspace is removed (2026-11-12)
+
+- As decided (`docs/DECISIONS.md` 2026-11-11 "MkUI Designer is its own app"), screens are now edited only in the MkUI Designer. **module-ui v0.1.12**: `UiPanel` shrinks from about 4,600 lines (`UiPanelEdit/Drag/Tools/Library/Select.cpp` removed) to a small tab. While editing it lists `assets/ui` with **Open in MkUI** and shows the Penpot plugin address. While playing it lists the game's open screens with their values and binding errors. `UiPanel::collectBindingProblems` feeds the editor's problem list from the play session's screens. `UiCheck` (`--ui-check`, `--ui-render`) stays.
+- **module-editor v0.1.19**:
+  - `Editor::openInDesigner` opens the [Tools] entry whose manifest `opens .ui`, passing `--project` and `--file ui/x.ui`. `launchTool` takes the file argument; the contract change is in MealKit-Contract `88a6a22`, DECISIONS "Tools open one file with --file".
+  - New **Open MkUI** command.
+  - Removed: the UI canvas commands (align, distribute, zoom, view toggles, library widgets in the palette), the UI layout preset, the scene panels stepping aside for the tab, and the routing of undo, copy, paste, delete and focus to the UI.
+  - `--ui` now only brings the tab forward; `--ui-select`, `--ui-drag` and `--ui-state` are gone.
+- `check.ps1`: "Editor UI edit (select, drag)" became "Editor UI tab", a capture with no errors. `ko.txt` lost 324 unused keys and gained the tab's strings.
+- Manual (MealKit-docs `manual/ui.md`, English and Korean): "Previewing/Editing screens in the editor" became "Editing screens in MkUI" plus "The UI tab while playing". Also updated: the command line reference, the UI shortcut rows in `manual/editor.md`, and two internals pages.
+- Verified:
+  - Editor build.
+  - `check_strings.ps1` OK.
+  - A capture of the tab on sandbox.
+  - `--command "Open MkUI"` with `--tool-path` started `MkUI.exe --project <sandbox>`.
+  - MealKit-docs `build.py check` PASS.
+- Not verified: the full `check.ps1`, and the play-time tab and Problems entries.
+- Left for UI 2a: the Penpot plugin moves to the MkUI repo.
+
 ## UI 2a step 6: Designer inspector rows and drop onto the preview (2026-11-12)
 
 - **MkUI v0.5.0** (`58f2914`): the Designer's Properties panel gets the MealKit editor's inspector rows above the raw lines: position, width/height as fixed / fit content / fill, the anchor grid with stretch and scale (`constraints`), children's layout with wrap, justify, align, gap and padding, fill and text color pickers, radius, opacity, text content, font size, a font picker (`assets/fonts`), an image picker (`assets/ui`, `assets/textures`) and behaviour (button, toggle, slider, list, scroll, text input) with a box per word. One undo step per drag or pick. `$token` values show as text; the editor's token combo was not ported.

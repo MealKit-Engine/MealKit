@@ -554,19 +554,12 @@ if (-not $Quick) {
         $code = Run $log $editor "--project `"$sandbox`" --frames 60 --select 25 --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]")
     }
-    # [UI] workspace (ROADMAP "Game UI editor in the editor", "UI workspace window"): source read for editing, node selected and outlined, nothing written
-    Invoke-Check editor "Editor UI edit (select, drag)" {
+    # [UI] tab (DECISIONS 2026-11-11 "MkUI Designer is its own app"): the screen list draws; screens are edited in MkUI
+    Invoke-Check editor "Editor UI tab" {
         param($log)
-        $png = Join-Path $out "editor-ui-edit.png"
-        $file = Join-Path $sandbox "assets\ui\pause.ui"
-        $before = (Get-Item $file).LastWriteTimeUtc
-        $code = Run $log $editor "--project `"$sandbox`" --frames 60 --ui pause.ui --ui-select resume --capture `"$png`""
-        if ($code -ne 0 -or -not (Test-Path $png) -or (Has $log "\[ERROR\]") -or (Has $log "UI edit:") -or -not (Has $log "UI preview: values from")) { return $false }
-        # Mouse drags through the same code as the mouse: a free node moves (no snapping), a node in a column layout reorders
-        $code = Run $log $editor "--project `"$sandbox`" --frames 30 --ui pause.ui --ui-select panel --ui-drag 23,17"
-        if ($code -ne 0 -or -not (Has $log "UI drag test: panel pos 733 317 size 500 hug")) { return $false }
-        $code = Run $log $editor "--project `"$sandbox`" --frames 30 --ui pause.ui --ui-select resume --ui-drag 0,90"
-        return $code -eq 0 -and (Has $log "UI drag test: resume pos - size fill 60 index 3") -and (Get-Item $file).LastWriteTimeUtc -eq $before
+        $png = Join-Path $out "editor-ui.png"
+        $code = Run $log $editor "--project `"$sandbox`" --frames 30 --ui --capture `"$png`""
+        return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]")
     }
     # Lookdev window (ROADMAP "Textures and materials part 3"): drawn to an offscreen target and shown in the window. No debug layer messages
     Invoke-Check render "Editor look dev (offscreen, DX12 debug layer)" {
