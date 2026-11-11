@@ -46,7 +46,8 @@ struct Shaped {
 void decodeUtf8(const std::string& s, std::vector<u32>& out); // replaces out
 u32 utf8Length(const std::string& s);                          // code point count
 // Resolves tags (<1>…</1>) into styles and decides font/size/width per glyph
-void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& out);
+// size: the base font size (0 = the node's fontSize; fontSizeField passes its value)
+void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& out, f32 size = 0.0f);
 // Line breaking (across run boundaries in one pass). If wrapWidth < 0, only at newline characters. If maxHeight < 0, no height limit
 void breakLines(const Node& d, Shaped& s, f32 wrapWidth, f32 maxHeight, Atlas& atlas);
 

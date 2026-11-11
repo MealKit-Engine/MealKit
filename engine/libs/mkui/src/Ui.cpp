@@ -59,6 +59,7 @@ struct RNode {
     Shaped shaped;
     f32 shapedWidth = -2.0f; // lines were broken at this width
     std::string shapedText;
+    f32 shapedSize = 0.0f; // font size from fontSizeField when shaped (0 = the node's)
     f32 scroll = 0.0f, contentExtent = 0.0f;
 };
 
@@ -603,12 +604,19 @@ struct System::Impl {
 
     void shapeText(Screen& s, i32 index, f32 wrapWidth, f32 maxHeight) {
         RNode& n = s.nodes[static_cast<size_t>(index)];
-        if (n.shapedWidth == wrapWidth && n.shapedText == n.text) return;
         const Node& d = s.doc.nodes[n.src];
-        shapeGlyphs(d, n.text, atlas, n.shaped);
+        f32 size = 0.0f;
+        if (!d.fontSizeField.empty()) { // font size binding
+            Value v;
+            if (resolve(s, n, d.fontSizeField, v)) size = std::max(0.0f, static_cast<f32>(numberOf(v)));
+            else missingField(s, d.fontSizeField);
+        }
+        if (n.shapedWidth == wrapWidth && n.shapedText == n.text && n.shapedSize == size) return;
+        shapeGlyphs(d, n.text, atlas, n.shaped, size);
         breakLines(d, n.shaped, wrapWidth, maxHeight, atlas);
         n.shapedWidth = wrapWidth;
         n.shapedText = n.text;
+        n.shapedSize = size;
     }
 
     // Size fitted to content (hug). availW: width used for text wrapping (<0 none)

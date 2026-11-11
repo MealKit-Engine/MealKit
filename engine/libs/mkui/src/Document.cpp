@@ -438,6 +438,7 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
     if (k == "scaleField") return args == 1 ? (n.scaleField = t[1], true) : fail("scaleField <field>");
     if (k == "offsetField") return args == 2 ? (n.offsetXField = t[1], n.offsetYField = t[2], true) : fail("offsetField <x field> <y field>");
     if (k == "opacityField") return args == 1 ? (n.opacityField = t[1], true) : fail("opacityField <field>");
+    if (k == "fontSizeField") return args == 1 ? (n.fontSizeField = t[1], true) : fail("fontSizeField <field>");
     if (k == "brightnessField") return args == 1 ? (n.brightnessField = t[1], true) : fail("brightnessField <field>");
     if (k == "flip") {
         bool ok = args >= 1;

@@ -171,6 +171,7 @@ struct Node {
     std::string offsetXField, offsetYField; // moves the node and its children by two number fields (logical units, after layout)
     std::string opacityField;    // multiplies the node's and its children's opacity by a number field (0..1)
     std::string brightnessField; // image nodes: adds a number field (-1..1) to the brightness
+    std::string fontSizeField;   // text nodes: the font size comes from a number field (logical units, > 0)
 
     // Image: mirror the picture (flip horizontal / vertical)
     bool flipX = false, flipY = false;

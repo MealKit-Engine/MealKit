@@ -1351,6 +1351,10 @@ TEST_CASE(ui, ui_image_field) {
     TEST_CHECK(moved.nodes.size() == 2 && moved.nodes[1].offsetXField == "dx" && moved.nodes[1].offsetYField == "dy");
     TEST_CHECK(moved.nodes[1].opacityField == "fade" && moved.nodes[1].brightnessField == "flash");
     TEST_CHECK(moved.nodes[1].visual.brightness == -0.2f && moved.nodes[1].states.size() == 1);
+    // fontSizeField takes a text node's size from a number field
+    ui::Document sized;
+    TEST_CHECK(ui::parseDocument("board b 100 100\n  text t\n    content hi\n    fontSizeField px\n  end\nend\n", "ui/test.ui", sized));
+    TEST_CHECK(sized.nodes.size() == 2 && sized.nodes[1].fontSizeField == "px");
     ui::Document bad;
     TEST_CHECK(!ui::parseDocument("board b 100 100\n  image a\n    flip sideways\n  end\nend\n", "ui/test.ui", bad));
 }

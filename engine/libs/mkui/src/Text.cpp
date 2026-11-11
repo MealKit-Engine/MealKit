@@ -54,14 +54,14 @@ u32 transformCp(u32 cp, TextTransform t) {
 } // namespace
 
 // Resolves tags (<1>…</1>) into styles and decides font/size/width per glyph
-void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& out) {
+void shapeGlyphs(const Node& d, const std::string& text, Atlas& atlas, Shaped& out, f32 size) {
     out.runs.clear(); // clear keeps capacity: reshaping changed text allocates nothing once warm
     out.glyphs.clear();
     out.lines.clear();
     out.width = out.height = 0.0f;
     TextRun base;
     base.font = atlas.font(d.text.font);
-    base.size = d.text.size;
+    base.size = size > 0.0f ? size : d.text.size;
     base.letterSpacing = d.text.letterSpacing;
     base.underline = d.text.underline;
     base.strike = d.text.strike;

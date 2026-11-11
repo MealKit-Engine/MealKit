@@ -3,6 +3,10 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Text size from a field: mkui (2026-11-11)
+
+- `fontSizeField field` on a text node takes the font size from a number field each layout (glyphs are SDF, so any size is sharp); the shaped lines are rebuilt when the size changes. Asked for by a game placing a Scratch project's text at its sprites' size %. Test: `ui_document` parses it.
+
 ## Play from the game's first screen: editor (2026-11-11)
 
 - The Play options gained "Start at the first screen" (solo only): for a game whose `GameInstance::menus()` is true, PlaySession creates the match service without opening a session or starting a match, like the game's exe without `--exit-tick`/`--bot`. The game's screen flow then opens the solo session and starts matches itself, and returning to its menu doesn't end play. `--play-menus` does the same from the command line (ignored with `--bot`).
