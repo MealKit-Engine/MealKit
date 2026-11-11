@@ -150,6 +150,7 @@ struct Node {
     // Image
     std::string image;      // PNG relative to assets ("src ui/icon.png")
     std::string imageField; // "src {field}": the PNG path comes from a view model string field (empty value draws nothing)
+                            // "size hug" on an image is the image's own size (source pixels = logical units)
     f32 slice[4] = {};  // 9-slice margins (source pixels: left, top, right, bottom)
 
     // Text

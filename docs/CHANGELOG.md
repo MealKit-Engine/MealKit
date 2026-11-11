@@ -8,6 +8,7 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 - Decision: `docs/DECISIONS.md` 2026-11-11 "UI images can bind their path".
 - mkui: `Node::imageField`, read from `src {field}` (`Document.cpp`; a plain path clears it and the last `src` line wins). `emitNode` resolves the field each frame (item, then screen view model); a missing or non-string field is a binding error, an empty string draws nothing.
 - Atlas: when an image doesn't fit, the image shelves and cache are cleared (warning) and the image is placed again; other images come back on their next draw. Only an image larger than the atlas is refused now.
+- `size hug` on an image is the image's own size (source pixels = logical units; it used to fall back to the design size), so a bound picture keeps its proportions as it changes.
 - Manual: the `.ui` binding table in MealKit-docs `manual/ui.md` (en, ko).
 - Checked: `mealkit_tests --only ui` (new `ui_image_field`).
 

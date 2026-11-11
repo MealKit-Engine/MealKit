@@ -608,9 +608,28 @@ struct System::Impl {
     }
 
     // Size fitted to content (hug). availW: width used for text wrapping (<0 none)
+    // An image node's PNG: its fixed src, or the view model string named by src {field} (null when none or empty)
+    const std::string* imagePathOf(Screen& s, const RNode& n, const Node& d) {
+        if (d.imageField.empty()) return d.image.empty() ? nullptr : &d.image;
+        Value iv;
+        if (!resolve(s, n, d.imageField, iv) || iv.kind != ValueKind::String) {
+            missingField(s, d.imageField);
+            return nullptr;
+        }
+        const auto* p = static_cast<const std::string*>(iv.data);
+        return p->empty() ? nullptr : p;
+    }
+
     void intrinsic(Screen& s, i32 index, f32 availW, f32& outW, f32& outH) {
         RNode& n = s.nodes[static_cast<size_t>(index)];
         const Node& d = s.doc.nodes[n.src];
+        if (d.kind == NodeKind::Image) { // hug = the image's own size (source pixels = logical units)
+            const std::string* path = imagePathOf(s, n, d);
+            const ImageInfo img = path ? atlas.image(*path) : ImageInfo{};
+            outW = d.wMode == SizeMode::Hug ? (img.valid ? static_cast<f32>(img.width) : 0.0f) : d.w;
+            outH = d.hMode == SizeMode::Hug ? (img.valid ? static_cast<f32>(img.height) : 0.0f) : d.h;
+            return;
+        }
         if (d.kind == NodeKind::Text) {
             const f32 wrap = d.wMode == SizeMode::Hug ? -1.0f : (d.wMode == SizeMode::Fixed ? d.w : availW);
             shapeText(s, index, wrap, -1.0f);
@@ -1233,13 +1252,8 @@ struct System::Impl {
             q.strokeColor = withAlpha(v.strokeColor, opacity);
             quads.push_back(q);
         }
-        const std::string* imagePath = d.image.empty() ? nullptr : &d.image;
-        if (d.kind == NodeKind::Image && !d.imageField.empty()) { // src {field}: path from the view model
-            Value iv;
-            if (!resolve(s, n, d.imageField, iv) || iv.kind != ValueKind::String) missingField(s, d.imageField);
-            else if (const auto* p = static_cast<const std::string*>(iv.data); !p->empty()) imagePath = p;
-        }
-        if (d.kind == NodeKind::Image && imagePath) {
+        const std::string* imagePath = d.kind == NodeKind::Image ? imagePathOf(s, n, d) : nullptr;
+        if (imagePath) {
             const ImageInfo img = atlas.image(*imagePath);
             if (!img.valid) bindingError(s, "image assets/" + *imagePath + " not found");
             if (img.valid) {
