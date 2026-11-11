@@ -15,6 +15,7 @@
 #include "mealkit/render/Renderer.h"
 #include "mealkit/scene/Scene.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -55,6 +56,7 @@ private:
     std::vector<mealkit::render::ReflectionProbe> m_probes; // filled every frame
     std::vector<mealkit::render::PointLight> m_lights;      // filled every frame
     mealkit::f64 m_cameraTime = 0.0, m_menuTime = 0.0;      // last buildFrame times (camera dt)
+    std::unique_ptr<mealkit::render::SpriteTextures> m_sprites; // sprite images (render/Sprites.h), made on the first draw
     mealkit::f64 m_viewTime = 0.0;                          // clock for view animation (sum of update dt)
     mealkit::u32 m_hud = 0;
     HudVm m_hudVm;

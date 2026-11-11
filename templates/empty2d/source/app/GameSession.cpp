@@ -137,7 +137,8 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     applyEnvironment(m_scene.environment, ctx.models, frame);
     applyProbes(m_scene, ctx.models, m_probes, frame);
     applyLights(m_scene, m_lights, frame);
-    drawScene(m_scene, ctx.models, frame.cameraPos, m_viewTime, out);
+    if (!m_sprites) m_sprites = std::make_unique<render::SpriteTextures>(ctx.renderer);
+    drawScene(m_scene, ctx.models, *m_sprites, frame.cameraPos, m_viewTime, out);
     if (sim().started()) drawWorld(sim().previous(), sim().world().state, sim().alpha(), look, ctx.models, out);
 }
 

@@ -26,6 +26,7 @@ inline constexpr const char* kTypeVirtualCamera = "virtual_camera"; // virtual c
 inline constexpr const char* kTypeScatter = "scatter"; // scatter brush layer (view only, fields are ScatterFields, asset/Scatter.h; the object's own transform isn't used)
 inline constexpr const char* kTypeReverbZone = "reverb_zone"; // reverb area (view only, size = box, fields are ReverbZoneFields; audio::Engine::setReverbZones)
 inline constexpr const char* kTypeTerrain = "terrain"; // heightmap terrain (colliding, fields are TerrainFields, asset/Terrain.h). size = the box the heights fill
+inline constexpr const char* kTypeSprite = "sprite"; // image in the world (view only, fields are SpriteFields, render/Sprites.h). color = tint
 
 // Fields of point light objects (a built-in kind, but edited with inspector/field lines like game kinds). Read with readObject<PointLightFields>(e)
 MEALKIT_STRUCT(PointLightFields) {
@@ -48,6 +49,22 @@ MEALKIT_STRUCT(ReverbZoneFields) {
 // Its samples go into the content hash with the model files (asset::ModelCache::hashModels)
 MEALKIT_STRUCT(TerrainFields) {
     MEALKIT_FIELD(std::string, heightmap, {}, "Heightmap (16-bit PNG relative to assets)");
+};
+
+// Fields of sprite objects: one image (or one cell of a sheet) on the object's x/y plane, facing -z with no rotation.
+// Size: the object's x/y scale in meters, or, with pixelsPerUnit, the cell's pixels divided by it (times the scale).
+MEALKIT_STRUCT(SpriteFields) {
+    MEALKIT_FIELD(std::string, image, {}, "Image (PNG relative to assets)");
+    MEALKIT_FIELD(i32, columns, 1, "Sheet columns");
+    MEALKIT_FIELD(i32, rows, 1, "Sheet rows");
+    MEALKIT_FIELD(i32, cell, 0, "Cell (from the top left, row by row)");
+    MEALKIT_FIELD(f32, pivotX, 0.5f, "Pivot x (0 left .. 1 right)");
+    MEALKIT_FIELD(f32, pivotY, 0.5f, "Pivot y (0 bottom .. 1 top)");
+    MEALKIT_FIELD(f32, pixelsPerUnit, 0.0f, "Pixels per meter (0: size from the scale)");
+    MEALKIT_FIELD(i32, layer, 0, "Layer (higher draws over lower)");
+    MEALKIT_FIELD(bool, flipX, false, "Flip horizontally");
+    MEALKIT_FIELD(bool, flipY, false, "Flip vertically");
+    MEALKIT_FIELD(bool, pixelArt, false, "Pixel art (nearest texel, no filtering)");
 };
 
 // Fields of scatter layers: one model painted many times. Instances are in file (written by the editor), not in the scene

@@ -3,6 +3,18 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Sprites on the 3D engine: render 0.3.0, scene 0.2.0, editor 0.1.16 (2026-11-11)
+
+- ROADMAP "2D on the 3D engine" (partly; the rest is listed there). Decision: `docs/DECISIONS.md` 2026-11-10.
+- Renderer: `render::Sprite` (80 bytes: position, bindless texture, rotation, size, pivot, image rect, tint, flags, layer) and `Renderer::drawSprites`, a pass after opaque 3D and before particles with the particle pipeline state (scene target, premultiplied blending, depth test without writes, both faces), one instanced draw for all sprites since each instance names its own bindless texture. `shaders/Sprite.hlsl`: 6 vertices per instance, quaternion-rotated quad around the pivot, flips through the UVs, `kSpritePoint` reads texels with `Load` (no new sampler, so no RHI change). Shader hot reload covers it.
+- `DrawList::addSprite`; `submit` culls them by a bounding sphere, then sorts by layer and back to front along `Renderer::cameraForward()` (new; `FrameParams::cameraForward`, default +z), stable for ties.
+- `render/Sprites.h`: `SpriteTextures` loads PNGs relative to assets once (stb_image, a static copy so shipping builds decode too), premultiplies and builds the mip chain in linear space, uploads `Rgba8Srgb`, reloads a file whose write time changed, and gives a 1x1 white texture for empty or missing paths. `spriteCell` (sheet cell → image rect), `addSprite` (scene object → sprite).
+- Scene: built-in cosmetic kind `sprite` with `SpriteFields` (image, sheet columns/rows/cell, pivot, pixels per meter or the x/y scale as size, layer, flips, pixel art); the object's color is the tint.
+- Editor: draws sprite objects (`Editor::m_sprites`); a new sprite is white, 2 x 2 m, on z = 0 in a 2D project. Korean labels for the kind and fields.
+- Template `empty2d`: `drawScene` takes a `SpriteTextures` (owned by `GameSession`, made on the first draw) and draws sprite objects.
+- Manual: MealKit-docs `manual/editor.md` "Sprites" (en, ko).
+- Checked: Editor, VulkanEditor and Release builds; `mealkit_tests --only render,scene` (new `scene_sprites`); editor captures of a sprite scene (layers, flip, tint, pixel art) on DX12 and Vulkan that match; a project made from `empty2d` built (Editor, Release) with a sprite placed and captured in the shipping exe. Not run: `check.ps1` (render golden and the rest).
+
 ## UI image path binding (2026-11-11)
 
 - Decision: `docs/DECISIONS.md` 2026-11-11 "UI images can bind their path".

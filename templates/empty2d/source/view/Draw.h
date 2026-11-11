@@ -6,6 +6,7 @@
 #include "mealkit/render/ModelDraw.h" // asset::ModelCache + its drawing
 #include "mealkit/render/DrawList.h"
 #include "mealkit/render/Renderer.h"
+#include "mealkit/render/Sprites.h"
 #include "mealkit/scene/Scene.h"
 
 #include <vector>
@@ -19,8 +20,8 @@ void applyEnvironment(const mealkit::scene::Environment& env, mealkit::asset::Mo
 void applyLights(const mealkit::scene::Scene& scene, std::vector<mealkit::render::PointLight>& lights, mealkit::render::FrameParams& frame);
 void applyProbes(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models,
                  std::vector<mealkit::render::ReflectionProbe>& probes, mealkit::render::FrameParams& frame);
-// Static scene objects (spawn points and areas aren't drawn)
-void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, const Vec3& eye, mealkit::f64 viewTime,
+// Static scene objects (spawn points and areas aren't drawn), sprites included
+void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, mealkit::render::SpriteTextures& sprites, const Vec3& eye, mealkit::f64 viewTime,
                mealkit::render::DrawList& out);
 // Characters interpolated by alpha between the previous and current tick
 void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, const ViewTuning& look,

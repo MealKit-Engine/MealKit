@@ -71,6 +71,8 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     mealkit_shader(shaders/Forward.hlsl PSSky ps_6_6 g_SkyPS)
     mealkit_shader(shaders/Particle.hlsl VSMain vs_6_6 g_ParticleVS)
     mealkit_shader(shaders/Particle.hlsl PSMain ps_6_6 g_ParticlePS)
+    mealkit_shader(shaders/Sprite.hlsl VSMain vs_6_6 g_SpriteVS)
+    mealkit_shader(shaders/Sprite.hlsl PSMain ps_6_6 g_SpritePS)
     mealkit_shader(shaders/Post.hlsl VSMain vs_6_6 g_PostVS)
     mealkit_shader(shaders/Post.hlsl PSBloomDown ps_6_6 g_BloomDownPS)
     mealkit_shader(shaders/Post.hlsl PSBloomUp ps_6_6 g_BloomUpPS)
@@ -263,11 +265,14 @@ set(MEALKIT_FRONT_SOURCES
     ../modules/render/src/mealkit/render/Environment.cpp
     ../modules/render/include/mealkit/render/ModelDraw.h
     ../modules/render/src/mealkit/render/ModelDraw.cpp
+    ../modules/render/include/mealkit/render/Sprites.h
+    ../modules/render/src/mealkit/render/Sprites.cpp
     ../modules/render/src/mealkit/render/ShaderReload.h
     ../modules/rhi/include/mealkit/rhi/GpuCapture.h
     ../modules/rhi/src/mealkit/rhi/GpuCapture.cpp
     ../modules/render/src/mealkit/render/ShaderReload.cpp
     shaders/Forward.hlsl
+    shaders/Sprite.hlsl
     shaders/Ui.hlsl
     shaders/Bindless.hlsli
     ${MEALKIT_SHADER_HEADERS})

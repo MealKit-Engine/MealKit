@@ -50,6 +50,7 @@
 #include "mealkit/render/Environment.h"
 #include "mealkit/render/TextureCache.h"
 #include "mealkit/render/SceneLights.h"
+#include "mealkit/render/Sprites.h"
 #include "mealkit/render/ModelDraw.h" // asset::ModelCache + its drawing
 #include "mealkit/asset/Scatter.h"
 #include "mealkit/asset/Terrain.h"
@@ -1694,6 +1695,25 @@ TEST_CASE(asset, reflection_probe) {
     TEST_CHECK(render::loadProbe(path, back, error) && back.size == probe.size && back.mips == probe.mips && back.reflect == probe.reflect);
     removeFile(path);
     TEST_CHECK(!render::loadProbe(path, back, error) && !error.empty());
+}
+
+// Sprites: a built-in view-only kind with fields, drawn in the game; sheet cells map to image rects counted from the top left
+TEST_CASE(render, scene_sprites) {
+    const reflect::TypeInfo* type = scene::findType(scene::kTypeSprite, nullptr);
+    TEST_CHECK(type && type->field("image") && type->field("pixelsPerUnit") && (type->flags & reflect::kObjectCosmetic));
+    scene::Scene s;
+    scene::Entity& e = s.add(scene::kTypeSprite, "Hero");
+    TEST_CHECK(scene::visibleInGame(e, nullptr));
+    e.fields = {{"image", "sprites/hero.png"}, {"columns", "4"}, {"rows", "2"}, {"cell", "5"}, {"flipX", "true"}};
+    const scene::SpriteFields f = scene::readObject<scene::SpriteFields>(e);
+    TEST_CHECK(f.image == "sprites/hero.png" && f.columns == 4 && f.cell == 5 && f.flipX && !f.pixelArt && f.pivotX == 0.5f);
+    render::Sprite cell;
+    render::spriteCell(cell, 4, 2, 5); // second row, second column
+    TEST_CHECK(cell.u0 == 0.25f && cell.u1 == 0.5f && cell.v0 == 0.5f && cell.v1 == 1.0f);
+    render::spriteCell(cell, 4, 2, 99); // past the end: the last cell
+    TEST_CHECK(cell.u0 == 0.75f && cell.v0 == 0.5f);
+    scene::Scene empty; // cosmetic kinds stay out of the content hash
+    TEST_CHECK(s.contentHash() == empty.contentHash());
 }
 
 // Point lights: a built-in kind but with fields; scene object → render::PointLight (world position, linear color × intensity, disabled lights excluded)

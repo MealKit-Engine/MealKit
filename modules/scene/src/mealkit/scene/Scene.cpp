@@ -100,6 +100,14 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         t.flags = b.flags;
         return t;
     }();
+    static const reflect::TypeInfo sprite = [] {
+        reflect::TypeInfo t = reflect::typeOf<SpriteFields>();
+        const reflect::TypeInfo b = makeBuiltin(kTypeSprite, "Sprite", reflect::kObjectCosmetic);
+        t.name = b.name;
+        t.label = b.label;
+        t.flags = b.flags;
+        return t;
+    }();
     static const reflect::TypeInfo scatter = [] {
         reflect::TypeInfo t = reflect::typeOf<ScatterFields>();
         const reflect::TypeInfo b = makeBuiltin(kTypeScatter, "Scatter layer", reflect::kObjectCosmetic);
@@ -117,7 +125,7 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         return t;
     }();
     static const std::vector<const reflect::TypeInfo*> list{&solid,      &decoration,    &spawn,   &probe,   &pointLight,
-                                                            &reverbZone, &virtualCamera, &terrain, &scatter};
+                                                            &reverbZone, &virtualCamera, &terrain, &scatter, &sprite};
     return list;
 }
 

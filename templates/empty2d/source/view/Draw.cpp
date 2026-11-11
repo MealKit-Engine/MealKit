@@ -33,12 +33,16 @@ void applyProbes(const scene::Scene& scene, asset::ModelCache& models, std::vect
     frame.probeCount = static_cast<u32>(probes.size());
 }
 
-void drawScene(const scene::Scene& scene, asset::ModelCache& models, const Vec3& eye, f64 viewTime, render::DrawList& out) {
+void drawScene(const scene::Scene& scene, asset::ModelCache& models, render::SpriteTextures& sprites, const Vec3& eye, f64 viewTime, render::DrawList& out) {
     const render::MeshId box = models.boxMesh();
     for (const scene::Entity& e : scene.entities) {
         if (!scene::visibleInGame(e, &reflect::moduleObjectTypes())) continue; // spawn points/areas are invisible in the game
         if (e.is(scene::kTypeScatter)) { // view-only instances painted in the editor
             render::addScatter(out, models, e, eye);
+            continue;
+        }
+        if (e.is(scene::kTypeSprite)) { // images (2D art); e is already in world coordinates (flattened scene)
+            render::addSprite(out, sprites, e, {e.position, e.rotation, e.scale});
             continue;
         }
         if (e.is(scene::kTypeTerrain)) {
