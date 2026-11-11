@@ -3,6 +3,11 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## Play from the game's first screen: editor (2026-11-11)
+
+- The Play options gained "Start at the first screen" (solo only): for a game whose `GameInstance::menus()` is true, PlaySession creates the match service without opening a session or starting a match, like the game's exe without `--exit-tick`/`--bot`. The game's screen flow then opens the solo session and starts matches itself, and returning to its menu doesn't end play. `--play-menus` does the same from the command line (ignored with `--bot`).
+- Asked for by a game whose intro and menus could only be seen from the exe. Checked: RngUnlimited with `--play-menus` shows its main menu in the editor.
+
 ## UI bindings for code-driven slides and fades: mkui (2026-11-11)
 
 - `offsetField xField yField` moves a node and its children by two number fields after layout; `opacityField field` multiplies the subtree's opacity; `brightness b` (also in `on <state>` lines) and `brightnessField field` mix an image toward white or black (-1..1, Scratch's brightness effect / 100). Images carry the mix in the quad's `color1` (white or black, mix in alpha), which `Ui.hlsl` lerps after the tint; other quads are unchanged.
