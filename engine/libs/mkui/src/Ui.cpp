@@ -698,6 +698,18 @@ struct System::Impl {
             if (resolve(s, n, d.widthRatioField, v)) r.w *= static_cast<f32>(std::clamp(numberOf(v), 0.0, 1.0));
             else missingField(s, d.widthRatioField);
         }
+        if (!d.scaleField.empty()) { // scale binding: about the box centre
+            Value v;
+            if (resolve(s, n, d.scaleField, v)) {
+                const f32 k = static_cast<f32>(std::max(0.0, numberOf(v)));
+                r.x += r.w * (1.0f - k) * 0.5f;
+                r.y += r.h * (1.0f - k) * 0.5f;
+                r.w *= k;
+                r.h *= k;
+            } else {
+                missingField(s, d.scaleField);
+            }
+        }
         n.rect = r;
         if (d.kind == NodeKind::Text) {
             const f32 wrap = d.wMode == SizeMode::Hug ? -1.0f : r.w;
@@ -1278,7 +1290,8 @@ struct System::Impl {
                     quads.push_back(q);
                 };
                 if (!sliced) {
-                    piece(r.x, r.y, r.x + r.w, r.y + r.h, img.u0, img.v0, img.u1, img.v1);
+                    piece(r.x, r.y, r.x + r.w, r.y + r.h, d.flipX ? img.u1 : img.u0, d.flipY ? img.v1 : img.v0, d.flipX ? img.u0 : img.u1,
+                          d.flipY ? img.v0 : img.v1);
                 } else { // 9-slice: margins are source pixels = logical units
                     const f32 du = (img.u1 - img.u0) / static_cast<f32>(img.width), dv = (img.v1 - img.v0) / static_cast<f32>(img.height);
                     const f32 xs[4] = {r.x, r.x + d.slice[0] * k, r.x + r.w - d.slice[2] * k, r.x + r.w};

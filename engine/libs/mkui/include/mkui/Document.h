@@ -166,6 +166,10 @@ struct Node {
 
     // Bindings (view model field paths, ! in front inverts)
     std::string visibleField, disabledField, widthRatioField, colorField;
+    std::string scaleField; // scales the node's box about its centre by a number field (after layout; children aren't moved)
+
+    // Image: mirror the picture (flip horizontal / vertical)
+    bool flipX = false, flipY = false;
 
     // Widgets
     WidgetKind widget = WidgetKind::None;

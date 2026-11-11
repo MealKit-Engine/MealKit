@@ -1336,6 +1336,14 @@ TEST_CASE(ui, ui_image_field) {
     TEST_CHECK(doc.nodes[1].imageField == "portrait" && doc.nodes[1].image.empty());
     TEST_CHECK(doc.nodes[2].image == "ui/icon.png" && doc.nodes[2].imageField.empty());
     TEST_CHECK(doc.nodes[3].image == "ui/icon.png" && doc.nodes[3].imageField.empty());
+
+    // flip mirrors an image; scaleField scales a box by a number field
+    ui::Document flipped;
+    TEST_CHECK(ui::parseDocument("board b 100 100\n  image a\n    src ui/icon.png\n    flip horizontal\n    scaleField zoom\n  end\nend\n",
+                                 "ui/test.ui", flipped));
+    TEST_CHECK(flipped.nodes.size() == 2 && flipped.nodes[1].flipX && !flipped.nodes[1].flipY && flipped.nodes[1].scaleField == "zoom");
+    ui::Document bad;
+    TEST_CHECK(!ui::parseDocument("board b 100 100\n  image a\n    flip sideways\n  end\nend\n", "ui/test.ui", bad));
 }
 
 TEST_CASE(ui, ui_source) {

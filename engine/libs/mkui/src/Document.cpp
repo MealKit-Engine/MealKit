@@ -434,6 +434,16 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
     if (k == "disabled") return args == 1 ? (n.disabledField = t[1], true) : fail("disabled <field>");
     if (k == "widthRatio") return args == 1 ? (n.widthRatioField = t[1], true) : fail("widthRatio <field>");
     if (k == "colorField") return args == 1 ? (n.colorField = t[1], true) : fail("colorField <field>");
+    if (k == "scaleField") return args == 1 ? (n.scaleField = t[1], true) : fail("scaleField <field>");
+    if (k == "flip") {
+        bool ok = args >= 1;
+        for (size_t i = 1; i < t.size(); ++i) {
+            if (t[i] == "horizontal") n.flipX = true;
+            else if (t[i] == "vertical") n.flipY = true;
+            else ok = false;
+        }
+        return ok || fail("flip horizontal|vertical");
+    }
     // Widgets
     if (k == "button") {
         if (args != 1) return fail("button <action>");
