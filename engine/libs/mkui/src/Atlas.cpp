@@ -280,12 +280,21 @@ ImageInfo Atlas::image(const std::string& assetPath) {
         host.log(LogLevel::Warn, "UI: cannot load image assets/" + assetPath);
     } else {
         u32 x = 0, y = 0;
-        if (m->imageShelves.place(w, h, x, y)) {
+        bool placed = m->imageShelves.place(w, h, x, y);
+        if (!placed && !m->images.empty()) {
+            // Full: start the image atlas over (images bound by path, "src {field}", come and go). Images still in use are
+            // read again on their next draw; quads already emitted this frame may show the wrong pixels for one frame.
+            host.log(LogLevel::Warn, "UI: image atlas full (" + std::to_string(m->images.size()) + " images) - rebuilding");
+            m->imageShelves.clear();
+            m->images.clear();
+            placed = m->imageShelves.place(w, h, x, y);
+        }
+        if (placed) {
             host.uploadAtlas(AtlasKind::Images, x, y, w, h, pixels.data());
             img.info = {true, w, h, static_cast<f32>(x) / kSize, static_cast<f32>(y) / kSize, static_cast<f32>(x + w) / kSize,
                         static_cast<f32>(y + h) / kSize};
         } else {
-            host.log(LogLevel::Warn, "UI: image atlas full - assets/" + assetPath + " is not shown");
+            host.log(LogLevel::Warn, "UI: image larger than the atlas - assets/" + assetPath + " is not shown");
         }
     }
     m->images.push_back(std::move(img));

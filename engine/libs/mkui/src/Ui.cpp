@@ -1233,9 +1233,15 @@ struct System::Impl {
             q.strokeColor = withAlpha(v.strokeColor, opacity);
             quads.push_back(q);
         }
-        if (d.kind == NodeKind::Image && !d.image.empty()) {
-            const ImageInfo img = atlas.image(d.image);
-            if (!img.valid) bindingError(s, "image assets/" + d.image + " not found");
+        const std::string* imagePath = d.image.empty() ? nullptr : &d.image;
+        if (d.kind == NodeKind::Image && !d.imageField.empty()) { // src {field}: path from the view model
+            Value iv;
+            if (!resolve(s, n, d.imageField, iv) || iv.kind != ValueKind::String) missingField(s, d.imageField);
+            else if (const auto* p = static_cast<const std::string*>(iv.data); !p->empty()) imagePath = p;
+        }
+        if (d.kind == NodeKind::Image && imagePath) {
+            const ImageInfo img = atlas.image(*imagePath);
+            if (!img.valid) bindingError(s, "image assets/" + *imagePath + " not found");
             if (img.valid) {
                 const u32 tint = withAlpha(v.tint, opacity);
                 const bool sliced = d.slice[0] > 0 || d.slice[1] > 0 || d.slice[2] > 0 || d.slice[3] > 0;

@@ -8,7 +8,7 @@
 //   Fonts: .ttf/.otf in assets/fonts found by file name ("Pretendard-Medium"). Only glyphs in use are baked to SDF at runtime with stb_truetype.
 //         One font file per weight/italic. Baked at one size (kBakePixels) and used for all sizes.
 //   Images: PNGs relative to assets (decoded by the host). Read on first use and put into the image atlas.
-// When an atlas fills up, it's cleared and rebaked (warning). View-side only, so unrelated to determinism.
+// When an atlas fills up, it's cleared and rebaked (warning); images are then read again as they're drawn. View-side only, so unrelated to determinism.
 namespace mkui {
 
 class Host;

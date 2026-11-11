@@ -1324,6 +1324,20 @@ TEST_CASE(ui, ui_preview_focus) {
 }
 
 // Editable .ui source (editor [UI] panel): every .ui in the repo writes back unchanged, edits touch only their lines
+TEST_CASE(ui, ui_image_field) {
+    // "src {field}" binds the image path to a view model string; a plain path stays fixed; the last src line wins
+    ui::Document doc;
+    TEST_CHECK(ui::parseDocument("board b 100 100\n"
+                                 "  image a\n    src {portrait}\n  end\n"
+                                 "  image b\n    src ui/icon.png\n  end\n"
+                                 "  image c\n    src {x}\n    src ui/icon.png\n  end\nend\n",
+                                 "ui/test.ui", doc));
+    TEST_CHECK(doc.nodes.size() == 4);
+    TEST_CHECK(doc.nodes[1].imageField == "portrait" && doc.nodes[1].image.empty());
+    TEST_CHECK(doc.nodes[2].image == "ui/icon.png" && doc.nodes[2].imageField.empty());
+    TEST_CHECK(doc.nodes[3].image == "ui/icon.png" && doc.nodes[3].imageField.empty());
+}
+
 TEST_CASE(ui, ui_source) {
     const std::string engine = std::string(MEALKIT_ENGINE_DIR);
     std::vector<std::string> dirs = {engine + "/templates/empty/assets/ui", engine + "/tools/penpot-plugin/test/expected"};

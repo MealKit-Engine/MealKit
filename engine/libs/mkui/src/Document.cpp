@@ -349,7 +349,18 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
         v.shadows.push_back(s);
         return true;
     }
-    if (k == "src") return args == 1 ? (n.image = t[1], true) : fail("src <assets path>");
+    if (k == "src") {
+        if (args != 1) return fail("src <assets path> | src {field}");
+        const std::string& a = t[1];
+        if (a.size() > 2 && a.front() == '{' && a.back() == '}') {
+            n.imageField = a.substr(1, a.size() - 2);
+            n.image.clear();
+        } else {
+            n.image = a;
+            n.imageField.clear();
+        }
+        return true;
+    }
     if (k == "slice") return (args == 4 && num(1, n.slice[0]) && num(2, n.slice[1]) && num(3, n.slice[2]) && num(4, n.slice[3])) || fail("slice <left> <top> <right> <bottom>");
     if (k == "tint") return (args == 1 && parseColor(t[1], v.tint) && (v.hasTint = true)) || fail("color");
     // Text

@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI image path binding (2026-11-11)
+
+- Decision: `docs/DECISIONS.md` 2026-11-11 "UI images can bind their path".
+- mkui: `Node::imageField`, read from `src {field}` (`Document.cpp`; a plain path clears it and the last `src` line wins). `emitNode` resolves the field each frame (item, then screen view model); a missing or non-string field is a binding error, an empty string draws nothing.
+- Atlas: when an image doesn't fit, the image shelves and cache are cleared (warning) and the image is placed again; other images come back on their next draw. Only an image larger than the atlas is refused now.
+- Manual: the `.ui` binding table in MealKit-docs `manual/ui.md` (en, ko).
+- Checked: `mealkit_tests --only ui` (new `ui_image_field`).
+
 ## 2D projects and template cards: physics 0.1.3, editor 0.1.15, game 0.2.1 (2026-11-10)
 
 - Decision: `docs/DECISIONS.md` 2026-11-10 "2D games run on the 3D engine". Sprites are the open ROADMAP item "2D on the 3D engine".

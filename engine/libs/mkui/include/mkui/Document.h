@@ -148,7 +148,8 @@ struct Node {
     f32 transition = 0.1f; // blend time when the state changes (seconds)
 
     // Image
-    std::string image; // PNG relative to assets
+    std::string image;      // PNG relative to assets ("src ui/icon.png")
+    std::string imageField; // "src {field}": the PNG path comes from a view model string field (empty value draws nothing)
     f32 slice[4] = {};  // 9-slice margins (source pixels: left, top, right, bottom)
 
     // Text
