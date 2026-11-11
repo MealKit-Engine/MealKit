@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdlib>
 #include <cstdio>
 #include <cstring>
 #include <string_view>
@@ -1896,8 +1897,15 @@ bool System::press(ScreenId screen, const std::string& nodeName) {
     Screen* s = m->find(screen);
     if (!s) return false;
     if (s->rebuild) m->prepare(*s, m->viewW, m->viewH);
+    // "name#k": the k-th (from 0) widget of that name, for list items that share their template's name
+    std::string_view name = nodeName;
+    size_t skip = 0;
+    if (const size_t hash = nodeName.rfind('#'); hash != std::string::npos && hash + 1 < nodeName.size()) {
+        name = std::string_view(nodeName).substr(0, hash);
+        skip = static_cast<size_t>(std::strtoul(nodeName.c_str() + hash + 1, nullptr, 10));
+    }
     for (size_t i = 0; i < s->nodes.size(); ++i)
-        if (s->doc.nodes[s->nodes[i].src].name == nodeName && m->focusable(*s, static_cast<i32>(i))) {
+        if (s->doc.nodes[s->nodes[i].src].name == name && m->focusable(*s, static_cast<i32>(i)) && skip-- == 0) {
             m->activate(*s, static_cast<i32>(i));
             return true;
         }

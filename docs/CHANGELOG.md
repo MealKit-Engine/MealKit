@@ -6,6 +6,7 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 ## UI bindings for code-driven slides and fades: mkui (2026-11-11)
 
 - `offsetField xField yField` moves a node and its children by two number fields after layout; `opacityField field` multiplies the subtree's opacity; `brightness b` (also in `on <state>` lines) and `brightnessField field` mix an image toward white or black (-1..1, Scratch's brightness effect / 100). Images carry the mix in the quad's `color1` (white or black, mix in alpha), which `Ui.hlsl` lerps after the tint; other quads are unchanged.
+- `ui::System::press`/`pressAny` (`--ui-press`) take `name#k` for the k-th widget of that name (list items share their template's name).
 - Asked for by a game porting a Scratch project's screen transitions (sliding blinds, falling banners, hover brightening). Test: `ui_document` parses the new lines.
 
 ## Sprites on the 3D engine: render 0.3.0, scene 0.2.0, editor 0.1.16 (2026-11-11)
