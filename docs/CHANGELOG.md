@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI 2a step 6: Designer inspector rows and drop onto the preview (2026-11-12)
+
+- **MkUI v0.5.0** (`58f2914`): the Designer's Properties panel gets the MealKit editor's inspector rows above the raw lines: position, width/height as fixed / fit content / fill, the anchor grid with stretch and scale (`constraints`), children's layout with wrap, justify, align, gap and padding, fill and text color pickers, radius, opacity, text content, font size, a font picker (`assets/fonts`), an image picker (`assets/ui`, `assets/textures`) and behaviour (button, toggle, slider, list, scroll, text input) with a box per word. One undo step per drag or pick. `$token` values show as text; the editor's token combo was not ported.
+- Library widgets and components can be dragged onto the preview: they go into the deepest container under the mouse, at the mouse when its children are free.
+- Verified: Release build without warnings, captures of coop `menu.ui` with a layout child (`solo`) and a free frame (`panel`) selected. Not tried by hand: the drop and the row edits with the mouse.
+
 ## UI 2a step 5: real view-model values from running games (2026-11-12)
 
 - **Decision** (`docs/DECISIONS.md` 2026-11-12 "Live `ui/` service"): read-only text pairs over the existing live connection.
