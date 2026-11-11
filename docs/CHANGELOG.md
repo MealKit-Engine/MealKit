@@ -10,6 +10,7 @@ When a roadmap item is done, its details move here and ROADMAP keeps only one li
 - Atlas: when an image doesn't fit, the image shelves and cache are cleared (warning) and the image is placed again; other images come back on their next draw. Only an image larger than the atlas is refused now.
 - `size hug` on an image is the image's own size (source pixels = logical units; it used to fall back to the design size), so a bound picture keeps its proportions as it changes.
 - `flip horizontal|vertical` mirrors an image (swapped UVs; a sprite that faces the other way). `scaleField <field>` scales a node's box about its centre by a number field after layout (per-instance size of a world UI template, such as a unit drawn nearer or farther).
+- Atlas packing: an image with no shelf of about its height and no room for a new shelf goes on the lowest taller shelf with room (sprites of many heights used to open a shelf each and thrash the atlas).
 - Manual: the `.ui` binding table in MealKit-docs `manual/ui.md` (en, ko).
 - Checked: `mealkit_tests --only ui` (new `ui_image_field`).
 

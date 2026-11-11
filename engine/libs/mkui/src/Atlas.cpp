@@ -38,7 +38,17 @@ struct Shelves {
                 s.x += w;
                 return true;
             }
-        if (top + h > kSize || w > kSize) return false;
+        if (top + h > kSize || w > kSize) {
+            // No room for a new shelf: the lowest taller shelf with room left (images of many heights, such as sprites)
+            Shelf* best = nullptr;
+            for (Shelf& s : shelves)
+                if (h <= s.height && s.x + w <= kSize && (!best || s.height < best->height)) best = &s;
+            if (!best) return false;
+            outX = best->x;
+            outY = best->y;
+            best->x += w;
+            return true;
+        }
         shelves.push_back({top, h, w});
         outX = 0;
         outY = top;
