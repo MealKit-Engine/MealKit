@@ -262,6 +262,7 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
                fail("constraints <left|right|leftright|center|scale> <top|bottom|topbottom|center|scale>");
     if (k == "rotation") return num(1, n.rotation) || fail("degrees");
     if (k == "opacity") return num(1, v.opacity) || fail("0 to 1");
+    if (k == "brightness") return num(1, v.brightness) || fail("-1 to 1");
     if (k == "hidden") return n.hidden = true;
     if (k == "clip") return n.clip = true;
     if (k == "layout" && args >= 1 && t[1] == "grid") {
@@ -435,6 +436,9 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
     if (k == "widthRatio") return args == 1 ? (n.widthRatioField = t[1], true) : fail("widthRatio <field>");
     if (k == "colorField") return args == 1 ? (n.colorField = t[1], true) : fail("colorField <field>");
     if (k == "scaleField") return args == 1 ? (n.scaleField = t[1], true) : fail("scaleField <field>");
+    if (k == "offsetField") return args == 2 ? (n.offsetXField = t[1], n.offsetYField = t[2], true) : fail("offsetField <x field> <y field>");
+    if (k == "opacityField") return args == 1 ? (n.opacityField = t[1], true) : fail("opacityField <field>");
+    if (k == "brightnessField") return args == 1 ? (n.brightnessField = t[1], true) : fail("brightnessField <field>");
     if (k == "flip") {
         bool ok = args >= 1;
         for (size_t i = 1; i < t.size(); ++i) {

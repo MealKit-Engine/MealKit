@@ -126,6 +126,8 @@ float4 PSMain(VSOutput input) : SV_Target
     {
         float2 uv = lerp(q.uv.xy, q.uv.zw, box01);
         fill = g_textures[pc.imageAtlas].SampleLevel(g_linearClamp, uv, 0) * unpack(q.color0);
+        float4 bright = unpack(q.color1); // brightness: toward white or black by its alpha
+        fill.rgb = lerp(fill.rgb, bright.rgb, bright.a);
     }
     else
     {

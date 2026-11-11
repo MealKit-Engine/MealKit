@@ -230,6 +230,7 @@ struct Look {
     u32 strokeColor = 0;
     f32 radii[4] = {};
     f32 opacity = 1.0f;
+    f32 brightness = 0.0f;
     u32 textColor = 0xFFFFFFFFu, tint = 0xFFFFFFFFu;
     const std::vector<Shadow>* shadows = nullptr;
 };
@@ -244,6 +245,7 @@ Look lookOf(const Visual& v) {
     l.strokeColor = v.strokeColor.rgba;
     std::memcpy(l.radii, v.radii, sizeof(l.radii));
     l.opacity = v.opacity;
+    l.brightness = v.brightness;
     l.textColor = v.textColor.rgba;
     l.tint = v.tint.rgba;
     l.shadows = &v.shadows;
@@ -267,6 +269,7 @@ void lerpLook(Look& a, const Visual& b, f32 t) {
     a.strokeColor = lerpColor(a.strokeColor, b.strokeColor.rgba, t);
     for (int i = 0; i < 4; ++i) a.radii[i] += (b.radii[i] - a.radii[i]) * t;
     a.opacity += (b.opacity - a.opacity) * t;
+    a.brightness += (b.brightness - a.brightness) * t;
     a.textColor = lerpColor(a.textColor, b.textColor.rgba, t);
     a.tint = lerpColor(a.tint, b.tint.rgba, t);
     if (t >= 0.5f) a.shadows = &b.shadows;
@@ -708,6 +711,15 @@ struct System::Impl {
                 r.h *= k;
             } else {
                 missingField(s, d.scaleField);
+            }
+        }
+        if (!d.offsetXField.empty()) { // offset binding: moves the box (children follow, laid out inside it)
+            Value x, y;
+            if (resolve(s, n, d.offsetXField, x) && resolve(s, n, d.offsetYField, y)) {
+                r.x += static_cast<f32>(numberOf(x));
+                r.y += static_cast<f32>(numberOf(y));
+            } else {
+                missingField(s, d.offsetXField + " / " + d.offsetYField);
             }
         }
         n.rect = r;
@@ -1225,6 +1237,14 @@ struct System::Impl {
                 }
             }
         }
+        if (!d.opacityField.empty()) { // opacity binding (fades the subtree)
+            Value ov;
+            if (resolve(s, n, d.opacityField, ov)) v.opacity *= static_cast<f32>(std::clamp(numberOf(ov), 0.0, 1.0));
+        }
+        if (!d.brightnessField.empty()) { // brightness binding (images)
+            Value bv;
+            if (resolve(s, n, d.brightnessField, bv)) v.brightness += static_cast<f32>(numberOf(bv));
+        }
         opacity *= v.opacity;
         const f32 k = s.scale;
         const Rect r{s.originX + n.rect.x * k, s.originY + n.rect.y * k, n.rect.w * k, n.rect.h * k};
@@ -1270,6 +1290,10 @@ struct System::Impl {
             if (!img.valid) bindingError(s, "image assets/" + *imagePath + " not found");
             if (img.valid) {
                 const u32 tint = withAlpha(v.tint, opacity);
+                // Brightness: the shader mixes the picture toward color1 by its alpha (white for +, black for -)
+                const f32 bright = std::clamp(v.brightness, -1.0f, 1.0f);
+                const u8 mixAmount = static_cast<u8>(std::lround(std::fabs(bright) * 255.0f));
+                const u32 brightness = bright >= 0.0f ? rgba(255, 255, 255, mixAmount) : rgba(0, 0, 0, mixAmount);
                 const bool sliced = d.slice[0] > 0 || d.slice[1] > 0 || d.slice[2] > 0 || d.slice[3] > 0;
                 auto piece = [&](f32 x0, f32 y0, f32 x1, f32 y1, f32 u0, f32 v0, f32 u1, f32 v1) {
                     if (x1 <= x0 || y1 <= y0) return;
@@ -1284,6 +1308,7 @@ struct System::Impl {
                     q.uv[2] = u1;
                     q.uv[3] = v1;
                     q.color0 = tint;
+                    q.color1 = brightness;
                     q.flags = kQuadImage;
                     if (!sliced)
                         for (int i = 0; i < 4; ++i) q.radii[i] = v.radii[i] * k;

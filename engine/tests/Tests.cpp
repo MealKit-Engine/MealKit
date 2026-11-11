@@ -1343,6 +1343,14 @@ TEST_CASE(ui, ui_image_field) {
     TEST_CHECK(ui::parseDocument("board b 100 100\n  image a\n    src ui/icon.png\n    flip horizontal\n    scaleField zoom\n  end\nend\n",
                                  "ui/test.ui", flipped));
     TEST_CHECK(flipped.nodes.size() == 2 && flipped.nodes[1].flipX && !flipped.nodes[1].flipY && flipped.nodes[1].scaleField == "zoom");
+    // offsetField moves a box by two number fields, opacityField fades it, brightness (also per state) whitens or darkens an image
+    ui::Document moved;
+    TEST_CHECK(ui::parseDocument("board b 100 100\n  image a\n    src ui/icon.png\n    offsetField dx dy\n    opacityField fade\n"
+                                 "    brightnessField flash\n    brightness -0.2\n    on hover brightness 0.15\n  end\nend\n",
+                                 "ui/test.ui", moved));
+    TEST_CHECK(moved.nodes.size() == 2 && moved.nodes[1].offsetXField == "dx" && moved.nodes[1].offsetYField == "dy");
+    TEST_CHECK(moved.nodes[1].opacityField == "fade" && moved.nodes[1].brightnessField == "flash");
+    TEST_CHECK(moved.nodes[1].visual.brightness == -0.2f && moved.nodes[1].states.size() == 1);
     ui::Document bad;
     TEST_CHECK(!ui::parseDocument("board b 100 100\n  image a\n    flip sideways\n  end\nend\n", "ui/test.ui", bad));
 }

@@ -74,6 +74,7 @@ struct Visual {
     f32 radii[4] = {};
     std::vector<Shadow> shadows;
     f32 opacity = 1.0f;
+    f32 brightness = 0.0f; // image nodes: mixes the picture toward white (+) or black (-), -1..1 (Scratch's brightness effect / 100)
     ColorValue textColor; // text nodes: default color
     ColorValue tint;      // image nodes: color to multiply (default white)
     bool hasTextColor = false, hasTint = false;
@@ -81,7 +82,7 @@ struct Visual {
 
 struct StateOverride {
     State state = State::Hover;
-    std::vector<std::string> lines; // property lines to override in this state (fill, stroke, radius, shadow, opacity, color, tint)
+    std::vector<std::string> lines; // property lines to override in this state (fill, stroke, radius, shadow, opacity, brightness, color, tint)
 };
 
 struct TextStyle {
@@ -167,6 +168,9 @@ struct Node {
     // Bindings (view model field paths, ! in front inverts)
     std::string visibleField, disabledField, widthRatioField, colorField;
     std::string scaleField; // scales the node's box about its centre by a number field (after layout; children aren't moved)
+    std::string offsetXField, offsetYField; // moves the node and its children by two number fields (logical units, after layout)
+    std::string opacityField;    // multiplies the node's and its children's opacity by a number field (0..1)
+    std::string brightnessField; // image nodes: adds a number field (-1..1) to the brightness
 
     // Image: mirror the picture (flip horizontal / vertical)
     bool flipX = false, flipY = false;
