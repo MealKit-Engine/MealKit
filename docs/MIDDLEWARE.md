@@ -1,6 +1,6 @@
 # Middleware split
 
-**Status: decided 2026-11-11 with the user (`docs/DECISIONS.md` 2026-11-11 "View-side middleware"). MkUI has its own repo (v0.2.0, 2026-11-11: draw backend and view models without reflection done); its XAML-like layer and the others are not started.** Extends `docs/ENGINE_MODULES.md`: some engine modules become **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) already is. Work items are in the ROADMAP ("Tool suite"); this document follows the same life as `ENGINE_MODULES.md`.
+**Status: decided 2026-11-11 with the user (`docs/DECISIONS.md` 2026-11-11 "View-side middleware"). MkUI has its own repo (v0.3.0, 2026-11-11: draw backend, view models without reflection and the first MkUI Designer done); its XAML-like layer and the others are not started.** Extends `docs/ENGINE_MODULES.md`: some engine modules become **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) already is. Work items are in the ROADMAP ("Tool suite"); this document follows the same life as `ENGINE_MODULES.md`.
 
 ## The idea
 
@@ -14,7 +14,7 @@
 
 ## Names
 
-Each product is a plain field name with the common prefix **`Mk`**: MkRender, MkUI, MkAudio, MkAnim. The prefix matches the code names already in use (`mkaudio`, `mkui`, `mkcontract`), so product, repo (`MkRender`, `MkUI`, `MkAudio`, `MkAnim`), library target and namespace (`mkrender::`) are one name. Tools follow the same rule (MkAudio Tool, MkUI Designer, MkAnim Editor). The engine keeps the name MealKit and binds the products through its glue modules; the products don't carry "MealKit" in their names, so other engines can use them without looking like engine add-ons. MealKit-Audio was renamed MkAudio on 2026-11-11 (repo, tool exe `MkAudio`, tool title); the tool keeps its old settings folder.
+Each product is a plain field name with the common prefix **`Mk`**: MkRender, MkUI, MkAudio, MkAnim. The prefix matches the code names already in use (`mkaudio`, `mkui`, `mkcontract`), so product, repo (`MkRender`, `MkUI`, `MkAudio`, `MkAnim`), library target and namespace (`mkrender::`) are one name. Tools follow the same rule (MkAudio Tool, MkUI Designer (exe `MkUI`, MkUI `tool/`), MkAnim Editor). The engine keeps the name MealKit and binds the products through its glue modules; the products don't carry "MealKit" in their names, so other engines can use them without looking like engine add-ons. MealKit-Audio was renamed MkAudio on 2026-11-11 (repo, tool exe `MkAudio`, tool title); the tool keeps its old settings folder.
 
 ## The pattern every middleware follows
 
