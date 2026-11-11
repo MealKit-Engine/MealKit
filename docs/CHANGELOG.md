@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
 
+## UI 2a step 5: real view-model values from running games (2026-11-12)
+
+- **Decision** (`docs/DECISIONS.md` 2026-11-12 "Live `ui/` service"): read-only text pairs over the existing live connection.
+- **module-ui v0.1.11** (`d383b3d`): `ui::addLiveService(live::Server&, std::function<System*()>)` in `Ui.cpp`: `GET ui/screens` (path and bound view model type of every open screen), `GET ui/values?screen=<path>` (`reflect::toText` of the view model bound to that screen; 404 if none, 503 without a game UI). `module.txt` `requires live 0.1`.
+- **module-game v0.2.3** (`b618ae8`): `GameMain` registers it under `MEALKIT_LIVE` with the frontend's UI. **module-editor v0.1.18** (`cf432fb`): the editor registers it with the play session's UI (`m_gameUi`, 503 when not playing).
+- **MkUI v0.4.0** (`8ccb020`, tag `v0.4.0`): Values panel "From a running game": `findInstances(project)` every 2 s with each instance's open screens, **Take values** (writes `art/ui/samples/<screen>.values`), **Follow** (every 0.5 s, stops when the screen closes there); list row counts from `<list>Count`, else the highest index seen. `--show <tab>` and `--follow` for captures. Links `mkcontract_client`.
+- **Checked**: engine Editor and Release builds; `coop.exe` running: `ui/screens` → `ui/title.ui (TitleVm)`, `ui/values` → `version`; Designer `--file ui/title.ui --show Values --follow` capture: the game listed with its open screen, Follow on, the game's version string drawn in the preview.
+- **Not checked**: the editor's play session answering (only the game exe was run); a screen with lists from a live game (the title screen has one field); enum fields arrive as names and become 0 in the Designer's int fields.
+
 ## UI 2a step 4: Designer fake view-model values (2026-11-11)
 
 - **MkUI v0.3.3** (tag `v0.3.3`): **Values** panel (tab beside Properties). The Designer has no view-model types, so the fields come from the screen's `Document`: `visible`/`disabled` bindings → bool, `widthRatio`/`scale`/`offset`/`opacity`/`brightness`/`fontSize` → float, `color` field → color, `src {field}` → string, toggle → bool, slider → float, select → int, text input → string, list → rows, `{field}` in texts (the chosen language's strings) → string. Fields under a list node belong to its rows (the runtime binds each row to its own model). A `mkui::ValueModel` built from them is bound with `valueBinder()`; defaults bools on, numbers 0.6, texts the field's own name, lists 3 rows (slider 0-20). Kept in `<project>/art/ui/samples/<screen>.values` (`key = value`, `items[0].name`), beside the editor's `<Type>.values` samples and like them not shipped. "Use these values" off shows the screen unbound.
