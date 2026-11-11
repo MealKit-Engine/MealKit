@@ -1,6 +1,6 @@
 # Middleware split
 
-**Status: decided 2026-11-11 with the user (`docs/DECISIONS.md` 2026-11-11 "View-side middleware"). MkUI has its own repo (v0.1.0, 2026-11-11); its API work and the others are not started.** Extends `docs/ENGINE_MODULES.md`: some engine modules become **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) already is. Work items are in the ROADMAP ("Tool suite"); this document follows the same life as `ENGINE_MODULES.md`.
+**Status: decided 2026-11-11 with the user (`docs/DECISIONS.md` 2026-11-11 "View-side middleware"). MkUI has its own repo (v0.2.0, 2026-11-11: draw backend and view models without reflection done); its XAML-like layer and the others are not started.** Extends `docs/ENGINE_MODULES.md`: some engine modules become **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) already is. Work items are in the ROADMAP ("Tool suite"); this document follows the same life as `ENGINE_MODULES.md`.
 
 ## The idea
 
