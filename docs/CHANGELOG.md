@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## MkRender step 5: object kinds file (2026-11-12)
+
+- Phase 1 of "Scene editing moves to MkRender". New MealKit-Contract format `object-kinds 1` (`docs/CONTRACT.md` "Object kinds"): `kind` blocks with `label`, `game`, `flags` (marker/area/cosmetic) and `field` lines with `type`, `default`, `label` (with `|hint`), `enum`, `flags` (view/readonly).
+- scene v0.3.0 `scene::objectKindsText`/`writeObjectKinds` (built-in kinds, then the game's `MEALKIT_OBJECT` kinds; field paths and defaults from `reflect::toText` of a default instance; the file is rewritten only when its text changes). editor v0.1.22 writes `<project>/build/editor/kinds.txt` each time the game DLL loads; game v0.2.5 `<game>_headless --write-kinds` writes it and exits (checked with `coop_headless`: 3 game kinds).
+- MkRender v0.4.1 reads the project's kinds file (and rereads it when it changes): labels and typed widgets per field (bool, enum combo, color, int/uint, float, seconds, vec3, read-only text), game kinds in the [Add] menu and the kind list, defaults of new objects, "Add missing fields", marker/area drawing from the flags. Without the file it keeps the built-in kinds and text fields. Checked on sandbox `arena.scene` (JumpPad shows "점프 힘 (m/s)" and "재사용 대기 (초)" in seconds).
+
 ## MkRender step 4: MkRender edits project scenes (2026-11-12)
 
 - `docs/DECISIONS.md` 2026-11-12 "MkRender's app is a scene editor". **MkRender v0.4.0** replaces the step 3 viewer panels with a scene editor in `tool/`: Hierarchy (kinds, parents by drag and drop, folders, search, add/duplicate/delete), Viewport (the project's `lightingModel`, the scene's sun/sky/fog/post and point lights, click picking, ImGuizmo move/rotate/scale, orbit/pan/zoom/fly, icons for markers, line boxes for areas and model-less game kinds, terrain heightmaps), Inspector (name, kind, folder/parent, transform, model list from `assets/`, color, checker, field lines with widgets chosen from their text) and Environment (sun, sky, fog, HDRI values, post). Undo/redo, save/save as/new, the project's scene list, reload on outside changes, unsaved-changes prompt.

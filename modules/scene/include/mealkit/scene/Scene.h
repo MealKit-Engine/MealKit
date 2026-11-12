@@ -239,6 +239,12 @@ T readObject(const Entity& e) {
 reflect::TextFields defaultFields(const reflect::TypeInfo& type);
 
 bool save(const Scene& scene, const std::string& path);
+
+// Object kinds description for tools that edit scenes without the engine (MkRender): the built-in kinds and gameTypes with their
+// flags and field lines (path, type, default text, label, enum names, flags). Format "object-kinds 1" (MealKit-Contract docs/CONTRACT.md
+// "Object kinds"). Written to build/editor/kinds.txt by the editor when it loads the game code and by <game>_headless --write-kinds.
+std::string objectKindsText(const TypeList* gameTypes);
+bool writeObjectKinds(const std::string& path, const TypeList* gameTypes);
 bool load(Scene& scene, const std::string& path, std::string* error = nullptr);
 
 // ---------------------------------------------------------------- Prefabs (assets/prefabs/*.prefab)

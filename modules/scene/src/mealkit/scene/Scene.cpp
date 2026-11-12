@@ -240,6 +240,92 @@ namespace {
 void writeEntities(FILE* f, const std::vector<Entity>& entities);
 }
 
+namespace {
+
+const char* kindTypeName(const reflect::ValueInfo& v) {
+    switch (v.kind) {
+    case reflect::Kind::Bool: return "bool";
+    case reflect::Kind::Int: return v.enumNames.empty() ? "int" : "enum";
+    case reflect::Kind::UInt: return v.enumNames.empty() ? "uint" : "enum";
+    case reflect::Kind::Float: return "float";
+    case reflect::Kind::Vec3: return "vec3";
+    case reflect::Kind::Quat: return "quat";
+    case reflect::Kind::Id: return "id";
+    case reflect::Kind::String: return "string";
+    case reflect::Kind::Ticks: return "seconds";
+    case reflect::Kind::Color: return "color";
+    case reflect::Kind::RowRef: return "row";
+    default: return "text";
+    }
+}
+
+// Label and flags of the top-level field a path ("a.b[2]") starts in
+const reflect::FieldInfo* topField(const reflect::TypeInfo& type, const std::string& path) {
+    const size_t end = path.find_first_of(".[");
+    const std::string name = path.substr(0, end);
+    for (const reflect::FieldInfo& f : type.fields)
+        if (name == f.name) return &f;
+    return nullptr;
+}
+
+void appendKind(std::string& out, const reflect::TypeInfo& type, bool game) {
+    out += std::string("\nkind ") + type.name + "\n";
+    out += std::string("label ") + (type.label ? type.label : type.name) + "\n";
+    if (game) out += "game\n";
+    std::string flags;
+    if (type.flags & reflect::kObjectMarker) flags += " marker";
+    if (type.flags & reflect::kObjectArea) flags += " area";
+    if (type.flags & reflect::kObjectCosmetic) flags += " cosmetic";
+    if (!flags.empty()) out += "flags" + flags + "\n";
+    if (type.fields.empty() || !type.create) return;
+    reflect::Instance instance(type);
+    reflect::TextFields lines;
+    reflect::toText(type, instance.data(), lines);
+    for (const auto& [path, text] : lines) {
+        const reflect::ValueInfo* value = nullptr;
+        void* data = nullptr;
+        if (!reflect::resolvePath(type, instance.data(), path, value, data) || !value) continue;
+        const reflect::FieldInfo* top = topField(type, path);
+        out += "field " + path + "\n";
+        out += std::string("type ") + kindTypeName(*value) + "\n";
+        if (!text.empty()) out += "default " + text + "\n";
+        if (top && top->label && top->label[0]) out += std::string("label ") + top->label + "\n";
+        if (!value->enumNames.empty()) {
+            out += "enum";
+            for (const std::string& n : value->enumNames) out += " " + n;
+            out += "\n";
+        }
+        std::string fieldFlags;
+        if (top && (top->flags & reflect::kFieldView)) fieldFlags += " view";
+        if (top && (top->flags & reflect::kFieldReadOnly)) fieldFlags += " readonly";
+        if (!fieldFlags.empty()) out += "flags" + fieldFlags + "\n";
+    }
+}
+
+} // namespace
+
+std::string objectKindsText(const TypeList* gameTypes) {
+    std::string out = "# MealKit object kinds (written by the editor and <game>_headless --write-kinds, read by MkRender; don't edit)\n"
+                      "@format object-kinds 1\n";
+    for (const reflect::TypeInfo* t : builtinTypes()) appendKind(out, *t, false);
+    if (gameTypes)
+        for (const reflect::TypeInfo* t : *gameTypes) appendKind(out, *t, true);
+    return out;
+}
+
+bool writeObjectKinds(const std::string& path, const TypeList* gameTypes) {
+    const std::string text = objectKindsText(gameTypes);
+    const size_t slash = path.find_last_of("/\\");
+    if (slash != std::string::npos) createDirectories(path.substr(0, slash));
+    std::string old;
+    if (readTextFile(path, old) && old == text) return true; // unchanged: keep the file time (MkRender reloads on change)
+    if (!writeTextFile(path, text)) {
+        MEALKIT_ERROR("Cannot write object kinds: %s", path.c_str());
+        return false;
+    }
+    return true;
+}
+
 bool save(const Scene& scene, const std::string& path) {
     FILE* f = openFile(path, "wb");
     if (!f) {
