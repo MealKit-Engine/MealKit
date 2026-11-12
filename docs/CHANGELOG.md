@@ -3,6 +3,16 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## MkRender step 6: editing parity without engine code (2026-11-12)
+
+- Phase 2 of "Scene editing moves to MkRender" (MkRender v0.5.0, all in `tool/`). Left in ROADMAP: asset thumbnails, `anim` clip playback.
+- Selection: Shift/Ctrl click in the hierarchy and the view, box select by dragging on empty space, Ctrl+A; the gizmo moves/rotates/scales every selected object with the last one; duplicate and delete work on the whole selection. Edit > Arrange: align min/center/max on X/Y/Z to the last selected object, distribute (3 or more); Drop to floor (End) onto the highest box below or y = 0.
+- Hide (H, Shift+H shows all) and lock (not picked) and camera bookmarks (Ctrl+1..9 saves, 1..9 goes) in `build/editor/<scene>.view`, the editor's file and format (its fly camera position/yaw/pitch converted to MkRender's orbit camera).
+- Preferences in the user's MkRender folder (`settings.txt`): grid on y = 0 (G), grid/move/rotate/scale steps, always snap (Ctrl turns it off), autosave minutes, recent scenes (File > Recent scenes). Autosave writes the edited scene to `build/editor/autosave/<scene>.scene` (never over the scene), File > Recover autosave loads it with undo.
+- Assets window (Models, Prefabs, Images, Scenes with search): drag into the view to place on the surface under the mouse (models stand on it), double-click places at the view center, PNG becomes a sprite, Find uses selects the objects that use a file. Edit > Save selection as prefab writes `assets/prefabs/<name>.prefab` like the engine's `scene::savePrefab`; placing copies with new ids like `placePrefab`.
+- Drawn now: sprites (image cell quad with pivot, flips, pixelsPerUnit, alpha test, tint), scatter layers (instances of the `.scatter` file, reread when it changes), virtual camera frustums. Long field labels are cut with the whole name on hover; the kind box shows the label.
+- Checked with captures: sandbox arena with 3 objects selected, coop `hills.scene` (scatter grass/rocks, camera frustum), sandbox `terrain.scene` (3117 scatter instances), a sprite test scene; `--check-scene` unchanged on every sample scene. Not clicked by hand.
+
 ## MkRender step 5: object kinds file (2026-11-12)
 
 - Phase 1 of "Scene editing moves to MkRender". New MealKit-Contract format `object-kinds 1` (`docs/CONTRACT.md` "Object kinds"): `kind` blocks with `label`, `game`, `flags` (marker/area/cosmetic) and `field` lines with `type`, `default`, `label` (with `|hint`), `enum`, `flags` (view/readonly).
