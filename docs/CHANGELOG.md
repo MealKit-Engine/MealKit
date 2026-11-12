@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## MkRender step 8: terrain and scatter brushes in MkRender (2026-11-12)
+
+- Phase 4 of "Scene editing moves to MkRender". MkRender v0.8.0 adds the library `mkterrain` (`include/mkrender/Terrain.h`): 16-bit PNG heightmaps (the engine's encoder), surface height, ray hits, chunk meshes, raise/lower/flatten/smooth brushes, scatter text, painting and erasing, ported from `asset/Terrain.cpp` and `asset/Scatter.cpp` with the same layout, triangles and file formats.
+- The scene editor paints them: select a terrain or scatter layer, B (or the inspector's Brush box), left drag; Flatten keeps the height under the stroke start, Shift erases scatter; radius and strength like the editor's; a stroke is one undo step; the painted PNG and `.scatter` are written with the scene save (and count as unsaved changes). Terrains and layers without a file get `assets/terrain/<scene>_<id>.png` (flat 129², a quarter up) or `.scatter`. Terrain is drawn in the engine's chunks (brushes rebuild the touched ones) and picked on its heights; scatter paints onto terrain heights and object boxes.
+- The engine keeps `asset/Terrain` and `asset/Scatter` (games, headless servers and physics read heightmaps); their editing half is removed with the editor brushes in phase 6. `engine/CMakeLists.txt` gives `mkterrain` the engine's stb (`MKTERRAIN_STB_DIR`); `third_party/mkrender` is v0.8.0.
+- Checked: MkRender tests (PNG round trip, heights, ray hits, brush, touched chunks, chunk mesh, scatter paint/text/erase); `MkRender --check-terrain` on every sample terrain file (scatter files come back byte for byte; the sample PNGs, written by `tools/make_sample_terrain.py`, come back with the same samples); coop `hills.scene` captures on DX12 and Vulkan with the terrain chunks and the brush inspector. Strokes were not painted by hand.
+
 ## MkRender step 7: render parts into MkRender (2026-11-12)
 
 - Phase 3 of "Scene editing moves to MkRender". MkRender v0.6.0 adds the library `mkbake` (`include/mkrender/Bake.h`, CPU only, no files): sky HDRI baking (sky cube, GGX reflection mips, SH ambient), reflection probe baking from six faces, `.cube` LUT parsing and the neutral table, texture mips and BC7/BC5 (bc7enc/rgbcx, `MKBAKE_BC`), and the bytes and names of the `.mkenv`/`.mkprobe`/`.mktex` files. The code moved from `modules/render` unchanged in behavior.

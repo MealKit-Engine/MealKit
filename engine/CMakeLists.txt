@@ -448,6 +448,8 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     # mkbake (HDRI/probe/LUT baking, texture mips): BC compression only in dev builds, which create the texture cache; shipping builds only read it
     set(MKBAKE_BC ${MEALKIT_DEBUG_UI})
     set(MKBAKE_BC7ENC_DIR ${MEALKIT_THIRD_PARTY}/bc7enc)
+    # mkterrain (MkRender's terrain/scatter editing data, used by its scene editor; the engine reads terrain through asset/Terrain.h) builds with the engine's stb
+    set(MKTERRAIN_STB_DIR ${MEALKIT_THIRD_PARTY}/stb)
     add_subdirectory(${mealkit_mkrender_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkrender)
     if(NOT TARGET mkrender)
         message(FATAL_ERROR "MkRender didn't build mkrender (no DXC at ${MEALKIT_SHADER_DXC})")

@@ -2,7 +2,7 @@
 # THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "Placing external libraries".
 # Update with tools\update_mkrender.ps1 -From <MkRender checkout>; work on both with -DMEALKIT_MKRENDER_DIR=<checkout>.
 name mkrender (MkRender: mkrhi graphics layer, mkrender renderer)
-version v0.7.0 (79d7ab5)
+version v0.8.0 (47185eb)
 license MIT
 licenseFile LICENSE
 source https://github.com/MealKit-Engine/MkRender
