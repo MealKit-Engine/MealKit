@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## R2 Installing without a build, part 6: Manager update and uninstall (2026-11-12)
+
+- `tools\release_index.ps1` also takes a Manager package (`mealkit-manager-*.zip`) and sets the index's single `manager` entry (newest only); `install.ps1 list` prints it as a `manager` line.
+- MealKit Manager 0.2.0: a newer `manager` entry shows "MealKit Manager x is available" in the status bar; in the installed copy, [Update and Restart] runs `install.ps1 update` (download, SHA-256, the running exe renamed to `MealKitManager.old.exe` since Windows won't overwrite it, new files copied, rolled back if copying fails), starts the new Manager and quits. The next start deletes the `.old` exe. A dev build in `build\bin` only shows the notice.
+- Installs (package, update, `build.bat install`) register a current-user Windows "Installed apps" entry (`HKCU\...\Uninstall\MealKitManager`: name, version, icon, location). Its uninstall runs `MealKitManager.exe --uninstall`: a confirmation box, then a temp copy of `install.ps1` waits for the Manager to quit and removes the shortcuts, the entry and `%LOCALAPPDATA%\MealKit\manager`. Engines, tools and the user lists stay.
+- Verified in a test user folder with test shortcut and uninstall entry names: package install registered the entry (version 0.1.0); a local index listing the same zip as 0.1.1 showed the notice (capture); `update` while the installed Manager was running replaced it with a `.old` exe that the next start deleted; `--uninstall --yes` removed the folder, shortcut and entry and kept `engines\`. Then `build.bat install` on this PC registered the real entry (0.2.0). The [Update and Restart] click itself and the Windows Settings uninstall button weren't driven.
+
 ## R2 Installing without a build, part 5: matching a project to an engine by version (2026-11-12)
 
 - MealKit Manager: when a project's `engine` line points at a folder that isn't an engine on this PC (made or cloned elsewhere), `Catalog::engineFor` picks an engine in the list with the same MINOR as its `engineVersion`: that exact version, else the newest patch. Engine repo samples (no engine line) and lines that point at a real engine are unchanged.
