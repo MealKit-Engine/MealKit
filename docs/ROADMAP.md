@@ -243,6 +243,8 @@ MealKit is a suite with the engine + general-purpose editor at the center, where
 - [ ] **Design refresh for the rest of the suite** (planned 2026-11-05, approach settled by `docs/DECISIONS.md` 2026-11-12: each tool copies `applyStyle`, no shared style library). State per app is `docs/TOOL_DESIGN.md` section 7; each tool is done when the checklist in section 6 holds. App icons and the theme, icon font, icon buttons and title bar of every tool are done (CHANGELOG). Left:
   - **Tools**: icons on panel tabs, a right-click item for each icon action (TOOL_DESIGN section 1), QA's one window on the gutter and panel layout (section 6 item 3).
   - **Editor**: tree and table arrows, still ImGui's triangles.
+  - **Tokens and text (2026-11-13, `docs/DECISIONS.md` "Suite look follows public design systems")**: the TOOL_DESIGN 3.1 colors, ramp and spacing in MkAudio, MkUI, MkRender and QA (Tokens column of section 7); the Korean table of each tool filled, with a check that lists `tr()` strings without a Korean line; QA and each tool's first screen to icon + label buttons with one primary button.
+  - **Manager screens**: a left navigation instead of the top tabs; a project details pane (module summary with `Update all`, engine and folder under a collapsed "Details"), so the Modules tab is not the only place to see updates.
 
 ---
 
