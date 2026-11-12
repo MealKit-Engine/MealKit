@@ -6,7 +6,7 @@ Thanks for helping. MealKit is in beta (v0.x): the `GameInstance` API and the fi
 
 - Read the plan in [`docs/ROADMAP.md`](docs/ROADMAP.md), the decisions and the "Deferred / not included" table in [`docs/DECISIONS.md`](docs/DECISIONS.md), and the implementation answers in [`docs/CODING_MODEL.md`](docs/CODING_MODEL.md) ("one answer per problem").
 - A design question that isn't answered there starts as an issue. It gets a row in the decision log, agreed on before code is written.
-- A feature is done when it is used in a reference sample (`samples/sandbox`, `samples/coop`). When it is done, `docs/ROADMAP.md` keeps one `[x]` line and the details go to `docs/CHANGELOG.md`.
+- A feature is done when it is used in a reference sample (`samples/sandbox`, `samples/coop`). When it is done, it is removed from `docs/ROADMAP.md` (which lists only work that is left) and the details go to `docs/CHANGELOG.md`.
 
 ## Developer Certificate of Origin
 

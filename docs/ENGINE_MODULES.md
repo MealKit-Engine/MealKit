@@ -1,8 +1,7 @@
-# Engine module split
+# Engine modules
 
-**Status: decided 2026-11-08 with the user (`docs/DECISIONS.md` 2026-11-08 "Engine module split"), being built (ROADMAP "Engine module split").** The engine itself keeps only minimal features such as memory management, and the renderer, physics, networking and the other subsystems become modules, **each in its own repo**.
-This reverses `docs/DECISIONS.md` 2026-10-19 ("no toggleable build modules, a folder layer order instead") and 2026-10-26 "When splitting out subsystems" ②, and changes the absolute rule "always multiplayer-capable" to "multiplayer by default".
-When done, rules move to `docs/CODING_MODEL.md` and the CLAUDE.md files, implementation to `docs/CHANGELOG.md`, and this document is deleted (the same life as `docs/MODULES.md`).
+How the engine is split: a small kernel, and every subsystem an engine module **in its own repo**, plus the view-side middleware libraries (MkUI, MkAudio, MkRender) behind glue modules. Decided in `docs/DECISIONS.md` 2026-11-08 "Engine module split" and 2026-11-11 "View-side middleware"; built 2026-11-08~09 (steps 1~13 in `docs/CHANGELOG.md` "Engine module split"). Source modules (gameplay code copied into a game) are in `docs/MODULES.md`.
+This reversed `docs/DECISIONS.md` 2026-10-19 ("no toggleable build modules, a folder layer order instead") and 2026-10-26 "When splitting out subsystems" ②, and changed the absolute rule "always multiplayer-capable" to "multiplayer by default".
 
 ## Summary
 
@@ -67,7 +66,7 @@ TagStats stats(Tag tag);          // shown in FrameStats and the editor [Debug] 
 
 - **Tags are modules.** Each module declares its tag in its manifest, and its allocations through `mem::heap(tag)` or its arenas are counted under it. Projects may set per-tag budgets in `mealkit.project`, warned (not blocked) the same way as asset and GPU budgets.
 - **Pool storage** is counted under the tag "sim" with the stateless `mem::Allocator`, not taken from the match arena: Pools are copied (shadow simulation, rewind, snapshots) and grow mid-match, which a reset-all arena would break. The match arena is for data that lives exactly one match and isn't copied.
-- **The frame arena** replaces per-frame `std::vector` growth found by the frame allocation check (ROADMAP optimization 9), only where measurement shows allocations.
+- **The frame arena** replaces per-frame `std::vector` growth found by the frame allocation check, only where measurement shows allocations.
 - Counting the global `operator new` stays a dev game exe feature (as `AllocCount` today). The editor DLL counts only tagged allocations.
 - Third-party libraries get their allocator hooks pointed at a tag where they offer one. Jolt's hooks are process-wide and shared by the job pool and physics, so they're installed once (`jobs/JoltAllocator.cpp`, tag "jolt"); miniaudio and meshoptimizer follow.
 
@@ -148,11 +147,11 @@ powershell -ExecutionPolicy Bypass -File <engine>\tools\module.ps1 list -Project
 - Engine updates don't change a game's copies: the game moves each with `module.ps1 update`.
 - Presets (`standard`; `solo` = without `net` and `online`) are only names for `add -Preset` and for the engine's own checks (`build.bat Presets`: `sandbox_solo`, `sandbox_noaudio`). The 0.9.1 project lines `enginePreset`/`engineModules`/`engineWithout`/`engineModuleVersion` are gone: `tools\upgrade_project.ps1` turns them into copies (`enginePreset standard` alone is just dropped).
 
-### Module list (first cut = current folders)
+### Module list
 
-The first cut follows the current folders, so it's mostly moving files. Finer splits (terrain out of `render`, ragdoll out of `sim`) wait until a game needs them.
+The split follows the old engine folders. Finer splits (terrain out of `render`, ragdoll out of `sim`) wait until a game needs them.
 
-| Module | Kind | Requires | Today |
+| Module | Kind | Requires | Contents |
 |---|---|---|---|
 | `physics` | sim | — | `physics/` Jolt wrapper (Jolt linked privately, as now) |
 | `sim` | sim | physics | `sim/` MatchFlow, Movement, Ragdoll, NavGrid, Commands, Table |
@@ -225,10 +224,11 @@ The docs say **engine module** (`type engine`: built into the engine libraries, 
 | `module-rhi` | `rhi` with its backends `rhi-dx12` and `rhi-vulkan` (one folder each under `backends/`, each still its own module and manifest), so a graphics change on both backends stays one commit |
 | `module-online` | `online` with `online-steam` and `online-eos` the same way (SDKs stay outside the repo, stub approach) |
 | `MkAudio` | the existing engine-free `mkaudio` runtime and tool, plus the `audio` glue module in `module/` |
-| `module-ui` | `mkui`, the `ui` glue module, and later the Penpot plugin (pulls ROADMAP "UI 2" forward) |
+| `MkUI` | the engine-free `mkui` runtime, MkUI Designer and the Penpot plugin (pinned in `third_party/mkui`) |
+| `module-ui` | the `ui` glue module |
 | `module-editor` | the `editor` module (the general-purpose editor app) |
 
-Decided 2026-11-11: the view-side libraries become engine-free middleware products MkRender, MkUI, MkAudio and later MkAnim, with glue modules, like MkAudio. See `docs/MIDDLEWARE.md`.
+The view-side libraries are engine-free middleware products with glue modules ("Middleware" below).
 
 Repos are under `github.com/MealKit-Engine/`, MIT, KingProtea99 as author. The local checkouts sit beside the others in `D:\MealKit-Engine\`.
 
@@ -252,37 +252,14 @@ Each module repo has one workflow line calling `MealKit-Engine/MealKit/.github/w
 
 ## Checks
 
-| Today | After |
+| Check | What it does |
 |---|---|
-| `check_layers.ps1` folder order | `check_modules.ps1`: manifests parse, the graph has no cycles, each module includes only itself, `core` and its `requires`, `kind sim` modules include no `view` module, vendored copies match the lock |
-| core source list in `check_layers.ps1` | gone: the `kernel` and `headless` presets are real targets that fail to build if a view header leaks in |
-| `engine/public_headers.txt` | per-module `public` lines; the script gathers them. CONTRACTS paths stay `mealkit/<module>/<header>` |
-| `check_platform.ps1` | same rule: OS APIs in `core/src/platform/<os>/` and `window`, graphics APIs in `rhi-<api>` |
-| `check_libs.ps1` (mkaudio, mkui) | unchanged |
+| `check_modules.ps1` | manifests parse, the graph has no cycles, each module includes only itself, `core` and its `requires`, `kind sim` modules include no `view` module, vendored copies match the lock |
+| presets as targets | the `kernel` and `headless` builds fail if a view header leaks in |
+| public headers | per-module `public` lines, gathered by the script; CONTRACTS paths stay `mealkit/<module>/<header>` |
+| `check_platform.ps1` | OS APIs in `core/src/platform/<os>/` and `window`, graphics APIs in `rhi-<api>` |
+| `check_libs.ps1` | engine-free libraries (mkaudio, mkui) include no MealKit header |
 | CI | the engine builds `kernel`, `headless`, `solo` and `standard`, plus Vulkan; exe size reported per preset. Each module repo runs the shared workflow |
-
-## Build order
-
-All steps are done now, before publication. Each is one ROADMAP item, done when the Editor and Release builds, render goldens on both backends, and the determinism group pass. The cut happens inside the `MealKit` repo first (one build, atomic commits, easy to bisect), and each module folder is then extracted into its repo **with its history** (`git filter-repo`, as on 2026-11-03), so the public repos start with real history.
-
-1. **Kernel memory**: `core/Memory.h` (heap tags, `Arena`, `FixedPool`, frame and match arenas), stats in `FrameStats` and a [Debug] > [Memory] page, Jolt/miniaudio hooks. `Pool` storage from the match arena.
-2. **Manifests on the current folders** (`engine-module.txt` in each engine folder) and `check_modules.ps1` replacing `check_layers.ps1`. Still one library. Only the script reads manifests yet; reading in mkcontract comes with the first C++ or Manager reader (step 7), and `public` lines with the public header move (step 4).
-3. **Kernel target**: `engine/core/` becomes `mealkit_core` with its own include folder; `sim/` containers move into it.
-4. **Module targets, leaves first**, in `modules/<name>/` with the repo layout above: `camera`, `feedback`, `settings`, `loc`, `audio`, `ui`, then `render`, `rhi` and its backends, then `asset`, `scene`, `data`, `physics`, `sim`, `game-sim`, `net`, `online`, `game`, `editor`. Include paths stay the same.
-5. **Service registry and init order** in the kernel; `GameContext::get<T>()`.
-6. **Session interface**: `game::Session`, `LocalSession`, `net` optional; the `solo` preset builds and plays sandbox offline.
-7. **Project module lists and presets**, shipping links only those, `upgrade_project.ps1` migration, `templates/project` change (bumps `VERSION`), `kApiVersion` bump. Exe size measured per preset.
-8. **Editor panels into modules' `editor/` folders**; `online-steam`/`online-eos` as backend modules.
-9. **Repos**: extract each `modules/<name>/` with history into `D:\MealKit-Engine\module-<name>` (local git, KingProtea99, tag `v0.1.0`), `modules.lock`, `tools\modules.ps1`, local mode, the shared module workflow. Creating the GitHub repos and pushing is done by the user.
-10. **Workspace and docs**: workspace `CLAUDE.md` repo list, `mk-build.ps1` and `.clangd` for module repos, the CLAUDE.md layer rules, `docs/CODING_MODEL.md`, `docs/CONTRACTS.md`, the docs repo's engine developer guide (English and Korean), the publication order in ROADMAP.
-
-## Cost and risk
-
-- Steps 3–4 move most engine files. Every include of a private header from another folder becomes a build error that needs a public header or a `requires` line; the layer check already removed the backward ones, but the count isn't measured yet.
-- The editor build, golden tests and determinism replays must stay green through the moves. Moving files rebuilds everything, so each step is a full rebuild through `mk-build.ps1`.
-- After step 9 a change that spans the kernel and a module is several commits in several repos plus a lock bump. Backends share their interface's repo, so the RHI rule "DX12 and Vulkan fixed in the same piece of work" stays one commit in `module-rhi`; a graphics feature usually also touches `module-render`, so it's two repos plus a lock bump.
-- The 2026-11-03 contract review needs a pass over `docs/CONTRACTS.md` and the cookbook. Doing this before publication keeps it a 0.x change.
-- Rough size: steps 1–2 a few days, 3–8 two to three weeks, 9–10 about a week.
 
 ## Decisions (2026-11-08, with the user)
 
@@ -290,4 +267,110 @@ All steps are done now, before publication. Each is one ROADMAP item, done when 
 2. Static modules chosen at build time; no runtime plugins.
 3. `net` is an optional module (in the default `standard` preset). The absolute rule becomes "multiplayer by default"; the determinism rules stay for every game.
 4. One repo per module from the first public release, with the lock file and vendored copies in `MealKit`. Backend modules live in their interface's repo (`module-rhi`, `module-online`).
-5. Everything is built now, before publication.
+5. Everything is built before publication.
+
+## Middleware (view-side libraries)
+
+Some engine modules are **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) is. Status (2026-11-12): MkUI has its own repo with the draw backend, view models without reflection and MkUI Designer; its XAML-like layer, the MkRender boundary and MkAnim are not started (work items in `docs/ROADMAP.md` "UI 2" and "Tool suite").
+
+### The idea
+
+| Product | Replaces | Library | Engine glue module |
+|---|---|---|---|
+| MkRender | (MealKit's own renderer and visual tools) | `mkrender` + `mkrhi` | `render`, `rhi` |
+| MkUI | NoesisGUI | `mkui` | `ui` |
+| MkAudio | FMOD | `mkaudio` (exists) | `audio` (exists) |
+| MkAnim | Spine | `mkanim` | `anim2d` |
+| MealKit (engine) | — | kernel + simulation stack | lifecycle and module management |
+
+### Names
+
+Each product is a plain field name with the common prefix **`Mk`**: MkRender, MkUI, MkAudio, MkAnim. The prefix matches the code names already in use (`mkaudio`, `mkui`, `mkcontract`), so product, repo (`MkRender`, `MkUI`, `MkAudio`, `MkAnim`), library target and namespace (`mkrender::`) are one name. Tools follow the same rule (MkAudio Tool, MkUI Designer (exe `MkUI`, MkUI `tool/`), MkAnim Editor). The engine keeps the name MealKit and binds the products through its glue modules; the products don't carry "MealKit" in their names, so other engines can use them without looking like engine add-ons. MealKit-Audio was renamed MkAudio on 2026-11-11 (repo, tool exe `MkAudio`, tool title); the tool keeps its old settings folder.
+
+### The pattern every middleware follows
+
+Taken from MkAudio, which already works this way:
+
+1. **The library includes no MealKit header.** C++20, its own namespace (`mkui::`, `mkrender::`), its own small file formats with an `@format` line, tests that run without the engine (`check_libs.ps1`).
+2. **It gets the outside world through narrow interfaces**: an allocator hook, a log callback, a file reader, and (for UI and Anim2D) a draw backend that receives vertex/index lists and texture ids. The engine's glue module implements them with `mem::heap(tag)`, `Log`, packs and the renderer.
+3. **The glue module** (`type engine`, as above) connects the library to `GameContext`, the editor panels and cooking. Games only see the glue module, so their code doesn't change.
+4. **Its own tool** where the product needs one (the MkAudio tool today; a UI preview/designer, a 2D rig editor), using mkcontract for the user folder and the live connection.
+5. **View only.** No middleware is `kind sim`. Nothing in it enters the simulation version, so these libraries are free of the determinism rules. That's also why physics, `sim`, `net` and `game-sim` are **not** middleware candidates (below).
+
+### Is each one possible, and is it worth it?
+
+#### UI — MkUI (NoesisGUI alternative) — possible, recommended first
+
+- **Where it stands**: `mkui` is engine-free and lives in its own repo MkUI since 2026-11-11 (pinned in `third_party/mkui`): Flex layout, multi-style text, SDF shapes and text, widgets, focus, themes, components, lists, world-space UI, a draw backend interface (vertex/index lists + texture ids), view models without reflection (`ValueModel`; the glue module keeps `MEALKIT_VIEWMODEL`), and MkUI Designer with the Penpot plugin (UI 2a).
+- **What "XAML-style" adds**: markup that declares the tree; **data binding** (`{Binding Health}`, one-way/two-way, converters) to view models; **styles and templates** (a control's look is replaceable data); **triggers and state animations** (hover, pressed, focused, value changes); resource dictionaries (shared colors, brushes, styles). All of this fits on top of the current `.ui` runtime.
+- **What not to promise**: XAML/WPF compatibility. Noesis is a full WPF reimplementation (hundreds of classes, years of work). MkUI should be *XAML-like* — the same ideas, its own text format — and say so. Loading real `.xaml` files is a later, optional importer for a subset.
+- **Worth it**: yes. Game UI is something every engine needs, and MkUI Designer is the product's designer.
+
+#### Rendering — MkRender — possible, worth it only as a clean boundary
+
+- **Where it stands**: `rhi` is already an interface with DX12 and Vulkan backends, and needs only a native window handle. `render` requires `asset` (CPU mesh/material data and `ModelGpu`) and draws from a `DrawList`.
+- **What's needed**: `mkrhi` with no `window` dependency (takes a native handle and size); `mkrender` taking its own plain types (mesh buffers, material parameters, lights, camera, sprites) instead of `asset::MeshData`/`scene` types, with the glue module converting; shaders compiled by the library's own build step.
+- **Scope**: the forward pipeline, lights, shadows, post, particles, sprites, and the visual tools that sit on it (Look Dev, material preview, render goldens). Not the editor viewport, not cooking.
+- **Honest assessment**: possible, but the largest of the four (most of the code and most cross-module types), and the market (bgfx, Filament, Diligent, The Forge) is crowded and free. The real benefit is internal: a renderer with plain-data inputs is easier to test (goldens without the engine) and to replace. Recommended as **"make the boundary, publish later"**: cut `mkrender`/`mkrhi` inside `module-render`/`module-rhi` when a render item touches those types anyway, and decide about a separate product after that.
+
+#### 2D animation — MkAnim (Spine alternative) — possible, but defer
+
+- **What Spine is**: a skeleton (bones, slots, attachments), meshes with weights, IK and path constraints, skins, events, clip blending — and above all **the editor** where artists rig and animate. The runtime is a few thousand lines; the editor is most of the product.
+- **Where MealKit stands**: the sprite pass and the `sprite` object exist; flipbook animation isn't done yet (ROADMAP "2D on the 3D engine"). No 2D game needs skeletal animation yet.
+- **Formats**: Spine's runtimes have a license that requires a Spine editor license, so MealKit can't build on them or ship Spine-file reading as a free replacement. DragonBones' format is MIT and has free exporters, so an `mkanim` runtime could read a DragonBones-compatible subset first and leave the rig editor for later.
+- **Assessment**: technically realistic for the runtime (skeleton, weighted meshes, 2-bone IK, blending, events into the feedback table), but its value depends entirely on an editor. **Defer** until a 2D game asks for it; finish flipbooks first. When started: runtime + importer first, rig editor as its own tool much later.
+
+#### Audio — MkAudio (FMOD alternative) — already planned
+
+Already done in the pattern above (`mkaudio` + tool + `audio` glue in MkAudio). It is the template for the others.
+
+### What stays in the game engine
+
+The user's draft says the engine keeps "lifecycle and middleware management". That's right, **plus the parts that make MealKit what it is**, which can't be middleware because they're simulation (`kind sim`) and must share one determinism contract:
+
+| Stays in the engine | Why it isn't middleware |
+|---|---|
+| **Kernel**: memory, math and `DetMath`, reflection, text formats, logging/profiling, platform basics, jobs | Everything else is built on it |
+| **Lifecycle**: `GameMain`, the frame loop and its written order, fixed tick, interpolation, pause, `GameContext` | Owns the call order between modules (`docs/CODING_MODEL.md` "Execution order and time") |
+| **Module management**: manifests, init/shutdown order, service registry, presets, `modules.lock` | The engine's job by definition |
+| **Simulation stack**: `physics` (Jolt wrapper), `sim`, `game-sim`, `Session`, `net` (lockstep, rooms, host migration), replays, SimCheck, the simulation version | Determinism across peers is one contract over all of them; splitting it into products would split the guarantee |
+| **World data**: `scene`, `asset`, `data` (tables, tuning), cooking and packs | The shared language every module and tool reads |
+| **Platform glue**: `window`, `input`, `settings`, `loc`, `online` backends | Thin, game-specific, not worth a product |
+| **Game-facing view modules**: `camera`, `feedback` | They combine render + audio + UI per game; they're where middleware meets gameplay |
+| **Tools**: the editor, `live`, `debug`, QA reports, upgrade tools | They integrate everything; each middleware brings its own panel through its glue module's `editor/` |
+| **Glue modules** for each middleware | Implement the middleware's interfaces with engine services |
+
+In short: **MealKit stays "a deterministic multiplayer game engine"**, and the middleware are the view-side parts that are good on their own.
+
+### Against the "external first" rule
+
+CLAUDE.md's absolute rules (ROADMAP criterion ④, `docs/DECISIONS.md` 2026-10-26) say MealKit builds only the simulation, lockstep networking, renderer and editor, and makes its own tool only where no suitable **free** tool exists. Checked per product:
+
+| Product | Free alternative? | Fits the rule? |
+|---|---|---|
+| Render | — (the renderer is one of the four things MealKit builds) | yes |
+| Audio | FMOD/Wwise are commercial; no free data-driven event runtime with a designer tool | yes (already decided) |
+| UI | Noesis is commercial. RmlUi (MIT) is free but HTML/CSS, not markup + binding + templates; and `mkui` already exists | yes, if the goal is XAML-like binding and templates, which RmlUi doesn't give |
+| Anim2D | Spine is commercial; DragonBones (MIT) is free but its editor is no longer maintained | borderline: check DragonBones/other free runtimes first when the time comes |
+
+The rule's wording gains "and the view-side middleware in `docs/ENGINE_MODULES.md`".
+
+### Costs
+
+- Each middleware needs its **own stable formats and API** and its own versioning, beyond what the engine needs. A breaking change becomes a library release plus a glue bump plus a lock bump.
+- Each one needs the **interfaces in the pattern** (allocator, log, files, draw backend). For UI and Anim2D the draw backend is new work; for render, cutting `asset`/`scene` types is the big part.
+- More repos to keep green for one maintainer. Mitigated by the same module CI and local-checkout mode as engine modules.
+- Docs: each product gets its own README and a page in the docs repo; the engine manual links to them.
+
+### Proposed order
+
+1. **UI**: ~~own repo, draw backend, public API, Designer and Penpot plugin~~ (done 2026-11-11~12), then binding, styles/templates, triggers and resources.
+2. **Render boundary**: `mkrhi`/`mkrender` with plain-data inputs inside their module repos, when render work touches those types. Decide on publishing separately after.
+3. **Anim2D**: after flipbooks, and only when a 2D game needs skeletal animation. Runtime + DragonBones-subset importer first.
+
+### Decisions (2026-11-11, with the user)
+
+1. Names: plain field names with the prefix `Mk` (MkRender, MkUI, MkAudio, MkAnim); MealKit-Audio is renamed MkAudio.
+2. MkUI is XAML-*like*: markup, binding, styles/templates, triggers and resources in its own format. `.xaml` compatibility is not promised.
+3. MkRender: the boundary first (`mkrhi`/`mkrender` with plain-data inputs inside their module repos); publishing it as a separate product is decided later.
+4. MkAnim is deferred until a 2D game needs skeletal animation (flipbooks first).

@@ -9,4 +9,4 @@ source https://github.com/MealKit-Engine/MkUI
 usedIn engine (ui)
 inGame yes
 kept CMakeLists.txt, include/, src/ (tests and its own stb/mkcontract copies are left out; the engine's are used)
-why the game screen UI runtime of the MealKit tool family (.ui screens, layout, text, view model binding to quads). Its own repository so other engines and the UI tools can use it (docs/MIDDLEWARE.md, docs/DECISIONS.md 2026-11-11).
+why the game screen UI runtime of the MealKit tool family (.ui screens, layout, text, view model binding to quads). Its own repository so other engines and the UI tools can use it (docs/ENGINE_MODULES.md "Middleware", docs/DECISIONS.md 2026-11-11).

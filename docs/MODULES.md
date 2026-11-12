@@ -1,9 +1,6 @@
-# Source module system plan
+# Source modules
 
-The implementation plan for stage 4 "Source module system". The direction was already set in `docs/DECISIONS.md` 2026-10-16/2026-10-21: copy as source, functions that take only their own state, updates the way the upgrade tool works.
-On top of that, this document decides **what to build, how it works, and where modules live and how they're found**. The decision is `docs/DECISIONS.md` 2026-10-28 "Source modules". When the item is done, rules move to `docs/CODING_MODEL.md` and the docs repo's "Writing modules", implementation to `docs/CHANGELOG.md`, and this document is deleted.
-
-Differences from draft 1 (user feedback 2026-10-28): official modules aren't kept in the engine repo. **Official modules are built in their own repos just like anyone else's**, and all modules are gathered in **one module list repo (registry)**.
+How source modules work: what a module is, how it enters a game's build, where modules live and how they're found. Decided in `docs/DECISIONS.md` 2026-10-28 "Source modules" (direction from 2026-10-16/2026-10-21); built in stage 4 ①~⑧, details in `docs/CHANGELOG.md`. The modules still to write are in `docs/ROADMAP.md` "Modules ⑨". The user-facing pages are the docs repo's "Manual > Modules" and "Working on the engine > Writing modules".
 
 ## Summary
 
@@ -139,7 +136,7 @@ MealKit-Modules/
   entries/<name>.txt       one file per module (added by people via PR)
   index.json               full list built by CI (what the editor, Manager, and module.ps1 download)
   site/                    search site built by CI (GitHub Pages)
-  template/                new module template (the source of the module-template repo)
+  template/                new module template
   .github/workflows/       PR checks, daily re-reads, the shared workflow module repos call
 ```
 
@@ -208,16 +205,16 @@ tools\module.ps1 versions <name> [-Project <folder>] [-Tsv]          registry ve
 | update | The upgrade tool rules as is. Unmodified files (hash matches the record) are replaced with new ones, and modified files are left with `<file>.new` written. Files removed in the new version are deleted if unmodified, or left with a notice if modified |
 | remove | Refuses if another module `requires` it. If the game's `source/` has lines including `"<name>/`, it shows those lines and refuses (`-Force` to proceed anyway). Deletes the folder (git handles undo) |
 
-- **The installed list is the `modules/` folder itself.** There's no separate list in `mealkit.project` (changes the ROADMAP draft's `modules=` list). The list and folders can't drift apart.
+- **The installed list is the `modules/` folder itself.** There's no separate list in `mealkit.project`. The list and folders can't drift apart.
 - Modules are committed to the project repo. Teammates and CI build without downloading anything. The network is used only for `search`, `add`, `update`.
-- The reference sample (the sandbox project at the engine repo root) also commits a `modules/cooldown/` copy just like any other game. This is the only module in the engine repo.
+- The reference sample `samples/sandbox` also commits a `modules/cooldown/` copy just like any other game. This is the only source module in the engine repo.
 
 ## Module CI (per module repo)
 
 Module unit tests are `tests/CMakeLists.txt` (includes the engine's `cmake/MealKit.cmake`, links `mealkit_core`, and creates `#include "<name>/..."` forwarding headers in the build folder) + `tests/*.cpp` (`main`). Built standalone with `cmake -S tests -B build/tests -G Ninja -DMEALKIT_ROOT=<engine> -DMEALKIT_HEADLESS_ONLY=ON`. The shared workflow runs this.
 
 The template contains one workflow line. It calls the registry's shared workflow (`uses: MealKit-Engine/MealKit-Modules/.github/workflows/module.yml@v1`).
-The shared workflow fetches the newest engine tag `v<MAJOR.MINOR>.*` matching the engine version in `module.txt` (`main` if none), and runs the registry's `tools/check_module.ps1` on Windows and Linux: checks `module.txt`, `LICENSE`, `docs/index.md`, builds and runs `tests/`, places it in `modules/<name>/` and runs SimCheck. The same script checks locally too. Building a whole game in an empty project and cross-platform hash comparison don't exist yet (added after ⑥).
+The shared workflow fetches the newest engine tag `v<MAJOR.MINOR>.*` matching the engine version in `module.txt` (`main` if none), and runs the registry's `tools/check_module.ps1` on Windows and Linux: checks `module.txt`, `LICENSE`, `docs/index.md`, builds and runs `tests/`, places it in `modules/<name>/` and runs SimCheck. The same script checks locally too. Building a whole game in an empty project and cross-platform hash comparison don't exist yet.
 All modules use the same checks, so even with many repos, CI is fixed in one place.
 
 ## Docs
@@ -227,31 +224,6 @@ Module docs are one page, `docs/index.md`, in the module repo. The template stay
 - **Where to read them**: the registry site renders all module docs in the same shape. The same regardless of author.
 - The docs repo (MealKit-docs) "Game developer guide > Modules" has only one how-to page and a link to the registry site. "Engine developer guide > Writing modules" gets this document's rules (folders, `module.txt`, include rules, namespace, how to register).
 - This changes DECISIONS 2026-10-21's "the docs build gathers the engine's `modules/*/docs`". Korean goes in the module repo's `docs/index.ko.md` (optional), and the site lets you pick the language.
-
-## First module list and order (KingProtea99 repos)
-
-| Order | Module | Dependencies | Notes |
-|---|---|---|---|
-| 1 | `cooldown` cooldowns | none | The smallest. The whole system (repo, registration, adding, build, SimCheck, nested tuning, `.ui` paths, docs, updating) is verified with it. Moves the sandbox push cooldown |
-| 2 | `objects` basic objects | none | Trigger volumes, path platforms, item spawn points |
-| 3 | `procgen` procedural generation | none | Seed → placement. Baked into `.scene` in the editor |
-| 4 | `health` health/damage | game flow framework | Death → respawn ties into the match state machine |
-| 5 | `inventory` inventory | none (`.table`) | Connects to saves and match start data |
-| 6 | `minimap` minimap | none | An example of a `view/`-only module |
-
-## Implementation order (within the item)
-
-1. Engine: read `module.txt`. `mealkit_add_game()` gathers modules (sources, include, SimCheck, simulation version, headless). Add the "modules don't know `source/`" rule to SimCheck
-2. Engine: resolving asset paths `modules/<name>/...`, module folders in `check_layout.ps1`, content hash
-3. `tools\module.ps1`: add/update/remove/list by folder or git URL, script tests
-4. Module template + `cooldown` repo (local): code, `tests/`, docs. Add it to sandbox and confirm `mp_test` PASS and matching hashes
-5. Registry repo: `entries/`, shared workflow (module CI), PR checks, building `index.json`
-6. `module.ps1 search` and add by name, Manager [Modules] tab, editor [Modules] window
-7. Registry site (static pages: search, filters, rendering docs)
-8. ~~Docs repo: Modules guide page, Writing modules (English/Korean)~~ (done)
-9. The rest of the first modules in the table order above, each in its own repo
-
-1~4 finish locally without GitHub. From 5, GitHub repos (`MealKit-Modules`, `module-cooldown`) are needed. Creating repos and pushing is done by the user (same as Audio 2).
 
 ## Decisions (2026-10-28)
 

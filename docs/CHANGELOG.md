@@ -1,7 +1,7 @@
 # MealKit changelog
 
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
-When a roadmap item is done, its details move here and ROADMAP keeps only one line. Newest version on top.
+When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
 ## UI 2a step 8: the Penpot plugin moves to MkUI; UI 2a done (2026-11-12)
 

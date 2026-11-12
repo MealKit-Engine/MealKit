@@ -1,6 +1,6 @@
 # MealKit contracts
 
-What a game made with MealKit can rely on from v1.0 through every v1.x. Decided in `docs/DECISIONS.md` 2026-11-03 ("v1.0 scope" and "Contract freeze scope"); the review is in `docs/ROADMAP.md` "Contract freeze review".
+What a game made with MealKit can rely on from v1.0 through every v1.x. Decided in `docs/DECISIONS.md` 2026-11-03 ("v1.0 scope" and "Contract freeze scope"); the review is in `docs/CHANGELOG.md` "v0.9.0" and "Contract freeze review item 1"~"4".
 Until v1.0 (beta) everything here may still change. From v1.0, breaking any of it needs v2.0 and a migration in `tools\upgrade_project.ps1`.
 
 ## Game API: public headers, source compatible
