@@ -7,6 +7,7 @@ Decision: `docs/DECISIONS.md` 2026-11-12 "One look for the editor and the tools,
 
 The screen shows icons; words go in tooltips. A row of actions is a row of icon buttons, not a row of labelled buttons.
 
+- **Icon buttons are square and flat**: clear until hovered, filled with the selection color while a toggle is on (editor `iconButton`, `iconValueButton` for an icon with a count; Manager `App::iconButton`).
 - **Icon-only buttons** for toolbars, row actions, panel headers and the status bar. Each has a tooltip with its name, plus its shortcut when it has one (`Open in Editor  Enter`), and the tooltip still shows while the button is disabled. A tooltip may add one more line that says why it is disabled or what it keeps (`Files you changed are kept as .new`).
 - **Words stay** where an icon would make people guess:
   - the confirm and cancel buttons of dialogs (`Create`, `Remove`, `Cancel`),
@@ -25,7 +26,7 @@ Windows: Segoe Fluent Icons, falling back to Segoe MDL2 Assets, merged into the 
 | Action | Glyph | Code point |
 |---|---|---|
 | New, add | Add | U+E710 |
-| Close, cancel | Cancel | U+E711 |
+| Close, cancel, dismiss | Cancel | U+E711 |
 | More | More | U+E712 |
 | Settings | Setting | U+E713 |
 | Search | Search | U+E721 |
@@ -35,7 +36,15 @@ Windows: Segoe Fluent Icons, falling back to Segoe MDL2 Assets, merged into the 
 | Delete files | Delete | U+E74D |
 | Upgrade, move up | Up | U+E74A |
 | Edit, rename | Edit | U+E70F |
-| Play / stop | Play / Stop | U+E768 / U+E71A |
+| Play, run, resume / pause / stop | Play / Pause / Stop | U+E768 / U+E769 / U+E71A |
+| Step one tick | Next | U+E893 |
+| Save | Save | U+E74E |
+| Undo, revert / redo | Undo / Redo | U+E7A7 / U+E7A6 |
+| Clear a log | Clear | U+E894 |
+| Accept | Accept | U+E73E |
+| Open a web page (repository) | Globe | U+E774 |
+| Capture (GPU frame, screenshot) | Camera | U+E722 |
+| Set as the start scene | FavoriteStarFill | U+E735 |
 | Copy, copy path | Copy | U+E8C8 |
 | Open in its program (editor, tool) | OpenInNewWindow | U+E8A7 |
 | Folder, import a folder, add a folder | Folder | U+E8B7 |
@@ -44,7 +53,7 @@ Windows: Segoe Fluent Icons, falling back to Segoe MDL2 Assets, merged into the 
 | Update to a newer version | Sync | U+E895 |
 | Build | Repair | U+E90F |
 | Output, log | Document | U+E8A5 |
-| Information / warning / error | Info / Warning / Error | U+E946 / U+E7BA / U+E783 |
+| Information / warning / error | Info / Warning / Error | U+E946 / U+E7BA / U+EA39 |
 | Visible / hidden, lock / unlock | View / Hide, Lock / Unlock | U+E890 / U+ED1A, U+E72E / U+E785 |
 
 Kind icons (module keywords, scene object kinds) are listed with their code: `mkcontract::moduleIconKeyword` and module-editor `ImGuiLayer.h` `icon::`.
@@ -56,7 +65,7 @@ The values live in one place, module-debug `src/mealkit/debug/ImGuiLayer.cpp` `a
 - **Neutral dark layers**: a gutter (`#131416`-ish, also the window title bar color through DWM) behind panels (`#1E1F22`-ish). Panels are set apart by space and the darker gutter, not by lines.
 - **Tabs are flat**: no fill and no underline. The selected tab joins its panel. The tab strip and the status bar sit on the gutter.
 - **The accent blue is only for selection, focus and active states.** No colored button fills, including the main action.
-- **State colors**: amber `(1.0, 0.8, 0.3)` for "needs an action" (upgrade, not installed), red `(1.0, 0.45, 0.4)` for errors and missing things. Use them for text, and the red fill only for the button that opens a failure's output.
+- **State colors**: amber `(1.0, 0.8, 0.3)` for "needs an action" (upgrade, not installed), red `(1.0, 0.45, 0.4)` for errors and missing things. Use them for text and icons (the output icon of a failed job is red), never as button fills.
 - **Secondary text is dimmed** (`TextDisabled`): paths, dates, authors, hints.
 - **Font**: Segoe UI with Malgun Gothic merged for Korean, 16 px before DPI scale.
 - Thin 10 px scrollbars, 4 px frame rounding, the padding and spacing of `applyStyle`.
