@@ -543,8 +543,17 @@ if (-not $Quick) {
     Invoke-Check editor "Editor capture (edit mode)" {
         param($log)
         $png = Join-Path $out "editor.png"
-        $code = Run $log $editor "--project `"$sandbox`" --frames 60 --select 25 --capture `"$png`""
+        $code = Run $log $editor "--project `"$sandbox`" --frames 60 --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]")
+    }
+    # Scene editing is MkRender's (ROADMAP "Scene editing moves to MkRender" phase 6): the sandbox arena with an object selected, kinds from the game
+    Invoke-Check editor "MkRender capture (scene editing)" {
+        param($log)
+        $mk = Join-Path (Split-Path $root -Parent) "MkRenderuildin\MkRender.exe"
+        if (-not (Test-Path $mk)) { return "SKIP: MkRender not built ($mk)" }
+        $png = Join-Path $out "mkrender.png"
+        $code = Run $log $mk "--project `"$sandbox`" --frames 60 --select 25 --capture `"$png`""
+        return $code -eq 0 -and (Test-Path $png) -and (Has $log "Opened")
     }
     # [UI] tab (DECISIONS 2026-11-11 "MkUI Designer is its own app"): the screen list draws; screens are edited in MkUI
     Invoke-Check editor "Editor UI tab" {
@@ -557,7 +566,7 @@ if (-not $Quick) {
     Invoke-Check render "Editor look dev (offscreen, DX12 debug layer)" {
         param($log)
         $png = Join-Path $out "editor-lookdev.png"
-        $code = Run $log $editor "--project `"$sandbox`" `"$sandbox\assets\scenes\styles.scene`" --frames 60 --select 3 --lookdev --debug --capture `"$png`""
+        $code = Run $log $editor "--project `"$sandbox`" `"$sandbox\assets\scenes\styles.scene`" --frames 60 --lookdev --lookdev-model models/props/style_figure.glb --debug --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]") -and -not (Has $log "\[D3D12\]")
     }
     # Graphics regression test (ROADMAP "Graphics regression tests"): draws fixed scenes (engine\tests\golden\shots.txt) without UI and compares with reference images.
@@ -610,7 +619,7 @@ if (-not $Quick) {
         if (Test-Path $ini) { Copy-Item $ini $vkEditorBin -Force }
         $dx = Join-Path $out "backend-dx12.png"
         $vk = Join-Path $out "backend-vulkan.png"
-        $common = "--project `"$sandbox`" --frames 60 --select 25 --capture"
+        $common = "--project `"$sandbox`" --frames 60 --capture"
         if ((Run "$log.dx12" $editor "$common `"$dx`"") -ne 0 -or -not (Test-Path $dx)) { return "DX12 capture failed" }
         if ((Run "$log.vulkan" $vkEditor "$common `"$vk`"") -ne 0 -or -not (Test-Path $vk)) { return "Vulkan capture failed" }
         # The log lines (DLL path/port/token/time differ per run) and status bar are excluded. In the default 1600x900 layout the bottom strip starts at about y = 498
@@ -633,7 +642,7 @@ if (-not $Quick) {
     Invoke-Check render "Vulkan validation layer (look dev)" {
         param($log)
         $png = Join-Path $out "vulkan-lookdev.png"
-        $code = Run $log $vkEditor "--project `"$sandbox`" `"$sandbox\assets\scenes\styles.scene`" --frames 60 --select 3 --lookdev --debug --capture `"$png`""
+        $code = Run $log $vkEditor "--project `"$sandbox`" `"$sandbox\assets\scenes\styles.scene`" --frames 60 --lookdev --lookdev-model models/props/style_figure.glb --debug --capture `"$png`""
         if (Has $log "validation layer unavailable") { return "SKIP: Vulkan SDK not installed (validation layer)" }
         if ($code -ne 0 -or -not (Test-Path $png)) { return "capture failed" }
         $issues = @(Select-String -Path $log -Pattern "\[Vulkan\]")

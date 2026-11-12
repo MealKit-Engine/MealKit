@@ -839,7 +839,6 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         ../modules/editor/src/mealkit/editor/LogPanel.cpp
         ../modules/editor/src/mealkit/editor/EditorCommands.cpp
         ../modules/editor/src/mealkit/editor/EditorAssets.cpp
-        ../modules/editor/src/mealkit/editor/EditorTerrain.cpp
         ../modules/editor/src/mealkit/editor/EditorLink.cpp
         ../modules/editor/src/mealkit/editor/Preferences.h
         ../modules/editor/src/mealkit/editor/Preferences.cpp
