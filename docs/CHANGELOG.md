@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Design refresh for the rest of the suite, part 5: MealKit QA (2026-11-13)
+
+- `tool/main.cpp`: `applyEditorStyle` and `applyEditorCaption` (links `dwmapi`); the font loader keeps its macOS/Linux paths and adds the Segoe icon font on Windows.
+- `App::iconButton` (tooltips through `tr()`, so Korean too) for Refresh, Open Folder / Show File (FolderOpen), Open in Editor (OpenInNewWindow), Copy Info (Copy), Delete (Delete: removes the report files, after the existing dialog), Run All / Run (Play), Stop. `Save as Scenario`, `Update Expected`, `Run mp_test` and dialog buttons keep words.
+- Checked: build + `mkqa_tests` through mk-build, captures of the Reports and Tests pages in Korean. Left: QA is one window, not panels on the gutter.
+
 ## Design refresh for the rest of the suite, part 4: MkUI Designer (2026-11-12)
 
 - `tool/main.cpp`: `applyEditorStyle` and `applyEditorCaption` as in MkRender (links `dwmapi`); the existing font loader keeps its macOS/Linux paths and adds the Segoe icon font on Windows.

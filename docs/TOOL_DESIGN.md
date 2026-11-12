@@ -110,6 +110,6 @@ When `applyStyle` changes, the same change goes to every copy listed in section 
 | MkAudio | copy in `tool/main.cpp` | yes (panel buttons; panel tabs without icons yet) | DWM | yes |
 | MkUI Designer | copy in `tool/main.cpp` | yes (panel buttons; panel tabs without icons yet) | DWM | yes |
 | MkRender | copy in `tool/main.cpp` | yes (panel buttons; panel tabs without icons yet) | DWM | yes |
-| MealKit QA | `StyleColorsDark` + 3 px rounding | no | system | yes |
+| MealKit QA | copy in `tool/main.cpp` (one window: no gutter and panels yet, checklist 3) | yes | DWM | yes |
 
 The work left is ROADMAP "Design refresh for the rest of the suite". Update this table when a tool moves.
