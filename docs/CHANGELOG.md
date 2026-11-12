@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## R2 Installing without a build, part 3: the Manager package and its shortcuts (2026-11-12)
+
+- MealKit Manager (d247798): `scripts\package.ps1` → `mealkit-manager-<version>-windows-x64.zip` (about 1.5 MB: exe, `install.ps1`, LICENSE, `SETUP`). Unzipped and run, the exe sees `SETUP`, runs `install.ps1 self` (copies into `%LOCALAPPDATA%\MealKit\manager`, a message box if the installed copy is open) and starts the installed copy; an installed copy, `--frames` captures and the windowless commands never do this.
+- Shortcuts (`install.ps1 shortcuts`, WScript.Shell): `MealKit Manager.lnk` in the current user's Start menu Programs and on the desktop, only for the Manager (DECISIONS "How the Manager installs"). `build.bat install` makes them too. `MEALKIT_SHORTCUT_DIR` redirects them for tests.
+- Verified: the zip unzipped to a temp folder and run with a test user folder, test shortcut folder and `--no-launch` installed the three files and a shortcut pointing at the installed exe; the installed copy opened normally (capture). Then `build.bat install` on this PC made the real Start menu and desktop shortcuts.
+
 ## R2 Installing without a build, part 2: release index and the Manager's engine install (2026-11-12)
 
 - Decision added: installing the Manager makes a Start menu and a desktop shortcut for MealKit Manager only, like Godot and Unity Hub (`docs/DECISIONS.md` "How the Manager installs"; built with the Manager's own installer, still in ROADMAP R2).
