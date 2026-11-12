@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## R2 Installing without a build, part 2: release index and the Manager's engine install (2026-11-12)
+
+- Decision added: installing the Manager makes a Start menu and a desktop shortcut for MealKit Manager only, like Godot and Unity Hub (`docs/DECISIONS.md` "How the Manager installs"; built with the Manager's own installer, still in ROADMAP R2).
+- `tools\release_index.ps1 -Index <index.json> -Zip <package> -Url <download address>`: adds the package to the suite index (format 1: `engines[]` with version, url, size, sha256, plus `tools[]`), dropping older patches of the same MINOR and refusing to go back.
+- MealKit Manager (e30b5d8): `scripts\install.ps1` beside the exe (`list`, `engine`: download over http(s) or a local/`file:///` path, SHA-256 check, extract to a staging folder then rename into `%LOCALAPPDATA%\MealKit\engines\<version>`, refuses a package without `INSTALLED`); [Engines] tab "Install" section with sizes and "installed"; `--releases`, `--install-engine <version>`, `--engines`; the index comes from `MEALKIT_RELEASE_INDEX` until one is published. Catalog tests cover the list and result lines.
+- Verified with a local index pointing at the part 1 zip and a test user folder: list, install (engine then in `--list` with its editor), a second install refused, a wrong SHA-256 refused with nothing left behind, and a capture of the [Engines] tab.
+
 ## R2 Installing without a build, part 1: the engine package (2026-11-12)
 
 - Decisions in `docs/DECISIONS.md` "How the Manager installs": Releases zips + one `index.json`, engine package first, newest patch per MINOR, tool updates once closed.
