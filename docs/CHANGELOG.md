@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Design refresh for the rest of the suite, part 1: app icons (2026-11-12)
+
+- Why: only the editor's exe carried an icon. The Manager's Start menu, desktop and Installed apps entries point at `MealKitManager.exe,0` and showed the blank Windows app icon, and the tools looked the same on the taskbar.
+- `tools/make_suite_icons.py` (Pillow) draws one `.ico` per tool in the editor icon's family: the same blue rounded square, one mark per app (Manager four tiles, MkAudio waveform bars, MkUI a screen layout, MkRender a lit sphere, QA a check in a ring), 16 to 256 px. It writes into the sibling repos (`--out DIR` for a preview).
+- Each tool has a `.rc` with `1 ICON` (Manager `res/`, the others `tool/res/`) added to its exe under `if(WIN32)`. SDL3 registers its window class with the exe's first icon group, so the window and taskbar use it with no code change.
+- Checked: each exe built and holds one icon (`ExtractIconEx`). Not checked by eye on the taskbar. The installed Manager keeps the old exe until it is reinstalled from the user's own terminal (an install from the Claude app's shell lands in its MSIX-virtualized AppData).
+
 ## R2 Installing without a build, part 7: tools from the release index (2026-11-12)
 
 - Decision added: tool compatibility lives in the release index (live `protocol` + engine MINORs per tool entry), not in `mealkit-tool.txt`; mkcontract unchanged (DECISIONS "How the Manager installs").

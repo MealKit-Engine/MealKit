@@ -77,3 +77,39 @@ The values live in one place, module-debug `src/mealkit/debug/ImGuiLayer.cpp` `a
 - **Search**: Ctrl+F focuses it, Esc clears it, it shows `matches / total` while filtering, and a line says when nothing matches.
 - **Long jobs**: show a turning arc with the job name and the seconds so far. A failed job leaves a short status line and an output button with Copy.
 - **Destructive actions** ask first in a small dialog that says what stays (`the folder is kept`, `undo with version control`). Taking a row off a list doesn't ask.
+
+## 5. App identity
+
+Every suite app is recognisable on the taskbar, in the Start menu and on the desktop, not only once it is open.
+
+- **The exe carries its own icon** as resource `1 ICON` in a `.rc` with `#pragma code_page(65001)`, like the editor's `engine/res/MealKitEditor.rc`. Sizes 16, 20, 24, 32, 40, 48, 64 and 256 px in one `.ico`, made by a script (the editor's `tools/make_editor_icon.py`, the tools' `tools/make_suite_icons.py`; a new tool adds its mark there), never drawn by hand per size.
+- **The window uses the same icon** (SDL apps: Windows takes the class icon from resource 1, so nothing else is needed; check the taskbar and Alt+Tab).
+- **Shortcuts and the Installed apps entry point at the exe's icon** (`<exe>,0`, Manager `install.ps1`). An exe without an icon resource shows the blank Windows app icon there.
+- **One family**: the same rounded square and background as the editor's icon, one glyph or mark per app in its own color, so the apps read as one suite side by side.
+- **Title bar**: dark, in the gutter color `#131416` through DWM (`DWMWA_USE_IMMERSIVE_DARK_MODE`, `DWMWA_CAPTION_COLOR`; Manager `applyEditorCaption`), never the light system bar.
+
+## 6. Bringing a tool to this look
+
+A tool is on the suite look only when every line holds; until then it is on the list in section 7.
+
+1. `applyStyle` copied as `applyEditorStyle`, with a comment naming module-debug `ImGuiLayer.cpp` as its source. Differences are allowed only where the tool's layout needs them, each with a comment (Manager: no window border, `WindowBg` is the gutter and content sits on panel-colored children).
+2. Fonts: Segoe UI 16 px + Malgun Gothic merged + the icon font merged (section 2), all at the DPI scale.
+3. Layout: content on panels over the gutter, tab strip and status bar on the gutter; no full-width ImGui window title bars inside the OS window.
+4. Buttons: icon buttons from (glyph, name) per section 1, glyphs from the table in section 2.
+5. Title bar and app icon per section 5.
+6. A screenshot of the tool beside the editor at the same DPI shows the same colors and spacing.
+
+When `applyStyle` changes, the same change goes to every copy listed in section 7 in the same piece of work.
+
+## 7. Where each app stands (2026-11-12)
+
+| App | Theme | Icon font, icon buttons | Title bar | App icon |
+|---|---|---|---|---|
+| MealKit Editor | `applyStyle` (source) | yes | DWM | yes (`make_editor_icon.py`) |
+| MealKit Manager | copy in `src/main.cpp` | yes | DWM | yes |
+| MkAudio | `StyleColorsDark` + 3 px rounding | no | system | yes |
+| MkUI Designer | `StyleColorsDark` + 3 px rounding | no | system | yes |
+| MkRender | `StyleColorsDark` + 3 px rounding | no | system | yes |
+| MealKit QA | `StyleColorsDark` + 3 px rounding | no | system | yes |
+
+The work left is ROADMAP "Design refresh for the rest of the suite". Update this table when a tool moves.
