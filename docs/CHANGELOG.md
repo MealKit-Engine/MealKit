@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## R2 Installing without a build, part 4: compiler and DXC check in the Manager (2026-11-12)
+
+- MealKit Manager: `install.ps1 check` looks up Visual Studio or Build Tools with the C++ x64 tools the same way `tools\build.ps1` does (vswhere, `vcvars64.bat`), and DXC where `cmake/Dxc.cmake` downloads it (`%LOCALAPPDATA%\MealKit\tools\dxc-*`). Runs once at start and on [Check Again].
+- No compiler: a banner on the [Projects] and [Engines] tabs says projects can't open in the editor, shows the `winget install Microsoft.VisualStudio.2022.BuildTools ... VCTools` line with [Copy], and points to designer mode (D1 shared folder). The [Engines] tab shows the compiler folder and whether DXC is ready or comes with the first build.
+- The TA question under "Technical artist proposals" (DXC on a PC without a build toolchain) stays open: this only reports it.
+- Verified: Catalog tests for the check lines; captures with this PC's Build Tools found and with `MEALKIT_VSWHERE` pointed at a missing vswhere (banner, Korean text).
+
 ## R2 Installing without a build, part 3: the Manager package and its shortcuts (2026-11-12)
 
 - MealKit Manager (d247798): `scripts\package.ps1` → `mealkit-manager-<version>-windows-x64.zip` (about 1.5 MB: exe, `install.ps1`, LICENSE, `SETUP`). Unzipped and run, the exe sees `SETUP`, runs `install.ps1 self` (copies into `%LOCALAPPDATA%\MealKit\manager`, a message box if the installed copy is open) and starts the installed copy; an installed copy, `--frames` captures and the windowless commands never do this.
