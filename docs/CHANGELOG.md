@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Design refresh for the rest of the suite, part 3: MkAudio (2026-11-12)
+
+- `tool/main.cpp`: the same `applyEditorStyle`, font loader (Segoe UI + Malgun Gothic, new here, + the icon font) and `applyEditorCaption` as MkRender (links `dwmapi`). The font loader is Windows paths only now: elsewhere ImGui's default font, without icons, so buttons show their names.
+- `App::iconButton` replaces `+ Event`, `Duplicate`, `Delete`, `+ Bus`, `+ Track`, `+ Snapshot`, `+ bus value`, the `x` and `^` clip/row buttons, the preview and music Play/Stop and `Play in game` (OpenInNewWindow). `Stop all`, the stinger buttons, `Reload (lose my changes)` and dialog buttons keep words.
+- Checked: build, `mkaudio_tests` PASS, a capture of the sandbox events. Left: panel tabs without icons, right-click items for the icon actions.
+
 ## Design refresh for the rest of the suite, part 2: MkRender (2026-11-12)
 
 - `tool/main.cpp`: `applyEditorStyle`, a copy of module-debug `applyStyle` with its docking settings (MkRender docks like the editor); Segoe UI + Malgun Gothic + the Segoe icon font merged at 16 px; `applyEditorCaption` for the dark `#131416` title bar through DWM (links `dwmapi`).
