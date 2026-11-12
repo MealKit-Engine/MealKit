@@ -271,7 +271,7 @@ Each module repo has one workflow line calling `MealKit-Engine/MealKit/.github/w
 
 ## Middleware (view-side libraries)
 
-Some engine modules are **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) is. Status (2026-11-12): MkUI has its own repo with the draw backend, view models without reflection and MkUI Designer; its XAML-like layer, the MkRender boundary and MkAnim are not started (work items in `docs/ROADMAP.md` "UI 2" and "Tool suite").
+Some engine modules are **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) is. Status (2026-11-12): MkUI has its own repo with the draw backend, view models without reflection and MkUI Designer; MkRender has its own repo with `mkrhi` (the graphics layer, `modules/rhi` is its glue); MkUI's XAML-like layer, `mkrender` (the renderer itself) and MkAnim are not started (work items in `docs/ROADMAP.md` "UI 2" and "Tool suite").
 
 ### The idea
 
@@ -308,7 +308,7 @@ Taken from MkAudio, which already works this way:
 
 #### Rendering — MkRender — possible, worth it only as a clean boundary
 
-- **Where it stands**: `rhi` is already an interface with DX12 and Vulkan backends, and needs only a native window handle. `render` requires `asset` (CPU mesh/material data and `ModelGpu`) and draws from a `DrawList`.
+- **Where it stands**: `mkrhi` lives in the repo MkRender since 2026-11-12 (pinned in `third_party/mkrender`, `tools\update_mkrender.ps1`): the DX12 and Vulkan backends with no engine header, a native window handle and size, a log callback and a hook before device creation; `modules/rhi` is the glue (`mealkit::rhi` names, engine log, GPU capture tools). `render` still requires `asset` (CPU mesh/material data and `ModelGpu`) and draws from a `DrawList`.
 - **What's needed**: `mkrhi` with no `window` dependency (takes a native handle and size); `mkrender` taking its own plain types (mesh buffers, material parameters, lights, camera, sprites) instead of `asset::MeshData`/`scene` types, with the glue module converting; shaders compiled by the library's own build step.
 - **Scope**: the forward pipeline, lights, shadows, post, particles, sprites, and the visual tools that sit on it (Look Dev, material preview, render goldens). Not the editor viewport, not cooking.
 - **Honest assessment**: possible, but the largest of the four (most of the code and most cross-module types), and the market (bgfx, Filament, Diligent, The Forge) is crowded and free. The real benefit is internal: a renderer with plain-data inputs is easier to test (goldens without the engine) and to replace. Recommended as **"make the boundary, publish later"**: cut `mkrender`/`mkrhi` inside `module-render`/`module-rhi` when a render item touches those types anyway, and decide about a separate product after that.
@@ -365,12 +365,12 @@ The rule's wording gains "and the view-side middleware in `docs/ENGINE_MODULES.m
 ### Proposed order
 
 1. **UI**: ~~own repo, draw backend, public API, Designer and Penpot plugin~~ (done 2026-11-11~12), then binding, styles/templates, triggers and resources.
-2. **Render boundary**: `mkrhi`/`mkrender` with plain-data inputs inside their module repos, when render work touches those types. Decide on publishing separately after.
+2. **Render**: ~~own repo MkRender with `mkrhi`~~ (done 2026-11-12), then `mkrender` with plain-data inputs, its shaders and goldens without the engine. Decide on publishing separately after.
 3. **Anim2D**: after flipbooks, and only when a 2D game needs skeletal animation. Runtime + DragonBones-subset importer first.
 
 ### Decisions (2026-11-11, with the user)
 
 1. Names: plain field names with the prefix `Mk` (MkRender, MkUI, MkAudio, MkAnim); MealKit-Audio is renamed MkAudio.
 2. MkUI is XAML-*like*: markup, binding, styles/templates, triggers and resources in its own format. `.xaml` compatibility is not promised.
-3. MkRender: the boundary first (`mkrhi`/`mkrender` with plain-data inputs inside their module repos); publishing it as a separate product is decided later.
+3. MkRender: the boundary first (`mkrhi`/`mkrender` with plain-data inputs inside their module repos); publishing it as a separate product is decided later. *Changed 2026-11-12: MkRender gets its own repo now, like MkUI (`docs/DECISIONS.md` 2026-11-12).*
 4. MkAnim is deferred until a 2D game needs skeletal animation (flipbooks first).

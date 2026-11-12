@@ -3,6 +3,19 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## MkRender step 1: the repo MkRender and `mkrhi` (2026-11-12)
+
+- Decided with the user (`docs/DECISIONS.md` 2026-11-12 "MkRender gets its own repository now"). The rest is the ROADMAP item "MkRender: `mkrender`".
+- **MkRender v0.1.0** (new repo `D:\MealKit-Engine\MkRender`, MIT, not pushed yet): `mkrhi`, the former `modules/rhi` backends with no engine header.
+  - Namespace `mkrhi` with its own `u8`…`f64` aliases (the same types as the engine's). `setLog(fn, user)` replaces `MEALKIT_INFO/WARN/ERROR/FATAL` (stderr without a callback; fatal aborts after the callback), `backendName()` gives `"dx12"`/`"vulkan"`.
+  - `DeviceDesc::gpuCapture` became `beforeDeviceCreate(bool dx12)`, so loading RenderDoc/PIX stays in the engine (`rhi/GpuCapture.h`). The pipeline cache reads and writes with `std::filesystem` (temp file + rename) and hashes with its own FNV-1a, like `core/Hash.h`.
+  - CMake: `MKRHI_BACKEND` (DX12/Vulkan), `MKRHI_VULKAN_INCLUDE_DIRS`, `MKRHI_IMGUI_TARGET` and `MKRHI_TRACY_TARGET` (only their include folders and definitions; the host links them), `MKRENDER_OBJECT_LIBRARIES`. Standalone `build.bat` builds DX12 and runs `mkrender_tests` (texture sizes, backend name, minimum-spec check, `queryGpu` report).
+- **Engine**: `third_party/mkrender` (`tools\update_mkrender.ps1`, `-DMEALKIT_MKRENDER_DIR`). `engine/CMakeLists.txt` adds it as OBJECT libraries for builds with a window and lists `mkrhi`'s objects in the `mealkit.dll` export def; the include folder is on the core target because headless code reads `GpuInfo` through `render/Renderer.h`.
+- **module-rhi v0.2.0**: the glue. `mealkit/rhi/Rhi.h` includes `mkrhi/Rhi.h` and opens it as `mealkit::rhi` (`using namespace ::mkrhi`), so engine code is unchanged; `rhi::connectLog()` routes messages into the engine log; `GpuCapture` stays.
+- **module-render v0.3.1**: `Renderer::init` calls `rhi::connectLog()` and fills `DeviceDesc` by field, with `beforeDeviceCreate = rhi::loadGpuCaptureTool` under `--gpu-capture`.
+- Checks: `check_platform.ps1` now allows graphics API headers nowhere in the engine (they live only in MkRender); `check_libs.ps1` picks up `third_party/mkrender` by its source line; `check.ps1 -Changed` maps `third_party/mkrender/` and `tools/update_mkrender` to the render group.
+- Verified: Editor, Release and Vulkan builds; editor capture of `samples/sandbox` and `sandbox.exe --bot --exit-tick 300 --capture` on DX12 and Vulkan (GPU lines in the engine log). The full `check.ps1` (render goldens, validation layers) was not run.
+
 ## UI 2a step 8: the Penpot plugin moves to MkUI; UI 2a done (2026-11-12)
 
 - Decided with the user (`docs/DECISIONS.md` 2026-11-12 "The MkUI Designer serves the Penpot plugin").

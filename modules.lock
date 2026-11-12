@@ -16,8 +16,8 @@ module online https://github.com/MealKit-Engine/module-online v0.1.2 d938f1bf0c2
 module online-eos https://github.com/MealKit-Engine/module-online v0.1.2 d938f1bf0c2b407b5abb4c523b5a5cf40020d884 backends/online-eos
 module online-steam https://github.com/MealKit-Engine/module-online v0.1.2 d938f1bf0c2b407b5abb4c523b5a5cf40020d884 backends/online-steam
 module physics https://github.com/MealKit-Engine/module-physics v0.1.3 0ff4df88fddeda15a93b260f1990998de0e1dcaa .
-module render https://github.com/MealKit-Engine/module-render v0.3.0 50594f6abda414caddb034b444c243cc831b57d8 .
-module rhi https://github.com/MealKit-Engine/module-rhi v0.1.2 5251d09081ae2f057794e03354c573bd7aed1e87 .
+module render https://github.com/MealKit-Engine/module-render v0.3.1 9bc40e2ab722099944a6c421277e39a1495f28db .
+module rhi https://github.com/MealKit-Engine/module-rhi v0.2.0 90d67cf79329c2ebd79dbb685974ffe18edf13a2 .
 module scene https://github.com/MealKit-Engine/module-scene v0.2.0 239398e524cc6288d205f75eca12c2253edd437b .
 module session https://github.com/MealKit-Engine/module-session v0.1.2 31b2239bb50c6fc18e9d641c9e026f069b45e200 .
 module settings https://github.com/MealKit-Engine/module-settings v0.1.4 87231d99be6b411420ff6aec931c3f5893787f36 .

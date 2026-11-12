@@ -1,14 +1,31 @@
 #pragma once
 
-#include "mealkit/core/Hash.h"
-#include "mealkit/rhi/Rhi.h"
+#include "mkrhi/Rhi.h"
 
 #include <cstring>
+#include <type_traits>
 
 // Pipeline cache on disk (docs/ROADMAP.md optimization 4): the backends keep compiled pipelines in DeviceDesc::pipelineCache
 // (D3D12 ID3D12PipelineLibrary, Vulkan VkPipelineCache) and write it on shutdown. A cache from another driver/GPU is ignored
 // (D3D12 rejects it on creation, Vulkan is checked by the header). Pipelines rebuilt by shader hot reload bypass it.
-namespace mealkit::rhi {
+namespace mkrhi {
+
+// FNV-1a 64
+struct Hasher {
+    u64 value = 0xcbf29ce484222325ull;
+    void bytes(const void* data, size_t size) {
+        const u8* p = static_cast<const u8*>(data);
+        for (size_t i = 0; i < size; ++i) {
+            value ^= p[i];
+            value *= 0x100000001b3ull;
+        }
+    }
+    template <class T>
+    void add(const T& v) {
+        static_assert(std::is_trivially_copyable_v<T>);
+        bytes(&v, sizeof(T));
+    }
+};
 
 // Everything that makes a pipeline different: the bytecode and every desc field (names in the D3D12 library)
 inline u64 pipelineKey(const PipelineDesc& desc) {
@@ -29,4 +46,4 @@ inline u64 pipelineKey(const PipelineDesc& desc) {
     return h.value;
 }
 
-} // namespace mealkit::rhi
+} // namespace mkrhi

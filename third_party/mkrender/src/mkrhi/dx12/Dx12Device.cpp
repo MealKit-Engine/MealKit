@@ -1,15 +1,15 @@
-#include "mealkit/rhi/dx12/Dx12.h"
+#include "Dx12.h"
 
-#include "mealkit/core/Log.h"
-#include "mealkit/platform/Paths.h"
-#include "mealkit/rhi/GpuCapture.h"
-#include "mealkit/rhi/PipelineCache.h"
+#include "mkrhi/PipelineCache.h"
+
+#include "mkrhi/Files.h"
+#include "mkrhi/Log.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
 
-namespace mealkit::rhi {
+namespace mkrhi {
 namespace {
 
 ID3D12Device* g_errorDevice = nullptr;
@@ -164,8 +164,8 @@ void __stdcall onDebugMessage(D3D12_MESSAGE_CATEGORY, D3D12_MESSAGE_SEVERITY sev
                               LPCSTR description, void*) {
     // Offscreen targets are cleared with different colors each time (lookdev lighting presets), so no optimized clear value is given: it's only a performance hint
     if (id == D3D12_MESSAGE_ID_CLEARRENDERTARGETVIEW_MISMATCHINGCLEARVALUE) return;
-    if (severity <= D3D12_MESSAGE_SEVERITY_ERROR) MEALKIT_ERROR("[D3D12] %s", description);
-    else if (severity == D3D12_MESSAGE_SEVERITY_WARNING) MEALKIT_WARN("[D3D12] %s", description);
+    if (severity <= D3D12_MESSAGE_SEVERITY_ERROR) MKRHI_ERROR("[D3D12] %s", description);
+    else if (severity == D3D12_MESSAGE_SEVERITY_WARNING) MKRHI_WARN("[D3D12] %s", description);
 }
 
 } // namespace
@@ -175,10 +175,10 @@ void checkHr(HRESULT hr, const char* expr, const char* file, int line) {
     HRESULT reason = S_OK;
     if (g_errorDevice && (hr == DXGI_ERROR_DEVICE_REMOVED || hr == DXGI_ERROR_DEVICE_RESET))
         reason = g_errorDevice->GetDeviceRemovedReason();
-    MEALKIT_FATAL("D3D12 call failed (hr=0x%08X, device removed reason=0x%08X)\n%s\n%s:%d", static_cast<unsigned>(hr),
+    MKRHI_FATAL("D3D12 call failed (hr=0x%08X, device removed reason=0x%08X)\n%s\n%s:%d", static_cast<unsigned>(hr),
                   static_cast<unsigned>(reason), expr, file, line);
 }
-#define HR MEALKIT_HR
+#define HR MKRHI_HR
 
 // ---------------------------------------------------------------- Impl
 
@@ -207,7 +207,7 @@ void Device::Impl::readGpuTimes(const Frame& frame, u32 base) {
 }
 
 u32 Device::Impl::allocTextureSlot() {
-    if (freeTextureSlots.empty()) MEALKIT_FATAL("Bindless texture slots exhausted (%u)", kMaxTextures);
+    if (freeTextureSlots.empty()) MKRHI_FATAL("Bindless texture slots exhausted (%u)", kMaxTextures);
     const u32 slot = freeTextureSlots.back();
     freeTextureSlots.pop_back();
     return slot;
@@ -271,7 +271,7 @@ void Device::Impl::createRootSignature() {
     rs.Desc_1_1.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
     ComPtr<ID3DBlob> blob, error;
     if (FAILED(D3D12SerializeVersionedRootSignature(&rs, &blob, &error)))
-        MEALKIT_FATAL("Root signature: %s", error ? static_cast<const char*>(error->GetBufferPointer()) : "unknown error");
+        MKRHI_FATAL("Root signature: %s", error ? static_cast<const char*>(error->GetBufferPointer()) : "unknown error");
     HR(device->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&rootSignature)));
 }
 
@@ -280,7 +280,7 @@ void Device::Impl::createRootSignature() {
 Device::~Device() { shutdown(); }
 
 bool Device::init(const DeviceDesc& desc) {
-    if (desc.gpuCapture) loadGpuCaptureTool(true); // capture tools must be loaded before the device to intercept the API
+    if (desc.beforeDeviceCreate) desc.beforeDeviceCreate(true); // capture tools must be loaded before the device to intercept the API
     m = new Impl();
     m->hwnd = static_cast<HWND>(desc.window);
     m->width = desc.width;
@@ -293,21 +293,21 @@ bool Device::init(const DeviceDesc& desc) {
         if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debug)))) {
             debug->EnableDebugLayer();
             factoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
-            MEALKIT_INFO("D3D12 debug layer enabled");
+            MKRHI_INFO("D3D12 debug layer enabled");
         } else {
-            MEALKIT_WARN("D3D12 debug layer unavailable (install the 'Graphics Tools' optional feature)");
+            MKRHI_WARN("D3D12 debug layer unavailable (install the 'Graphics Tools' optional feature)");
         }
     }
 
     if (FAILED(CreateDXGIFactory2(factoryFlags, IID_PPV_ARGS(&m->factory)))) {
         m->initError = "DXGI 1.6 is required (Windows 10 1803 or later)";
-        MEALKIT_ERROR("%s", m->initError.c_str());
+        MKRHI_ERROR("%s", m->initError.c_str());
         return false;
     }
     m->adapter = findAdapter(m->factory.Get());
     if (!m->adapter) {
         m->initError = "No Direct3D 12 capable GPU found";
-        MEALKIT_ERROR("%s", m->initError.c_str());
+        MKRHI_ERROR("%s", m->initError.c_str());
         return false;
     }
     HR(D3D12CreateDevice(m->adapter.Get(), D3D_FEATURE_LEVEL_11_0, IID_PPV_ARGS(&m->device)));
@@ -315,13 +315,13 @@ bool Device::init(const DeviceDesc& desc) {
 
     describeGpu(m->adapter.Get(), m->device.Get(), m->gpu);
     const GpuInfo& gpu = m->gpu;
-    MEALKIT_INFO("GPU: %s | driver %s | feature level %u_%u | SM %u.%u | binding tier %u | %s memory",
+    MKRHI_INFO("GPU: %s | driver %s | feature level %u_%u | SM %u.%u | binding tier %u | %s memory",
                  gpu.adapter.c_str(), gpu.driverVersion.empty() ? "?" : gpu.driverVersion.c_str(),
                  gpu.featureLevel >> 12, (gpu.featureLevel >> 8) & 0xF, gpu.shaderModel >> 4, gpu.shaderModel & 0xF,
                  gpu.resourceBindingTier, gpu.uma ? "unified (UMA)" : "dedicated");
     m->initError = gpuMinimumError(gpu);
     if (!m->initError.empty()) {
-        MEALKIT_ERROR("%s", m->initError.c_str());
+        MKRHI_ERROR("%s", m->initError.c_str());
         return false;
     }
 
@@ -430,7 +430,7 @@ bool Device::init(const DeviceDesc& desc) {
         ComPtr<ID3D12Device1> device1;
         if (SUCCEEDED(m->device.As(&device1))) {
             m->libraryPath = desc.pipelineCache + "/pipelines.dx12";
-            readTextFile(m->libraryPath, m->libraryData);
+            detail::readFile(m->libraryPath, m->libraryData);
             u32 count = 0;
             if (m->libraryData.size() >= 4) std::memcpy(&count, m->libraryData.data(), 4);
             const size_t blob = 4 + size_t{count} * 8;
@@ -445,7 +445,7 @@ bool Device::init(const DeviceDesc& desc) {
                 m->library.Reset();
                 if (FAILED(device1->CreatePipelineLibrary(nullptr, 0, IID_PPV_ARGS(&m->library)))) m->library.Reset();
             }
-            if (m->library) createDirectories(desc.pipelineCache);
+            if (m->library) detail::createDirectories(desc.pipelineCache);
         }
     }
 #if defined(TRACY_ENABLE)
@@ -468,8 +468,8 @@ void Device::shutdown() {
         std::string data(blob + m->library->GetSerializedSize(), '\0');
         std::memcpy(data.data(), &count, 4);
         std::memcpy(data.data() + 4, m->libraryKeys.data(), size_t{count} * 8);
-        if (SUCCEEDED(m->library->Serialize(data.data() + blob, data.size() - blob)) && !writeTextFile(m->libraryPath, data))
-            MEALKIT_WARN("Cannot write the pipeline cache %s", m->libraryPath.c_str());
+        if (SUCCEEDED(m->library->Serialize(data.data() + blob, data.size() - blob)) && !detail::writeFile(m->libraryPath, data))
+            MKRHI_WARN("Cannot write the pipeline cache %s", m->libraryPath.c_str());
     }
 #if defined(TRACY_ENABLE)
     if (m->tracyGpu) TracyD3D12Destroy(m->tracyGpu);
@@ -1166,4 +1166,6 @@ bool queryGpu(GpuInfo& out, std::string* error) {
     return true;
 }
 
-} // namespace mealkit::rhi
+const char* backendName() { return "dx12"; }
+
+} // namespace mkrhi

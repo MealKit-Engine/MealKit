@@ -302,18 +302,9 @@ else()
 endif()
 
 # RHI backend (MEALKIT_RHI, cmake/MealKit.cmake): graphics APIs are called only inside rhi/<api>/ (tools\check_platform.ps1)
-if(MEALKIT_RHI STREQUAL "Vulkan")
-    list(APPEND MEALKIT_FRONT_SOURCES
-        ../modules/rhi/src/mealkit/rhi/vulkan/Vk.h
-        ../modules/rhi/src/mealkit/rhi/vulkan/VkDevice.cpp
-        ../modules/rhi/src/mealkit/rhi/vulkan/VkLibs.cpp) # volk + VMA implementation
-    set(mealkit_rhi_imgui ../modules/rhi/src/mealkit/rhi/vulkan/VkImGui.cpp)
-else()
-    list(APPEND MEALKIT_FRONT_SOURCES
-        ../modules/rhi/src/mealkit/rhi/dx12/Dx12.h
-        ../modules/rhi/src/mealkit/rhi/dx12/Dx12Device.cpp)
-    set(mealkit_rhi_imgui ../modules/rhi/src/mealkit/rhi/dx12/Dx12ImGui.cpp)
-endif()
+# The backends are mkrhi in MkRender (third_party/mkrender, added below), the only place graphics APIs are called;
+# modules/rhi is the glue (mealkit::rhi names, engine log, GPU capture tools)
+list(APPEND MEALKIT_FRONT_SOURCES ../modules/rhi/src/mealkit/rhi/RhiLog.cpp)
 
 # Debug UI (MEALKIT_DEBUG_UI, cmake/MealKit.cmake): ImGui glue layer. Shared by the editor and the dev game exe's overlay
 if(MEALKIT_DEBUG_UI)
@@ -321,7 +312,6 @@ if(MEALKIT_DEBUG_UI)
         ../modules/debug/include/mealkit/debug/DebugDraw.h ../modules/debug/include/mealkit/debug/DebugDrawRender.h ../modules/debug/src/mealkit/debug/DebugDraw.cpp
         core/core/include/mealkit/core/AllocCount.h core/core/src/mealkit/core/AllocCount.cpp
         core/platform/include/mealkit/platform/ImGuiPlatform.h core/platform/src/mealkit/platform/win32/ImGuiPlatform.cpp
-        ${mealkit_rhi_imgui}
         # Texture compression (render/TextureCache.cpp): dev builds only create it; shipping builds only read the compressed cache
         ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp)
 endif()
@@ -366,7 +356,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT WIN32)
 elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
     set(mealkit_def ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.def)
     set(mealkit_objs ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.objs)
-    file(GENERATE OUTPUT ${mealkit_objs} CONTENT "$<JOIN:$<TARGET_OBJECTS:mealkit>;$<TARGET_OBJECTS:mealkit_imgui>,\n>\n")
+    file(GENERATE OUTPUT ${mealkit_objs} CONTENT "$<JOIN:$<TARGET_OBJECTS:mealkit>;$<TARGET_OBJECTS:mealkit_imgui>;$<TARGET_OBJECTS:mkrhi>,\n>\n")
     add_custom_command(TARGET mealkit PRE_LINK
         COMMAND ${CMAKE_COMMAND} -E __create_def ${mealkit_def} ${mealkit_objs}
         COMMAND ${CMAKE_COMMAND} -DDEF_FILE=${mealkit_def} -P ${MEALKIT_ENGINE_DIR}/cmake/FixExportsDef.cmake
@@ -487,6 +477,17 @@ set(MKCONTRACT_BUILD_TESTS OFF)
 add_subdirectory(${mealkit_mkcontract_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkcontract)
 target_link_libraries(${mealkit_core_target} PRIVATE mkcontract)
 target_include_directories(${mealkit_core_target} PUBLIC $<BUILD_INTERFACE:${mealkit_mkcontract_dir}/include>)
+# Renderer libraries: MkRender (separate repo, version-pinned in third_party/mkrender; mkrhi is wrapped by modules/rhi). The headers are on the
+# core target because headless code reads render/rhi value types (GpuInfo); the libraries are added below only for builds with a window.
+# When editing together with MkRender: -DMEALKIT_MKRENDER_DIR=<MkRender checkout> (pull it in with tools\update_mkrender.ps1 when done)
+set(MEALKIT_MKRENDER_DIR "" CACHE PATH "Local MkRender checkout (empty uses third_party/mkrender)")
+if(MEALKIT_MKRENDER_DIR)
+    set(mealkit_mkrender_dir ${MEALKIT_MKRENDER_DIR})
+    message(STATUS "MealKit: renderer libraries from ${MEALKIT_MKRENDER_DIR} (local checkout)")
+else()
+    set(mealkit_mkrender_dir ${MEALKIT_THIRD_PARTY}/mkrender)
+endif()
+target_include_directories(${mealkit_core_target} PUBLIC $<BUILD_INTERFACE:${mealkit_mkrender_dir}/include>)
 if(NOT MEALKIT_HEADLESS_ONLY)
     target_include_directories(mealkit PRIVATE ${MEALKIT_SHADER_OUT})
     # Sound: the mkaudio runtime (separate repo MkAudio, version-pinned in third_party/mkaudio; miniaudio + stb_vorbis are the engine's)
@@ -521,6 +522,18 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     add_subdirectory(${mealkit_mkui_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkui)
     target_link_libraries(mealkit PRIVATE mkui)
     target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${mealkit_mkui_dir}/include>)
+    # mkrhi (MkRender, include folder set on the core target above): built only with a window. OBJECT libraries, so mealkit.dll
+    # exports their symbols like its own (the editor calls rhi:: directly)
+    set(MKRHI_BACKEND ${MEALKIT_RHI})
+    set(MKRHI_VULKAN_INCLUDE_DIRS ${MEALKIT_THIRD_PARTY}/vulkan-headers/include ${MEALKIT_THIRD_PARTY}/volk ${MEALKIT_THIRD_PARTY}/vma)
+    if(MEALKIT_DEBUG_UI)
+        set(MKRHI_IMGUI_TARGET mealkit_imgui) # defined further down; mkrhi uses only its include folders
+    endif()
+    set(MKRHI_TRACY_TARGET mealkit_tracy)
+    set(MKRENDER_OBJECT_LIBRARIES ON)
+    set(MKRENDER_BUILD_TESTS OFF)
+    add_subdirectory(${mealkit_mkrender_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkrender)
+    target_link_libraries(mealkit PRIVATE mkrhi)
     # Disable warnings for external code implementation files
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb
                                ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp
@@ -581,11 +594,6 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     if(MEALKIT_RHI STREQUAL "Vulkan")
         # Built without the SDK: headers are in third_party, the loader (vulkan-1.dll) is loaded at runtime by volk
         set(MEALKIT_VULKAN_INCLUDES ${MEALKIT_THIRD_PARTY}/vulkan-headers/include ${MEALKIT_THIRD_PARTY}/volk ${MEALKIT_THIRD_PARTY}/vma)
-        target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_VULKAN_INCLUDES})
-        target_compile_definitions(mealkit PRIVATE VK_NO_PROTOTYPES VK_USE_PLATFORM_WIN32_KHR)
-        if(MSVC)
-            set_source_files_properties(../modules/rhi/src/mealkit/rhi/vulkan/VkLibs.cpp PROPERTIES COMPILE_OPTIONS "/W0")
-        endif()
     else()
         target_link_libraries(mealkit PUBLIC d3d12 dxgi dxguid)
     endif()

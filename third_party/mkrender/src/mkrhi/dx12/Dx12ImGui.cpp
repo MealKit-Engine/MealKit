@@ -1,10 +1,10 @@
 // Debug UI (Dear ImGui) DX12 drawing backend. Texture descriptors are borrowed from the texture slots of the device's bindless heap.
-#include "mealkit/rhi/dx12/Dx12.h"
+#include "Dx12.h"
 
 #include <imgui.h>
 #include <imgui_impl_dx12.h>
 
-namespace mealkit::rhi {
+namespace mkrhi {
 namespace {
 
 void allocSrv(ImGui_ImplDX12_InitInfo* info, D3D12_CPU_DESCRIPTOR_HANDLE* cpu, D3D12_GPU_DESCRIPTOR_HANDLE* gpu) {
@@ -50,4 +50,4 @@ u64 imguiTextureId(Device& device, Texture texture) {
     return texture ? m->srvGpu(m->textures[texture.id - 1].slot).ptr : 0; // same bindless heap (the ImGui backend binds this heap)
 }
 
-} // namespace mealkit::rhi
+} // namespace mkrhi

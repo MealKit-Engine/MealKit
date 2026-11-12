@@ -2,12 +2,12 @@
 
 // Vulkan backend internals (only rhi/vulkan/ files include this). Vulkan 1.3 + descriptor indexing + dynamic rendering + synchronization2.
 // Built without the SDK: headers in third_party/vulkan-headers, the loader (vulkan-1.dll) loaded at runtime by volk, memory via VMA.
-#include "mealkit/rhi/Rhi.h"
+#include "mkrhi/Rhi.h"
 
 #include <volk.h>
 #include <vk_mem_alloc.h>
 
-namespace mealkit::rhi {
+namespace mkrhi {
 
 constexpr u32 kMaxBuffers = 16;    // g_buffers[] (binding 0)
 constexpr u32 kMaxTextures = 4096; // g_textures[] (binding 1)
@@ -17,7 +17,7 @@ constexpr VkFormat kHdrFormat = VK_FORMAT_B10G11R11_UFLOAT_PACK32; // scene/bloo
 constexpr u32 kQueriesPerFrame = 2 + 2 * kMaxGpuTimers; // frame start/end + start/end per section
 
 void checkVk(VkResult result, const char* expr, const char* file, int line);
-#define MEALKIT_VK(expr) ::mealkit::rhi::checkVk((expr), #expr, __FILE__, __LINE__)
+#define MKRHI_VK(expr) ::mkrhi::checkVk((expr), #expr, __FILE__, __LINE__)
 
 struct Device::Impl {
     void* hwnd = nullptr;
@@ -52,7 +52,7 @@ struct Device::Impl {
     VkDescriptorPool descriptorPool = VK_NULL_HANDLE;
     VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
     VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
-    VkPipelineCache pipelineCache = VK_NULL_HANDLE; // rhi/PipelineCache.h (null = off or while hot reloading)
+    VkPipelineCache pipelineCache = VK_NULL_HANDLE; // PipelineCache.h (null = off or while hot reloading)
     std::string pipelineCachePath;
     VkSampler linearClamp = VK_NULL_HANDLE;
     VkSampler linearWrap = VK_NULL_HANDLE; // model textures (repeat, anisotropy)
@@ -131,4 +131,4 @@ struct Device::Impl {
     u32 allocTextureSlot();
 };
 
-} // namespace mealkit::rhi
+} // namespace mkrhi

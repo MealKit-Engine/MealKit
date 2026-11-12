@@ -1,7 +1,7 @@
 #pragma once
 
 // DX12 backend internals (only rhi/dx12/ files include this)
-#include "mealkit/rhi/Rhi.h"
+#include "mkrhi/Rhi.h"
 
 #include <d3d12.h>
 #include <dxgi1_6.h>
@@ -12,7 +12,7 @@
 #include <tracy/TracyD3D12.hpp>
 #endif
 
-namespace mealkit::rhi {
+namespace mkrhi {
 
 using Microsoft::WRL::ComPtr;
 
@@ -27,7 +27,7 @@ constexpr DXGI_FORMAT kDepthFormat = DXGI_FORMAT_D32_FLOAT;
 constexpr u32 kQueriesPerFrame = 2 + 2 * kMaxGpuTimers; // frame start/end + start/end per section
 
 void checkHr(HRESULT hr, const char* expr, const char* file, int line);
-#define MEALKIT_HR(expr) ::mealkit::rhi::checkHr((expr), #expr, __FILE__, __LINE__)
+#define MKRHI_HR(expr) ::mkrhi::checkHr((expr), #expr, __FILE__, __LINE__)
 
 struct Device::Impl {
     HWND hwnd = nullptr;
@@ -36,7 +36,7 @@ struct Device::Impl {
     ComPtr<IDXGIAdapter3> adapter3; // QueryVideoMemoryInfo (GPU memory 0 if absent)
     ComPtr<ID3D12Device> device;
     ComPtr<ID3D12CommandQueue> queue;
-    // Pipeline cache (rhi/PipelineCache.h): libraryData must outlive the library (it reads from that memory).
+    // Pipeline cache (PipelineCache.h): libraryData must outlive the library (it reads from that memory).
     // File = u32 count + the stored keys + the serialized library; only stored keys are loaded (a miss is a debug layer warning)
     ComPtr<ID3D12PipelineLibrary1> library;
     std::string libraryData, libraryPath;
@@ -138,4 +138,4 @@ struct Device::Impl {
     void freeTextureSlot(u32 heapIndex) { freeTextureSlots.push_back(heapIndex); }
 };
 
-} // namespace mealkit::rhi
+} // namespace mkrhi

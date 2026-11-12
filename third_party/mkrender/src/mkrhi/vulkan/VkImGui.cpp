@@ -1,10 +1,10 @@
 // Debug UI (Dear ImGui) Vulkan drawing backend. Draws into the overlay view (no gamma conversion) with dynamic rendering.
-#include "mealkit/rhi/vulkan/Vk.h"
+#include "Vk.h"
 
 #include <imgui.h>
 #include <imgui_impl_vulkan.h>
 
-namespace mealkit::rhi {
+namespace mkrhi {
 
 bool imguiInit(Device& device) {
     Device::Impl* m = device.impl();
@@ -49,4 +49,4 @@ u64 imguiTextureId(Device& device, Texture texture) {
     return value;
 }
 
-} // namespace mealkit::rhi
+} // namespace mkrhi

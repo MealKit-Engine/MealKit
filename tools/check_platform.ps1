@@ -1,8 +1,8 @@
 ﻿# Platform layer check (docs/CODING_MODEL.md "Graphics APIs and OS features"). Called by check.ps1.
 #   powershell -ExecutionPolicy Bypass -File tools\check_platform.ps1     exit code 1 on problems
 # OS APIs (header includes, representative Win32/POSIX functions) are used only inside engine/core/platform/src/mealkit/platform/<os>/.
-# Graphics APIs (d3d12/dxgi/vulkan headers) are used only inside RHI backends (modules/rhi/src/mealkit/rhi/<api>/). Backends handle window handles/events,
-# so they may include OS headers too, but for the OS functions below (string conversion, files, DLLs etc.) they use the platform layer's.
+# Graphics APIs (d3d12/dxgi/vulkan headers) are used only inside the RHI backends, which live in MkRender (third_party/mkrender/src/mkrhi/<api>/,
+# outside the folders checked here): no engine module or game code includes them, modules/rhi included (it is the glue).
 # Game code (samples/*) doesn't use OS APIs (it receives them via GameContext).
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -26,13 +26,13 @@ $files += Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Include *.cp
 $problems = @()
 foreach ($f in $files) {
     $rel = $f.FullName.Substring($root.Length + 1)
-    $rhiBackend = $rel -match '^modules\\rhi\\src\\mealkit\\rhi\\\w+\\'
+    $rhiBackend = $false # backends are in third_party/mkrender (header comment)
     $n = 0
     foreach ($line in [IO.File]::ReadAllLines($f.FullName)) {
         $n++
         $code = ($line -replace '//.*$', '')
         if ($code -cmatch $graphicsPattern) {
-            if (-not $rhiBackend) { $problems += "${rel}:${n}: graphics API header <$($Matches[1])> outside rhi/<api>/" }
+            if (-not $rhiBackend) { $problems += "${rel}:${n}: graphics API header <$($Matches[1])> outside MkRender (third_party/mkrender)" }
         }
         elseif ($code -cmatch $includePattern) {
             if (-not $rhiBackend) { $problems += "${rel}:${n}: OS header <$($Matches[1])> outside platform/<os>/" }
@@ -46,5 +46,5 @@ if ($problems.Count -gt 0) {
     Write-Host "FAIL: $($problems.Count) OS or graphics API use(s) outside the platform layer and RHI backends" -ForegroundColor Red
     exit 1
 }
-Write-Host "OK: $($files.Count) files, OS APIs only in platform/<os>/, graphics APIs only in rhi/<api>/" -ForegroundColor Green
+Write-Host "OK: $($files.Count) files, OS APIs only in platform/<os>/, graphics APIs only in MkRender" -ForegroundColor Green
 exit 0

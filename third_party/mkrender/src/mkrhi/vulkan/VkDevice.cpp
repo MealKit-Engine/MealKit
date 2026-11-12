@@ -1,14 +1,14 @@
-#include "mealkit/rhi/vulkan/Vk.h"
+#include "Vk.h"
 
-#include "mealkit/core/Log.h"
-#include "mealkit/platform/Paths.h"
-#include "mealkit/rhi/GpuCapture.h"
+
+#include "mkrhi/Files.h"
+#include "mkrhi/Log.h"
 
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
 
-namespace mealkit::rhi {
+namespace mkrhi {
 namespace {
 
 const char* kValidationLayer = "VK_LAYER_KHRONOS_validation";
@@ -33,8 +33,8 @@ const char* resultName(VkResult r) {
 
 VKAPI_ATTR VkBool32 VKAPI_CALL onValidation(VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT,
                                             const VkDebugUtilsMessengerCallbackDataEXT* data, void*) {
-    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) MEALKIT_ERROR("[Vulkan] %s", data->pMessage);
-    else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) MEALKIT_WARN("[Vulkan] %s", data->pMessage);
+    if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT) MKRHI_ERROR("[Vulkan] %s", data->pMessage);
+    else if (severity & VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) MKRHI_WARN("[Vulkan] %s", data->pMessage);
     return VK_FALSE;
 }
 
@@ -187,9 +187,9 @@ VkInstance createInstance(bool withSurface, bool validation, bool* debugUtils) {
             layers.push_back(kValidationLayer);
             extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
             *debugUtils = true;
-            MEALKIT_INFO("Vulkan validation layer enabled");
+            MKRHI_INFO("Vulkan validation layer enabled");
         } else {
-            MEALKIT_WARN("Vulkan validation layer unavailable (install the Vulkan SDK)");
+            MKRHI_WARN("Vulkan validation layer unavailable (install the Vulkan SDK)");
         }
     }
     VkInstanceCreateInfo ci{VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO};
@@ -230,7 +230,7 @@ VkImageView createView(VkDevice device, VkImage image, VkFormat format, VkImageA
     ci.format = format;
     ci.subresourceRange = {aspect, 0, mipLevels, 0, 1};
     VkImageView view = VK_NULL_HANDLE;
-    MEALKIT_VK(vkCreateImageView(device, &ci, nullptr, &view));
+    MKRHI_VK(vkCreateImageView(device, &ci, nullptr, &view));
     return view;
 }
 
@@ -250,15 +250,15 @@ VkFormat toVk(Format f) {
 
 void checkVk(VkResult result, const char* expr, const char* file, int line) {
     if (result == VK_SUCCESS) return;
-    MEALKIT_FATAL("Vulkan call failed (%s, %d)\n%s\n%s:%d", resultName(result), static_cast<int>(result), expr, file, line);
+    MKRHI_FATAL("Vulkan call failed (%s, %d)\n%s\n%s:%d", resultName(result), static_cast<int>(result), expr, file, line);
 }
-#define VK MEALKIT_VK
+#define VK MKRHI_VK
 
 // ---------------------------------------------------------------- Impl
 
 bool Device::Impl::createSwapchain() {
     VkSurfaceCapabilitiesKHR caps{};
-    MEALKIT_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &caps));
+    MKRHI_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(physical, surface, &caps));
     VkExtent2D extent = caps.currentExtent;
     if (extent.width == UINT32_MAX) extent = {width, height};
     extent.width = std::clamp(extent.width, caps.minImageExtent.width, caps.maxImageExtent.width);
@@ -371,7 +371,7 @@ void Device::Impl::endImmediate(VkCommandBuffer list) {
 }
 
 u32 Device::Impl::allocTextureSlot() {
-    if (freeTextureSlots.empty()) MEALKIT_FATAL("Bindless texture slots exhausted (%u)", kMaxTextures);
+    if (freeTextureSlots.empty()) MKRHI_FATAL("Bindless texture slots exhausted (%u)", kMaxTextures);
     const u32 slot = freeTextureSlots.back();
     freeTextureSlots.pop_back();
     return slot;
@@ -382,7 +382,7 @@ u32 Device::Impl::allocTextureSlot() {
 Device::~Device() { shutdown(); }
 
 bool Device::init(const DeviceDesc& desc) {
-    if (desc.gpuCapture) loadGpuCaptureTool(false); // capture tools must be loaded before the device to intercept the API
+    if (desc.beforeDeviceCreate) desc.beforeDeviceCreate(false); // capture tools must be loaded before the device to intercept the API
     m = new Impl();
     m->hwnd = desc.window;
     m->width = desc.width;
@@ -390,7 +390,7 @@ bool Device::init(const DeviceDesc& desc) {
     m->cmd.m_device = this;
     auto fail = [&](const std::string& why) {
         m->initError = why;
-        MEALKIT_ERROR("%s", why.c_str());
+        MKRHI_ERROR("%s", why.c_str());
         return false;
     };
 
@@ -420,7 +420,7 @@ bool Device::init(const DeviceDesc& desc) {
     describeGpu(m->physical, m->gpu);
     m->gpu.unsupported = missing.empty() ? std::string() : m->gpu.adapter + " lacks " + missing + ". Update the GPU driver.";
     const GpuInfo& gpu = m->gpu;
-    MEALKIT_INFO("GPU: %s | driver %s | %s | %s memory", gpu.adapter.c_str(),
+    MKRHI_INFO("GPU: %s | driver %s | %s | %s memory", gpu.adapter.c_str(),
                  gpu.driverVersion.empty() ? "?" : gpu.driverVersion.c_str(), gpu.api.c_str(),
                  gpu.uma ? "unified (UMA)" : "dedicated");
     if (!m->gpu.unsupported.empty()) return fail(m->gpu.unsupported);
@@ -555,7 +555,7 @@ bool Device::init(const DeviceDesc& desc) {
         // The header (VkPipelineCacheHeaderVersionOne) is checked here: some drivers misbehave on data from another GPU/driver
         m->pipelineCachePath = desc.pipelineCache + "/pipelines.vulkan";
         std::string data;
-        readTextFile(m->pipelineCachePath, data);
+        detail::readFile(m->pipelineCachePath, data);
         u32 header[4] = {};
         u8 uuid[VK_UUID_SIZE] = {};
         if (data.size() >= 16 + VK_UUID_SIZE) {
@@ -569,7 +569,7 @@ bool Device::init(const DeviceDesc& desc) {
         cci.initialDataSize = data.size();
         cci.pInitialData = data.empty() ? nullptr : data.data();
         if (vkCreatePipelineCache(m->device, &cci, nullptr, &m->pipelineCache) != VK_SUCCESS) m->pipelineCache = VK_NULL_HANDLE;
-        if (m->pipelineCache) createDirectories(desc.pipelineCache);
+        if (m->pipelineCache) detail::createDirectories(desc.pipelineCache);
     }
 
     // Upload ring: one memory block the CPU writes and the GPU reads (GPU memory itself on UMA), g_buffers[0]
@@ -665,8 +665,8 @@ void Device::shutdown() {
                 if (vkGetPipelineCacheData(m->device, m->pipelineCache, &size, data.data()) != VK_SUCCESS) data.clear();
                 data.resize(size);
             }
-            if (!data.empty() && !writeTextFile(m->pipelineCachePath, data))
-                MEALKIT_WARN("Cannot write the pipeline cache %s", m->pipelineCachePath.c_str());
+            if (!data.empty() && !detail::writeFile(m->pipelineCachePath, data))
+                MKRHI_WARN("Cannot write the pipeline cache %s", m->pipelineCachePath.c_str());
             vkDestroyPipelineCache(m->device, m->pipelineCache, nullptr);
         }
         for (VkPipeline p : m->pipelines) vkDestroyPipeline(m->device, p, nullptr);
@@ -1443,4 +1443,6 @@ bool queryGpu(GpuInfo& out, std::string* error) {
     return physical != VK_NULL_HANDLE;
 }
 
-} // namespace mealkit::rhi
+const char* backendName() { return "vulkan"; }
+
+} // namespace mkrhi
