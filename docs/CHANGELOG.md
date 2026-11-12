@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## R2 Installing without a build, part 7: tools from the release index (2026-11-12)
+
+- Decision added: tool compatibility lives in the release index (live `protocol` + engine MINORs per tool entry), not in `mealkit-tool.txt`; mkcontract unchanged (DECISIONS "How the Manager installs").
+- `tools\package_tool.ps1 -Folder <tool bin>`: zips a built tool folder (without .pdb/.ilk) as `mealkit-tool-<name>-<version>-windows-x64.zip`, after checking its manifest has name, x.y.z version, exe and protocol. Works for any tool repo without changing it.
+- `tools\release_index.ps1 -Zip <tool zip> -Engines 0.9[,0.10]`: one `tools` entry per tool (newest), with the protocol read from the manifest inside the zip.
+- MealKit Manager (9975d3b): the [Tools] tab lists the index's tools with size, engines and [Install] / [Update to x]; "no matching engine" or "needs another Manager" otherwise. `install.ps1 tool` refuses while that tool or MealKitEditor runs ("Close ... first"), checks the SHA-256 and swaps `<user folder>\tools\<tool>` through a staging folder, keeping the old one until the new one is in place. `--install-tool <name>`, `--tools`.
+- Verified with MkUI's build (0.5.0, 1.7 MB) in a test user folder holding engine 0.9.4: the list showed MkUI installable and a 0.7-only entry as "no matching engine" (captures before/after), install put MkUI where the [Tools] list found it, a second install while MkUI.exe ran was refused, and a 0.5.1 entry replaced the folder once it was closed. MkAudio and MkRender weren't packaged.
+
 ## R2 Installing without a build, part 6: Manager update and uninstall (2026-11-12)
 
 - `tools\release_index.ps1` also takes a Manager package (`mealkit-manager-*.zip`) and sets the index's single `manager` entry (newest only); `install.ps1 list` prints it as a `manager` line.
