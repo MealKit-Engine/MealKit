@@ -100,7 +100,10 @@ if ($onWindows) {
 }
 
 # A game project's editor build links against the engine editor build (mealkit.dll). Bring it up to date first.
-if ($isEditor -and $projectDir -ne $engineDir) {
+# An installed engine (MealKit Manager, tools\package_engine.ps1 writes INSTALLED) ships that build ready-made and isn't rebuilt.
+$installedEngine = Test-Path (Join-Path $engineDir "INSTALLED")
+if ($isEditor -and $installedEngine -and $Config -ne "Editor") { Fail "An installed engine ships only the Editor build; $Config needs the engine repository." }
+if ($isEditor -and $projectDir -ne $engineDir -and -not $installedEngine) {
     Invoke-Self $engineDir $Config "Engine editor build failed. If MealKitEditor is running and the engine changed, close it and build again."
 }
 # Export cooks the assets with the development Release exe (game/Cook.h), so bring that up to date first

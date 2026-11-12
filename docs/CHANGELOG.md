@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## R2 Installing without a build, part 1: the engine package (2026-11-12)
+
+- Decisions in `docs/DECISIONS.md` "How the Manager installs": Releases zips + one `index.json`, engine package first, newest patch per MINOR, tool updates once closed.
+- `tools\package_engine.ps1 [-Out <folder>]` → `mealkit-engine-<VERSION>-windows-x64.zip` (about 39 MB) with its size and SHA-256. Holds every tracked file except `docs/` and `.github/` (sources stay, so a game's Release/Export build still compiles the engine as before; `samples/` stay as the arena/coop templates), the Editor build (`MealKitEditor.exe`, `mealkit.dll`, `engine\mealkit.lib`, `tools\*.exe`, no PDBs or sample game DLLs), and an `INSTALLED` marker (version, commit).
+- `MealKitTargets.cmake` is rewritten to paths relative to itself (`${CMAKE_CURRENT_LIST_DIR}/../../`), so the extracted folder works anywhere.
+- `tools\build.ps1`: with `INSTALLED`, a game's Editor build links against the shipped engine build without rebuilding it (VulkanEditor isn't shipped and says so).
+- Editor (`modules/editor` v0.2.1): the engine folder is the one the exe sits in (`<engine>\build\<config>\bin`, recognized by `cmake\MealKit.cmake` + `VERSION`), falling back to the compile-time `MEALKIT_ENGINE_DIR`; strings, the Manager hand-off and game DLL staleness use it.
+- Verified: zip extracted to a temp folder, `new_project.ps1` from it, the project's Editor build compiled only the game DLL against the extracted engine (no `D:/MealKit-Engine/MealKit` path in its build files), and the extracted `MealKitEditor.exe --project ... --frames 90 --capture` opened the project with the game module loaded and Korean UI.
+
 ## MkRender step 10: scene editing leaves the editor (2026-11-12)
 
 - Phase 6 (and the rest of phase 2) of "Scene editing moves to MkRender"; decisions in `docs/DECISIONS.md` "After scene editing left the editor".
