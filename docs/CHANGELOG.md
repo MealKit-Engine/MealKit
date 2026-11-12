@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## MkRender step 4: MkRender edits project scenes (2026-11-12)
+
+- `docs/DECISIONS.md` 2026-11-12 "MkRender's app is a scene editor". **MkRender v0.4.0** replaces the step 3 viewer panels with a scene editor in `tool/`: Hierarchy (kinds, parents by drag and drop, folders, search, add/duplicate/delete), Viewport (the project's `lightingModel`, the scene's sun/sky/fog/post and point lights, click picking, ImGuizmo move/rotate/scale, orbit/pan/zoom/fly, icons for markers, line boxes for areas and model-less game kinds, terrain heightmaps), Inspector (name, kind, folder/parent, transform, model list from `assets/`, color, checker, field lines with widgets chosen from their text) and Environment (sun, sky, fog, HDRI values, post). Undo/redo, save/save as/new, the project's scene list, reload on outside changes, unsaved-changes prompt.
+- `tool/SceneFile.cpp` reads and writes scene format 5 like `modules/scene/src/mealkit/scene/Scene.cpp`; `MkRender --check-scene <file>` reported `same` for every scene the engine saved in format 5 (sandbox arena/probes, TestGame) and `upgraded` for the older-format ones (samples, FuseTag).
+- Started from the editor's tool launch (`--project <folder> --file <file>`); the manifest opens `.scene .gltf .glb`. Not drawn yet: scatter layers, sprites, HDRIs, LUTs (values are still edited and saved).
+
 ## MkRender step 3: the MkRender viewer app (2026-11-12)
 
 - MkRender runs on its own like MkUI and MkAudio: **MkRender v0.3.0** adds `tool/`, the exe `MkRender` (SDL3 window drawn by `mkrender`, Dear ImGui panels through `mkrhi::imgui*`). It opens `.gltf`/`.glb` (cgltf + stb_image, read like `asset/ModelImport.cpp`: z flip, metallic-roughness, base/normal/metallic-roughness/emissive textures as RGBA8 with CPU mips, alpha mask; skins in the bind pose) or a metallic x roughness sphere grid, and edits the lighting model, sun/sky/fog, shadows, orbiting point lights, post values and player options, and materials live. Stats show GPU time per pass and the view modes; `--frames N --capture <png>` for docs and tests; `mealkit-tool.txt` lists it in the editor's [Tools] menu (`opens .gltf .glb`).
