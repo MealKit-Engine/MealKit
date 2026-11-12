@@ -47,7 +47,7 @@ $folderGroups = @{
 $pathRules = @(
     @('\.md$', ''), @('^docs/', ''), @('^\.github/', ''), @('^\.claude/', ''), @('^\.git(ignore|attributes)$', ''),
     @('^samples/[^/]+/art/ui/preview/', 'tools'), @('^samples/[^/]+/art/', ''),
-    @('^engine/public_headers\.txt$', 'static'), @('^(engine/core|modules)/[^/]+/module\.txt$', 'static'), @('^(?:engine/core|modules)/([^/]+)/', 'folder:$1'), @('^third_party/mkui/', 'folder:ui'), @('^third_party/mkrender/', 'folder:render'), @('^engine/shaders/', 'folder:render'),
+    @('^engine/public_headers\.txt$', 'static'), @('^(engine/core|modules)/[^/]+/module\.txt$', 'static'), @('^(?:engine/core|modules)/([^/]+)/', 'folder:$1'), @('^third_party/mkui/', 'folder:ui'), @('^third_party/mkrender/', 'folder:render'),
     @('^engine/tests/golden/', 'render'), @('^engine/tests/perf/', 'game'), @('^engine/tests/', 'unit-all'),
     @('^engine/tools/SimCheck', 'editor project'), @('^engine/tools/', 'game'), @('^engine/res/', 'editor'),
     @('^third_party/mkaudio/', 'folder:audio'), @('^third_party/', 'full'),

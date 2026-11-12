@@ -299,7 +299,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ==============================================================================
-mkrender (MkRender: mkrhi graphics layer, mkrender renderer) v0.1.0 (e3f7923)
+mkrender (MkRender: mkrhi graphics layer, mkrender renderer) v0.2.0 (25f63b3)
 ==============================================================================
 MIT License
 

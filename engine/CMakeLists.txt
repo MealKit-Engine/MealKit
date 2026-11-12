@@ -1,84 +1,10 @@
 # The engine folder may not be top-level (included from a game project), so this path is used instead of CMAKE_SOURCE_DIR.
 get_filename_component(MEALKIT_THIRD_PARTY "${CMAKE_CURRENT_SOURCE_DIR}/../third_party" ABSOLUTE)
 
-# --- Shaders: DXC generates byte-array headers at build time (no runtime compiler dependency). Windows front end only ---
-# Every build produces both DXIL (DX12) and SPIR-V (Vulkan): a compile failure on either side fails the build (ROADMAP stage 2 "RHI layer").
-# This build's backend output goes to shaders/<name>.h (included by the renderer), the other to shaders/other/<name>.h (for checking, not in the exe).
-set(MEALKIT_SHADER_OUT ${CMAKE_CURRENT_BINARY_DIR}/shaders)
-set(MEALKIT_SHADER_HEADERS "")
+# --- Shaders: the renderer's shaders and their DXC step are MkRender's (third_party/mkrender/shaders, added below with MKRENDER_DXC).
+# DXC itself is downloaded here once (cmake/Dxc.cmake, a pinned release with SPIR-V support). Windows front end only
 if(NOT MEALKIT_HEADLESS_ONLY)
     include(${CMAKE_CURRENT_SOURCE_DIR}/../cmake/Dxc.cmake)
-    file(MAKE_DIRECTORY ${MEALKIT_SHADER_OUT} ${MEALKIT_SHADER_OUT}/other)
-
-    if(CMAKE_BUILD_TYPE STREQUAL "Debug")
-        set(MEALKIT_DXIL_FLAGS -Zi -Qembed_debug -Od)
-        set(MEALKIT_SPIRV_FLAGS -Od)
-    else()
-        set(MEALKIT_DXIL_FLAGS -O3 -Qstrip_debug -Qstrip_reflect)
-        set(MEALKIT_SPIRV_FLAGS -O3)
-    endif()
-    list(APPEND MEALKIT_SPIRV_FLAGS -spirv -fspv-target-env=vulkan1.3)
-
-    # Remaining arguments are preprocessor defines (e.g. LIGHTING_MODEL=1 ??-D LIGHTING_MODEL=1, style preset variants)
-    function(mealkit_shader source entry profile name)
-        set(defines "")
-        foreach(d ${ARGN})
-            list(APPEND defines -D ${d})
-        endforeach()
-        # The Vulkan backend builds pipelines with entry point names VSMain/PSMain: other entry points (VSOutline etc.) are renamed in SPIR-V
-        if(profile MATCHES "^vs_")
-            set(spirv_entry -fspv-entrypoint-name=VSMain)
-        else()
-            set(spirv_entry -fspv-entrypoint-name=PSMain)
-        endif()
-        if(MEALKIT_RHI STREQUAL "Vulkan")
-            set(dxil ${MEALKIT_SHADER_OUT}/other/${name}.h)
-            set(spirv ${MEALKIT_SHADER_OUT}/${name}.h)
-        else()
-            set(dxil ${MEALKIT_SHADER_OUT}/${name}.h)
-            set(spirv ${MEALKIT_SHADER_OUT}/other/${name}.h)
-        endif()
-        set(deps ${CMAKE_CURRENT_SOURCE_DIR}/${source} ${CMAKE_CURRENT_SOURCE_DIR}/shaders/Bindless.hlsli)
-        add_custom_command(
-            OUTPUT ${dxil}
-            COMMAND ${MEALKIT_SHADER_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${dxil} ${MEALKIT_DXIL_FLAGS} ${defines} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
-            DEPENDS ${deps}
-            COMMENT "DXC ${source} (${entry}, DXIL)"
-            VERBATIM)
-        add_custom_command(
-            OUTPUT ${spirv}
-            COMMAND ${MEALKIT_SHADER_DXC} -nologo -T ${profile} -E ${entry} -Vn ${name} -Fh ${spirv} ${MEALKIT_SPIRV_FLAGS} ${spirv_entry} ${defines} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
-            DEPENDS ${deps}
-            COMMENT "DXC ${source} (${entry}, SPIR-V)"
-            VERBATIM)
-        set(MEALKIT_SHADER_HEADERS ${MEALKIT_SHADER_HEADERS} ${dxil} ${spirv} PARENT_SCOPE)
-    endfunction()
-
-    # SM 6.6 = minimum spec. Binding layout is shaders/Bindless.hlsli (mealkit/rhi/Rhi.h)
-    # One pixel shader per lighting model (render::LightingModel) + an outline pass. All go into the exe and the renderer init builds the pipelines
-    mealkit_shader(shaders/Forward.hlsl VSMain vs_6_6 g_ForwardVS)
-    mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardPbrPS LIGHTING_MODEL=0)
-    mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardToonPS LIGHTING_MODEL=1)
-    mealkit_shader(shaders/Forward.hlsl PSMain ps_6_6 g_ForwardUnlitPS LIGHTING_MODEL=2)
-    mealkit_shader(shaders/Forward.hlsl VSOutline vs_6_6 g_OutlineVS)
-    mealkit_shader(shaders/Forward.hlsl PSOutline ps_6_6 g_OutlinePS)
-    mealkit_shader(shaders/Forward.hlsl VSShadow vs_6_6 g_ShadowVS)
-    mealkit_shader(shaders/Forward.hlsl VSMain vs_6_6 g_ForwardSkinVS SKINNED=1)
-    mealkit_shader(shaders/Forward.hlsl VSOutline vs_6_6 g_OutlineSkinVS SKINNED=1)
-    mealkit_shader(shaders/Forward.hlsl VSShadow vs_6_6 g_ShadowSkinVS SKINNED=1)
-    mealkit_shader(shaders/Forward.hlsl PSShadow ps_6_6 g_ShadowPS)
-    mealkit_shader(shaders/Forward.hlsl VSSky vs_6_6 g_SkyVS)
-    mealkit_shader(shaders/Forward.hlsl PSSky ps_6_6 g_SkyPS)
-    mealkit_shader(shaders/Particle.hlsl VSMain vs_6_6 g_ParticleVS)
-    mealkit_shader(shaders/Particle.hlsl PSMain ps_6_6 g_ParticlePS)
-    mealkit_shader(shaders/Sprite.hlsl VSMain vs_6_6 g_SpriteVS)
-    mealkit_shader(shaders/Sprite.hlsl PSMain ps_6_6 g_SpritePS)
-    mealkit_shader(shaders/Post.hlsl VSMain vs_6_6 g_PostVS)
-    mealkit_shader(shaders/Post.hlsl PSBloomDown ps_6_6 g_BloomDownPS)
-    mealkit_shader(shaders/Post.hlsl PSBloomUp ps_6_6 g_BloomUpPS)
-    mealkit_shader(shaders/Post.hlsl PSUber ps_6_6 g_UberPS)
-    mealkit_shader(shaders/Ui.hlsl VSMain vs_6_6 g_UiVS)
-    mealkit_shader(shaders/Ui.hlsl PSMain ps_6_6 g_UiPS)
 endif()
 
 # --- meshoptimizer (model optimization/LOD) ---
@@ -207,6 +133,8 @@ set(MEALKIT_CORE_SOURCES
     ../modules/render/include/mealkit/render/Culling.h
     ../modules/render/include/mealkit/render/Mesh.h
     ../modules/render/include/mealkit/render/Renderer.h
+    ../modules/render/include/mealkit/render/Fwd.h
+    ../modules/render/include/mealkit/render/MkRenderConfig.h
     ../modules/rhi/include/mealkit/rhi/Rhi.h # header only (GpuInfo in Renderer.h). Backend implementations are front end
     core/platform/include/mealkit/platform/Socket.h
     ../modules/session/include/mealkit/session/Session.h
@@ -270,12 +198,7 @@ set(MEALKIT_FRONT_SOURCES
     ../modules/render/src/mealkit/render/ShaderReload.h
     ../modules/rhi/include/mealkit/rhi/GpuCapture.h
     ../modules/rhi/src/mealkit/rhi/GpuCapture.cpp
-    ../modules/render/src/mealkit/render/ShaderReload.cpp
-    shaders/Forward.hlsl
-    shaders/Sprite.hlsl
-    shaders/Ui.hlsl
-    shaders/Bindless.hlsli
-    ${MEALKIT_SHADER_HEADERS})
+    ../modules/render/src/mealkit/render/ShaderReload.cpp)
 
 # Platform layer implementations (docs/CODING_MODEL.md "Graphics APIs and OS features"): OS APIs are called only inside platform/<os>/.
 # posix/ has what headless (Linux/macOS) needs (time, files, UDP, logging) and dynamic libraries. Window, input, dialogs, images are Windows only (stage 5).
@@ -332,19 +255,6 @@ else()
         target_link_libraries(mealkit PUBLIC mealkit_core)
     endif()
 endif()
-if(NOT MEALKIT_HEADLESS_ONLY)
-    set_source_files_properties(shaders/Forward.hlsl shaders/Ui.hlsl PROPERTIES HEADER_FILE_ONLY ON)
-    # Shader hot reload (render/ShaderReload.cpp): dev builds only. Rebuilds this backend's format with the same DXC and options as the build
-    if(MEALKIT_DEBUG_UI)
-        if(MEALKIT_RHI STREQUAL "Vulkan")
-            list(JOIN MEALKIT_SPIRV_FLAGS " " mealkit_hot_flags)
-        else()
-            list(JOIN MEALKIT_DXIL_FLAGS " " mealkit_hot_flags)
-        endif()
-        set_source_files_properties(../modules/render/src/mealkit/render/ShaderReload.cpp PROPERTIES COMPILE_DEFINITIONS
-            "MEALKIT_SHADER_HOT_RELOAD=1;MEALKIT_SHADER_SOURCE_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/shaders\";MEALKIT_SHADER_HOT_DIR=\"${MEALKIT_SHADER_OUT}/hot\";MEALKIT_SHADER_DXC_PATH=\"${MEALKIT_SHADER_DXC}\";MEALKIT_SHADER_HOT_FLAGS=\"${mealkit_hot_flags}\"")
-    endif()
-endif()
 
 # mealkit.dll: exports all engine functions and classes (no __declspec markup). Enough as long as game code doesn't access engine globals directly.
 # The def is generated the same way as CMake's WINDOWS_EXPORT_ALL_SYMBOLS (__create_def), but the bad lines ("==") left by
@@ -356,7 +266,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT WIN32)
 elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
     set(mealkit_def ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.def)
     set(mealkit_objs ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.objs)
-    file(GENERATE OUTPUT ${mealkit_objs} CONTENT "$<JOIN:$<TARGET_OBJECTS:mealkit>;$<TARGET_OBJECTS:mealkit_imgui>;$<TARGET_OBJECTS:mkrhi>,\n>\n")
+    file(GENERATE OUTPUT ${mealkit_objs} CONTENT "$<JOIN:$<TARGET_OBJECTS:mealkit>;$<TARGET_OBJECTS:mealkit_imgui>;$<TARGET_OBJECTS:mkrhi>;$<TARGET_OBJECTS:mkrender>,\n>\n")
     add_custom_command(TARGET mealkit PRE_LINK
         COMMAND ${CMAKE_COMMAND} -E __create_def ${mealkit_def} ${mealkit_objs}
         COMMAND ${CMAKE_COMMAND} -DDEF_FILE=${mealkit_def} -P ${MEALKIT_ENGINE_DIR}/cmake/FixExportsDef.cmake
@@ -488,8 +398,10 @@ else()
     set(mealkit_mkrender_dir ${MEALKIT_THIRD_PARTY}/mkrender)
 endif()
 target_include_directories(${mealkit_core_target} PUBLIC $<BUILD_INTERFACE:${mealkit_mkrender_dir}/include>)
+# mkrender takes the engine's own math/mesh/image types (modules/render/include/mealkit/render/MkRenderConfig.h): every engine target and
+# the library see the same definition
+target_compile_definitions(${mealkit_core_target} PUBLIC MKRENDER_USER_CONFIG="mealkit/render/MkRenderConfig.h")
 if(NOT MEALKIT_HEADLESS_ONLY)
-    target_include_directories(mealkit PRIVATE ${MEALKIT_SHADER_OUT})
     # Sound: the mkaudio runtime (separate repo MkAudio, version-pinned in third_party/mkaudio; miniaudio + stb_vorbis are the engine's)
     # is wrapped by mealkit/audio/ (glue layer). The game only sees mkaudio header types (Handle etc.) used by mealkit/audio/Audio.h, so only the include path is passed.
     # When editing together with the runtime: -DMEALKIT_MKAUDIO_DIR=<MkAudio checkout> (pull it in with tools\update_mkaudio.ps1 when done)
@@ -522,7 +434,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     add_subdirectory(${mealkit_mkui_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkui)
     target_link_libraries(mealkit PRIVATE mkui)
     target_include_directories(mealkit PUBLIC $<BUILD_INTERFACE:${mealkit_mkui_dir}/include>)
-    # mkrhi (MkRender, include folder set on the core target above): built only with a window. OBJECT libraries, so mealkit.dll
+    # mkrhi and mkrender (MkRender, include folder set on the core target above): built only with a window. OBJECT libraries, so mealkit.dll
     # exports their symbols like its own (the editor calls rhi:: directly)
     set(MKRHI_BACKEND ${MEALKIT_RHI})
     set(MKRHI_VULKAN_INCLUDE_DIRS ${MEALKIT_THIRD_PARTY}/vulkan-headers/include ${MEALKIT_THIRD_PARTY}/volk ${MEALKIT_THIRD_PARTY}/vma)
@@ -532,8 +444,20 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     set(MKRHI_TRACY_TARGET mealkit_tracy)
     set(MKRENDER_OBJECT_LIBRARIES ON)
     set(MKRENDER_BUILD_TESTS OFF)
+    set(MKRENDER_DXC ${MEALKIT_SHADER_DXC})
+    set(MKRENDER_USER_CONFIG "mealkit/render/MkRenderConfig.h")
+    set(MKRENDER_USER_CONFIG_INCLUDE_DIRS ${MEALKIT_MODULE_INCLUDES})
     add_subdirectory(${mealkit_mkrender_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkrender)
-    target_link_libraries(mealkit PRIVATE mkrhi)
+    if(NOT TARGET mkrender)
+        message(FATAL_ERROR "MkRender didn't build mkrender (no DXC at ${MEALKIT_SHADER_DXC})")
+    endif()
+    target_link_libraries(mealkit PRIVATE mkrhi mkrender)
+    # Shader hot reload (render/ShaderReload.cpp): dev builds only. Rebuilds this backend's format from MkRender's shaders/ with the
+    # same DXC and options as its build (MKRENDER_SHADER_DIR, MKRENDER_HOT_FLAGS come from MkRender's CMakeLists.txt)
+    if(MEALKIT_DEBUG_UI)
+        set_source_files_properties(../modules/render/src/mealkit/render/ShaderReload.cpp PROPERTIES COMPILE_DEFINITIONS
+            "MEALKIT_SHADER_HOT_RELOAD=1;MEALKIT_SHADER_SOURCE_DIR=\"${MKRENDER_SHADER_DIR}\";MEALKIT_SHADER_HOT_DIR=\"${CMAKE_CURRENT_BINARY_DIR}/shaders/hot\";MEALKIT_SHADER_DXC_PATH=\"${MEALKIT_SHADER_DXC}\";MEALKIT_SHADER_HOT_FLAGS=\"${MKRENDER_HOT_FLAGS}\"")
+    endif()
     # Disable warnings for external code implementation files
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb
                                ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp

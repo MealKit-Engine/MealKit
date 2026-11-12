@@ -271,7 +271,7 @@ Each module repo has one workflow line calling `MealKit-Engine/MealKit/.github/w
 
 ## Middleware (view-side libraries)
 
-Some engine modules are **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) is. Status (2026-11-12): MkUI has its own repo with the draw backend, view models without reflection and MkUI Designer; MkRender has its own repo with `mkrhi` (the graphics layer, `modules/rhi` is its glue); MkUI's XAML-like layer, `mkrender` (the renderer itself) and MkAnim are not started (work items in `docs/ROADMAP.md` "UI 2" and "Tool suite").
+Some engine modules are **engine-free middleware libraries** that other engines can use too, the way `mkaudio` (MkAudio) is. Status (2026-11-12): MkUI has its own repo with the draw backend, view models without reflection and MkUI Designer; MkRender has its own repo with `mkrhi` (graphics layer) and `mkrender` (the renderer and its shaders), glued by `modules/rhi` and `modules/render`; MkUI's XAML-like layer, MkRender's engine-free goldens and MkAnim are not started (work items in `docs/ROADMAP.md` "UI 2" and "Tool suite").
 
 ### The idea
 
@@ -308,8 +308,8 @@ Taken from MkAudio, which already works this way:
 
 #### Rendering — MkRender — possible, worth it only as a clean boundary
 
-- **Where it stands**: `mkrhi` lives in the repo MkRender since 2026-11-12 (pinned in `third_party/mkrender`, `tools\update_mkrender.ps1`): the DX12 and Vulkan backends with no engine header, a native window handle and size, a log callback and a hook before device creation; `modules/rhi` is the glue (`mealkit::rhi` names, engine log, GPU capture tools). `render` still requires `asset` (CPU mesh/material data and `ModelGpu`) and draws from a `DrawList`.
-- **What's needed**: `mkrhi` with no `window` dependency (takes a native handle and size); `mkrender` taking its own plain types (mesh buffers, material parameters, lights, camera, sprites) instead of `asset::MeshData`/`scene` types, with the glue module converting; shaders compiled by the library's own build step.
+- **Where it stands** (2026-11-12): the repo MkRender holds `mkrhi` (DX12/Vulkan backends with a native window handle, log callback, capture hook) and `mkrender` (the forward renderer, `DrawList` culling with a host parallel-for, `shaders/` and their DXC step, a shader reload hook, captures as plain pixels), pinned in `third_party/mkrender`. Host types come in like Dear ImGui's `imconfig.h`: MealKit's `render/MkRenderConfig.h` makes `core/Math.h` and `asset/MeshData.h` types mkrender's, so engine and game code are unchanged. `modules/render` keeps the engine-side parts: `render::Renderer` (job system, GPU capture, hot reload, PNG screenshots, Image conversion), `ModelDraw`, `TextureCache`, `Environment`, `Sprites`, `SceneLights`, Look Dev; `render/Fwd.h` replaces forward declarations of render types.
+- **What was needed** (done): `mkrhi` with no `window` dependency (takes a native handle and size); `mkrender` taking its own plain types (mesh buffers, material parameters, lights, camera, sprites) instead of `asset::MeshData`/`scene` types, with the glue module converting; shaders compiled by the library's own build step.
 - **Scope**: the forward pipeline, lights, shadows, post, particles, sprites, and the visual tools that sit on it (Look Dev, material preview, render goldens). Not the editor viewport, not cooking.
 - **Honest assessment**: possible, but the largest of the four (most of the code and most cross-module types), and the market (bgfx, Filament, Diligent, The Forge) is crowded and free. The real benefit is internal: a renderer with plain-data inputs is easier to test (goldens without the engine) and to replace. Recommended as **"make the boundary, publish later"**: cut `mkrender`/`mkrhi` inside `module-render`/`module-rhi` when a render item touches those types anyway, and decide about a separate product after that.
 
@@ -365,7 +365,7 @@ The rule's wording gains "and the view-side middleware in `docs/ENGINE_MODULES.m
 ### Proposed order
 
 1. **UI**: ~~own repo, draw backend, public API, Designer and Penpot plugin~~ (done 2026-11-11~12), then binding, styles/templates, triggers and resources.
-2. **Render**: ~~own repo MkRender with `mkrhi`~~ (done 2026-11-12), then `mkrender` with plain-data inputs, its shaders and goldens without the engine. Decide on publishing separately after.
+2. **Render**: ~~own repo MkRender with `mkrhi` and `mkrender`~~ (done 2026-11-12), then goldens without the engine. Decide on publishing separately after.
 3. **Anim2D**: after flipbooks, and only when a 2D game needs skeletal animation. Runtime + DragonBones-subset importer first.
 
 ### Decisions (2026-11-11, with the user)
