@@ -562,8 +562,12 @@ if (-not $Quick) {
     }
     # Graphics regression test (ROADMAP "Graphics regression tests"): draws fixed scenes (engine\tests\golden\shots.txt) without UI and compares with reference images.
     # On differences, build\check\golden\<name>-diff.png (red = differing pixels). Different GPUs/drivers may differ slightly, so there's a threshold
+    # The shots are drawn by the MkRender scene editor (sibling repo ..\MkRender: build\bin, build-vulkan\bin; SKIP when not built),
+    # which draws scenes like the engine without the editor (ROADMAP "Scene editing moves to MkRender" phase 6)
     $goldenDir = Join-Path $root "engine\tests\golden"
+    $mkRenderRoot = Join-Path (Split-Path $root -Parent) "MkRender"
     function Compare-Golden([string]$log, [string]$exe, [string]$suffix) {
+        if (-not (Test-Path $exe)) { return "SKIP: MkRender not built ($exe)" }
         $dir = Join-Path $out "golden$suffix"
         $code = Run $log $exe "--project `"$sandbox`" --render-golden `"$goldenDir\shots.txt`" `"$dir`""
         if ($code -ne 0) { return "render failed" }
@@ -581,7 +585,7 @@ if (-not $Quick) {
         if ($problems.Count -gt 0) { return ($problems -join "; ") }
         return $true
     }
-    Invoke-Check render "Graphics regression (golden images)" { param($log) Compare-Golden $log $editor "" }
+    Invoke-Check render "Graphics regression (golden images)" { param($log) Compare-Golden $log (Join-Path $mkRenderRoot "build\bin\MkRender.exe") "" }
     Invoke-Check editor "Editor play (solo, shadow)" {
         param($log)
         $png = Join-Path $out "editor-play.png"
@@ -615,7 +619,7 @@ if (-not $Quick) {
         if ($LASTEXITCODE -ne 0) { return ($output | Select-Object -First 1) }
         return $true
     }
-    Invoke-Check render "Graphics regression (Vulkan)" { param($log) Compare-Golden $log $vkEditor "-vulkan" }
+    Invoke-Check render "Graphics regression (Vulkan)" { param($log) Compare-Golden $log (Join-Path $mkRenderRoot "build-vulkan\bin\MkRender.exe") "-vulkan" }
     Invoke-Check render "Vulkan validation layer (play)" {
         param($log)
         $png = Join-Path $out "vulkan-play.png"

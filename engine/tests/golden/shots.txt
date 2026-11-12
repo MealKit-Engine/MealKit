@@ -1,4 +1,4 @@
-# Graphics regression test scenes (tools\check.ps1 "Graphics regression"): MealKitEditor --render-golden <this file> <folder>
+# Graphics regression test scenes (tools\check.ps1 "Graphics regression"): MkRender --project samples\sandbox --render-golden <this file> <folder> (the MkRender scene editor draws them)
 # name scene(relative to assets) camera x y z yaw pitch (degrees) [lighting model pbr|toon|unlit; project setting if omitted].
 # Reference images are <name>.png in the same folder; regenerate with check.ps1 -UpdateGolden. Wind is drawn at view time 0
 # materials: textures, normals, metal/roughness, alpha mask (crate and fence from tools/make_sample_models.py)
@@ -15,7 +15,7 @@ materials_toon  scenes/materials.scene   2.6 2.0 -3.2  -35 -22  toon
 # hdri: sky HDRI (skybox, SH ambient light, reflection cube) — baked into build/cache/environments on first draw
 hdri_view       scenes/hdri.scene     2.6 2.0 -3.2  -35 -12
 hdri_up         scenes/hdri.scene     0.5 1.0 -4.5    0  20
-# probes: reflection probes (assets/probes/probes_9.mkprobe, rebake with MealKitEditor --scene assets\scenes\probes.scene --bake-probes). The sphere inside the room uses the probe, the one outside uses the sky
+# probes: reflection probes (assets/probes/probes_9.mkprobe, rebake with MkRender --project samples\sandbox --file assets\scenes\probes.scene --bake-probes). The sphere inside the room uses the probe, the one outside uses the sky
 probes_inside   scenes/probes.scene  -1.0 1.6 -2.0  -60 -15
 probes_outside  scenes/probes.scene   7 2.5 -5  -70 -12
 # lights: three point lights (night sky, torch/blue/red, shown in the editor as small boxes in the light's color), PBR and toon
