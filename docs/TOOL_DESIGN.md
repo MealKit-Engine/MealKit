@@ -108,7 +108,7 @@ When `applyStyle` changes, the same change goes to every copy listed in section 
 | MealKit Editor | `applyStyle` (source) | yes | DWM | yes (`make_editor_icon.py`) |
 | MealKit Manager | copy in `src/main.cpp` | yes | DWM | yes |
 | MkAudio | copy in `tool/main.cpp` | yes (panel buttons; panel tabs without icons yet) | DWM | yes |
-| MkUI Designer | `StyleColorsDark` + 3 px rounding | no | system | yes |
+| MkUI Designer | copy in `tool/main.cpp` | yes (panel buttons; panel tabs without icons yet) | DWM | yes |
 | MkRender | copy in `tool/main.cpp` | yes (panel buttons; panel tabs without icons yet) | DWM | yes |
 | MealKit QA | `StyleColorsDark` + 3 px rounding | no | system | yes |
 

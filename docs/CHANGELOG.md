@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Design refresh for the rest of the suite, part 4: MkUI Designer (2026-11-12)
+
+- `tool/main.cpp`: `applyEditorStyle` and `applyEditorCaption` as in MkRender (links `dwmapi`); the existing font loader keeps its macOS/Linux paths and adds the Segoe icon font on Windows.
+- `App::iconButton` for New screen (Add), Refresh, Copy the Penpot plugin address (Copy), Delete node (Remove), Edit component (Edit) and the remove buttons of value rows. `Make component`, `Add fill`, `Set text color`, `Take values`, the widget palette and dialog buttons keep words.
+- Checked: build, `mkui_tests` PASS (32), a capture of the sandbox screens. Left: panel tabs without icons, right-click items for the icon actions.
+
 ## Design refresh for the rest of the suite, part 3: MkAudio (2026-11-12)
 
 - `tool/main.cpp`: the same `applyEditorStyle`, font loader (Segoe UI + Malgun Gothic, new here, + the icon font) and `applyEditorCaption` as MkRender (links `dwmapi`). The font loader is Windows paths only now: elsewhere ImGui's default font, without icons, so buttons show their names.
