@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## MkRender step 3: the MkRender viewer app (2026-11-12)
+
+- MkRender runs on its own like MkUI and MkAudio: **MkRender v0.3.0** adds `tool/`, the exe `MkRender` (SDL3 window drawn by `mkrender`, Dear ImGui panels through `mkrhi::imgui*`). It opens `.gltf`/`.glb` (cgltf + stb_image, read like `asset/ModelImport.cpp`: z flip, metallic-roughness, base/normal/metallic-roughness/emissive textures as RGBA8 with CPU mips, alpha mask; skins in the bind pose) or a metallic x roughness sphere grid, and edits the lighting model, sun/sky/fog, shadows, orbiting point lights, post values and player options, and materials live. Stats show GPU time per pass and the view modes; `--frames N --capture <png>` for docs and tests; `mealkit-tool.txt` lists it in the editor's [Tools] menu (`opens .gltf .glb`).
+- `Renderer::updateMaterial` (meshes remember the materials they use so outline/alpha clip stay right) for the material panel.
+- Standalone Vulkan build: MkRender's `third_party/` has Vulkan-Headers, volk and VMA as the default `MKRHI_VULKAN_INCLUDE_DIRS` (the engine still passes its own); its build script takes `Vulkan` (into `build-vulkan/`), and its CI builds both backends. The min-spec test stopped assuming DX12.
+- The engine keeps v0.2.0 in `third_party/mkrender` (`update_mkrender.ps1` copies no `tool/` or `third_party/`; the viewer is off when MkRender is a subdirectory).
+
 ## MkRender step 2: `mkrender`, the renderer itself (2026-11-12)
 
 - Follows step 1 below (`docs/DECISIONS.md` 2026-11-12). What's left is the ROADMAP item "MkRender leftovers".
