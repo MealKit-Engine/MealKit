@@ -234,9 +234,7 @@ if(MEALKIT_DEBUG_UI)
     list(APPEND MEALKIT_FRONT_SOURCES ../modules/debug/include/mealkit/debug/ImGuiLayer.h ../modules/debug/src/mealkit/debug/ImGuiLayer.cpp
         ../modules/debug/include/mealkit/debug/DebugDraw.h ../modules/debug/include/mealkit/debug/DebugDrawRender.h ../modules/debug/src/mealkit/debug/DebugDraw.cpp
         core/core/include/mealkit/core/AllocCount.h core/core/src/mealkit/core/AllocCount.cpp
-        core/platform/include/mealkit/platform/ImGuiPlatform.h core/platform/src/mealkit/platform/win32/ImGuiPlatform.cpp
-        # Texture compression (render/TextureCache.cpp): dev builds only create it; shipping builds only read the compressed cache
-        ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp)
+        core/platform/include/mealkit/platform/ImGuiPlatform.h core/platform/src/mealkit/platform/win32/ImGuiPlatform.cpp)
 endif()
 
 # Frame allocation counter (core/AllocCount.h): replaces operator new only in the dev game exe (static), not in mealkit.dll
@@ -266,7 +264,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT WIN32)
 elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
     set(mealkit_def ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.def)
     set(mealkit_objs ${CMAKE_CURRENT_BINARY_DIR}/mealkit_exports.objs)
-    file(GENERATE OUTPUT ${mealkit_objs} CONTENT "$<JOIN:$<TARGET_OBJECTS:mealkit>;$<TARGET_OBJECTS:mealkit_imgui>;$<TARGET_OBJECTS:mkrhi>;$<TARGET_OBJECTS:mkrender>,\n>\n")
+    file(GENERATE OUTPUT ${mealkit_objs} CONTENT "$<JOIN:$<TARGET_OBJECTS:mealkit>;$<TARGET_OBJECTS:mealkit_imgui>;$<TARGET_OBJECTS:mkrhi>;$<TARGET_OBJECTS:mkrender>;$<TARGET_OBJECTS:mkbake>,\n>\n")
     add_custom_command(TARGET mealkit PRE_LINK
         COMMAND ${CMAKE_COMMAND} -E __create_def ${mealkit_def} ${mealkit_objs}
         COMMAND ${CMAKE_COMMAND} -DDEF_FILE=${mealkit_def} -P ${MEALKIT_ENGINE_DIR}/cmake/FixExportsDef.cmake
@@ -447,11 +445,14 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     set(MKRENDER_DXC ${MEALKIT_SHADER_DXC})
     set(MKRENDER_USER_CONFIG "mealkit/render/MkRenderConfig.h")
     set(MKRENDER_USER_CONFIG_INCLUDE_DIRS ${MEALKIT_MODULE_INCLUDES})
+    # mkbake (HDRI/probe/LUT baking, texture mips): BC compression only in dev builds, which create the texture cache; shipping builds only read it
+    set(MKBAKE_BC ${MEALKIT_DEBUG_UI})
+    set(MKBAKE_BC7ENC_DIR ${MEALKIT_THIRD_PARTY}/bc7enc)
     add_subdirectory(${mealkit_mkrender_dir} ${CMAKE_CURRENT_BINARY_DIR}/mkrender)
     if(NOT TARGET mkrender)
         message(FATAL_ERROR "MkRender didn't build mkrender (no DXC at ${MEALKIT_SHADER_DXC})")
     endif()
-    target_link_libraries(mealkit PRIVATE mkrhi mkrender)
+    target_link_libraries(mealkit PRIVATE mkrhi mkrender mkbake)
     # Shader hot reload (render/ShaderReload.cpp): dev builds only. Rebuilds this backend's format from MkRender's shaders/ with the
     # same DXC and options as its build (MKRENDER_SHADER_DIR, MKRENDER_HOT_FLAGS come from MkRender's CMakeLists.txt)
     if(MEALKIT_DEBUG_UI)
@@ -460,11 +461,9 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     endif()
     # Disable warnings for external code implementation files
     target_include_directories(mealkit SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb
-                               ${MEALKIT_THIRD_PARTY}/renderdoc # renderdoc_app.h: rhi/GpuCapture.cpp
-                               ${MEALKIT_THIRD_PARTY}/bc7enc)   # render/TextureCache.cpp
+                               ${MEALKIT_THIRD_PARTY}/renderdoc) # renderdoc_app.h: rhi/GpuCapture.cpp
     if(MSVC)
-        set_source_files_properties(../modules/ui/src/mealkit/ui/StbImpl.cpp
-            ${MEALKIT_THIRD_PARTY}/bc7enc/bc7enc.cpp ${MEALKIT_THIRD_PARTY}/bc7enc/rgbcx.cpp PROPERTIES COMPILE_OPTIONS "/W0")
+        set_source_files_properties(../modules/ui/src/mealkit/ui/StbImpl.cpp PROPERTIES COMPILE_OPTIONS "/W0")
     endif()
 endif()
 
