@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## R2 Installing without a build, part 5: matching a project to an engine by version (2026-11-12)
+
+- MealKit Manager: when a project's `engine` line points at a folder that isn't an engine on this PC (made or cloned elsewhere), `Catalog::engineFor` picks an engine in the list with the same MINOR as its `engineVersion`: that exact version, else the newest patch. Engine repo samples (no engine line) and lines that point at a real engine are unchanged.
+- [Open in Editor] / `--open` then rewrites the project's `engine` line to that folder (`setProjectEngine`, other lines and line endings kept), since the project's `build.bat` builds with it; the status line says so. The engine column shows "(installed here)".
+- No such engine installed: the release list is now fetched at start, the engine column shows "<version> not installed", and the action row's first button becomes [Install Engine <version>] for the index's patch of that MINOR.
+- Verified: Catalog tests (exact version over newer patch, newest patch, no match, release pick, engine line rewrite with CRLF); with the part 1 package installed in a test user folder, a copy of the Probe project whose engine line pointed at `D:\Other\PC\MealKit` showed 0.9.4 (installed here), `--open` repointed its line and started the installed editor, and a 0.8.1 project showed "0.8.9 not installed" from a local index (capture).
+- Seen on the way, not changed: the engine's project reader warns about a UTF-8 BOM on the first line of `mealkit.project` (Windows PowerShell 5.1 writes one); the Manager reads it fine.
+
 ## R2 Installing without a build, part 4: compiler and DXC check in the Manager (2026-11-12)
 
 - MealKit Manager: `install.ps1 check` looks up Visual Studio or Build Tools with the C++ x64 tools the same way `tools\build.ps1` does (vswhere, `vcvars64.bat`), and DXC where `cmake/Dxc.cmake` downloads it (`%LOCALAPPDATA%\MealKit\tools\dxc-*`). Runs once at start and on [Check Again].
