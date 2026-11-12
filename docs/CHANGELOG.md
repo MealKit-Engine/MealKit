@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Design refresh for the rest of the suite, part 2: MkRender (2026-11-12)
+
+- `tool/main.cpp`: `applyEditorStyle`, a copy of module-debug `applyStyle` with its docking settings (MkRender docks like the editor); Segoe UI + Malgun Gothic + the Segoe icon font merged at 16 px; `applyEditorCaption` for the dark `#131416` title bar through DWM (links `dwmapi`).
+- `App::iconButton` (flat, name in the tooltip, the name as the label without the icon font) with glyphs from TOOL_DESIGN section 2: Add object (Add), New heightmap / instance file (Add), Clear instances (Clear), Preview cutscene (Play), Remove field line (Remove), Grading capture (Camera), Rescan (Refresh). Dialog buttons, `Unparent`, `Bake probes` and `Add field` keep their words (no glyph that clearly fits, or a confirm).
+- Checked: build + tests through mk-build, a capture beside the editor's at the same DPI (same gutter, panels, tabs and fonts). Left: panel tabs and menu items without icons, a right-click item for each icon action.
+
 ## Design refresh for the rest of the suite, part 1: app icons (2026-11-12)
 
 - Why: only the editor's exe carried an icon. The Manager's Start menu, desktop and Installed apps entries point at `MealKitManager.exe,0` and showed the blank Windows app icon, and the tools looked the same on the taskbar.
