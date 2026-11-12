@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## MkRender step 9: link between MkRender and the editor (2026-11-12)
+
+- Phase 5 of "Scene editing moves to MkRender". MealKit-Contract `docs/CONTRACT.md` "Scene service" (9a97ff6): the editor's live server adds `scene/` with `GET scene/state` and `POST scene/play` (`file`, optional `from=1`, `x/y/z/yaw`, `spawn`), `scene/stop`, `scene/look` (`camera` or `cutscene`). Requests use the saved file; 409 while playing, without game code, or when the editor has unsaved edits of its own scene.
+- Editor (`modules/editor` v0.1.23, `EditorLink.cpp`): the service loads or reloads the scene MkRender names, plays it (play from here moves the spawn points to the floor under MkRender's camera, or uses the selected spawn point, solo only), stops, looks through a virtual camera or previews a cutscene with `camera/Brain` like its own buttons. [Scenes] and the asset menu get "Open in MkRender" (the tool whose manifest opens `.scene`); double-click still opens the scene in the editor until phase 6 removes its scene editing.
+- MkRender v0.9.0: finds the project's running editor (`build/live/editor-*.json`, polled each second), an Editor menu with Play (F5), Play from here (Shift+F5), Stop, look through the selected virtual camera and cutscene preview; play saves the scene first. `third_party/mkcontract` in MkRender, `--editor-play` for scripts.
+- Checked: the sandbox editor running with `arena.scene`, `MkRender --editor-play` started its match ("MkRender link: play arena.scene"); over HTTP: state, play while playing (409), stop, play from a camera ("from its camera" in the log), look through camera 29, a missing scene (409 with the reason), end of preview. Editor and Release builds, DX12 and Vulkan MkRender builds. The menu was not clicked by hand.
+
 ## MkRender step 8: terrain and scatter brushes in MkRender (2026-11-12)
 
 - Phase 4 of "Scene editing moves to MkRender". MkRender v0.8.0 adds the library `mkterrain` (`include/mkrender/Terrain.h`): 16-bit PNG heightmaps (the engine's encoder), surface height, ray hits, chunk meshes, raise/lower/flatten/smooth brushes, scatter text, painting and erasing, ported from `asset/Terrain.cpp` and `asset/Scatter.cpp` with the same layout, triangles and file formats.

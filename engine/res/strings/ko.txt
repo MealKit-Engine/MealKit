@@ -1025,3 +1025,4 @@ No screens in assets/ui yet (MkUI: Files > New screen) = assets/ui에 아직 화
 Open in MkUI = MkUI에서 열기
 Penpot designs: the MkUI Designer serves the MealKit Penpot plugin (Files > Penpot plugin). = Penpot 디자인: MkUI Designer가 MealKit Penpot 플러그인을 제공합니다 (Files > Penpot plugin).
 The game's open screens and their values: = 게임에 열린 화면과 값:
+Open in MkRender = MkRender에서 열기
