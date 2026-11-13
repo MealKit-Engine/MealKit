@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Design refresh for the rest of the suite, part 7: suite language, checkboxes and panel tab icons in every tool (2026-11-13)
+
+- Decision: `docs/DECISIONS.md` 2026-11-13 "One suite language"; rules in TOOL_DESIGN section 4 "Language", glyphs in section 2 (LocaleLanguage U+F2B7 and the MkAudio panels).
+- MkAudio, MkUI, MkRender: `tool/Strings.h/.cpp` (the Korean table, `tr`/`trf`/`trn`, `loadLanguage`/`saveLanguage`/`followLanguage` on `editor_settings.txt`) and `tests/StringsTest.cpp` (`<tool>_strings_test`: every `tr`/`trf`/`trn` text and panel title has a Korean line). Korean lines: MkAudio 175, MkUI 158, MkRender 211, in 해요체. Status sentences built from English pieces became single `trf` formats; modal titles keep fixed `###` ids; combo item lists became arrays of `tr()` text. Log lines stay English.
+- Language icon at the right end of each menu bar (MkQA: its top row) with the languages by their own names; `--lang ko|en` for one run. MkQA follows the setting live and its Korean lines moved to 해요체; the Manager follows a change made in a tool.
+- Checkboxes and radio buttons through `checkbox`/`radioButton` (copied from MkRender) in MkAudio, MkUI, MkQA and the Manager. Panel tab icons with `###` ids in MkAudio (Events, Event, Buses, Preview, Music, Mix, Live) and MkUI (Files, Library, Tree, Properties, Values, Source, Problems, Preview); a layout saved before is laid out again once.
+- mkcontract v0.5.0 vendored into MkAudio, MkUI, MkRender and MkQA (`setEditorSetting`).
+- Checked: builds and tests of the four tools (mk-build for MkRender and MkQA, cmake for MkAudio and MkUI) and the Manager build; Korean captures of MkRender, MkAudio, MkUI and MkQA with every tab glyph drawn. Not checked: switching the language from a tool while the Manager is open (the polling path), English captures after the change.
+
 ## Design refresh for the rest of the suite, part 6: MkRender checkboxes and panel tab icons (2026-11-13)
 
 - Rules first: TOOL_DESIGN 3.2 "Checkboxes and radio buttons" (unchecked boxes were gray 4 on gray 2, about 1.25:1), section 1 "Panel tabs", the section 2 "Panels" table and the gray 9 token.

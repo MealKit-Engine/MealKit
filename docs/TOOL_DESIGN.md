@@ -48,6 +48,7 @@ Windows: Segoe Fluent Icons, falling back to Segoe MDL2 Assets, merged into the 
 | Clear a log | Clear | U+E894 |
 | Accept | Accept | U+E73E |
 | Open a web page (repository) | Globe | U+E774 |
+| Language (section 4) | LocaleLanguage | U+F2B7 |
 | Capture (GPU frame, screenshot) | Camera | U+E722 |
 | Set as the start scene | FavoriteStarFill | U+E735 |
 | Copy, copy path | Copy | U+E8C8 |
@@ -66,7 +67,7 @@ Windows: Segoe Fluent Icons, falling back to Segoe MDL2 Assets, merged into the 
 | Panel | Glyph | Code point | Where |
 |---|---|---|---|
 | Scene or object tree (Hierarchy, Tree) | BulletedTree | U+E8FD | editor, MkRender, MkUI |
-| Inspector, properties | (editor `icon::kInspector`) | U+E9E9 | editor, MkRender, MkUI |
+| Inspector, properties | (editor `icon::kInspector`) | U+E9E9 | editor, MkRender, MkUI, MkAudio (Event) |
 | Assets, files | Folder | U+E8B7 | editor, MkRender, MkUI |
 | Scene view | (editor `icon::kCube`) | U+F158 | editor |
 | Preview | (editor `icon::kPreview`) | U+E7F4 | editor, MkUI, MkAudio |
@@ -78,6 +79,11 @@ Windows: Segoe Fluent Icons, falling back to Segoe MDL2 Assets, merged into the 
 | Problems | Warning | U+E7BA | MkUI |
 | Log, output | (editor `icon::kLog`) | U+EA37 | editor |
 | Settings | Setting | U+E713 | editor |
+| Sound events (list) | Audio | U+E8D6 | MkAudio |
+| Buses | MapLayers | U+E81E | MkAudio |
+| Music | MusicNote | U+EC4F | MkAudio |
+| Mix | Volume | U+E767 | MkAudio |
+| Live connection | Connect | U+E703 | MkAudio |
 
 Kind icons (module keywords, scene object kinds) are listed with their code: `mkcontract::moduleIconKeyword` and module-editor `ImGuiLayer.h` `icon::`.
 
@@ -141,7 +147,8 @@ The values live in one place per app: the editor's module-debug `src/mealkit/deb
 ## 4. Behaviour
 
 - **Text** (Toss's writing): short, plain words, no internal terms (`junction`, `manifest`) on screen. Korean sentences use 해요체 (`폴더를 찾을 수 없어요`), buttons and menu items a verb noun (`열기`, `업데이트`). Say the result (`모듈 2개 업데이트`) and, for errors, what to do next.
-- **Every visible string goes through `tr()`** and has its Korean line; sentences with numbers are one `tr` string with the number in it, never English pieces joined together.
+- **Every visible string goes through `tr()`** and has its Korean line; sentences with numbers are one `tr` string with the number in it, never English pieces joined together. Text in a static table is marked `trn("...")` and shown through `tr()`. Each tool's `<tool>_strings_test` fails on `tr()`/`trf()`/`trn()` text and panel titles without a Korean line. Log lines stay English.
+- **Language** (DECISIONS 2026-11-13 "One suite language"): one setting for the suite, the `language` line of `editor_settings.txt` in the user folder. The Manager's Settings and a LocaleLanguage icon at the right end of each tool's menu bar (MkQA: its top row) both write it; the icon's list shows each language in its own name (`한국어`, `English`) with a check on the current one, and its tooltip adds `(Language)` while another language is on. Open apps re-read the file once a second when it changed. `--lang ko|en` sets one run only (captures).
 
 - **Pages** (occasional screens): few of them, switched by a segmented control in the header (the Manager's `Projects | Tools`), Ctrl+1..9 switch pages, Ctrl+N makes the main new thing, F5 refreshes; the switch tooltips show the shortcut. Things changed now and then (engines, language, default folders) go in a Settings modal behind a gear button (Ctrl+,), not in more pages. Work inside one project (its modules) belongs to the editor, not to the launcher.
 - **Status strip** (occasional screens): no permanent status bar. A strip shows only while a job the user started runs, for a few seconds after it succeeds, and until closed after it fails; background checks stay silent unless their result needs attention. The app version goes in the app name's tooltip and Settings.
@@ -180,10 +187,10 @@ When `applyStyle` changes, the same change goes to every copy listed in section 
 | App | Theme | Spectrum 2 tokens (3.1) | Icon font, icon buttons | Panel tab icons | Checkboxes (3.2) | Korean text | Title bar | App icon |
 |---|---|---|---|---|---|---|---|---|
 | MealKit Editor | `applyStyle` (source) | yes: colors, shape, tables, play button (pill buttons elsewhere not yet) | yes | yes (`iconTitle`) | no (10 direct calls) | yes | DWM | yes (`make_editor_icon.py`) |
-| MealKit Manager | `src/Theme.h` + `src/main.cpp` (ahead of `applyStyle`, 3.2) | yes: colors, shape, ramp, row actions | yes, icon + label | no panels | no (1 direct call) | yes | DWM | yes |
-| MkAudio | copy in `tool/main.cpp` | yes | yes (panel buttons) | no | no | few lines | DWM | yes |
-| MkUI Designer | copy in `tool/main.cpp` | yes | yes (panel buttons) | no | no | few lines | DWM | yes |
-| MkRender | copy in `tool/main.cpp` | yes | yes (panel buttons) | yes (`App::panelTitle`) | yes (`checkbox`, `radioButton` in `tool/App.cpp`) | few lines | DWM | yes |
-| MkQA | copy in `tool/main.cpp` (one window: no gutter and panels yet, checklist 3) | yes | yes | no panels | no | partly | DWM | yes |
+| MealKit Manager | `src/Theme.h` + `src/main.cpp` (ahead of `applyStyle`, 3.2) | yes: colors, shape, ramp, row actions | yes, icon + label | no panels | yes (`checkbox` in `src/App.cpp`; follows a language change from a tool) | yes | DWM | yes |
+| MkAudio | copy in `tool/main.cpp` | yes | yes (panel buttons) | yes | yes | yes (language icon) | DWM | yes |
+| MkUI Designer | copy in `tool/main.cpp` | yes | yes (panel buttons) | yes | yes | yes (language icon) | DWM | yes |
+| MkRender | copy in `tool/main.cpp` | yes | yes (panel buttons) | yes (`App::panelTitle`) | yes (`checkbox`, `radioButton` in `tool/App.cpp`) | yes (language icon) | DWM | yes |
+| MkQA | copy in `tool/main.cpp` (one window: no gutter and panels yet, checklist 3) | yes | yes | no panels | yes | yes (language icon) | DWM | yes |
 
 The work left is ROADMAP "Design refresh for the rest of the suite". Update this table when a tool moves.
