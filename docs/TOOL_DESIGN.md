@@ -12,6 +12,7 @@ Two kinds of screens:
 - **Occasional screens** (the Manager, QA, a tool's first screen and empty states, dialogs): people open them now and then. Actions are **icon + label** buttons, and each screen has **one main action** drawn as the accent-filled primary button (`New Project`, `Create`). Row actions that are rare (copy path, remove from list) stay in a `More` button and the right-click menu.
 
 - **Icon buttons are square and flat**: clear until hovered, filled with the selection color while a toggle is on (editor `iconButton`, `iconValueButton` for an icon with a count; Manager `App::iconButton`).
+- **Panel tabs show a glyph and the name** (`[tree]  Hierarchy`): on a work screen with five or more panels the glyph finds the tab before the word does, and the same glyph stands for the panel in the Window menu. The glyph comes from the "Panels" table in section 2; the title keeps a fixed id after `###` (`"\xEE\xA3\xBD  " + tr("Hierarchy") + "###Hierarchy"`) so the saved dock layout survives a language or glyph change. Editor helper `iconTitle`.
 - **Icon-only buttons** for toolbars, row actions, panel headers and the status bar. Each has a tooltip with its name, plus its shortcut when it has one (`Open in Editor  Enter`), and the tooltip still shows while the button is disabled. A tooltip may add one more line that says why it is disabled or what it keeps (`Files you changed are kept as .new`).
 - **Words stay** where an icon would make people guess:
   - the confirm and cancel buttons of dialogs (`Create`, `Remove`, `Cancel`),
@@ -60,6 +61,24 @@ Windows: Segoe Fluent Icons, falling back to Segoe MDL2 Assets, merged into the 
 | Information / warning / error | Info / Warning / Error | U+E946 / U+E7BA / U+EA39 |
 | Visible / hidden, lock / unlock | View / Hide, Lock / Unlock | U+E890 / U+ED1A, U+E72E / U+E785 |
 
+**Panels** (tab titles, section 1). A panel of the same job uses the same glyph in every app; a tool with a new kind of panel adds it here first.
+
+| Panel | Glyph | Code point | Where |
+|---|---|---|---|
+| Scene or object tree (Hierarchy, Tree) | BulletedTree | U+E8FD | editor, MkRender, MkUI |
+| Inspector, properties | (editor `icon::kInspector`) | U+E9E9 | editor, MkRender, MkUI |
+| Assets, files | Folder | U+E8B7 | editor, MkRender, MkUI |
+| Scene view | (editor `icon::kCube`) | U+F158 | editor |
+| Preview | (editor `icon::kPreview`) | U+E7F4 | editor, MkUI, MkAudio |
+| Data, values, tables | (editor `icon::kData`) | U+E8EF | editor, MkUI |
+| Environment (sky, light, post) | Brightness | U+E706 | MkRender |
+| Stats, performance | (editor `icon::kPerformance`) | U+E9D9 | editor, MkRender |
+| Library, prefabs | Library | U+E8F1 | MkUI |
+| Source text | Code | U+E943 | MkUI |
+| Problems | Warning | U+E7BA | MkUI |
+| Log, output | (editor `icon::kLog`) | U+EA37 | editor |
+| Settings | Setting | U+E713 | editor |
+
 Kind icons (module keywords, scene object kinds) are listed with their code: `mkcontract::moduleIconKeyword` and module-editor `ImGuiLayer.h` `icon::`.
 
 ## 3. Look
@@ -80,6 +99,7 @@ Every size and color comes from these tables. Pick by the step's job, never a co
 | gray 6 | `#393939` | hovered button, borders | `ButtonHovered`, `Border`, table borders |
 | gray 7 | `#444444` | pressed button, scrollbar grab hovered | `ButtonActive`, `ScrollbarGrabHovered` |
 | gray 8 | `#6D6D6D` | disabled text | `TextDisabled` in tools without secondary text |
+| gray 9 | `#8A8A8A` | outline of an unchecked checkbox or radio button, slider grab (about 5:1 on gray 2) | checkbox helper, `SliderGrab` |
 | gray 11 | `#AFAFAF` | secondary text: dates, hints | `TextDisabled` |
 | gray 12 | `#EBEBEB` | text | `Text` |
 | accent | `#3B63FB` (hover `#4B75FF`, down `#274DEA`) | the one primary button, check marks, the selection bar | primary button, `CheckMark`, `SliderGrabActive` |
@@ -111,6 +131,7 @@ The values live in one place per app: the editor's module-debug `src/mealkit/deb
 - **The accent is only for selection, focus, active states and the one primary button of an occasional screen** (section 1). No other colored button fills. Other buttons are neutral pills (gray 4).
 - **State colors**: notice orange for "needs an action" (upgrade, not installed), negative red for errors and missing things (values in 3.1). Use them for text and icons (the output icon of a failed job is red), never as button fills.
 - **Secondary text is gray 11** (`TextDisabled`): paths, dates, authors, hints. Readable, just quieter.
+- **Checkboxes and radio buttons** are the one exception to "no outlines": a gray 4 box on a gray 2 panel is about 1.25:1 and reads as an empty gap, so an unchecked box gets a 1 px (at scale) gray 9 outline, and a checked box is filled with the accent and carries a gray 12 mark (an accent mark on gray 4 is under 3:1). Hover raises the outline to gray 11; disabled dims it like every other control (`DisabledAlpha`). Every control's edge or fill is at least 3:1 against its layer (WCAG 2.1 1.4.11). ImGui has no checkbox colors of its own, so each app draws them through one helper (`checkbox`, `radioButton`) that pushes `FrameBorderSize`, `Border`, `FrameBg` and `CheckMark`; no direct `ImGui::Checkbox` calls.
 - **Hover is one neutral step up**, never the accent. A selected row is gray 5 with a 3 px accent bar on its left.
 - **Show what identifies a row, nothing more** (GNOME HIG): icon, name, one summary line. Paths, folders and sizes go to tooltips, the details of the selection, or `More`. Status shows only when something needs attention (an update, a missing folder, a failed build); a healthy state shows nothing, and no column repeats the same value on every row.
 - **Actions sit on the row they act on**: a launcher list opens its row by double-click or Enter, with no Open button on the row; a row's favorite star is always shown, first on the row; an action that fixes a state (`Install Engine 0.9`, `Upgrade`) replaces the state text. No action bar below a list that acts on "the selection".
@@ -147,7 +168,7 @@ A tool is on the suite look only when every line holds; until then it is on the 
 1. `applyStyle` copied as `applyEditorStyle`, with a comment naming module-debug `ImGuiLayer.cpp` as its source. Differences are allowed only where the tool's layout needs them, each with a comment (Manager: no window border, `WindowBg` is the gutter and content sits on panel-colored children).
 2. Colors, sizes and spacing from the tokens of section 3.1. Fonts: the ramp of section 3.1 (regular and semibold) + the icon font merged (section 2), all at the DPI scale.
 3. Layout: content on panels over the gutter, tab strip and status bar on the gutter; no full-width ImGui window title bars inside the OS window.
-4. Buttons: icon buttons from (glyph, name) on work screens, icon + label and one primary button on occasional screens (section 1), glyphs from the table in section 2.
+4. Buttons: icon buttons from (glyph, name) on work screens, icon + label and one primary button on occasional screens (section 1), glyphs from the table in section 2. Panel tabs with their glyph from the "Panels" table; checkboxes and radio buttons through the helper of section 3.2.
 5. Text: every string through `tr()` with its Korean line, written per section 4.
 6. Title bar and app icon per section 5.
 7. A screenshot of the tool beside the editor at the same DPI shows the same colors and spacing.
@@ -156,13 +177,13 @@ When `applyStyle` changes, the same change goes to every copy listed in section 
 
 ## 7. Where each app stands (2026-11-13)
 
-| App | Theme | Spectrum 2 tokens (3.1) | Icon font, icon buttons | Korean text | Title bar | App icon |
-|---|---|---|---|---|---|---|
-| MealKit Editor | `applyStyle` (source) | yes: colors, shape, tables, play button (pill buttons elsewhere not yet) | yes | yes | DWM | yes (`make_editor_icon.py`) |
-| MealKit Manager | `src/Theme.h` + `src/main.cpp` (ahead of `applyStyle`, 3.2) | yes: colors, shape, ramp, row actions | yes, icon + label | yes | DWM | yes |
-| MkAudio | copy in `tool/main.cpp` | yes | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
-| MkUI Designer | copy in `tool/main.cpp` | yes | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
-| MkRender | copy in `tool/main.cpp` | yes | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
-| MkQA | copy in `tool/main.cpp` (one window: no gutter and panels yet, checklist 3) | yes | yes | partly | DWM | yes |
+| App | Theme | Spectrum 2 tokens (3.1) | Icon font, icon buttons | Panel tab icons | Checkboxes (3.2) | Korean text | Title bar | App icon |
+|---|---|---|---|---|---|---|---|---|
+| MealKit Editor | `applyStyle` (source) | yes: colors, shape, tables, play button (pill buttons elsewhere not yet) | yes | yes (`iconTitle`) | no (10 direct calls) | yes | DWM | yes (`make_editor_icon.py`) |
+| MealKit Manager | `src/Theme.h` + `src/main.cpp` (ahead of `applyStyle`, 3.2) | yes: colors, shape, ramp, row actions | yes, icon + label | no panels | no (1 direct call) | yes | DWM | yes |
+| MkAudio | copy in `tool/main.cpp` | yes | yes (panel buttons) | no | no | few lines | DWM | yes |
+| MkUI Designer | copy in `tool/main.cpp` | yes | yes (panel buttons) | no | no | few lines | DWM | yes |
+| MkRender | copy in `tool/main.cpp` | yes | yes (panel buttons) | yes (`App::panelTitle`) | yes (`checkbox`, `radioButton` in `tool/App.cpp`) | few lines | DWM | yes |
+| MkQA | copy in `tool/main.cpp` (one window: no gutter and panels yet, checklist 3) | yes | yes | no panels | no | partly | DWM | yes |
 
 The work left is ROADMAP "Design refresh for the rest of the suite". Update this table when a tool moves.

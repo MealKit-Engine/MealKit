@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Design refresh for the rest of the suite, part 6: MkRender checkboxes and panel tab icons (2026-11-13)
+
+- Rules first: TOOL_DESIGN 3.2 "Checkboxes and radio buttons" (unchecked boxes were gray 4 on gray 2, about 1.25:1), section 1 "Panel tabs", the section 2 "Panels" table and the gray 9 token.
+- MkRender `tool/App.cpp`: `checkbox` and `radioButton` push the accent fill and gray 12 mark while on, a clear fill with a 1 px (at scale) gray 9 outline (gray 11 hovered) while off, 4 px rounding; all 7 checkboxes and 6 radio buttons go through them. `App::panelTitle` gives `glyph  Name###Name` to Hierarchy (U+E8FD), Inspector (U+E9E9), Environment (U+E706), Stats (U+E9D9) and Assets (U+E8B7); the dock layout, the first-layout check and `--window <Name>` use the `###` ids, so a layout saved before this is laid out again once.
+- Checked: mk-build + `mkrender_tests`, a capture of the sandbox arena (Inspector checker off, Stats VSync on, every tab with its glyph). Not seen in a capture: the terrain and scatter brush radio buttons. Left: the same helper in the editor, MkAudio, MkUI, MkQA and the Manager.
+
 ## Design refresh for the rest of the suite, part 5: MealKit QA (2026-11-13)
 
 - `tool/main.cpp`: `applyEditorStyle` and `applyEditorCaption` (links `dwmapi`); the font loader keeps its macOS/Linux paths and adds the Segoe icon font on Windows.
