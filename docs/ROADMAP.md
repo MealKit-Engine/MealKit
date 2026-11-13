@@ -72,7 +72,7 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 - **Left**:
   - Flipbook animation: clips on sprite sheets (frames, frames per second, loop) named in a table so the view picks a clip from game state. Driven by view time, never by `sim/`.
   - Optional pixel snapping with an orthographic camera (`pixelsPerUnit` from the project).
-  - A render golden test (`--render-golden`) for ordering, blending and point sampling on both backends.
+  - A render golden test (`--render-golden`) of a 2D scene loaded by the engine on both backends (the sprite pass itself, its ordering, blending and point sampling, is checked by MkRender's `mkrender_golden` sprites shot).
   - Template sample art: the 2D template draws its characters and platforms as sprites (images in `templates/empty2d/assets/sprites`, CC0 or made by us) instead of boxes, and its preview image is retaken.
 - **Rules kept**: view only, nothing enters the simulation (collision stays solid objects, or a solid flag that makes a box of the sprite's size and then enters the content hash). Budget: a few hundred sprites in one or two draws. Lit sprites only as a later opt-in.
 - **Later, separate items**: tilemaps (painted grid of sheet cells with merged collision), 2D lights, a parallax layers helper.
@@ -222,7 +222,7 @@ MealKit is a suite with the engine + general-purpose editor at the center, where
 | Data management | Designers | editor [Data] window | For the same reason, boundaries are decided when splitting |
 | Code work | Programmers | VS Code, Visual Studio | An own IDE is deferred. External IDE integration first |
 
-- [ ] **MkRender leftovers** (`docs/DECISIONS.md` 2026-11-12; `mkrhi` and `mkrender` are done): render goldens without the engine in MkRender's tests (a hidden window, a fixed scene from plain meshes, compared like `engine/tests/golden`; the MkRender viewer's `--frames/--capture` is a start). Sky HDRIs, LUTs, probes and BC textures are in MkRender since "MkRender step 7" (`mkbake`). Publishing it as a product is decided after.
+- [ ] **MkRender leftovers** (`docs/DECISIONS.md` 2026-11-12; `mkrhi`, `mkrender` and its render goldens without the engine are done, CHANGELOG "MkRender leftovers: render goldens without the engine"): whether to publish it as a product of its own.
 - [ ] **MkQA next candidates**: running `tests/*.scenario` with results, turning a report's recording into a scenario, `mp_test` runs.
 - [ ] **UI 3 leftovers**: the old preview-tool proposal is covered by MkUI Designer; check whether it still lacks a gamepad focus walk and `--ui-check` box differences, and add them to MkUI if so.
 - [ ] **UI features after v1.0** (one at a time as games need them, each checked against the 11th gen Xe budget): keyframe timeline animation (deferred table), virtualized long lists, right-to-left and complex-script shaping, per-player focus for local multiplayer, UI cost numbers (quads, layout ms) in the benchmark budget.
