@@ -1519,15 +1519,16 @@ TEST_CASE(asset, material_extras) {
 // Sky HDRI baking: RGB9E5 round trip, cube face directions, a uniform sky of brightness 1 gives 1 for ambient/reflection/sky
 // Color grading LUT (.cube): tables of other sizes are trilinearly resampled to 32 cells, DOMAIN is honored, 1D/short tables are rejected
 TEST_CASE(asset, terrain_heightmap) {
-    // PNG round trip (16-bit, rows flipped so the image top is +z)
+    // The sample's 16-bit PNG loads square (writing heightmaps is MkRender's), and bytes that aren't a PNG fail with a reason
+    asset::Heightmap hills;
+    std::string error;
+    TEST_CHECK(asset::loadHeightmap(std::string(MEALKIT_ENGINE_DIR) + "/samples/sandbox/assets/terrain/hills.png", hills, error) && hills.valid());
+    const u8 junk[8] = {1, 2, 3, 4, 5, 6, 7, 8};
+    asset::Heightmap bad;
+    TEST_CHECK(!asset::decodeHeightmap(junk, sizeof(junk), bad, error) && !error.empty());
     asset::Heightmap map = asset::flatHeightmap(33, 1000);
     for (u32 z = 0; z < 33; ++z)
         for (u32 x = 0; x < 33; ++x) map.samples[z * 33 + x] = static_cast<u16>(x * 1900 + z * 7);
-    const std::vector<u8> png = asset::encodeHeightmap(map);
-    asset::Heightmap back;
-    std::string error;
-    TEST_CHECK(asset::decodeHeightmap(png.data(), png.size(), back, error));
-    TEST_CHECK(back.size == 33 && back.samples == map.samples && back.hash() == map.hash());
 
     // Surface height matches the samples, and the physics height field agrees with it
     const Vec3 center{10.0f, 5.0f, -4.0f}, size{64.0f, 20.0f, 64.0f};
@@ -1551,40 +1552,22 @@ TEST_CASE(asset, terrain_heightmap) {
     TEST_CHECK(std::fabs((100.0f - t) - y) < 0.01f);
     w.shutdown();
 
-    // Chunks: 32 cells -> one chunk, LODs halve the grid; brushes only touch samples inside the radius
+    // Chunks: 32 cells -> one chunk, LODs halve the grid
     TEST_CHECK(asset::terrainChunks(map) == 1);
     render::MeshData lod0, lod1;
     asset::buildTerrainChunk(map, size, 0, 0, 0, lod0);
     asset::buildTerrainChunk(map, size, 0, 0, 1, lod1);
     TEST_CHECK(lod0.vertices.size() == 33 * 33 + 4 * 33 && lod1.vertices.size() == 17 * 17 + 4 * 17);
-    asset::Heightmap flat = asset::flatHeightmap(65, 20000);
-    const asset::SampleRect rect = asset::applyBrush(flat, {}, {64.0f, 10.0f, 64.0f}, asset::TerrainBrush::Raise, {0, 0, 0}, 4.0f, 0.1f, 0);
-    TEST_CHECK(!rect.empty && flat.at(32, 32) > 20000 && flat.at(0, 0) == 20000 && flat.at(40, 32) == 20000);
 }
 
 TEST_CASE(asset, scatter_layer) {
-    // Painting keeps spacing, stays inside the circle and only where there is floor; erase and grouping; file round trip
+    // Grouping into 32 m cells and the file round trip (painting is MkRender's)
     asset::Scatter s;
-    asset::ScatterPaint p;
-    p.center = {10.0f, 0.0f, 10.0f};
-    p.radius = 8.0f;
-    p.density = 1.0f;
-    u64 seed = 3;
-    auto random01 = [&] {
-        seed = seed * 6364136223846793005ull + 1442695040888963407ull;
-        return static_cast<f32>(seed >> 40) / 16777216.0f;
-    };
-    auto floorAt = [](f32 x, f32, f32* y) { // floor only on the x > 10 half, at height 2
-        *y = 2.0f;
-        return x > 10.0f;
-    };
-    const u32 added = asset::paintScatter(s, p, 500, floorAt, random01);
-    TEST_CHECK(added > 20 && added == s.items.size());
-    for (size_t i = 0; i < s.items.size(); ++i) {
-        const asset::ScatterInstance& a = s.items[i];
-        TEST_CHECK(a.position.x > 10.0f && a.position.y == 2.0f && length(a.position - Vec3{10.0f, 2.0f, 10.0f}) <= 8.0f);
-        TEST_CHECK(a.scale >= 0.8f && a.scale <= 1.2f);
-        for (size_t j = i + 1; j < s.items.size(); ++j) TEST_CHECK(length(a.position - s.items[j].position) >= 0.75f - 1e-4f);
+    for (u32 i = 0; i < 40; ++i) {
+        asset::ScatterInstance a;
+        a.position = {11.0f + static_cast<f32>(i % 8), 2.0f, 6.0f + static_cast<f32>(i / 8)};
+        a.scale = 0.8f + 0.01f * static_cast<f32>(i);
+        s.items.push_back(a);
     }
     asset::groupScatter(s);
     u32 grouped = 0;
@@ -1597,8 +1580,6 @@ TEST_CASE(asset, scatter_layer) {
     TEST_CHECK(asset::loadScatter(file, back, error) && back.items.size() == s.items.size());
     TEST_CHECK(std::fabs(back.items[0].position.x - s.items[0].position.x) < 1e-3f);
     removeFile(file);
-    const u32 removed = asset::eraseScatter(s, {14.0f, 0.0f, 10.0f}, 3.0f);
-    TEST_CHECK(removed > 0 && s.items.size() == added - removed && !s.grouped);
 }
 
 TEST_CASE(asset, cube_lut) {

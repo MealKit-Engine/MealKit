@@ -2,7 +2,7 @@
 
 **Only work that is left.** A finished item is removed from this document and its details go to `docs/CHANGELOG.md`; a name quoted elsewhere as ROADMAP "…" for a finished item is found there by the same name. Reasons for decisions and the "Deferred" table are in `docs/DECISIONS.md`. When the order changes, update this document.
 
-## Where it stands (v0.9.4, 2026-11-12)
+## Where it stands (v0.9.5, 2026-11-13)
 
 Stages 0~4 are done (v0.4~v0.8), the contract freeze review and the cookbook are done (v0.9.0, `docs/CONTRACTS.md`), the engine is a kernel plus 20 engine module repos (`docs/ENGINE_MODULES.md`), the game UI runtime and its Designer live in MkUI (UI 2a), and the repos are public (first green public CI on Linux x64 and macOS ARM64 2026-11-03). Until v1.0 only fixes go in, plus the decided exceptions that only add to frozen formats (designer independence, the game UI editor; `docs/DECISIONS.md` 2026-11-03 and 2026-11-04).
 
@@ -52,7 +52,7 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 
 | Version | Meaning |
 |---|---|
-| v0.9 (now 0.9.4) | v1.0 candidate: contracts reviewed, cookbook written; only fixes and the decided exceptions until v1.0 |
+| v0.9 (now 0.9.5) | v1.0 candidate: contracts reviewed, cookbook written; only fixes and the decided exceptions until v1.0 |
 | **v1.0** | **Windows** (editor and shipping, DX12 and Vulkan) is fully supported and **Linux x64 / macOS ARM64 run the headless simulation** (per-tick hashes match Windows in CI on every commit). All reference samples pass Export and the determinism checks on Windows, and **contracts are frozen** (`docs/CONTRACTS.md`) |
 | v1.x | Stage 5 tier 1 without breaking the frozen contracts: Linux/Steam Deck and macOS shipping and editors, cross-platform determinism between real devices, crossplay (EOS). Tier 2 (mobile, web, consoles) after |
 | v2.0 | Only if a frozen contract truly must break; the upgrade tool migrates |
@@ -68,9 +68,8 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 ## In progress
 
 ### [ ] 2D on the 3D engine: sprite rendering + editor sprite object (decided 2026-11-10, `docs/DECISIONS.md` "2D games run on the 3D engine")
-- **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template.
+- **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template, and sprite editing in MkRender (image picker, sheet slicer, pivot presets, the `view2d` front view; `docs/CHANGELOG.md` "Scene editing in MkRender, leftovers").
 - **Left**:
-  - Sprite editing is MkRender's (`docs/DECISIONS.md` 2026-11-13 "Sprite editing lives in MkRender"; MkRender `docs/ROADMAP.md` "Sprite editing"). MkRender already draws sprites, picks them by their quad, places a PNG dropped from Assets as a sprite and shows PNG pictures in Assets. The MealKit editor only draws sprites in its play view and scene preview.
   - Flipbook animation: clips on sprite sheets (frames, frames per second, loop) named in a table so the view picks a clip from game state. Driven by view time, never by `sim/`.
   - Optional pixel snapping with an orthographic camera (`pixelsPerUnit` from the project).
   - A render golden test (`--render-golden`) for ordering, blending and point sampling on both backends.
@@ -82,10 +81,6 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 ### [ ] UI 2 = MkUI repo (decided 2026-11-11, `docs/ENGINE_MODULES.md` "Middleware")
 - **Done**: repo move, draw backend and `ValueModel` (MkUI pinned in `third_party/mkui`), and UI 2a (MkUI Designer as its own app; the editor's [UI] workspace and Penpot import server moved there). Details in `docs/CHANGELOG.md` "UI 2" and "UI 2a".
 - **Left**: the XAML-like layer, one piece at a time: data binding (one-way/two-way, converters), styles and control templates, triggers and state animations, resource dictionaries. Own format, no `.xaml` compatibility promise.
-
-### [ ] Scene editing in MkRender, leftovers (the move is done: `docs/CHANGELOG.md` "MkRender step 4" to "MkRender step 10")
-- **Engine**: the editing half of `asset/Terrain` and `asset/Scatter` (`applyBrush`, `paintScatter`/`eraseScatter`, heightmap PNG writing, `ModelCache::saveTerrains`/`terrainChanged`) is no longer used by the editor and goes when nothing else calls it (MkRender has it in `mkterrain`); editor members left from scene editing (`FieldEditor` gizmo handles, scene autosave recovery, `m_dirty`) are removed with it.
-- **MkRender**: sprite editing (2D item above), field handles in the viewport (`gizmo=radius` fields), the editor's object icons and problem markers in the hierarchy, Look Dev (the editor keeps one on the model picked in [Assets]).
 
 ---
 

@@ -129,14 +129,6 @@ Created a default scene: %s = 기본 씬을 만들었습니다: %s
 Could not open: %s = 열기 실패: %s
 Reloaded model: %s = 모델 다시 읽음: %s
 Reloaded scene: %s = 씬 다시 읽음: %s
-The scene file changed on disk; you have unsaved changes = 씬 파일이 밖에서 바뀌었습니다. 저장하지 않은 변경이 있어 다시 읽지 않았습니다
-Recover Autosave = 자동 저장 복구
-There are unsaved changes (the autosave is newer than the scene file). = 저장하지 않은 변경이 남아 있습니다 (자동 저장본이 씬 파일보다 새롭습니다).
-Load the autosave? The scene file does not change until you save. = 자동 저장본을 불러올까요? 씬 파일은 저장할 때까지 바뀌지 않습니다.
-Recover = 복구
-Discard = 버리기
-Autosave recovered - save to write it to the scene file = 자동 저장본을 복구했습니다 - 저장하면 씬 파일에 반영됩니다
-Could not read the autosave: %s = 자동 저장본을 읽지 못했습니다: %s
 
 # ---- 튜닝·프로젝트 설정·상태
 Could not read the tuning file: %s = 튜닝 파일을 읽지 못했습니다: %s
