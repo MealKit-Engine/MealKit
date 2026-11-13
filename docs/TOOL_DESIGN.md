@@ -1,8 +1,8 @@
 # Tool design rules
 
 How the MealKit editor and the suite tools (MealKit Manager, MkAudio, MkUI, MkRender, MealKit-QA) look and behave, so they read as one product.
-Decisions: `docs/DECISIONS.md` 2026-11-12 "One look for the editor and the tools, icons over words" and 2026-11-13 "Suite look follows public design systems".
-Sources: Fluent 2 (sizes, type ramp, 4 px grid), Radix Colors (12-step scales), GNOME HIG (progressive disclosure), Blender HIG and the IntelliJ Platform UI Guidelines (editor tools), Toss's writing (Korean text), Mozilla Fluent (localization). Research note: workspace `UX_DESIGN_REFERENCES_2026-11-13.md`.
+Decisions: `docs/DECISIONS.md` 2026-11-12 "One look for the editor and the tools, icons over words", 2026-11-13 "Suite look follows public design systems" and 2026-11-13 "Adobe Spectrum 2 replaces Fluent 2 and Radix as the token source".
+Sources: Adobe Spectrum 2 (colors, shape, type, spacing: the suite is creative tooling like Spectrum's own apps), GNOME HIG (progressive disclosure), Blender HIG and the IntelliJ Platform UI Guidelines (editor tools), Toss's writing (Korean text), Mozilla Fluent (localization). Research note: workspace `UX_DESIGN_REFERENCES_2026-11-13.md`.
 
 ## 1. Icons and words
 
@@ -68,26 +68,28 @@ Kind icons (module keywords, scene object kinds) are listed with their code: `mk
 
 Every size and color comes from these tables. Pick by the step's job, never a color by eye.
 
-**Neutral scale** (Radix `slateDark`), **accent** (Radix `blueDark`):
+**Neutral scale** (Spectrum 2 dark `gray-25`..`gray-900`), **accent** (Spectrum 2 `blue`). Steps keep the numbering 1..12 so code picks a step by its job:
 
 | Step | Value | Job | ImGui |
 |---|---|---|---|
-| gray 1 | `#111113` | gutter: behind panels, tab strip, status bar, title bar (DWM) | `WindowBg` of the outer window, `MenuBarBg`, `TitleBg*` |
-| gray 2 | `#18191B` | panels, cards | `ChildBg` / panel `WindowBg`, `TabSelected` |
-| gray 3 | `#212225` | control at rest, popups | `FrameBg`, `Button`, `PopupBg` |
-| gray 4 | `#272A2D` | **hover** (also of clear buttons and rows) | `*Hovered`, `HeaderHovered`, `TabHovered` |
-| gray 5 | `#2E3135` | pressed, selected row | `*Active`, `Header` |
-| gray 6 | `#363A3F` | lines, borders | `Separator`, `Border`, table borders |
-| gray 7 | `#43484E` | border of a hovered field, scrollbar grab | `ScrollbarGrab*` |
-| gray 9 | `#696E77` | disabled text | `TextDisabled` in tools without secondary text |
-| gray 11 | `#B0B4BA` | secondary text: paths, dates, hints | `TextDisabled` |
-| gray 12 | `#EDEEF0` | text | `Text` |
-| blue 8 | `#2870BD` | focus ring, selection bar | `NavCursor`, the 3 px bar left of a selected row |
-| blue 9 / 10 | `#0090FF` / `#3B9EFF` | primary button / its hover; check marks | primary button, `CheckMark`, `SliderGrabActive` |
+| gray 1 | `#111111` | background base: behind panels, tab strip, status bar, title bar (DWM) | `WindowBg` of the outer window, `MenuBarBg`, `TitleBg*` |
+| gray 2 | `#1B1B1B` | layer 1: panels, cards | `ChildBg` / panel `WindowBg`, `TabSelected` |
+| gray 3 | `#222222` | layer 2: popups | `PopupBg` |
+| gray 4 | `#2C2C2C` | controls at rest (fields and buttons share it, so a combo and its arrow read as one), hover of clear rows | `FrameBg`, `Button`, `HeaderHovered`, `TabHovered` |
+| gray 5 | `#323232` | selected row, hovered field | `Header`, `FrameBgHovered` |
+| gray 6 | `#393939` | hovered button, borders | `ButtonHovered`, `Border`, table borders |
+| gray 7 | `#444444` | pressed button, scrollbar grab hovered | `ButtonActive`, `ScrollbarGrabHovered` |
+| gray 8 | `#6D6D6D` | disabled text | `TextDisabled` in tools without secondary text |
+| gray 11 | `#AFAFAF` | secondary text: dates, hints | `TextDisabled` |
+| gray 12 | `#EBEBEB` | text | `Text` |
+| accent | `#3B63FB` (hover `#4B75FF`, down `#274DEA`) | the one primary button, check marks, the selection bar | primary button, `CheckMark`, `SliderGrabActive` |
+| focus | `#5D89FF` | keyboard focus ring | `NavCursor` |
 
-State colors stay as text and icon colors: amber `#FFCA16` (needs an action), red `#FF6369` (error, missing), green `#3DD68C` (done).
+State colors stay as text and icon colors (Spectrum 2 semantic): notice orange `#F29423` (needs an action), negative red `#FF6250` (error, missing), positive green `#2DB574` (done).
 
-**Type ramp** (Fluent 2 Windows ramp, +2 px for Korean; Segoe UI + Malgun Gothic, Semibold = Segoe UI Semibold + Malgun Gothic Bold):
+**Shape**: fields 8 px rounding, cards, panels and popups 10 px, **buttons are pills** (rounding half the height). Layers are told apart by color, not outlines: no border on panels and fields; tables have no header band and no zebra rows, only a line under the header and between rows.
+
+**Type ramp** (Spectrum 2 desktop scale, one step up for Korean; Segoe UI + Malgun Gothic, Semibold = Segoe UI Semibold + Malgun Gothic Bold):
 
 | Name | Size | Weight | Use |
 |---|---|---|---|
@@ -96,29 +98,32 @@ State colors stay as text and icon colors: amber `#FFCA16` (needs an action), re
 | Body Strong | 16 | Semibold | names in lists, buttons of occasional screens |
 | Body Large | 18 | Regular | empty-state sentence |
 | Subtitle | 22 | Semibold | section and panel titles |
-| Title | 30 | Semibold | page title on occasional screens |
+| Title | 28 | Semibold | page title on occasional screens |
 
-**Spacing** (4 px grid): 4, 8, 12, 16, 24, 32. Control height 32 on occasional screens, 24 in work-screen toolbars. A two-line list row is 52. Panel padding 16 (occasional) or 10 (work). Rounding 4 for controls, 8 for cards, panels and popups.
+**Spacing** (4 px grid): 4, 8, 12, 16, 24, 32. Control height 32 on occasional screens, 24 in work-screen toolbars. A two-line list row is 60. Page padding 24 x 20 (occasional) or 10 (work).
 
 ### 3.2 Rules
 
-The values live in one place, module-debug `src/mealkit/debug/ImGuiLayer.cpp` `applyStyle`. A tool that doesn't link the engine copies that function, names its source in a comment, and gets updated whenever the original changes.
+The values live in one place per app: the editor's module-debug `src/mealkit/debug/ImGuiLayer.cpp` `applyStyle` is the source, and a tool that doesn't link the engine copies it, names its source in a comment, and gets updated whenever the original changes. During the move to the Spectrum 2 tokens (section 7) the Manager is ahead of the editor: its `src/Theme.h` (token table) and `src/main.cpp` `applyEditorStyle` are the reference until `applyStyle` catches up.
 
-- **Neutral dark layers**: a gutter (gray 1, also the window title bar color through DWM) behind panels (gray 2). Panels are set apart by space and the darker gutter, not by lines.
+- **Neutral dark layers**: a background base (gray 1, also the window title bar color through DWM) behind panels (gray 2). Panels are set apart by space and the darker base, not by lines.
 - **Tabs are flat**: no fill and no underline. The selected tab joins its panel. The tab strip and the status bar sit on the gutter.
-- **The accent blue is only for selection, focus, active states and the one primary button of an occasional screen** (section 1). No other colored button fills.
-- **State colors**: amber `(1.0, 0.8, 0.3)` for "needs an action" (upgrade, not installed), red `(1.0, 0.45, 0.4)` for errors and missing things. Use them for text and icons (the output icon of a failed job is red), never as button fills.
+- **The accent is only for selection, focus, active states and the one primary button of an occasional screen** (section 1). No other colored button fills. Other buttons are neutral pills (gray 4).
+- **State colors**: notice orange for "needs an action" (upgrade, not installed), negative red for errors and missing things (values in 3.1). Use them for text and icons (the output icon of a failed job is red), never as button fills.
 - **Secondary text is gray 11** (`TextDisabled`): paths, dates, authors, hints. Readable, just quieter.
-- **Hover is one neutral step up**, never the accent. A selected row is gray 5 with the blue 8 bar on its left.
-- **Show what identifies a row, nothing more** (GNOME HIG): icon, name, one summary line. Paths, folders and sizes go to tooltips, the details of the selection, or `More`. Status shows only when something needs attention (an update, a missing folder, a failed build); a healthy state shows nothing.
+- **Hover is one neutral step up**, never the accent. A selected row is gray 5 with a 3 px accent bar on its left.
+- **Show what identifies a row, nothing more** (GNOME HIG): icon, name, one summary line. Paths, folders and sizes go to tooltips, the details of the selection, or `More`. Status shows only when something needs attention (an update, a missing folder, a failed build); a healthy state shows nothing, and no column repeats the same value on every row.
+- **Actions sit on the row they act on**: the row's main action (`Open`) shows on the hovered or selected row; an action that fixes a state (`Install Engine 0.9`, `Upgrade`) replaces the state text. No action bar below a list that acts on "the selection".
 - **Font**: section 3.1 ramp, before DPI scale.
-- Thin 10 px scrollbars, 4 px frame rounding, the padding and spacing of `applyStyle`.
+- Thin 10 px scrollbars, the shape of section 3.1, the padding and spacing of `applyStyle`.
 
 ## 4. Behaviour
 
 - **Text** (Toss's writing): short, plain words, no internal terms (`junction`, `manifest`) on screen. Korean sentences use 해요체 (`폴더를 찾을 수 없어요`), buttons and menu items a verb noun (`열기`, `업데이트`). Say the result (`모듈 2개 업데이트`) and, for errors, what to do next.
 - **Every visible string goes through `tr()`** and has its Korean line; sentences with numbers are one `tr` string with the number in it, never English pieces joined together.
 
+- **Pages** (occasional screens): few of them, switched by a segmented control in the header (the Manager's `Projects | Tools`), Ctrl+1..9 switch pages, Ctrl+N makes the main new thing, F5 refreshes; the switch tooltips show the shortcut. Things changed now and then (engines, language, default folders) go in a Settings modal behind a gear button (Ctrl+,), not in more pages. Work inside one project (its modules) belongs to the editor, not to the launcher.
+- **Status strip** (occasional screens): no permanent status bar. A strip shows only while a job the user started runs, for a few seconds after it succeeds, and until closed after it fails; background checks stay silent unless their result needs attention. The app version goes in the app name's tooltip and Settings.
 - **Lists**: click selects, double-click or Enter opens, Delete removes, the arrow keys move the selection. A right-click menu has the row's actions. Column headers sort where order matters. A truncated path shows in full in its tooltip.
 - **Empty states**: one sentence that says what is missing, and the button that fixes it, in the middle of the space. No empty tables.
 - **Search**: Ctrl+F focuses it, Esc clears it, it shows `matches / total` while filtering, and a line says when nothing matches.
@@ -133,7 +138,7 @@ Every suite app is recognisable on the taskbar, in the Start menu and on the des
 - **The window uses the same icon** (SDL apps: Windows takes the class icon from resource 1, so nothing else is needed; check the taskbar and Alt+Tab).
 - **Shortcuts and the Installed apps entry point at the exe's icon** (`<exe>,0`, Manager `install.ps1`). An exe without an icon resource shows the blank Windows app icon there.
 - **One family**: the same rounded square and background as the editor's icon, one glyph or mark per app in its own color, so the apps read as one suite side by side.
-- **Title bar**: dark, in the gutter color gray 1 `#111113` through DWM (`DWMWA_USE_IMMERSIVE_DARK_MODE`, `DWMWA_CAPTION_COLOR`; Manager `applyEditorCaption`), never the light system bar.
+- **Title bar**: dark, in the background base color gray 1 `#111111` through DWM (`DWMWA_USE_IMMERSIVE_DARK_MODE`, `DWMWA_CAPTION_COLOR`; Manager `applyEditorCaption`), never the light system bar.
 
 ## 6. Bringing a tool to this look
 
@@ -147,14 +152,14 @@ A tool is on the suite look only when every line holds; until then it is on the 
 6. Title bar and app icon per section 5.
 7. A screenshot of the tool beside the editor at the same DPI shows the same colors and spacing.
 
-When `applyStyle` changes, the same change goes to every copy listed in section 7 in the same piece of work. The move to the 3.1 tokens (2026-11-13) is the exception: it goes app by app, tracked in the Tokens column.
+When `applyStyle` changes, the same change goes to every copy listed in section 7 in the same piece of work. The move to the Spectrum 2 tokens of 3.1 (2026-11-13) is the exception: it goes app by app, tracked in the Tokens column.
 
 ## 7. Where each app stands (2026-11-13)
 
-| App | Theme | Tokens 3.1 | Icon font, icon buttons | Korean text | Title bar | App icon |
+| App | Theme | Spectrum 2 tokens (3.1) | Icon font, icon buttons | Korean text | Title bar | App icon |
 |---|---|---|---|---|---|---|
-| MealKit Editor | `applyStyle` (source) | colors, spacing | yes | yes | DWM | yes (`make_editor_icon.py`) |
-| MealKit Manager | copy in `src/main.cpp` | colors, spacing, ramp | yes, icon + label | yes | DWM | yes |
+| MealKit Editor | `applyStyle` (source) | no (Radix/Fluent tokens of the first refresh) | yes | yes | DWM | yes (`make_editor_icon.py`) |
+| MealKit Manager | `src/Theme.h` + `src/main.cpp` (ahead of `applyStyle`, 3.2) | yes: colors, shape, ramp, row actions | yes, icon + label | yes | DWM | yes |
 | MkAudio | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
 | MkUI Designer | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
 | MkRender | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
