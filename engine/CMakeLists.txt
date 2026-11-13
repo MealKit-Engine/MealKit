@@ -851,6 +851,9 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     target_include_directories(mealkit_editor PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS} ${MEALKIT_MODULE_EDITOR_DIRS})
 
     add_executable(MealKitEditor ../modules/editor/src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)
+    # rc.exe reports no dependencies, so a regenerated icon (tools/make_editor_icon.py) wouldn't reach the exe otherwise
+    set_source_files_properties(res/MealKitEditor.rc PROPERTIES OBJECT_DEPENDS
+        "${CMAKE_CURRENT_SOURCE_DIR}/res/MealKitEditor.ico;${CMAKE_CURRENT_SOURCE_DIR}/res/MealKitEditor.png")
     target_link_libraries(MealKitEditor PRIVATE mealkit_editor)
     target_include_directories(MealKitEditor PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS} ${MEALKIT_MODULE_EDITOR_DIRS})
     # GUI program: no console window behind it (run from a command prompt, attachParentConsole attaches)

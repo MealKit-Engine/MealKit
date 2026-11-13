@@ -162,10 +162,11 @@ The values live in one place per app: the editor's module-debug `src/mealkit/deb
 
 Every suite app is recognisable on the taskbar, in the Start menu and on the desktop, not only once it is open.
 
-- **The exe carries its own icon** as resource `1 ICON` in a `.rc` with `#pragma code_page(65001)`, like the editor's `engine/res/MealKitEditor.rc`. Sizes 16, 20, 24, 32, 40, 48, 64 and 256 px in one `.ico`, made by a script (the editor's `tools/make_editor_icon.py`, the tools' `tools/make_suite_icons.py`; a new tool adds its mark there), never drawn by hand per size.
+- **The exe carries its own icon** as resource `1 ICON` in a `.rc` with `#pragma code_page(65001)`, like the editor's `engine/res/MealKitEditor.rc`. Sizes 16, 20, 24, 32, 40, 48, 64 and 256 px in one `.ico`, made by a script (`tools/make_suite_icons.py` draws every app, the editor's through `tools/make_editor_icon.py`; a new tool adds its function there), never drawn by hand per size.
 - **The window uses the same icon** (SDL apps: Windows takes the class icon from resource 1, so nothing else is needed; check the taskbar and Alt+Tab).
 - **Shortcuts and the Installed apps entry point at the exe's icon** (`<exe>,0`, Manager `install.ps1`). An exe without an icon resource shows the blank Windows app icon there.
-- **One family**: the same rounded square and background as the editor's icon, one glyph or mark per app in its own color, so the apps read as one suite side by side.
+- **Windows 11 app icon style** (Microsoft Learn, "App icon design"): no shared plate; each app is its own silhouette of one or two literal metaphors, drawn straight-on on a 48×48 grid (exterior corners 2 units, interior 1), with subtle 120° gradients lighter at the top left and soft drop shadows between layers, defined at 48 px and scaled. Only the 3D apps (editor cube, MkRender sphere) show depth. No letters in the icon.
+- **One family**: the apps read as one suite through the same light, shadows and gradient rules, one hue per app (editor orange cube in a bowl, Manager tiles, MkAudio green waveform, MkUI purple window, MkRender teal sphere, QA clipboard with an amber check). Check new icons on both the light and dark taskbar (`make_suite_icons.py --out DIR` writes `sheet.png`).
 - **Title bar**: dark, in the background base color gray 1 `#111111` through DWM (`DWMWA_USE_IMMERSIVE_DARK_MODE`, `DWMWA_CAPTION_COLOR`; Manager `applyEditorCaption`), never the light system bar.
 
 ## 6. Bringing a tool to this look

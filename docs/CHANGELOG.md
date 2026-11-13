@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Suite app icons in the Windows 11 style (2026-11-13)
+
+- Rules: TOOL_DESIGN section 5 now follows Microsoft's Windows 11 "App icon design" guidance instead of one blue rounded square for every app: own silhouette per app, 48×48 grid, 2/1 unit corners, 120° gradients lit from the top left, soft layer shadows scaled from 48 px.
+- `tools/make_suite_icons.py` (now Pillow + numpy) draws all six: editor (orange cube in a bowl), Manager (four tiles, one orange), MkAudio (white waveform on a green card), MkUI (window with a purple title bar), MkRender (teal sphere over its ground shadow), QA (clipboard with an amber check badge). `--out DIR` adds the editor's icon and a `sheet.png` on the light and dark taskbar colors.
+- `tools/make_editor_icon.py` takes the editor's drawing from there and also rewrites the Manager's `src/Logo.h` (its embedded copy of `MealKitEditor.png`).
+- Checked: the preview sheet at 128 to 16 px on both backgrounds, editor build. Left: 16 to 24 px are scaled from the large drawing, so the MkAudio bars and the clipboard lines blur together there; a simplified small drawing would fix it.
+
 ## Design refresh for the rest of the suite, part 7: suite language, checkboxes and panel tab icons in every tool (2026-11-13)
 
 - Decision: `docs/DECISIONS.md` 2026-11-13 "One suite language"; rules in TOOL_DESIGN section 4 "Language", glyphs in section 2 (LocaleLanguage U+F2B7 and the MkAudio panels).
