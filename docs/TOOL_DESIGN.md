@@ -104,7 +104,7 @@ State colors stay as text and icon colors (Spectrum 2 semantic): notice orange `
 
 ### 3.2 Rules
 
-The values live in one place per app: the editor's module-debug `src/mealkit/debug/ImGuiLayer.cpp` `applyStyle` is the source, and a tool that doesn't link the engine copies it, names its source in a comment, and gets updated whenever the original changes. During the move to the Spectrum 2 tokens (section 7) the Manager is ahead of the editor: its `src/Theme.h` (token table) and `src/main.cpp` `applyEditorStyle` are the reference until `applyStyle` catches up.
+The values live in one place per app: the editor's module-debug `src/mealkit/debug/ImGuiLayer.cpp` `applyStyle` is the source, and a tool that doesn't link the engine copies it, names its source in a comment, and gets updated whenever the original changes. The editor's `applyStyle` is on the Spectrum 2 tokens since 2026-11-13 (the Manager's `src/Theme.h` holds the same table).
 
 - **Neutral dark layers**: a background base (gray 1, also the window title bar color through DWM) behind panels (gray 2). Panels are set apart by space and the darker base, not by lines.
 - **Tabs are flat**: no fill and no underline. The selected tab joins its panel. The tab strip and the status bar sit on the gutter.
@@ -158,7 +158,7 @@ When `applyStyle` changes, the same change goes to every copy listed in section 
 
 | App | Theme | Spectrum 2 tokens (3.1) | Icon font, icon buttons | Korean text | Title bar | App icon |
 |---|---|---|---|---|---|---|
-| MealKit Editor | `applyStyle` (source) | no (Radix/Fluent tokens of the first refresh) | yes | yes | DWM | yes (`make_editor_icon.py`) |
+| MealKit Editor | `applyStyle` (source) | yes: colors, shape, tables, play button (pill buttons elsewhere not yet) | yes | yes | DWM | yes (`make_editor_icon.py`) |
 | MealKit Manager | `src/Theme.h` + `src/main.cpp` (ahead of `applyStyle`, 3.2) | yes: colors, shape, ramp, row actions | yes, icon + label | yes | DWM | yes |
 | MkAudio | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
 | MkUI Designer | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
