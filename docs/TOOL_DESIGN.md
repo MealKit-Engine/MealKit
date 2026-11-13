@@ -187,7 +187,7 @@ When `applyStyle` changes, the same change goes to every copy listed in section 
 
 | App | Theme | Spectrum 2 tokens (3.1) | Icon font, icon buttons | Panel tab icons | Checkboxes (3.2) | Korean text | Title bar | App icon |
 |---|---|---|---|---|---|---|---|---|
-| MealKit Editor | `applyStyle` (source) | yes: colors, shape, tables, play button (pill buttons elsewhere not yet) | yes | yes (`iconTitle`) | no (10 direct calls) | yes | DWM | yes (`make_editor_icon.py`) |
+| MealKit Editor | `applyStyle` (source) | yes: colors, shape, tables, play button (pill buttons elsewhere not yet) | yes | yes (`iconTitle`) | yes (`checkbox`, `radioButton`) | yes | DWM | yes (`make_editor_icon.py`) |
 | MealKit Manager | `src/Theme.h` + `src/main.cpp` (ahead of `applyStyle`, 3.2) | yes: colors, shape, ramp, row actions | yes, icon + label | no panels | yes (`checkbox` in `src/App.cpp`; follows a language change from a tool) | yes | DWM | yes |
 | MkAudio | copy in `tool/main.cpp` | yes | yes (panel buttons) | yes | yes | yes (language icon) | DWM | yes |
 | MkUI Designer | copy in `tool/main.cpp` | yes | yes (panel buttons) | yes | yes | yes (language icon) | DWM | yes |

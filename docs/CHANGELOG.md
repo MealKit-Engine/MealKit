@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Design refresh for the rest of the suite: editor checkboxes and language (2026-11-13)
+
+- Editor 0.2.7, `Controls.cpp`: `checkbox` and `radioButton` (declared in the editor's `ImGuiLayer.h`) draw the TOOL_DESIGN 3.2 control like MkRender and the Manager: an empty box with a gray 9 outline (gray 11 on hover) and a 4 px corner, accent fill with a gray 12 mark when on. All ten `ImGui::Checkbox` calls go through it; the editor has no radio buttons yet, so `radioButton` is there for the next one.
+- Following a suite language change while open: `followLanguage()` (`Strings.cpp`) looks at the time of `editor_settings.txt` once a second and rereads the `language` line when it changed, called at the start of `Editor::update`. A `--lang` run keeps its language; the editor's own picker updates the stored time so it doesn't reread its own write. Window names already use `trl`, so docking survives the switch.
+- Checked: Editor build, `check_strings.ps1`, a `--tuning` capture of FuseTag (outlined empty box, filled box), and a run where `language en` was written to the settings file 4 s in: the log says "Language changed" and the capture at frame 480 is in English. Not checked: the full `check.ps1`.
+
 ## Scene editing in MkRender, leftovers (2026-11-13)
 
 - Decision: `docs/DECISIONS.md` 2026-11-13 "Sprite editing lives in MkRender"; the move itself is "MkRender step 4" to "MkRender step 10" below.

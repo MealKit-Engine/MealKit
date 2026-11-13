@@ -840,6 +840,7 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         ../modules/editor/src/mealkit/editor/EditorLink.cpp
         ../modules/editor/src/mealkit/editor/Preferences.h
         ../modules/editor/src/mealkit/editor/Preferences.cpp
+        ../modules/editor/src/mealkit/editor/Controls.cpp
         ../modules/editor/src/mealkit/editor/PerfPanel.h
         ../modules/editor/src/mealkit/editor/PerfPanel.cpp
         ../modules/editor/src/mealkit/editor/CodeLink.h
