@@ -1,6 +1,6 @@
 # Tool design rules
 
-How the MealKit editor and the suite tools (MealKit Manager, MkAudio, MkUI, MkRender, MealKit-QA) look and behave, so they read as one product.
+How the MealKit editor and the suite tools (MealKit Manager, MkAudio, MkUI, MkRender, MkQA) look and behave, so they read as one product.
 Decisions: `docs/DECISIONS.md` 2026-11-12 "One look for the editor and the tools, icons over words", 2026-11-13 "Suite look follows public design systems" and 2026-11-13 "Adobe Spectrum 2 replaces Fluent 2 and Radix as the token source".
 Sources: Adobe Spectrum 2 (colors, shape, type, spacing: the suite is creative tooling like Spectrum's own apps), GNOME HIG (progressive disclosure), Blender HIG and the IntelliJ Platform UI Guidelines (editor tools), Toss's writing (Korean text), Mozilla Fluent (localization). Research note: workspace `UX_DESIGN_REFERENCES_2026-11-13.md`.
 
@@ -163,6 +163,6 @@ When `applyStyle` changes, the same change goes to every copy listed in section 
 | MkAudio | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
 | MkUI Designer | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
 | MkRender | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
-| MealKit QA | copy in `tool/main.cpp` (one window: no gutter and panels yet, checklist 3) | no | yes | partly | DWM | yes |
+| MkQA | copy in `tool/main.cpp` (one window: no gutter and panels yet, checklist 3) | no | yes | partly | DWM | yes |
 
 The work left is ROADMAP "Design refresh for the rest of the suite". Update this table when a tool moves.

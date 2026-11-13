@@ -104,7 +104,7 @@ APPS = {
     "MkAudio": (audio, os.path.join("MkAudio", "tool", "res", "MkAudio.ico")),
     "MkUI": (ui, os.path.join("MkUI", "tool", "res", "MkUI.ico")),
     "MkRender": (render, os.path.join("MkRender", "tool", "res", "MkRender.ico")),
-    "MealKitQA": (qa, os.path.join("MealKit-QA", "tool", "res", "MealKitQA.ico")),
+    "MkQA": (qa, os.path.join("MealKit-QA", "tool", "res", "MkQA.ico")),
 }
 
 
