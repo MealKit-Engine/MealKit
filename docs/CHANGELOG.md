@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## D8. Tuning A/B presets (2026-11-13)
+
+- Decision: `docs/DECISIONS.md` 2026-11-13 "Tuning presets are `assets/<stem>.<name>.tuning` files".
+- Editor 0.2.8, `TuningPanel`: a row under the file buttons with **A** and **B** combos (a preset or "(file)"), **Show A/B** (applies the other slot; `applySlot` loads the preset into the page like a reload, sets `changed` so a solo play gets it at once, `dirty` only when it differs from the file, undoable) and **+** (save the current values as a preset, name of letters, digits, `-`, `_`). Presets are listed from `assets/<stem>.*.tuning`, so [Balance] "Compare with tuning" offers them too.
+- Differences from the file: each document keeps the file's values (`Doc::saved`, refreshed on load and save, kept as text while the game DLL is swapped so no instance outlives its type's code) and **Compare with: File** passes them as the field base: dots, "Only changed" and right-click reset then work against the file instead of the defaults.
+- Manual: MealKit-Docs `manual/editor.md` "Tuning presets (A/B)" in English and Korean.
+- Checked: Editor build, `check_strings.ps1` (9 new Korean lines), a FuseTag `--tuning` capture of the new row, the docs `build.py check`. Not checked by hand: clicking Show A/B during play and saving a preset (no capture hook drives the buttons); the full `check.ps1`.
+
 ## Design refresh for the rest of the suite: editor checkboxes and language (2026-11-13)
 
 - Editor 0.2.7, `Controls.cpp`: `checkbox` and `radioButton` (declared in the editor's `ImGuiLayer.h`) draw the TOOL_DESIGN 3.2 control like MkRender and the Manager: an empty box with a gray 9 outline (gray 11 on hover) and a 4 px corner, accent fill with a gray 12 mark when on. All ten `ImGui::Checkbox` calls go through it; the editor has no radio buttons yet, so `radioButton` is there for the next one.

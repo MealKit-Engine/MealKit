@@ -8,7 +8,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract freeze review and the cookbook are
 
 **Next, in order**:
 1. 2D on the 3D engine: what is left of the sprite item.
-2. Designer independence D9 (before FuseTag M6) → D4 (with FuseTag M5) → D8.
+2. Designer independence D9 (before FuseTag M6) → D4 (with FuseTag M5).
 3. UI 2: MkUI's XAML-like layer, one piece at a time.
 4. After publication: the checks and the v1.0.0 release.
 5. When devices and accounts are available: EOS measurements, cross-platform determinism and crossplay on real devices, minimum spec measurements → stage 5 (v1.x).
@@ -94,7 +94,6 @@ Aimed at the moments a designer still needs a programmer. D1~D9 are exceptions t
   3. Scripting languages stay deferred.
   - **Decide before starting** (`docs/DECISIONS.md`): rule rows on trigger objects or in a table, the first list of effects, and whether FuseTag's gimmicks written as their own scene objects (M6 `Blackout`) move to rows.
 - [ ] **D4. Squash and spring as data.** Together with FuseTag's character work (M5). `ViewTuning` exposes the numbers, but which event triggers which motion is fixed in FuseTag `view/Juice.cpp`. Move the generic parts into the engine and add feedback columns such as `squash` and `wobble`.
-- [ ] **D8. Tuning A/B presets** (editor-only, any time): switch saved value sets during play and show differences from the file. [Debug] > [Balance] already compares two tuning files across bot matches, but not during play.
 - **Left over from done items**: D1 wasn't checked on a real PC without Visual Studio or on a network share, and the engine and editor binaries are still copied by hand (R2). D2's columns aren't used by a reference sample or a FuseTag row yet. D5 doesn't cover replays, and its Accept button hasn't been clicked in a check.
 
 ---
@@ -247,12 +246,12 @@ MealKit is a suite with the engine + general-purpose editor at the center, where
 
 Every ★ item of the 2026-11-04 review is done; what is left isn't decided. Pick items before work starts, and put open design questions in `docs/DECISIONS.md` first. Editor-only, doesn't change the shipping exe, and adds no authoring tools inside the editor (criterion ④). Game UI editing moved to MkUI Designer, so its items are MkUI's. Numbers are those of the 2026-11-04 list.
 
-**Suggested order**: 34 (tuning A/B, = D8) → 25, 27 (asset browser, as a project's assets grow) → 21, 22, 23 (finding things in the scene tree, once scenes grow with the FuseTag maps) → 30, 31, 33 → the rest when someone asks.
+**Suggested order**: 25, 27 (asset browser, as a project's assets grow) → 21, 22, 23 (finding things in the scene tree, once scenes grow with the FuseTag maps) → 30, 31, 33 → the rest when someone asks.
 
 - **Inspector**: 10. pinned and multiple inspectors for comparing objects, and remembering which sections are collapsed. Parts left from done items: tabs in field groups (2), drag and drop and a preview button in asset/event pickers (4), `validate` rules (6).
 - **Scene tree**: 19. color tags (in the existing `.view` file), connecting lines and row stripes. 21. tree filters such as `t:spawn`, `is:hidden`, `has:problem`, and "select all of this kind". 22. selection history (`Alt+Left/Right`) and favorite objects. 23. hover link between tree rows and the viewport. Left from done items: separators (18), a prefab badge (20; objects keep no prefab link yet).
 - **Asset browser**: 25. search, kind filters, favorites, a folder path bar and recently used assets. 27. preview pane: triangle count, budget bar, sound waveform and a play button.
-- **Visual tools**: 30. viewport icons and labels for spawns, cameras and probes, toggled per kind. 31. small preview window for the selected virtual camera. 33. event and desync markers on the play timeline. 34. tuning A/B presets (= D8). Left from done items: `gizmo=point` (29).
+- **Visual tools**: 30. viewport icons and labels for spawns, cameras and probes, toggled per kind. 31. small preview window for the selected virtual camera. 33. event and desync markers on the play timeline. Left from done items: `gizmo=point` (29).
 - **Shared UI and workflow**: 37. rebindable shortcuts. 38. context hints in the status bar for the current tool and hovered item. Left from done items: icons with tooltips on the viewport toolbar (35).
 - **From the 2026-11-09 feedback review**: build profiles per platform/backend (like Unity Build Profiles, Godot Export Presets): profiles for Windows DX12 / Windows Vulkan / demo / debug with an output folder each, OSes added with stage 5; decide first whether profiles live in `mealkit.project` lines or files. Own move/scale gizmo drawing (round ends, outline, hover growth) while rotation and the axis cube stay ImGuizmo, so `third_party/imguizmo` isn't patched.
 
@@ -335,7 +334,7 @@ A pass over every game development role, applying criterion ④ role by role. **
 
 | Role | Now | What we'd add |
 |---|---|---|
-| Systems and balance design | [Data], [Balance], [Tests] | D8, D9 |
+| Systems and balance design | [Data], [Balance], [Tests] | D9 |
 | Level design | Scenes, terrain brushes, prefabs | D9 triggers, platforms, timers |
 | Narrative | No dialogue system | R4, when a game needs it |
 | Texture art | Texture cache, [Look Dev] | T4 |
