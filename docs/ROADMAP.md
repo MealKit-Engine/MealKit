@@ -70,14 +70,14 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 ### [ ] 2D on the 3D engine: sprite rendering + editor sprite object (decided 2026-11-10, `docs/DECISIONS.md` "2D games run on the 3D engine")
 - **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template.
 - **Left**:
-  - Editor: an image picker and sheet slicer (columns/rows, preview of the chosen cell) in the inspector, pivot presets; picking and the gizmo on the quad (rotation about z only in `view2d`); dropping a PNG from the asset browser onto the viewport makes a sprite; thumbnails in the asset browser.
+  - Sprite editing is MkRender's (`docs/DECISIONS.md` 2026-11-13 "Sprite editing lives in MkRender"; MkRender `docs/ROADMAP.md` "Sprite editing"). MkRender already draws sprites, picks them by their quad, places a PNG dropped from Assets as a sprite and shows PNG pictures in Assets. The MealKit editor only draws sprites in its play view and scene preview.
   - Flipbook animation: clips on sprite sheets (frames, frames per second, loop) named in a table so the view picks a clip from game state. Driven by view time, never by `sim/`.
   - Optional pixel snapping with an orthographic camera (`pixelsPerUnit` from the project).
   - A render golden test (`--render-golden`) for ordering, blending and point sampling on both backends.
   - Template sample art: the 2D template draws its characters and platforms as sprites (images in `templates/empty2d/assets/sprites`, CC0 or made by us) instead of boxes, and its preview image is retaken.
 - **Rules kept**: view only, nothing enters the simulation (collision stays solid objects, or a solid flag that makes a box of the sprite's size and then enters the content hash). Budget: a few hundred sprites in one or two draws. Lit sprites only as a later opt-in.
 - **Later, separate items**: tilemaps (painted grid of sheet cells with merged collision), 2D lights, a parallax layers helper.
-- **Checks**: render golden on DX12/Vulkan, an editor capture of a sprite scene in `view2d`, the 2D template built from scratch.
+- **Checks**: render golden on DX12/Vulkan, an MkRender capture of a sprite scene in its 2D front view, the 2D template built from scratch.
 
 ### [ ] UI 2 = MkUI repo (decided 2026-11-11, `docs/ENGINE_MODULES.md` "Middleware")
 - **Done**: repo move, draw backend and `ValueModel` (MkUI pinned in `third_party/mkui`), and UI 2a (MkUI Designer as its own app; the editor's [UI] workspace and Penpot import server moved there). Details in `docs/CHANGELOG.md` "UI 2" and "UI 2a".
@@ -85,7 +85,7 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 
 ### [ ] Scene editing in MkRender, leftovers (the move is done: `docs/CHANGELOG.md` "MkRender step 4" to "MkRender step 10")
 - **Engine**: the editing half of `asset/Terrain` and `asset/Scatter` (`applyBrush`, `paintScatter`/`eraseScatter`, heightmap PNG writing, `ModelCache::saveTerrains`/`terrainChanged`) is no longer used by the editor and goes when nothing else calls it (MkRender has it in `mkterrain`); editor members left from scene editing (`FieldEditor` gizmo handles, scene autosave recovery, `m_dirty`) are removed with it.
-- **MkRender**: sprite sheet slicer and pivot presets, field handles in the viewport (`gizmo=radius` fields), the editor's object icons and problem markers in the hierarchy, Look Dev (the editor keeps one on the model picked in [Assets]).
+- **MkRender**: sprite editing (2D item above), field handles in the viewport (`gizmo=radius` fields), the editor's object icons and problem markers in the hierarchy, Look Dev (the editor keeps one on the model picked in [Assets]).
 
 ---
 
