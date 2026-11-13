@@ -214,7 +214,7 @@ The source module system is done (`docs/MODULES.md`); `cooldown`, `objects` and 
 
 ## Tool suite (runs separately from the stages)
 
-MealKit is a suite with the engine + general-purpose editor at the center, where small tools for workflows that differ per role are built as **separate repos** and tied together by editor shortcuts (`docs/DECISIONS.md` 2026-10-26). All free, code is MIT. Jobs that already have good free external tools stay external tool + engine plugin. Tools are split off one at a time; when to start is the user's call. Done so far: the contract between tools (MealKit-Contract), MkAudio (runtime + authoring tool), MealKit-QA, MkUI (runtime + Designer).
+MealKit is a suite with the engine + general-purpose editor at the center, where small tools for workflows that differ per role are built as **separate repos** and tied together by editor shortcuts (`docs/DECISIONS.md` 2026-10-26). All free, code is MIT. Jobs that already have good free external tools stay external tool + engine plugin. Tools are split off one at a time; when to start is the user's call. Done so far: the contract between tools (MealKit-Contract), MkAudio (runtime + authoring tool), MkQA, MkUI (runtime + Designer).
 
 | Tool (working name) | Role | Now | Direction |
 |---|---|---|---|
@@ -223,7 +223,7 @@ MealKit is a suite with the engine + general-purpose editor at the center, where
 | Code work | Programmers | VS Code, Visual Studio | An own IDE is deferred. External IDE integration first |
 
 - [ ] **MkRender leftovers** (`docs/DECISIONS.md` 2026-11-12; `mkrhi` and `mkrender` are done): render goldens without the engine in MkRender's tests (a hidden window, a fixed scene from plain meshes, compared like `engine/tests/golden`; the MkRender viewer's `--frames/--capture` is a start). Sky HDRIs, LUTs, probes and BC textures are in MkRender since "MkRender step 7" (`mkbake`). Publishing it as a product is decided after.
-- [ ] **MealKit-QA next candidates**: running `tests/*.scenario` with results, turning a report's recording into a scenario, `mp_test` runs.
+- [ ] **MkQA next candidates**: running `tests/*.scenario` with results, turning a report's recording into a scenario, `mp_test` runs.
 - [ ] **UI 3 leftovers**: the old preview-tool proposal is covered by MkUI Designer; check whether it still lacks a gamepad focus walk and `--ui-check` box differences, and add them to MkUI if so.
 - [ ] **UI features after v1.0** (one at a time as games need them, each checked against the 11th gen Xe budget): keyframe timeline animation (deferred table), virtualized long lists, right-to-left and complex-script shaping, per-player focus for local multiplayer, UI cost numbers (quads, layout ms) in the benchmark budget.
 - [ ] **Audio features after v1.0** (in MkAudio, runtime + tool together, one at a time): bus effect chains (EQ, compressor/limiter, delay) and sidechain compression in place of volume-only ducking, master limiter + loudness meter (LUFS), clip sets loaded/unloaded per scene with a memory budget warning, a voice/profiler timeline over the live `audio/` state, dialogue lines (queue, priority, tied to subtitles), Steam Audio HRTF (deferred table).

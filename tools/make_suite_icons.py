@@ -209,7 +209,7 @@ TOOLS = {
     "MkAudio": os.path.join("MkAudio", "tool", "res", "MkAudio.ico"),
     "MkUI": os.path.join("MkUI", "tool", "res", "MkUI.ico"),
     "MkRender": os.path.join("MkRender", "tool", "res", "MkRender.ico"),
-    "MkQA": os.path.join("MealKit-QA", "tool", "res", "MkQA.ico"),
+    "MkQA": os.path.join("MkQA", "tool", "res", "MkQA.ico"),
 }
 
 
