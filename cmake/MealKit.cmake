@@ -32,7 +32,7 @@ get_filename_component(MEALKIT_ENGINE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUT
 # Engine version (repo root VERSION). Compared with the project's mealkit.project engineVersion.
 file(STRINGS "${MEALKIT_ENGINE_DIR}/VERSION" MEALKIT_VERSION LIMIT_COUNT 1)
 set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${MEALKIT_ENGINE_DIR}/VERSION")
-# Docs address that engine messages point to (docs repo MealKit-docs, not yet open before release).
+# Docs address that engine messages point to (docs repo MealKit-Docs, not yet open before release).
 # Before 1.0 the docs have one branch, master, so latest; from 1.0, the docs branch of the engine MINOR version (docs/DECISIONS.md 2026-10-21)
 string(REGEX MATCH "^[0-9]+\.[0-9]+" MEALKIT_VERSION_MINOR "${MEALKIT_VERSION}")
 if(MEALKIT_VERSION VERSION_LESS 1.0)

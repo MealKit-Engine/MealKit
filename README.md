@@ -14,7 +14,7 @@ A lightweight 3D multiplayer game engine that runs fast even on office PCs with 
 
 Windows + DirectX 12 only for now. Minimum spec: Intel 11th-gen (Xe) integrated graphics.
 
-Documentation: the separate `MealKit-docs` repository (English and Korean, published together with this repository) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/DECISIONS.md) · [Changelog](docs/CHANGELOG.md)
+Documentation: the separate `MealKit-Docs` repository (English and Korean, published together with this repository) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/DECISIONS.md) · [Changelog](docs/CHANGELOG.md)
 
 ## Contributing
 

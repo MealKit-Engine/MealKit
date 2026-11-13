@@ -222,7 +222,7 @@ All modules use the same checks, so even with many repos, CI is fixed in one pla
 Module docs are one page, `docs/index.md`, in the module repo. The template stays: Overview / How to add (glue code) / Usage / How it works / Version history. It's copied into projects too, so the docs for the version in use stay alongside.
 
 - **Where to read them**: the registry site renders all module docs in the same shape. The same regardless of author.
-- The docs repo (MealKit-docs) "Game developer guide > Modules" has only one how-to page and a link to the registry site. "Engine developer guide > Writing modules" gets this document's rules (folders, `module.txt`, include rules, namespace, how to register).
+- The docs repo (MealKit-Docs) "Game developer guide > Modules" has only one how-to page and a link to the registry site. "Engine developer guide > Writing modules" gets this document's rules (folders, `module.txt`, include rules, namespace, how to register).
 - This changes DECISIONS 2026-10-21's "the docs build gathers the engine's `modules/*/docs`". Korean goes in the module repo's `docs/index.ko.md` (optional), and the site lets you pick the language.
 
 ## Decisions (2026-10-28)
@@ -232,4 +232,4 @@ Module docs are one page, `docs/index.md`, in the module repo. The template stay
 3. Registration PRs are merged by a person after CI passes
 4. The installed list is the `modules/` folder itself (no list in `mealkit.project`)
 5. Asset path prefix `modules/<name>/...`, namespace is the module name
-6. Module docs on the registry site, MealKit-docs has one guide page and links. Korean in `index.ko.md`
+6. Module docs on the registry site, MealKit-Docs has one guide page and links. Korean in `index.ko.md`

@@ -109,7 +109,7 @@ Aimed at the moments a designer still needs a programmer. D1~D9 are exceptions t
 The repos are public. What is missing is mostly what a first visitor sees and can try, and what was left of the publication checklist. The first GitHub release is v1.0.0 (`docs/DECISIONS.md` 2026-11-05).
 
 - [ ] Check that the GitHub settings are really on: DCO app, branch protection on `main` (CI must pass), Discussions in `MealKit`, private vulnerability reporting, secret scanning, Dependabot alerts, topics, Pages source Actions for `MealKit-Modules`; the org `.github` repo pushed.
-- [ ] Read the Docs for `MealKit-docs` and the Windows on ARM CI runner (both waited on publication).
+- [ ] Read the Docs for `MealKit-Docs` and the Windows on ARM CI runner (both waited on publication).
 - [ ] Sponsorship (the user is looking into it): `FUNDING.yml` in the org `.github` repo once decided. GitHub Sponsors pays out to South Korea (Stripe, W-8BEN); Open Source Collective needs about 100 stars; taxes to check first.
 - [ ] A screenshot or play GIF in the engine README (`MealKitEditor --capture`).
 - [ ] Full `tools\check.ps1`, then push the remaining local commits.

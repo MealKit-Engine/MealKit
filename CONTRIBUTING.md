@@ -25,7 +25,7 @@ Contributions are accepted under the [Developer Certificate of Origin](https://d
 
 - C++20, `.clang-format` at the root. Comments, log messages and scene file keys are English.
 - Editor text is English source in `tr("...")`/`trl()`/`trf()` with the Korean translation in `engine/res/strings/ko.txt` (`tools\check_strings.ps1`).
-- When usage changes, update the documentation repository (MealKit-docs) in English and Korean in the same change.
+- When usage changes, update the documentation repository (MealKit-Docs) in English and Korean in the same change.
 
 ## Build
 
