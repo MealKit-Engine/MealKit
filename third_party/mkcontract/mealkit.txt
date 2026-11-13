@@ -2,7 +2,7 @@
 # THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
 # Update with tools\update_mkcontract.ps1 -From <MealKit-Contract checkout>; work on both with -DMEALKIT_MKCONTRACT_DIR=<checkout>.
 name mkcontract (MealKit tool contract)
-version v0.3.0 (ebceb22)
+version v0.5.0 (607c7ee)
 license MIT
 licenseFile LICENSE
 source https://github.com/MealKit-Engine/MealKit-Contract

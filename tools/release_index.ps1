@@ -1,9 +1,9 @@
-# Adds an engine package (tools\package_engine.ps1) to the suite release index MealKit Manager reads (ROADMAP R2, docs/DECISIONS.md "How the Manager installs"):
+﻿# Adds an engine package (tools\package_engine.ps1) to the suite release index MealKit Manager reads (ROADMAP R2, docs/DECISIONS.md "How the Manager installs"):
 #   tools\release_index.ps1 -Index <index.json> -Zip <mealkit-engine-*.zip> -Url <where the zip is downloaded from>
 # The index is created if missing. Only the newest patch of each engine MINOR is kept: adding 0.9.5 drops 0.9.4.
 # Format (format 1):
 # A MealKit Manager package (mealkit-manager-*.zip) sets the one "manager" entry instead; a tool package (mealkit-tool-<name>-*.zip,
-# tools\package_tool.ps1, needs -Engines) sets that tool's entry in "tools": { "name", "version", "url", "size", "sha256", "protocol", "engines": ["0.9"] }.
+# tools\package_tool.ps1, needs -Engines) sets that tool's entry in "tools": { "name", "version", "url", "size", "sha256", "protocol", "engines": ["0.9"], "summary", "icon" } (the last two from its manifest, when it has them).
 #   { "format": 1, "manager": { "version": ..., "url": ..., "size": ..., "sha256": ... }, "engines": [ { "version": "0.9.4", "url": "...", "size": 39366595, "sha256": "..." } ], "tools": [] }
 param(
     [Parameter(Mandatory = $true)][string]$Index,
@@ -69,6 +69,10 @@ if ($name -match '^mealkit-tool-([A-Za-z][A-Za-z0-9_-]*)-(\d+\.\d+\.\d+)-windows
     $entry | Add-Member -NotePropertyName name -NotePropertyValue $toolName
     $entry | Add-Member -NotePropertyName protocol -NotePropertyValue $protocol
     $entry | Add-Member -NotePropertyName engines -NotePropertyValue $minors
+    # Optional manifest lines the Manager shows on its Tools page
+    foreach ($key in @("summary", "icon")) {
+        if ($text -match "(?m)^\s*$key\s+(.+?)\s*$") { $entry | Add-Member -NotePropertyName $key -NotePropertyValue $Matches[1] }
+    }
     $tools = @($tools | Where-Object { $_.name -ne $toolName }) + $entry
     $tools = @($tools | Sort-Object name)
     Save
