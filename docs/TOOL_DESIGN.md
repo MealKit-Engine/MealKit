@@ -160,9 +160,9 @@ When `applyStyle` changes, the same change goes to every copy listed in section 
 |---|---|---|---|---|---|---|
 | MealKit Editor | `applyStyle` (source) | yes: colors, shape, tables, play button (pill buttons elsewhere not yet) | yes | yes | DWM | yes (`make_editor_icon.py`) |
 | MealKit Manager | `src/Theme.h` + `src/main.cpp` (ahead of `applyStyle`, 3.2) | yes: colors, shape, ramp, row actions | yes, icon + label | yes | DWM | yes |
-| MkAudio | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
-| MkUI Designer | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
-| MkRender | copy in `tool/main.cpp` | no | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
-| MkQA | copy in `tool/main.cpp` (one window: no gutter and panels yet, checklist 3) | no | yes | partly | DWM | yes |
+| MkAudio | copy in `tool/main.cpp` | yes | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
+| MkUI Designer | copy in `tool/main.cpp` | yes | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
+| MkRender | copy in `tool/main.cpp` | yes | yes (panel buttons; panel tabs without icons yet) | few lines | DWM | yes |
+| MkQA | copy in `tool/main.cpp` (one window: no gutter and panels yet, checklist 3) | yes | yes | partly | DWM | yes |
 
 The work left is ROADMAP "Design refresh for the rest of the suite". Update this table when a tool moves.
