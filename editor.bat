@@ -1,6 +1,6 @@
 @echo off
 rem Opens the MealKit editor. Builds the editor first if needed.
-rem Usage: editor.bat                 project manager (recent projects, open, new project)
+rem Usage: editor.bat                 MealKit Manager (the project list; it must be installed)
 rem        editor.bat sample [scene]  the engine's sample project (samples\sandbox), optionally another scene
 setlocal
 set EXE=%~dp0build\Editor\bin\MealKitEditor.exe

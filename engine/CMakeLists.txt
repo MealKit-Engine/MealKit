@@ -806,8 +806,6 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
         ../modules/editor/src/mealkit/editor/AssetThumbnails.cpp
         ../modules/editor/src/mealkit/editor/Project.h
         ../modules/editor/src/mealkit/editor/Project.cpp
-        ../modules/editor/src/mealkit/editor/ProjectManager.h
-        ../modules/editor/src/mealkit/editor/ProjectManager.cpp
         ../modules/editor/src/mealkit/editor/GameModuleHost.h
         ../modules/editor/src/mealkit/editor/GameModuleHost.cpp
         ../modules/editor/src/mealkit/editor/FieldEditor.h

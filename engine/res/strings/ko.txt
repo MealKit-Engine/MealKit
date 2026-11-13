@@ -32,7 +32,6 @@ Project Settings = 프로젝트 설정
 Notice = 알림
 OK = 확인
 Cancel = 취소
-Confirm = 확인
 
 # ---- 도구 막대·플레이
 Play (F5) = 플레이 (F5)
@@ -92,7 +91,6 @@ Game code #%u (build failed - using the previously built code) = 게임 코드 #
 
 # ---- 계층·인스펙터
 Name = 이름
-Name (exe name) = 이름 (영문, exe 이름)
 Value = 값
 %u (generation %u) = %u (세대 %u)
 
@@ -429,48 +427,9 @@ Build Game Code = 게임 코드 빌드
 Building... %.0fs = 빌드 중... %.0f초
 
 # ---- 프로젝트 관리자
-MealKit Engine - Project Manager = MealKit Engine - 프로젝트 매니저
-Create = 만들기
-Import = 가져오기
-Filter projects = 프로젝트 검색
-(missing) = (찾을 수 없음)
-Folder not found = 폴더를 찾을 수 없음
 Open = 열기
 Show in Explorer = 탐색기에서 보기
-Change icon... = 아이콘 바꾸기...
-Remove from list = 목록에서 제거
-Add to favorites = 즐겨찾기에 추가
-Remove from favorites = 즐겨찾기에서 빼기
-Click to change the icon = 눌러서 아이콘 바꾸기
-Started = 시작
-Modified = 수정
-The engine's sample project cannot be renamed or moved = 엔진의 예제 프로젝트는 이름을 바꾸거나 옮길 수 없습니다
-The name must start with a letter and use only letters, digits and _ = 영문자로 시작하고 영문·숫자·_만 씁니다
-No projects yet. Create one or import a project folder. = 아직 프로젝트가 없습니다. 새로 만들거나 프로젝트 폴더를 가져오세요.
-No project matches the filter. = 검색과 맞는 프로젝트가 없습니다.
-Show log = 로그 보기
-Hide log = 로그 숨기기
-Not a project folder (no mealkit.project): %s = 프로젝트 폴더가 아닙니다 (mealkit.project 없음): %s
-Could not read the image: %s = 그림을 읽지 못했습니다: %s
 Could not write %s = %s을(를) 쓰지 못했습니다
-Icon changed: %s = 아이콘을 바꿨습니다: %s
-Could not run %s = %s을(를) 실행하지 못했습니다
-Create New Project = 새 프로젝트 만들기
-Location = 위치
-Browse... = 찾아보기...
-Creating... = 만드는 중...
-Could not create the project (see the log) = 프로젝트를 만들지 못했습니다 (로그 확인)
-Rename the game to "%s"? = 게임 이름을 "%s"(으)로 바꿀까요?
-The exe, CMake target and game DLL names change. The build folder is removed\nand the game code is rebuilt when the project opens. = exe·CMake 타깃·게임 DLL 이름이 바뀝니다. build 폴더를 지우고\n프로젝트를 열 때 게임 코드를 다시 빌드합니다.
-Renaming... = 이름 바꾸는 중...
-Renamed. The game code is rebuilt when the project opens. = 이름을 바꿨습니다. 프로젝트를 열 때 게임 코드를 다시 빌드합니다.
-Could not rename the project (see the log) = 이름을 바꾸지 못했습니다 (로그 확인)
-Move the project folder to "%s"? = 프로젝트 폴더를 "%s"(으)로 옮길까요?
-The build folder is removed (it holds absolute paths) and rebuilt when the project opens.\nClose any editor or program using this project first. = build 폴더는 절대 경로가 들어 있어 지우고, 프로젝트를 열 때 다시 빌드합니다.\n이 프로젝트를 쓰는 에디터나 프로그램은 먼저 닫으세요.
-Moved to %s = 옮겼습니다: %s
-%s already exists and is not empty = %s이(가) 이미 있고 비어 있지 않습니다
-Could not remove the build folder (is the project open?): %s = build 폴더를 지우지 못했습니다 (프로젝트가 열려 있나요?): %s
-Could not move the folder: %s = 폴더를 옮기지 못했습니다: %s
 
 # ---- 엔진이 선언한 데이터 글자 (필드 설명, 씬 종류 이름: trData)
 Game name (exe name) = 게임 이름 (실행 파일 이름)
@@ -848,7 +807,7 @@ Total = 합계
 Hide = 숨기기
 Open another scene = 다른 씬 열기
 Project Manager = 프로젝트 매니저
-Could not start the project manager = 프로젝트 매니저를 시작하지 못했습니다
+MealKit Manager is not installed = MealKit Manager가 설치되어 있지 않습니다
 %s (install in MealKit Manager...) = %s (MealKit Manager에서 설치...)
 Could not start MealKit Manager = MealKit Manager를 시작하지 못했습니다
 The engine changed, but this editor is still using the old engine (mealkit.dll), so the engine can't be rebuilt while it is open. = 엔진이 바뀌었지만 이 에디터는 아직 예전 엔진(mealkit.dll)을 쓰고 있어서, 에디터가 열린 동안에는 엔진을 다시 빌드할 수 없습니다.
