@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## D9. Generic objects, then condition → effect rows (2026-11-13)
+
+- Decided with the user (`docs/DECISIONS.md` 2026-11-13 "Rule rows"): rows in a game table, picked by scene objects with `RowRef`; the game declares the effect list; first effect speed; FuseTag's blackout and ice become rows when their maps are built (an event effect and a movement-tuning effect), scaffolding and the crane stay code. Scripting languages stay deferred.
+- **Source module `objects` 0.2.0** (`D:\Personal\module-objects`, local commit, not pushed): `Timer` (period, on time, first start; `timerOn`/`timerEdge` are pure functions of the tick like `Path`), `RuleWhen` (`Enter`, `Inside`, `Exit`, `Timer`), per-slot `Effects` (four `Effect`s: rule index, kind byte, amount, end tick; the same rule refreshes instead of stacking, a fifth replaces the one ending first), `start`/`stop`/`expire`/`clear`, `product`/`sum`/`has`, and the templates `runZoneRule(row, …, TriggerChange, …)` and `runTimerRule(row, …, TimerEdge, mask, …)` that read any game row with `when`, `effect`, `amount`, `duration`. Source modules can't include the game, so the row type and the effect enum stay in the game. Docs "Rule rows" with the glue code.
+- **FuseTag** (first user): `RuleEffect { Speed }` and `Rule` in `sim/Tables.h`, `assets/tables/rules.table` (`mud`: inside, ×0.6; `cold_snap`: timer, ×0.8), `RuleZone` (area) and `RuleTimer` (marker) objects, `PlayerSlot.effects`, `WorldState.ruleZones` (16 at most, warning beyond), `sim/Rules.cpp` (`runRules` after `updateItems`, feet of players in the round, zones in scene order then timers; `resetRules` at round reset so players inside enter again), the speed multiplier in `movePawns`.
+- No engine code or frozen format changed: rows use the existing table format, `RowRef` and the [Tables] panel; the editor's kinds file lists both objects for MkRender.
+- Checked: module `check_module.ps1` (new unit tests for timers, each `when`, refresh, replacement, timer rows, hash), FuseTag Release and Editor builds, all five scenarios including the new `rule_rows.scenario` on `scenes/tests/rules.scene` (zone membership and effects at 5, 9, 12, 16, 31 s), `mp_test` 3 clients on graybox (900 ticks) and on the rules scene (1200 ticks), an editor play capture on the rules scene. Not checked: the slowdown seen by hand, the RuleZone/RuleTimer inspectors in MkRender.
+
 ## D8. Tuning A/B presets (2026-11-13)
 
 - Decision: `docs/DECISIONS.md` 2026-11-13 "Tuning presets are `assets/<stem>.<name>.tuning` files".

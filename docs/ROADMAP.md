@@ -8,7 +8,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract freeze review and the cookbook are
 
 **Next, in order**:
 1. 2D on the 3D engine: what is left of the sprite item.
-2. Designer independence D9 (before FuseTag M6) → D4 (with FuseTag M5).
+2. Designer independence D4 (with FuseTag M5).
 3. UI 2: MkUI's XAML-like layer, one piece at a time.
 4. After publication: the checks and the v1.0.0 release.
 5. When devices and accounts are available: EOS measurements, cross-platform determinism and crossplay on real devices, minimum spec measurements → stage 5 (v1.x).
@@ -86,13 +86,8 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 
 ## Designer independence (decided 2026-11-04, v0.9.x)
 
-Aimed at the moments a designer still needs a programmer. D1~D9 are exceptions to "only fixes until v1.0" (`docs/DECISIONS.md` 2026-11-04): they may only add keys and new object kinds to frozen formats.
+Aimed at the moments a designer still needs a programmer. D1~D9 (only D4 is left) are exceptions to "only fixes until v1.0" (`docs/DECISIONS.md` 2026-11-04): they may only add keys and new object kinds to frozen formats.
 
-- [ ] **D9. Generic objects, then condition → effect rows.** Next, before FuseTag M6, so its three map gimmicks are built and checked with it. New item effects are fixed in code today (FuseTag `ItemEffect` and the `switch` in `sim/Items.cpp`), and map gimmicks need new object kinds and `sim/` code.
-  1. The `objects` module exists (trigger volumes, platforms on paths; 2026-11-09). Add a timer object.
-  2. Rule rows on trigger objects or tables, such as `player enters → speed ×0.5, 3 s`. Programmers define the list of effects and designers combine them. This keeps "no visual scripting". Determinism holds as long as the data is in the content hash and the rows run at a fixed point in `sim/`.
-  3. Scripting languages stay deferred.
-  - **Decide before starting** (`docs/DECISIONS.md`): rule rows on trigger objects or in a table, the first list of effects, and whether FuseTag's gimmicks written as their own scene objects (M6 `Blackout`) move to rows.
 - [ ] **D4. Squash and spring as data.** Together with FuseTag's character work (M5). `ViewTuning` exposes the numbers, but which event triggers which motion is fixed in FuseTag `view/Juice.cpp`. Move the generic parts into the engine and add feedback columns such as `squash` and `wobble`.
 - **Left over from done items**: D1 wasn't checked on a real PC without Visual Studio or on a network share, and the engine and editor binaries are still copied by hand (R2). D2's columns aren't used by a reference sample or a FuseTag row yet. D5 doesn't cover replays, and its Accept button hasn't been clicked in a check.
 
