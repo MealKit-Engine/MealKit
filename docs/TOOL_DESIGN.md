@@ -54,6 +54,7 @@ Windows: Segoe Fluent Icons, falling back to Segoe MDL2 Assets, merged into the 
 | Copy, copy path | Copy | U+E8C8 |
 | Open in its program (editor, tool) | OpenInNewWindow | U+E8A7 |
 | Folder, import a folder, add a folder | Folder | U+E8B7 |
+| Open a file (scene, document) | OpenFile | U+E8E5 |
 | Show in Explorer | FolderOpen | U+E838 |
 | Install, download | Download | U+E896 |
 | Update to a newer version | Sync | U+E895 |

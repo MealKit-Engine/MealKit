@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Design refresh for the rest of the suite, part 8: MkRender right-click items and empty states (2026-11-14)
+
+- MkRender `aae1c5b` (`tool/App.cpp`): every icon action has a right-click item (TOOL_DESIGN section 1 "second way in"). The view opens a menu on a right click that neither orbits (moves 5 px or more) nor flies (W/A/S/D/Q/E held): Add here at the ground point under the mouse, frame, duplicate, delete, hide, drop to floor, view mode, grid, markers; the object under the mouse is selected first. Empty hierarchy space adds an object; Environment (bake probes, grading capture) and Assets (rescan, pictures) give their actions on a right click of the button or of the panel outside its fields. Menu items for these actions show "glyph  name" (`App::menuItem`, `beginIconMenu`).
+- Empty states (TOOL_DESIGN section 4): the first screen (no scene file, no objects) says what to do over the view on the view mode pill's dark glass, with `Open Scene` as the one primary button, `Add object` and, without a project, `Open project`; an opened empty scene makes `Add object` primary; the hierarchy and Assets without a project get the same layout. The sentence is Body Large (18 px), the buttons are pills in Body Strong (Segoe UI Semibold + Malgun Gothic Bold, loaded beside the regular font).
+- New glyph OpenFile U+E8E5 for opening a scene or file (section 2 table).
+- Checked: MkRender build and tests (`mkrender_strings_test` with 7 new Korean lines), captures of the first screen, Assets without a project and the sandbox `terrain.scene` with the terrain selected (the brush radio buttons on screen, which closes that MkRender ROADMAP item). Not checked: the right-click menus by eye (no capture hook opens them), the Vulkan build, the full `check.ps1`.
+
 ## D9. Generic objects, then condition → effect rows (2026-11-13)
 
 - Decided with the user (`docs/DECISIONS.md` 2026-11-13 "Rule rows"): rows in a game table, picked by scene objects with `RowRef`; the game declares the effect list; first effect speed; FuseTag's blackout and ice become rows when their maps are built (an event effect and a movement-tuning effect), scaffolding and the crane stay code. Scripting languages stay deferred.
