@@ -9,7 +9,7 @@ Sources: Adobe Spectrum 2 (colors, shape, type, spacing: the suite is creative t
 Two kinds of screens:
 
 - **Work screens** (the editor, the panels and panel toolbars of MkAudio, MkUI, MkRender): people spend hours here and learn the icons. A row of actions is a row of icon buttons, words go in tooltips (the Blender way, the rest of this section).
-- **Occasional screens** (the Manager, QA, a tool's first screen and empty states, dialogs): people open them now and then. Actions are **icon + label** buttons, and each screen has **one main action** drawn as the accent-filled primary button (`Open in Editor`, `New Project`, `Create`). Row actions that are rare (copy path, remove from list) stay in a `More` button and the right-click menu.
+- **Occasional screens** (the Manager, QA, a tool's first screen and empty states, dialogs): people open them now and then. Actions are **icon + label** buttons, and each screen has **one main action** drawn as the accent-filled primary button (`New Project`, `Create`). Row actions that are rare (copy path, remove from list) stay in a `More` button and the right-click menu.
 
 - **Icon buttons are square and flat**: clear until hovered, filled with the selection color while a toggle is on (editor `iconButton`, `iconValueButton` for an icon with a count; Manager `App::iconButton`).
 - **Icon-only buttons** for toolbars, row actions, panel headers and the status bar. Each has a tooltip with its name, plus its shortcut when it has one (`Open in Editor  Enter`), and the tooltip still shows while the button is disabled. A tooltip may add one more line that says why it is disabled or what it keeps (`Files you changed are kept as .new`).
@@ -113,7 +113,7 @@ The values live in one place per app: the editor's module-debug `src/mealkit/deb
 - **Secondary text is gray 11** (`TextDisabled`): paths, dates, authors, hints. Readable, just quieter.
 - **Hover is one neutral step up**, never the accent. A selected row is gray 5 with a 3 px accent bar on its left.
 - **Show what identifies a row, nothing more** (GNOME HIG): icon, name, one summary line. Paths, folders and sizes go to tooltips, the details of the selection, or `More`. Status shows only when something needs attention (an update, a missing folder, a failed build); a healthy state shows nothing, and no column repeats the same value on every row.
-- **Actions sit on the row they act on**: the row's main action (`Open`) shows on the hovered or selected row; an action that fixes a state (`Install Engine 0.9`, `Upgrade`) replaces the state text. No action bar below a list that acts on "the selection".
+- **Actions sit on the row they act on**: a launcher list opens its row by double-click or Enter, with no Open button on the row; a row's favorite star is always shown, first on the row; an action that fixes a state (`Install Engine 0.9`, `Upgrade`) replaces the state text. No action bar below a list that acts on "the selection".
 - **Font**: section 3.1 ramp, before DPI scale.
 - Thin 10 px scrollbars, the shape of section 3.1, the padding and spacing of `applyStyle`.
 
