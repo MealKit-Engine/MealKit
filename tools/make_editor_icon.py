@@ -3,15 +3,13 @@
     python tools/make_editor_icon.py   -> engine/res/MealKitEditor.ico (window icon), MealKitEditor.png (default project icon),
                                           and ..\\MealKit-Manager\\src\\Logo.h (the same PNG embedded in the Manager) when that repo is beside the engine
 
-A bowl with an orange cube (3D) in it, drawn by tools/make_suite_icons.py with the rest of the suite (docs/TOOL_DESIGN.md section 5).
+The orange kit box with a white cube, drawn by tools/make_suite_icons.py with the rest of the suite (docs/TOOL_DESIGN.md section 5).
 """
 
 import io
 import os
 
-from PIL import Image
-
-from make_suite_icons import WORKSPACE, editor, save_ico
+from make_suite_icons import WORKSPACE, AppIcon
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT = os.path.join(ROOT, "engine", "res", "MealKitEditor.ico")
@@ -38,9 +36,9 @@ def write_manager_logo(png):
 
 
 def main():
-    big = editor()
-    save_ico(big, OUT)
-    small = big.resize((256, 256), Image.LANCZOS)
+    icon = AppIcon("MealKitEditor")
+    icon.save_ico(OUT)
+    small = icon.at(256)
     small.save(OUT_PNG)
     print("wrote", OUT, OUT_PNG)
     if os.path.isdir(os.path.dirname(MANAGER_LOGO)):

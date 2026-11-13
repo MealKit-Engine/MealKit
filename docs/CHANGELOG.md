@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Suite app icons: one kit box for every app (2026-11-13)
+
+- Replaces the separate silhouettes below so the suite reads as one product: every app is the same lidded box in its own color with one large white symbol (editor orange cube, Manager blue tiles, MkAudio green waveform, MkUI purple window, MkRender teal sphere, QA pink-red check; QA left amber, which sat too close to the editor's orange). TOOL_DESIGN section 5 rewritten.
+- `tools/make_suite_icons.py`: `Box` (lid, body, shadows) + one symbol function per app; `AppIcon` keeps a large and a small drawing and uses the small one at 24 px and below (thinner lid, bigger and simpler symbol: three waveform bars, one MkUI block). `make_editor_icon.py` uses `AppIcon("MealKitEditor")`, so the default project icon (`MealKitEditor.png`, the Manager's `Logo.h`) is the orange box too; the bowl logo is gone.
+- Checked: preview sheet at 128 to 16 px on light and dark, builds of the editor, Manager, MkAudio, MkUI, MkRender and MkQA with the icon read back from each exe.
+
 ## Suite app icons in the Windows 11 style (2026-11-13)
 
 - Rules: TOOL_DESIGN section 5 now follows Microsoft's Windows 11 "App icon design" guidance instead of one blue rounded square for every app: own silhouette per app, 48×48 grid, 2/1 unit corners, 120° gradients lit from the top left, soft layer shadows scaled from 48 px.
