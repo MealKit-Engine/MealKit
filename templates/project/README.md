@@ -21,7 +21,7 @@ The engine and editor are in `@MEALKIT_ROOT@`; this folder holds only **game cod
 
 1. Open the editor with `editor.bat` (the engine's `MealKitEditor.exe` opens this project). The first time, wait a moment while game code builds.
    Running the engine editor by itself shows the **project manager**, where you can pick a recent project.
-2. Open this folder in VS Code and edit game code **with the editor left open**.
+2. Open this folder in VS Code and edit game code **with the editor left open**. Other editors that use clangd (Zed, Neovim, CLion, ...) read `.clangd` and need no setup; all of them need one Editor build first for `build/Editor/compile_commands.json`.
 3. `Ctrl+Shift+B` (build game code) → the editor detects the new DLL and **swaps it in automatically** (hot reload). Pressing `Ctrl+R` in the editor works too.
    The scene, camera, and selection stay as they are. During play, it switches after stopping.
 4. Scene editing and `F5` play happen in the editor. During editor play, the same game code runs as a DLL.

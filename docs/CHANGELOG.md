@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## clangd support in projects (2026-11-14, 0.9.6)
+
+- `templates/project/.clangd` (and one at the engine root) points clangd at `build/Editor/compile_commands.json`, so clangd-based editors (Zed, Neovim, Helix, CLion, VS Code with the clangd extension) resolve engine headers and macros such as `MEALKIT_GAME_MAIN` with no setup. Before, only the VS Code C/C++ extension found the database (`.vscode/settings.json`); clangd looks only in the folder and `build/`, so it reported unknown types.
+- `source/app/main.cpp` is only in the Debug/Release databases (the Editor build makes no exe); clangd borrows a neighbouring file's flags for it.
+- Existing projects get the file from `tools\upgrade_project.ps1` (a new template file is added). Template README step 2 says so.
+- Checked: upgrade dry run on RngUnlimited (`.clangd` same, README updated). Not checked: Zed by eye.
+
 ## MkRender leftovers: render goldens without the engine (2026-11-14)
 
 - MkRender `a78b1f4`: `mkrender_golden` (`tests/GoldenTest.cpp`, a ctest on Windows) opens a hidden Win32 window sized so its client area is the 640 x 360 back buffer, and draws four shots from meshes, materials, sprite textures, particles and UI quads made in code, with no files and no scene format: `lit_pbr`, `lit_toon`, `lit_unlit` (sun shadows, two point lights, a toon box with outline and rim, an emissive box over the bloom threshold, normal and additive particles, a rounded UI panel with stroke, gradient and shadow) and `sprites` (orthographic front view: point and linear sampling, flip x and y, layers drawn over a nearer lower layer, a half transparent tint, a sheet cell, depth tested against a box behind). Each shot runs 4 frames at view time 0 and captures the back buffer of the last one.
