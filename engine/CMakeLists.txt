@@ -84,7 +84,6 @@ set(MEALKIT_CORE_SOURCES
     ../modules/sim/include/mealkit/sim/Pool.h
     ../modules/sim/include/mealkit/sim/TickEvents.h
     ../modules/sim/include/mealkit/sim/TickTimer.h
-    ../modules/sim/include/mealkit/sim/MatchFlow.h
     ../modules/sim/include/mealkit/sim/Movement.h
     ../modules/sim/include/mealkit/sim/Ragdoll.h
     ../modules/sim/include/mealkit/sim/NavGrid.h

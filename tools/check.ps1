@@ -718,7 +718,7 @@ if (-not $Quick) {
     }
     Invoke-Check project "Empty template builds and plays" {
         param($log)
-        # tools\new_project.ps1 -Template empty: its own sim/view/app + the screen flow shared with samples/sandbox. Builds the game DLL against
+        # tools\new_project.ps1 -Template empty: its own sim/view/app (no menus or match flow since 2026-11-15). Builds the game DLL against
         # the engine's Editor build, plays 2 bot players in the editor (shadow simulation on), then checks upgrade and layout
         if (-not (Test-Path "$root\build\Editor\MealKitTargets.cmake")) { return "SKIP: no Editor build (build.bat Editor)" }
         $projects = Join-Path $env:TEMP "mealkit-check-empty" # must be outside the engine folder

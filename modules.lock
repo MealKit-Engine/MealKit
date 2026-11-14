@@ -10,7 +10,7 @@ module feedback https://github.com/MealKit-Engine/module-feedback v0.1.4 474c677
 module game https://github.com/MealKit-Engine/module-game v0.2.5 1af9e385b8ac8eaf6ce9a0514fb3cdd69138f2c5 .
 module input https://github.com/MealKit-Engine/module-input v0.1.2 2dcb56c28d9e457775eb5661307b4e387c3bbcb0 .
 module live https://github.com/MealKit-Engine/module-live v0.1.2 9734ef88bd8c30d5f7cf6ca0d1c8ec8376885913 .
-module loc https://github.com/MealKit-Engine/module-loc v0.1.2 4ba365bd3436da7bd04895eb012039d66a791d95 .
+module loc https://github.com/MealKit-Engine/module-loc v0.2.0 2c3e7701cf993056ef3c37e47c3739ff198d9d97 .
 module net https://github.com/MealKit-Engine/module-net v0.1.2 e84d576dfff6baa6843dadb9d2b7f36ff6c579ed .
 module online https://github.com/MealKit-Engine/module-online v0.1.2 d938f1bf0c2b407b5abb4c523b5a5cf40020d884 .
 module online-eos https://github.com/MealKit-Engine/module-online v0.1.2 d938f1bf0c2b407b5abb4c523b5a5cf40020d884 backends/online-eos
@@ -21,5 +21,5 @@ module rhi https://github.com/MealKit-Engine/module-rhi v0.2.0 90d67cf79329c2ebd
 module scene https://github.com/MealKit-Engine/module-scene v0.3.0 7114ac29afb38360f67135add7b6a0930c4d435a .
 module session https://github.com/MealKit-Engine/module-session v0.1.2 31b2239bb50c6fc18e9d641c9e026f069b45e200 .
 module settings https://github.com/MealKit-Engine/module-settings v0.1.4 87231d99be6b411420ff6aec931c3f5893787f36 .
-module sim https://github.com/MealKit-Engine/module-sim v0.1.2 776572f56dcdfb04c9fd1e263dbfe17913d062df .
+module sim https://github.com/MealKit-Engine/module-sim v0.2.0 3ba5d121c7f3a14ea6c2b999ec332f1b2e105816 .
 module ui https://github.com/MealKit-Engine/module-ui v0.1.14 fe10e9fd71d0cd97bdd15279eb32c1dc88fbf402 .

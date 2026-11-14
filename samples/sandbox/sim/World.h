@@ -6,7 +6,7 @@
 #include "mealkit/session/Session.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/scene/Scene.h"
-#include "mealkit/sim/MatchFlow.h"
+#include "matchflow/sim/MatchFlow.h" // source module modules/matchflow
 #include "mealkit/sim/Movement.h"
 #include "mealkit/sim/NavGrid.h"
 #include "mealkit/sim/Pool.h"
@@ -136,14 +136,14 @@ inline GameEvent makeEvent(EventKind kind, u8 player, Vec3 position, f32 value) 
 }
 inline constexpr u32 kMaxEventsPerTick = 64;
 
-// Match phase (engine mealkit/sim/MatchFlow.h, driven by sim/Match.cpp): nobody moves outside Playing. The screen flow opens the results screen at Results
-using MatchPhase = mealkit::sim::FlowPhase;
+// Match phase (matchflow module modules/matchflow, driven by sim/Match.cpp): nobody moves outside Playing. The screen flow opens the results screen at Results
+using MatchPhase = matchflow::FlowPhase;
 
 // The whole simulation state (the real state of physics bodies is inside PhysicsWorld; positions/rotations are copied here every tick).
 // The view draws by interpolating the WorldState of the previous tick and this tick.
 MEALKIT_STRUCT(WorldState) {
     MEALKIT_FIELD(u32, tick, 0, "틱");
-    MEALKIT_FIELD(mealkit::sim::MatchFlow, flow, {}, "매치 흐름 (단계, 라운드, 승자)");
+    MEALKIT_FIELD(matchflow::MatchFlow, flow, {}, "매치 흐름 (단계, 라운드, 승자)");
     MEALKIT_FIELD(u32, playerCount, 0, "플레이어 수");
     MEALKIT_ARRAY(PlayerSlot, mealkit::session::kMaxPlayers, slots, "플레이어 슬롯");
     MEALKIT_FIELD(mealkit::sim::Pool<Controller>, controllers, {}, "컨트롤러");
@@ -187,7 +187,7 @@ struct World {
     std::vector<PropSpawn> propSpawns;
     Vec3 arenaMin, arenaMax; // match area (MatchArea): width/depth = AI/box range, bottom = death, top = dropping boxes again
     Tuning tuning;
-    mealkit::sim::MatchRules rules; // from tuning (sim/Match.cpp matchRules)
+    matchflow::MatchRules rules; // from tuning (sim/Match.cpp matchRules)
     mealkit::sim::Table<PropKind> propKinds; // box kinds (a table that goes into the content hash)
     mealkit::sim::Table<BodyKind> bodyKinds; // character body kinds (a player slot's body is the row index)
     mealkit::sim::NavGrid nav;          // AI pathfinding grid baked from the scene's static bodies at reset (same on every peer, not state)

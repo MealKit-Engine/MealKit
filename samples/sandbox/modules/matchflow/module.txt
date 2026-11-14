@@ -1,0 +1,10 @@
+# MealKit source module (docs/MODULES.md in the engine). Read by the engine build and tools\module.ps1.
+@format module 1
+name matchflow
+version 0.1.0
+engine 0.9
+title Match flow
+summary Waiting, start countdown, rounds (best of N, score limit, time limit, elimination, teams, co-op) and results
+tags gameplay rules rounds
+icon flag
+requires sim 0.1 session 0.1

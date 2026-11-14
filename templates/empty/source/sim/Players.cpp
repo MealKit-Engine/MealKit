@@ -58,9 +58,8 @@ void respawnPawns(World& world) {
 }
 
 void movePawns(World& world) {
-    const bool playing = matchPlaying(world); // during countdown and after the end, stand and wait
     for (auto [id, p] : world.state.pawns) {  // Pawn slot order
-        const mealkit::sim::MoveIntent intent = playing ? intentFromInput(world.inputs[p.player]) : mealkit::sim::MoveIntent{};
+        const mealkit::sim::MoveIntent intent = intentFromInput(world.inputs[p.player]);
         if (mealkit::sim::move(world.physics, p.mover, intent, world.tuning.move, 1.0f, world.tuning.gravity, world.tickDt))
             world.events.push(makeEvent(EventKind::Jump, static_cast<u8>(p.player), p.position, 0.0f));
     }

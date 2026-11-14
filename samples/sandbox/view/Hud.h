@@ -4,6 +4,7 @@
 #include "view/ViewTuning.h"
 
 #include "mealkit/core/Reflect.h"
+#include "screens/view/Chat.h" // source module modules/screens
 
 #include <array>
 #include <string>
@@ -22,11 +23,6 @@ MEALKIT_STRUCT(PlayerRowVm) {
     MEALKIT_FIELD(bool, pingBad, false, "핑을 보인다 (나쁨)");
 };
 
-MEALKIT_STRUCT(ChatLineVm) {
-    MEALKIT_FIELD(std::string, name, {}, "보낸 사람");
-    MEALKIT_FIELD(std::string, text, {}, "내용");
-};
-
 MEALKIT_VIEWMODEL(HudVm) {
     MEALKIT_FIELD(mealkit::f32, time, 0.0f, "남은 경기 시간 (초, 끝없는 경기면 지난 시간)");
     MEALKIT_FIELD(mealkit::u32, countdown, 0, "시작 카운트다운 (초, 0이면 없음)");
@@ -36,7 +32,7 @@ MEALKIT_VIEWMODEL(HudVm) {
     MEALKIT_FIELD(mealkit::u32, totalFalls, 0, "기록: 모든 매치에서 떨어진 횟수 (세이브)");
     MEALKIT_FIELD(mealkit::u32, playMinutes, 0, "기록: 플레이 시간 (분, 세이브)");
     MEALKIT_LIST(PlayerRowVm, players, mealkit::session::kMaxPlayers, "플레이어");
-    MEALKIT_LIST(ChatLineVm, chat, 5, "채팅 (최근, 잠시 보인다)");
+    MEALKIT_LIST(screens::ChatLineVm, chat, 5, "채팅 (최근, 잠시 보인다)");
     MEALKIT_FIELD(bool, chatOpen, false, "채팅을 치는 중");
     MEALKIT_FIELD(std::string, waiting, {}, "입력을 기다리는 플레이어 (멈췄을 때, 플레이어 설정으로 끈다)");
     MEALKIT_FIELD(std::string, chatDraft, {}, "보낼 채팅 (글자 입력)");

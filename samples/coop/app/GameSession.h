@@ -1,6 +1,6 @@
 #pragma once
 
-#include "app/Flow.h"
+#include "screens/app/Flow.h" // source module modules/screens
 #include "app/ProjectSettings.h"
 #include "app/SaveData.h"
 #include "sim/World.h"
@@ -51,7 +51,7 @@ public:
     void debugUi(mealkit::game::GameContext& ctx) override;
 
 private:
-    Flow m_flow; // screen flow (menu, lobby, pause, results)
+    screens::Flow m_flow; // screen flow (menu, lobby, pause, results)
     mealkit::scene::Scene m_scene;                       // the flattened match scene (also drawn behind menus)
     const mealkit::scene::Scene* m_sceneSource = nullptr; // the source m_scene was made from
     mealkit::game::PlayOptions m_options;

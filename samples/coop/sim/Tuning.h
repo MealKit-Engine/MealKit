@@ -11,7 +11,7 @@
 namespace coop {
 
 MEALKIT_STRUCT(Tuning) {
-    // Match (engine mealkit/sim/MatchFlow.h with coop rules: everyone wins or loses together)
+    // Match (matchflow module modules/matchflow with coop rules: everyone wins or loses together)
     MEALKIT_FIELD(mealkit::Ticks, countdown, mealkit::Ticks::seconds(3.0f), "시작 카운트다운 (초, 0이면 없음)");
     MEALKIT_FIELD(mealkit::Ticks, roundLength, mealkit::Ticks::seconds(180.0f), "제한 시간 (초, 0이면 없음)");
     MEALKIT_FIELD(mealkit::Ticks, roundEndDelay, mealkit::Ticks::seconds(4.0f), "결과를 보여 주는 시간 (초)");

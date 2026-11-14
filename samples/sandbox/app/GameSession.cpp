@@ -25,8 +25,8 @@ using namespace mealkit;
 namespace sandbox {
 namespace {
 
-// Lobby body choice: string keys in tables/bodies.table row order (the same keys as the select box in ui/lobby.ui)
-constexpr const char* kBodyKeys[] = {"body.normal", "body.light", "body.heavy"};
+// Lobby body choice in tables/bodies.table row order: the screens module's lobby options, named in assets/strings
+constexpr const char* kBodyKeys[] = {"lobby.option1", "lobby.option2", "lobby.option3"};
 
 u32 memberBody(const session::LobbyMember& member) {
     Loadout l;
@@ -42,7 +42,7 @@ void GameSession::loadSave(const std::string& userFolder) {
     m_saveLoaded = true;
 }
 
-// Before the match: loadout (bots get a different body per player, humans the body chosen in the lobby = save). The lobby screen picks the body (app/Flow.cpp)
+// Before the match: loadout (bots get a different body per player, humans the body chosen in the lobby = save). The lobby screen picks the body (modules/screens)
 void GameSession::lobby(session::Session& session, const game::PlayOptions& options, const std::string& userFolder) {
     if (options.bot) {
         Headless::botLoadout(session.localPlayer(), session);
@@ -107,7 +107,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     loadSave(ctx.userFolder);
     // Screen flow: opens screens matching the session phase and handles buttons (menu/lobby/pause/results/chat)
-    FlowGame flow;
+    screens::FlowGame flow;
     flow.playerColors = look.playerColors;
     flow.resultsSeconds = look.resultsSeconds;
     flow.chatShowSeconds = look.chatShowSeconds;
@@ -121,7 +121,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
         for (u32 i = 0; i < s.playerCount; ++i) flow.score[i] = s.slots[i].falls;
         flow.lowestFirst = true; // fewest falls wins
     }
-    m_flow.update(ctx, flow, m_save, m_hudVm, m_hud, dt);
+    m_flow.update(ctx, flow, screens::saveFields(m_save), screens::hudChat(m_hudVm, m_hud), dt);
     if (m_flow.takeSaveChanged()) game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
     if (!sim().started()) {
         if (ctx.scene && ctx.scene != m_sceneSource) { // arena shown behind the menu
@@ -198,7 +198,7 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
 
     // Game screen UI: state → view model, button actions (changes to the simulation go through confirmed commands)
     std::array<std::string, session::kMaxPlayers> names;
-    for (u32 i = 0; i < names.size(); ++i) names[i] = Flow::playerName(session, i);
+    for (u32 i = 0; i < names.size(); ++i) names[i] = screens::Flow::playerName(session, i);
     fillHud(sim().world().state, sim().world().tuning, session.localPlayer(), look, names, m_hudVm);
     m_save.playSeconds += static_cast<f32>(dt);
     m_saveTimer += dt;
@@ -294,7 +294,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
         const Vec3 at = lerp(before ? before->position : pawn->position, pawn->position, alpha) +
                         (slot == localPlayer ? m_prediction.offset : Vec3{});
         NameTagVm& tag = m_tagVms[slot];
-        tag.name = Flow::playerName(ctx.session, slot);
+        tag.name = screens::Flow::playerName(ctx.session, slot);
         tag.you = slot == localPlayer;
         tag.color = look.playerColors[slot];
         ctx.ui.drawAt(m_nameTag, at + Vec3{0.0f, look.nameTagHeight, 0.0f}, tag);

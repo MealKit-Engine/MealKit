@@ -1,4 +1,4 @@
-// Match flow: the engine's mealkit::sim::advanceMatch decides phases (waiting → countdown → playing → round end → results)
+// Match flow: the matchflow module's matchflow::advanceMatch decides phases (waiting → countdown → playing → round end → results)
 // from tuning rules and the PlayerSlot scoreboard; this file calls the game's own functions on each transition.
 // All peers reach the same phase on the same tick (state field). The screen flow (app/) only reads the phase.
 #include "sim/Systems.h"
@@ -6,10 +6,10 @@
 namespace sandbox {
 namespace {
 
-using mealkit::sim::FlowEvent;
+using matchflow::FlowEvent;
 
-std::array<mealkit::sim::MatchPlayer, mealkit::session::kMaxPlayers> matchPlayers(const World& world) {
-    std::array<mealkit::sim::MatchPlayer, mealkit::session::kMaxPlayers> players{};
+std::array<matchflow::MatchPlayer, mealkit::session::kMaxPlayers> matchPlayers(const World& world) {
+    std::array<matchflow::MatchPlayer, mealkit::session::kMaxPlayers> players{};
     for (u32 i = 0; i < world.state.playerCount; ++i) {
         const PlayerSlot& slot = world.state.slots[i];
         players[i].present = slot.connected;
@@ -39,7 +39,7 @@ void onRoundStart(World& world) {
 
 void onRoundEnd(World& world) {
     const u32 winner = world.state.flow.roundWinner;
-    world.events.push(makeEvent(EventKind::RoundEnd, kNoPlayer, {}, winner == mealkit::sim::kNoSide ? -1.0f : static_cast<f32>(winner)));
+    world.events.push(makeEvent(EventKind::RoundEnd, kNoPlayer, {}, winner == matchflow::kNoSide ? -1.0f : static_cast<f32>(winner)));
 }
 
 void onMatchEnd(World& world) { world.events.push(makeEvent(EventKind::MatchEnd, kNoPlayer, {}, 0.0f)); }
@@ -56,8 +56,8 @@ void handle(World& world, FlowEvent event) {
 
 } // namespace
 
-mealkit::sim::MatchRules matchRules(const Tuning& t) {
-    mealkit::sim::MatchRules r;
+matchflow::MatchRules matchRules(const Tuning& t) {
+    matchflow::MatchRules r;
     r.minPlayers = t.minPlayers;
     r.countdown = t.countdown.value;
     r.roundLength = t.roundLength.value;
@@ -73,13 +73,13 @@ void startMatch(World& world) {
     WorldState& s = world.state;
     for (u32 i = 0; i < s.playerCount; ++i) s.slots[i].lives = world.tuning.lives;
     const auto players = matchPlayers(world);
-    handle(world, mealkit::sim::startMatchFlow(s.flow, world.rules, s.tick, players));
+    handle(world, matchflow::startMatchFlow(s.flow, world.rules, s.tick, players));
 }
 
 void updateMatch(World& world) {
     WorldState& s = world.state;
     const auto players = matchPlayers(world);
-    handle(world, mealkit::sim::advanceMatch(s.flow, world.rules, s.tick, players));
+    handle(world, matchflow::advanceMatch(s.flow, world.rules, s.tick, players));
     if (s.flow.phase == MatchPhase::Countdown) { // 3, 2, 1
         const u32 left = s.flow.phaseEnd.remaining(s.tick);
         if (left > 0 && left % world.tickRate == 0)
@@ -95,9 +95,9 @@ bool slotOut(const World& world, u32 slot) { return world.tuning.lives > 0 && wo
 void onPlayerFell(World& world, u32 slot) {
     WorldState& s = world.state;
     ++s.slots[slot].falls;
-    const u32 side = mealkit::sim::matchSide(world.rules, slot);
+    const u32 side = matchflow::matchSide(world.rules, slot);
     for (u32 i = 0; i < s.playerCount; ++i)
-        if (s.slots[i].connected && mealkit::sim::matchSide(world.rules, i) != side) ++s.slots[i].score;
+        if (s.slots[i].connected && matchflow::matchSide(world.rules, i) != side) ++s.slots[i].score;
     if (s.slots[slot].lives > 0) --s.slots[slot].lives;
 }
 

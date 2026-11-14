@@ -13,8 +13,6 @@ inline constexpr mealkit::u32 kSaveVersion = 1;
 
 MEALKIT_STRUCT(SaveData) {
     MEALKIT_FIELD(mealkit::u32, matchesStarted, 0, "시작한 매치 수");
-    MEALKIT_FIELD(mealkit::u32, lobbyChoice, 0, "로비에서 고른 것 (FlowGame::choices 번호, 다음 매치의 로드아웃)");
-    MEALKIT_FIELD(std::string, playerName, {}, "로비에 보이는 내 이름 (비어 있으면 계정·사용자 이름)");
 };
 
 } // namespace sandbox

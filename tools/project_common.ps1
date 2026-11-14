@@ -96,16 +96,17 @@ function Rename-GameNamespace([string]$text, [string]$from, [string]$to) {
 }
 
 # Project templates (tools\new_project.ps1 -Template): arena = the sample game (samples/sandbox + the engine's assets/),
-# empty = templates/empty (source/ + assets/) plus the screen flow shared with the sample ($MealKitSharedFlow*),
+# empty = templates/empty (source/ + assets/) plus the screens engine modules open ($MealKitSharedFlowAssets: settings, subtitles, theme, fonts),
 # empty2d = templates/empty2d the same way (side view on the XY plane, mealkit.project view2d), coop = a copy of samples/coop.
 $MealKitTemplates = @("arena", "empty", "empty2d", "coop")
-# Templates made from a folder under templates\ (own source/ + assets/, the shared screen flow, generated strings)
+# Templates made from a folder under templates\ (own source/ + assets/, the shared engine screens, generated strings)
 function Test-FolderTemplate([string]$template) { return $template -eq "empty" -or $template -eq "empty2d" }
 # The sample a copied template comes from, and its C++ namespace
 function Get-TemplateSample([string]$template) { if ($template -eq "coop") { return "coop" } return "sandbox" }
-$MealKitSharedFlowSource = @("app\Flow.h", "app\Flow.cpp", "app\Screens.h")
-$MealKitSharedFlowAssets = @("ui\title.ui", "ui\menu.ui", "ui\join.ui", "ui\lobby.ui", "ui\loading.ui", "ui\pause.ui", "ui\results.ui",
-    "ui\message.ui", "ui\settings.ui", "ui\subtitles.ui", "ui\theme.ui", "fonts")
+# The screen flow (title, menu, lobby, results) is the screens source module since 2026-11-15 (docs/DECISIONS.md
+# "Templates carry no game shape"), so no game code is shared: new_project.ps1 -Modules screens adds it
+$MealKitSharedFlowSource = @()
+$MealKitSharedFlowAssets = @("ui\settings.ui", "ui\subtitles.ui", "ui\theme.ui", "fonts")
 
 # The template a project was made from (mealkit.project "templateName", arena for projects made before it was written)
 function Get-ProjectTemplate([string]$project) {

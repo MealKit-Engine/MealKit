@@ -599,7 +599,7 @@ function(mealkit_add_game name)
         endif()
     endforeach()
 
-    # Source modules (docs/MODULES.md): for each folder with modules/<name>/module.txt (not "type engine": those are engine modules, above), gather sim/ and view/ like game code.
+    # Source modules (docs/MODULES.md): for each folder with modules/<name>/module.txt (not "type engine": those are engine modules, above), gather sim/, view/ and app/ like game code.
     # The installed list is the folder itself. Include path is modules/ → #include "cooldown/sim/Cooldown.h".
     # Module sim/ goes through SimCheck (--modules: SIM013 if it includes game source/, SIM014 for modules not in requires) and into the simulation version.
     set(modules_dir "${project_dir}/modules")
@@ -670,7 +670,9 @@ function(mealkit_add_game name)
         endforeach()
         file(GLOB_RECURSE m_sim CONFIGURE_DEPENDS "${modules_dir}/${m}/sim/*.h" "${modules_dir}/${m}/sim/*.cpp")
         file(GLOB_RECURSE m_view CONFIGURE_DEPENDS "${modules_dir}/${m}/view/*.h" "${modules_dir}/${m}/view/*.cpp")
-        list(APPEND game_sources ${m_sim} ${m_view})
+        # app/ (since 2026-11-15): screen/session code the game calls from its own app/; view side like view/, never in headless
+        file(GLOB_RECURSE m_app CONFIGURE_DEPENDS "${modules_dir}/${m}/app/*.h" "${modules_dir}/${m}/app/*.cpp")
+        list(APPEND game_sources ${m_sim} ${m_view} ${m_app})
         list(APPEND sim_sources ${m_sim})
     endforeach()
     if(module_names)

@@ -5,7 +5,6 @@
 #include "mealkit/session/Session.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/scene/Scene.h"
-#include "mealkit/sim/MatchFlow.h"
 #include "mealkit/sim/Movement.h"
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
@@ -58,14 +57,14 @@ MEALKIT_STRUCT(PlayerSlot) {
 };
 
 // Simulation → view notifications (sound/effects). sim/ only writes them. The feedback table (assets/feedback.table) chooses feedback by kind name.
-MEALKIT_ENUM(EventKind, u8, Spawn, Jump, Fall, Countdown, MatchStart, MatchEnd);
+MEALKIT_ENUM(EventKind, u8, Spawn, Jump, Fall);
 inline constexpr u8 kNoPlayer = 0xFF;
 
 MEALKIT_STRUCT(GameEvent) {
     MEALKIT_FIELD(EventKind, kind, EventKind::Spawn, "종류");
     MEALKIT_FIELD(u8, player, kNoPlayer, "플레이어 슬롯");
     MEALKIT_FIELD(Vec3, position, {}, "위치");
-    MEALKIT_FIELD(f32, value, 0.0f, "카운트다운: 남은 초");
+    MEALKIT_FIELD(f32, value, 0.0f, "값 (종류마다 게임이 정한다)");
 };
 
 inline GameEvent makeEvent(EventKind kind, u8 player, Vec3 position, f32 value) {
@@ -78,12 +77,8 @@ inline GameEvent makeEvent(EventKind kind, u8 player, Vec3 position, f32 value) 
 }
 inline constexpr u32 kMaxEventsPerTick = 32;
 
-// Match phase (engine mealkit/sim/MatchFlow.h, driven by sim/Match.cpp). The screen flow opens the results screen at Results
-using MatchPhase = mealkit::sim::FlowPhase;
-
 MEALKIT_STRUCT(WorldState) {
     MEALKIT_FIELD(u32, tick, 0, "틱");
-    MEALKIT_FIELD(mealkit::sim::MatchFlow, flow, {}, "매치 흐름 (단계, 라운드, 승자)");
     MEALKIT_FIELD(u32, playerCount, 0, "플레이어 수");
     MEALKIT_ARRAY(PlayerSlot, mealkit::session::kMaxPlayers, slots, "플레이어 슬롯");
     MEALKIT_FIELD(mealkit::sim::Pool<Pawn>, pawns, {}, "캐릭터");
@@ -109,7 +104,6 @@ struct World {
     f32 tickDt = 1.0f / 30.0f; // const-ok: default (reset sets it from the project tick rate)
     std::vector<Vec3> spawns;  // the scene's spawn points
     Tuning tuning;
-    mealkit::sim::MatchRules rules; // from tuning (sim/Match.cpp matchRules)
 
     // State
     WorldState state;

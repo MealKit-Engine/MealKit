@@ -1,6 +1,5 @@
 #pragma once
 
-#include "app/Flow.h"
 #include "app/ProjectSettings.h"
 #include "app/SaveData.h"
 #include "sim/World.h"
@@ -36,7 +35,6 @@ public:
     void start(mealkit::game::GameContext& ctx, const mealkit::scene::Scene& scene,
                const mealkit::game::PlayOptions& options) override;
     void stop(mealkit::game::GameContext& ctx) override;
-    bool menus() const override { return true; } // title/menu/lobby/results screens (app/Flow.cpp)
     void update(mealkit::game::GameContext& ctx, mealkit::f64 dt) override;
     void buildFrame(mealkit::game::GameContext& ctx, mealkit::f64 now, mealkit::render::FrameParams& frame,
                     mealkit::render::DrawList& out) override;
@@ -46,16 +44,15 @@ public:
 private:
     void loadSave(const std::string& userFolder);
 
-    Flow m_flow;                                          // screen flow (menu, lobby, pause, results)
     mealkit::scene::Scene m_scene;                        // the flattened match scene (also drawn behind menus)
     const mealkit::scene::Scene* m_sceneSource = nullptr; // the source m_scene was made from
     mealkit::game::PlayOptions m_options;
-    GameCamera m_camera;     // the match: 2D orthographic side view following my character
+    GameCamera m_camera;     // the match: fixed 2D orthographic side view
     mealkit::camera::Brain m_menuCamera; // perspective orbit behind the menu/lobby
     LocalInput m_input;
     std::vector<mealkit::render::ReflectionProbe> m_probes; // filled every frame
     std::vector<mealkit::render::PointLight> m_lights;      // filled every frame
-    mealkit::f64 m_cameraTime = 0.0, m_menuTime = 0.0;      // last buildFrame times (camera dt)
+    mealkit::f64 m_menuTime = 0.0;                          // last buildFrame time (camera dt before the match)
     std::unique_ptr<mealkit::render::SpriteTextures> m_sprites; // sprite images (render/Sprites.h), made on the first draw
     mealkit::f64 m_viewTime = 0.0;                          // clock for view animation (sum of update dt)
     mealkit::u32 m_hud = 0;

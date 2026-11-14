@@ -62,7 +62,6 @@ void World::reset(u64 seed, u32 playerCount, const Tuning& tuningValue, const sc
     tickRate = tickRateValue ? tickRateValue : 30u;
     tickDt = 1.0f / static_cast<f32>(tickRate);
     tuning = tuningValue;
-    rules = matchRules(tuning);
     physics.setGravity(tuning.gravity);
     spawns.clear();
     state = WorldState{};
@@ -76,13 +75,11 @@ void World::reset(u64 seed, u32 playerCount, const Tuning& tuningValue, const sc
     respawnPawns(*this);
     state.pawns.endTick();
     sensePawns(*this);
-    startMatch(*this);
     events.clear(); // spawn events of the first characters aren't sent
 }
 
 void World::setTuning(const Tuning& value) {
     tuning = value;
-    rules = matchRules(tuning);
     physics.setGravity(tuning.gravity);
 }
 
@@ -92,7 +89,6 @@ void World::step(const mealkit::session::TickInputs& tickInputs) {
     events.clear();
 
     applyCommands(*this, tickInputs); // confirmed commands: player index → send order
-    updateMatch(*this);               // waiting → countdown → playing → round end → results
     respawnPawns(*this);
     movePawns(*this);
     physics.step(tickDt, 2); // splits a tick into 2 physics substeps for stability

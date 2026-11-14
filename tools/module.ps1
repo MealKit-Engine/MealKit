@@ -19,7 +19,7 @@
 #   A project builds with only the engine modules in its modules/ (none = only the kernel; the engine's own samples use all of them).
 #   Names are looked up in the registry (MealKit-Modules) index.json: fetches the newest version for this engine MINOR by tag and checks the commit matches the list.
 #   The list can be changed with -Index or the environment variable MEALKIT_MODULE_INDEX (URL or file). The fetched list is kept in %LOCALAPPDATA%\MealKit\module-index.json and used when offline.
-# - What's copied: module.txt, sim/, view/, assets/, art/, docs/, LICENSE*/README* at the root (excluding *.new); for an engine module every file but
+# - What's copied: module.txt, sim/, view/, app/, assets/, art/, docs/, LICENSE*/README* at the root (excluding *.new); for an engine module every file but
 #   .git/, .github/, backends/ (separate modules), CLAUDE.md and README*. Hashes of copied files and where they came from are kept in modules/<name>/module.files.
 # - update follows the same rules as upgrade_project.ps1: only unmodified files (hash matches the record) are replaced; modified files are kept and <file>.new is written.
 #   Files gone in the new version are deleted if unmodified, kept and reported if modified. -Force replaces modified files too.
@@ -69,7 +69,7 @@ if (($Command -ne "search" -and $Command -ne "versions") -or $Project) { # searc
 }
 $filesName = "module.files"
 # Only the module structure is copied (docs/MODULES.md): .git, .github, tests/, build folders etc. don't go into the project
-$copyTop = @("module.txt", "sim", "view", "assets", "art", "docs")
+$copyTop = @("module.txt", "sim", "view", "app", "assets", "art", "docs")
 $textExtensions = @(".h", ".hpp", ".cpp", ".c", ".inl", ".txt", ".md", ".ui", ".table", ".tuning", ".scene", ".events", ".bindings",
     ".json", ".yml", ".yaml", ".gltf", ".cube", ".fx", ".gitignore", ".gitattributes")
 $engineMinor = ((Get-MealKitVersion) -replace '^(\d+\.\d+).*$', '$1')

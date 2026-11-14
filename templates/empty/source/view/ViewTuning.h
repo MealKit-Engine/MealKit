@@ -23,7 +23,7 @@ inline mealkit::scene::VirtualCameraFields defaultFollowCamera() {
     return f;
 }
 
-// Camera behind the menu/lobby: slowly circles the scene center
+// Camera before the match starts: slowly circles the scene center
 inline mealkit::scene::VirtualCameraFields defaultMenuCamera() {
     mealkit::scene::VirtualCameraFields f;
     f.body = mealkit::scene::CameraBody::Orbit;
@@ -35,12 +35,10 @@ inline mealkit::scene::VirtualCameraFields defaultMenuCamera() {
 }
 
 MEALKIT_STRUCT(CameraTuning) {
-    MEALKIT_FIELD(f32, orbitSensitivity, 0.005f, "회전 감도 (rad/픽셀)");
-    MEALKIT_FIELD(f32, zoomStep, 2.0f, "휠 한 칸 줌 (m)");
     MEALKIT_FIELD(f32, nearPlane, 0.1f, "가까운 자르기 면 (m)");
     MEALKIT_FIELD(f32, farPlane, 1000.0f, "먼 자르기 면 (m)");
     MEALKIT_FIELD(mealkit::scene::VirtualCameraFields, fallback, defaultFollowCamera(), "기본 카메라 (씬에 가상 카메라가 없을 때)");
-    MEALKIT_FIELD(mealkit::scene::VirtualCameraFields, menu, defaultMenuCamera(), "메뉴 뒤 카메라");
+    MEALKIT_FIELD(mealkit::scene::VirtualCameraFields, menu, defaultMenuCamera(), "매치 시작 전 카메라");
 };
 
 using PlayerColors = std::array<Color, mealkit::session::kMaxPlayers>;
@@ -53,8 +51,6 @@ MEALKIT_STRUCT(ViewTuning) {
                                 Color::rgb(250, 204, 21), Color::rgb(168, 85, 247), Color::rgb(236, 72, 153),
                                 Color::rgb(20, 184, 166), Color::rgb(249, 115, 22)}),
                   "플레이어 색");
-    MEALKIT_FIELD(f32, resultsSeconds, 20.0f, "결과 화면 뒤 방장이 자동으로 로비로 돌아가기까지 (초)");
-    MEALKIT_FIELD(f32, chatShowSeconds, 8.0f, "매치 중 새 채팅 줄을 보여 주는 시간 (초)");
 };
 
 } // namespace sandbox

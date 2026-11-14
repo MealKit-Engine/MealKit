@@ -6,7 +6,7 @@
 #include "mealkit/session/Session.h"
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/scene/Scene.h"
-#include "mealkit/sim/MatchFlow.h"
+#include "matchflow/sim/MatchFlow.h" // source module modules/matchflow
 #include "mealkit/sim/Movement.h"
 #include "mealkit/sim/NavGrid.h"
 #include "mealkit/sim/Pool.h"
@@ -110,11 +110,11 @@ inline GameEvent makeEvent(EventKind kind, u8 player, Vec3 position, f32 value) 
 }
 inline constexpr u32 kMaxEventsPerTick = 64;
 
-using MatchPhase = mealkit::sim::FlowPhase;
+using MatchPhase = matchflow::FlowPhase;
 
 MEALKIT_STRUCT(WorldState) {
     MEALKIT_FIELD(u32, tick, 0, "틱");
-    MEALKIT_FIELD(mealkit::sim::MatchFlow, flow, {}, "매치 흐름 (단계, 라운드, 승패)");
+    MEALKIT_FIELD(matchflow::MatchFlow, flow, {}, "매치 흐름 (단계, 라운드, 승패)");
     MEALKIT_FIELD(u32, playerCount, 0, "플레이어 수");
     MEALKIT_ARRAY(PlayerSlot, mealkit::session::kMaxPlayers, slots, "플레이어 슬롯");
     MEALKIT_FIELD(mealkit::sim::Pool<Controller>, controllers, {}, "컨트롤러");
@@ -150,7 +150,7 @@ struct World {
     Vec3 goalMin, goalMax;                 // GoalArea: everyone up inside it wins the round
     bool hasGoal = false;
     Tuning tuning;
-    mealkit::sim::MatchRules rules;
+    matchflow::MatchRules rules;
     mealkit::sim::Table<BodyKind> bodyKinds;
     mealkit::sim::NavGrid nav;         // baked from the static scene (terrain, rocks) at reset, same on every peer
     mealkit::sim::NavSearch navSearch; // A* scratch memory (not state)

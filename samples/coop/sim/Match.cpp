@@ -1,4 +1,4 @@
-// Match flow: the engine's mealkit::sim::advanceMatch with co-op rules (every player is side 0). The team loses when time runs out
+// Match flow: the matchflow module's matchflow::advanceMatch with co-op rules (every player is side 0). The team loses when time runs out
 // or everyone is down at once (elimination), and wins when all connected heroes stand up inside the goal for goalHold ticks
 // (finishRound). This file calls the game's own functions on each transition.
 #include "sim/Systems.h"
@@ -6,11 +6,11 @@
 namespace coop {
 namespace {
 
-using mealkit::sim::FlowEvent;
+using matchflow::FlowEvent;
 
 // A hero counts as alive while up (or still waiting to respawn after a fall)
-std::array<mealkit::sim::MatchPlayer, mealkit::session::kMaxPlayers> matchPlayers(const World& world) {
-    std::array<mealkit::sim::MatchPlayer, mealkit::session::kMaxPlayers> players{};
+std::array<matchflow::MatchPlayer, mealkit::session::kMaxPlayers> matchPlayers(const World& world) {
+    std::array<matchflow::MatchPlayer, mealkit::session::kMaxPlayers> players{};
     for (u32 i = 0; i < world.state.playerCount; ++i) {
         const Pawn* p = playerPawn(world.state, i);
         players[i].present = world.state.slots[i].connected;
@@ -70,8 +70,8 @@ void handle(World& world, FlowEvent event) {
 
 } // namespace
 
-mealkit::sim::MatchRules matchRules(const Tuning& t) {
-    mealkit::sim::MatchRules r;
+matchflow::MatchRules matchRules(const Tuning& t) {
+    matchflow::MatchRules r;
     r.minPlayers = t.minPlayers;
     r.countdown = t.countdown.value;
     r.roundLength = t.roundLength.value;
@@ -84,13 +84,13 @@ mealkit::sim::MatchRules matchRules(const Tuning& t) {
 
 void startMatch(World& world) {
     const auto players = matchPlayers(world);
-    handle(world, mealkit::sim::startMatchFlow(world.state.flow, world.rules, world.state.tick, players));
+    handle(world, matchflow::startMatchFlow(world.state.flow, world.rules, world.state.tick, players));
 }
 
 void updateMatch(World& world) {
     WorldState& s = world.state;
     const auto players = matchPlayers(world);
-    handle(world, mealkit::sim::advanceMatch(s.flow, world.rules, s.tick, players));
+    handle(world, matchflow::advanceMatch(s.flow, world.rules, s.tick, players));
     if (s.flow.phase == MatchPhase::Countdown) { // 3, 2, 1
         const u32 left = s.flow.phaseEnd.remaining(s.tick);
         if (left > 0 && left % world.tickRate == 0)
@@ -98,7 +98,7 @@ void updateMatch(World& world) {
     }
     if (!matchPlaying(world) || !world.hasGoal) return;
     s.goalTicks = teamAtGoal(world) ? s.goalTicks + 1 : 0;
-    if (s.goalTicks >= world.tuning.goalHold.value) handle(world, mealkit::sim::finishRound(s.flow, world.rules, s.tick, 0));
+    if (s.goalTicks >= world.tuning.goalHold.value) handle(world, matchflow::finishRound(s.flow, world.rules, s.tick, 0));
 }
 
 bool matchPlaying(const World& world) { return world.state.flow.phase == MatchPhase::Playing; }

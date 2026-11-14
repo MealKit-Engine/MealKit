@@ -3,10 +3,10 @@
 @format module 1
 type engine
 name loc
-version 0.1.2
+version 0.2.0
 engine 0.9
 kind view
 layer framework
 requires
 tags loc
-summary Game string tables
+summary Game string tables (project table over source modules' tables)

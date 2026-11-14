@@ -67,6 +67,12 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 
 ## In progress
 
+### [ ] Templates without game shape: what is left (decided 2026-11-15, `docs/DECISIONS.md` "Templates carry no game shape"; done part in `docs/CHANGELOG.md`)
+- Publish `matchflow`, `screens`, `camrig` (GitHub `KingProtea99/module-<name>`, tag `v0.1.0`, entries in MealKit-Modules) so `-Modules screens` works by name; until then pass the folders.
+- Registry CI requires headless `tests/`: `screens` and `camrig` are view/app only and have none. Decide: a view-side test build in the shared workflow, or no tests for view-only modules.
+- The editor's new project window: a module picker that passes `-Modules` (or leave it to the Manager, which replaces it).
+- FuseTag keeps its vendored `sim` 0.1.x with `MatchFlow` until it moves to `matchflow` (`module.ps1 add matchflow`, include and namespace change).
+
 ### [ ] 2D on the 3D engine: sprite rendering + editor sprite object (decided 2026-11-10, `docs/DECISIONS.md` "2D games run on the 3D engine")
 - **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template, and sprite editing in MkRender (image picker, sheet slicer, pivot presets, the `view2d` front view; `docs/CHANGELOG.md` "Scene editing in MkRender, leftovers").
 - **Left**:

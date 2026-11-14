@@ -154,7 +154,7 @@ The split follows the old engine folders. Finer splits (terrain out of `render`,
 | Module | Kind | Requires | Contents |
 |---|---|---|---|
 | `physics` | sim | — | `physics/` Jolt wrapper (Jolt linked privately, as now) |
-| `sim` | sim | physics | `sim/` MatchFlow, Movement, Ragdoll, NavGrid, Commands, Table |
+| `sim` | sim | physics | `sim/` Movement, Ragdoll, NavGrid, Commands, Table |
 | `data` | sim | — | `data/` table reading |
 | `scene` | sim | data | `scene/` |
 | `asset` | sim | data scene | `asset/` CPU data only: models, `MeshData`/`MaterialData`, terrain, scatter, cooking; GPU uploads through `asset::ModelGpu` (texture cache, sky HDRI and model drawing are in `render` since 2026-11-09) |

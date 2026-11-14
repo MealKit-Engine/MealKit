@@ -1,0 +1,10 @@
+# MealKit source module (docs/MODULES.md in the engine). Read by the engine build and tools\module.ps1.
+@format module 1
+name camrig
+version 0.1.0
+engine 0.9
+title Camera rigs
+summary Player camera controls: orbit and zoom over the engine's camera brain, and a 2D side-view follow camera
+tags camera view 2d
+icon camera
+requires camera 0.1 input 0.1 render 0.4

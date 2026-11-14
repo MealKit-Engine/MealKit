@@ -92,7 +92,7 @@ Check-Assets (Join-Path $Project "assets") $true
 
 # ---------------------------------------------------------------- modules/ (docs/MODULES.md)
 # Per folder: module.txt (name = folder name), only designated items at the module top level, assets in the module's assets/<kind>/ (same rules as above)
-$moduleTop = @("module.txt", "module.files", "sim", "view", "assets", "art", "docs", "tests", ".github", ".gitignore", ".gitattributes", "license", "license.md", "license.txt", "readme.md")
+$moduleTop = @("module.txt", "module.files", "sim", "view", "app", "assets", "art", "docs", "tests", ".github", ".gitignore", ".gitattributes", "license", "license.md", "license.txt", "readme.md")
 $modulesDir = Join-Path $Project "modules"
 if (Test-Path $modulesDir) {
     foreach ($m in Get-ChildItem $modulesDir -Directory -Force) {
@@ -107,7 +107,7 @@ if (Test-Path $modulesDir) {
         if ($name -cne $m.Name) { Err $metaFile "'name $name' must match the folder name '$($m.Name)'" }
         foreach ($item in Get-ChildItem $m.FullName -Force) {
             if ($moduleTop -notcontains $item.Name.ToLowerInvariant() -and $item.Extension -ne ".new") {
-                Warn $item.FullName "unknown item in a module folder (expected $($moduleTop[0..7] -join ', '))"
+                Warn $item.FullName "unknown item in a module folder (expected $($moduleTop[0..8] -join ', '))"
             }
         }
         Check-Assets (Join-Path $m.FullName "assets") $false

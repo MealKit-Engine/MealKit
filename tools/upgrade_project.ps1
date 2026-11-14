@@ -11,7 +11,7 @@
 #   project. From 0.9.2 on, none in modules/ means only the kernel, so it is left alone.
 # - Files from before the change are kept in .upgrade_backup\<time>\.
 # - -Source: replaces source/ game code with the code of the template the project was made from (mealkit.project "templateName": arena = samples/sandbox,
-#   empty = templates/empty + the shared screen flow). Used to move projects that didn't edit the template code to a new engine structure. source/sim/view/app files not in the sample are deleted (backed up). Only missing files are added to assets/ (no overwriting).
+#   empty = templates/empty). Used to move projects that didn't edit the template code to a new engine structure. source/sim/view/app files not in the sample are deleted (backed up). Only missing files are added to assets/ (no overwriting).
 param(
     [Parameter(Mandatory = $true)][string]$Project,
     [switch]$DryRun,

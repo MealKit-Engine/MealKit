@@ -10,12 +10,6 @@
 namespace sandbox {
 
 MEALKIT_STRUCT(Tuning) {
-    // Match (engine mealkit/sim/MatchFlow.h)
-    MEALKIT_FIELD(mealkit::Ticks, countdown, mealkit::Ticks::seconds(3.0f), "시작 카운트다운 (초, 0이면 없음)");
-    MEALKIT_FIELD(mealkit::Ticks, roundLength, mealkit::Ticks::seconds(120.0f), "라운드 시간 (초, 0이면 끝나지 않음)");
-    MEALKIT_FIELD(mealkit::Ticks, roundEndDelay, mealkit::Ticks::seconds(3.0f), "라운드 결과를 보여 주는 시간 (초)");
-    MEALKIT_FIELD(mealkit::u32, rounds, 1, "라운드 수 (과반을 이기면 매치 끝)");
-    MEALKIT_FIELD(mealkit::u32, minPlayers, 1, "이만큼 모일 때까지 대기");
     // Characters (engine movement modes, mealkit/sim/Movement.h)
     MEALKIT_FIELD(mealkit::sim::MoveTuning, move, {}, "이동");
     MEALKIT_FIELD(mealkit::Vec3, gravity, (mealkit::Vec3{0.0f, -20.0f, 0.0f}), "중력 (m/s²)");

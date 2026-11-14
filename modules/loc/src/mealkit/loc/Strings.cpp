@@ -38,6 +38,7 @@ struct Table {
     std::string language;
     std::string path;
     unsigned long long time = 0;
+    std::vector<std::pair<std::string, unsigned long long>> modules; // source modules' tables read under this one (path, time)
     std::vector<StringEntry> entries; // sorted by key
 
     const std::string* find(std::string_view key) const {
@@ -51,15 +52,47 @@ std::string tablePath(const std::string& language) {
     return findAsset(std::string("assets/") + kStringsFolder + "/" + language + ".txt");
 }
 
+// Source modules' tables (docs/MODULES.md): modules/<name>/assets/strings/<language>.txt, in module name order
+std::vector<std::string> moduleTablePaths(const std::string& language) {
+    std::vector<std::string> out;
+    const std::string modules = findAsset("modules");
+    if (modules.empty()) return out;
+    for (const std::string& m : listDirectories(modules)) {
+        const std::string path = modules + "/" + m + "/assets/" + kStringsFolder + "/" + language + ".txt";
+        if (fileExists(path)) out.push_back(path);
+    }
+    return out;
+}
+
+bool moduleTablesChanged(const Table& t) {
+    const std::vector<std::string> paths = moduleTablePaths(t.language);
+    if (paths.size() != t.modules.size()) return true;
+    for (size_t i = 0; i < paths.size(); ++i)
+        if (paths[i] != t.modules[i].first || fileWriteTime(paths[i]) != t.modules[i].second) return true;
+    return false;
+}
+
+void readInto(const std::string& path, std::vector<StringEntry>& entries) {
+    std::vector<StringEntry> read;
+    std::string errors;
+    readStringsFile(path, read, &errors);
+    if (!errors.empty()) MEALKIT_WARN("Strings %s:\n%s", path.c_str(), errors.c_str());
+    entries.insert(entries.end(), read.begin(), read.end());
+}
+
+// The project's table first, then each module's: on a key in both, the project's line wins
 void loadTable(Table& t, const std::string& language) {
     t.language = language;
     t.path = tablePath(language);
     t.time = t.path.empty() ? 0 : fileWriteTime(t.path);
     t.entries.clear();
-    if (t.path.empty()) return;
-    std::string errors;
-    readStringsFile(t.path, t.entries, &errors);
-    if (!errors.empty()) MEALKIT_WARN("Strings %s:\n%s", t.path.c_str(), errors.c_str());
+    t.modules.clear();
+    if (!t.path.empty()) readInto(t.path, t.entries);
+    for (const std::string& path : moduleTablePaths(language)) {
+        t.modules.emplace_back(path, fileWriteTime(path));
+        readInto(path, t.entries);
+    }
+    if (t.path.empty() && t.modules.empty()) return;
     std::stable_sort(t.entries.begin(), t.entries.end(),
                      [](const StringEntry& a, const StringEntry& b) { return a.key < b.key; });
     // If the same key appears twice, the earlier line is used
@@ -124,7 +157,7 @@ struct Strings::Impl {
             if (t->language.empty()) continue;
             const std::string path = tablePath(t->language);
             const unsigned long long stamp = path.empty() ? 0 : fileWriteTime(path);
-            if (path != t->path || stamp != t->time) {
+            if (path != t->path || stamp != t->time || moduleTablesChanged(*t)) {
                 loadTable(*t, t->language);
                 missing.clear();
                 MEALKIT_INFO("Strings: %zu %s string(s)", t->entries.size(), t->language.c_str());
@@ -142,7 +175,7 @@ void Strings::load(std::string language, std::string fallbackLanguage) {
     if (fallbackLanguage != language) loadTable(m->fallback, fallbackLanguage);
     else m->fallback = {};
     m->missing.clear();
-    if (m->current.path.empty())
+    if (m->current.path.empty() && m->current.modules.empty())
         MEALKIT_WARN("Strings: assets/%s/%s.txt not found", kStringsFolder, language.c_str());
 }
 

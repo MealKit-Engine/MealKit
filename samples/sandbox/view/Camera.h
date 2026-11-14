@@ -3,6 +3,7 @@
 #include "sim/World.h"
 #include "view/ViewTuning.h"
 
+#include "camrig/view/Orbit.h"
 #include "mealkit/asset/Cutscene.h"
 #include "mealkit/camera/Brain.h"
 #include "mealkit/input/Actions.h"
@@ -16,9 +17,7 @@ namespace sandbox {
 struct GameCamera {
     mealkit::camera::Brain brain;
     mealkit::asset::Cutscenes cutscenes; // assets/tables/cutscenes.table
-    bool orbiting = false;
-    mealkit::Vec2 look;
-    mealkit::f32 zoom = 0.0f;
+    camrig::OrbitControl orbit; // source module modules/camrig
 
     void load(const mealkit::scene::Scene& flat, const CameraTuning& tuning);
     // Every frame: actions orbit (rotate with look while held), turn (rotate immediately, pad), zoom (zoom amount)

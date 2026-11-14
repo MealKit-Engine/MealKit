@@ -53,28 +53,12 @@ void GameSession::stop(game::GameContext& ctx) {
     sim().stop();
     if (m_hud) ctx.ui.close(m_hud);
     m_hud = 0;
-    m_flow.stop(ctx);
     game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
 }
 
 void GameSession::update(game::GameContext& ctx, f64 dt) {
     session::Session& session = ctx.session;
-    const ViewTuning& look = ctx.viewTuning<ViewTuning>();
     loadSave(ctx.userFolder);
-    // Screen flow: opens screens matching the session phase and handles buttons (menu/lobby/pause/results/chat)
-    FlowGame flow;
-    flow.playerColors = look.playerColors;
-    flow.resultsSeconds = look.resultsSeconds;
-    flow.chatShowSeconds = look.chatShowSeconds;
-    if (sim().started()) {
-        const WorldState& s = sim().world().state;
-        flow.inMatch = true;
-        flow.results = s.flow.phase == MatchPhase::Results;
-        flow.playerCount = s.playerCount;
-        for (u32 i = 0; i < s.playerCount; ++i) flow.score[i] = s.slots[i].score;
-    }
-    m_flow.update(ctx, flow, m_save, m_hudVm, m_hud, dt);
-    if (m_flow.takeSaveChanged()) game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion);
     if (!sim().started()) {
         if (ctx.scene && ctx.scene != m_sceneSource) { // the scene shown behind the menu
             m_scene = scene::flattened(*ctx.scene);
@@ -83,18 +67,13 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
         return;
     }
 
-    if (!m_flow.blocksInput()) { // during pause/chat/results: the character stands still and the camera stays
-        m_camera.control(ctx.window, ctx.actions, look.camera);
-        m_input.poll(ctx.actions);
-        if (ctx.actions.pressed("menu.settings")) ctx.settings.open(); // standard settings screen
-    } else
-        m_camera.release(ctx.window);
+    m_input.poll(ctx.actions);
+    if (ctx.actions.pressed("menu.settings")) ctx.settings.open(); // standard settings screen
     m_viewTime += dt;
 
     // Every confirmed tick: build and send local input, and pass tick events to the feedback table (sound, shake, flash)
     auto sample = [&](u32 tick) {
         GameInput gi = m_input.sample(ctx.actions, m_camera);
-        if (m_flow.blocksInput()) gi = GameInput{};
         m_input.clearLatches();
         if (m_options.bot) return Headless::botInput(tick, session.localPlayer());
         session::PlayerInput pi;
@@ -104,13 +83,13 @@ void GameSession::update(game::GameContext& ctx, f64 dt) {
     auto onTick = [&](const World& world) {
         for (const GameEvent& e : world.events) ctx.feedback.trigger(e, session.localPlayer());
     };
-    if (!m_flow.pausesSimulation()) sim().update(session, dt, sample, onTick); // pause in solo play halts the match
-    fillHud(sim().world().state, sim().world().tuning, m_hudVm);
+    sim().update(session, dt, sample, onTick);
+    fillHud(sim().world().state, m_hudVm);
 }
 
 void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParams& frame, render::DrawList& out) {
     const ViewTuning& look = ctx.viewTuning<ViewTuning>();
-    if (!sim().started()) { // behind the menu/lobby: slowly circles the scene
+    if (!sim().started()) { // before the match starts: slowly circles the scene
         camera::Brain& menu = m_menuCamera.brain;
         menu.setFallback(look.camera.menu);
         camera::BrainInput in;
@@ -120,7 +99,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
         menu.update(in);
         menu.apply(ctx.viewport, look.camera.nearPlane, look.camera.farPlane, frame);
     } else {
-        // The camera follows my character. While waiting to respawn it stays at the last spot
+        // The scene's cameras or CameraTuning::fallback follow my character. While waiting to respawn it stays at the last spot
         const WorldState& previous = sim().previous();
         const WorldState& current = sim().world().state;
         const Pawn* mine = playerPawn(current, ctx.session.localPlayer());

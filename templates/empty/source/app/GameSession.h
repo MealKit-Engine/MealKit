@@ -1,6 +1,5 @@
 #pragma once
 
-#include "app/Flow.h"
 #include "app/ProjectSettings.h"
 #include "app/SaveData.h"
 #include "sim/World.h"
@@ -35,7 +34,6 @@ public:
     void start(mealkit::game::GameContext& ctx, const mealkit::scene::Scene& scene,
                const mealkit::game::PlayOptions& options) override;
     void stop(mealkit::game::GameContext& ctx) override;
-    bool menus() const override { return true; } // title/menu/lobby/results screens (app/Flow.cpp)
     void update(mealkit::game::GameContext& ctx, mealkit::f64 dt) override;
     void buildFrame(mealkit::game::GameContext& ctx, mealkit::f64 now, mealkit::render::FrameParams& frame,
                     mealkit::render::DrawList& out) override;
@@ -45,7 +43,6 @@ public:
 private:
     void loadSave(const std::string& userFolder);
 
-    Flow m_flow;                                          // screen flow (menu, lobby, pause, results)
     mealkit::scene::Scene m_scene;                        // the flattened match scene (also drawn behind menus)
     const mealkit::scene::Scene* m_sceneSource = nullptr; // the source m_scene was made from
     mealkit::game::PlayOptions m_options;

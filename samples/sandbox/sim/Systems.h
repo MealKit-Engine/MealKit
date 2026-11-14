@@ -23,7 +23,7 @@ void sensePawns(World& world);        // physics results → position, velocity,
 void setPresence(World& world, const mealkit::sim::Presence& presence); // connect/disconnect mid-match (engine command)
 
 // Match.cpp
-mealkit::sim::MatchRules matchRules(const Tuning& tuning); // tuning → flow rules (World::reset, setTuning)
+matchflow::MatchRules matchRules(const Tuning& tuning); // tuning → flow rules (World::reset, setTuning)
 void startMatch(World& world);         // match start: waiting/countdown (World::reset)
 void updateMatch(World& world);        // phase changes (at the start of step, after commands)
 bool matchPlaying(const World& world); // in play (input/AI/scoring only then)
