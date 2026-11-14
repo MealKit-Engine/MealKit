@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## CMakePresets.json in projects (2026-11-14, 0.9.7)
+
+- `templates/project/CMakePresets.json`: Editor, Release, Debug configure/build presets (Ninja, x64 MSVC environment from the IDE, `build/<preset>` = the folders `build.bat` uses, compile commands on), so Visual Studio and CLion open a project with no setup.
+- The template `CMakeLists.txt` reads the `engine` line of `mealkit.project` when `MEALKIT_ROOT` isn't passed, so the presets carry no machine path.
+- Presets don't build the engine's editor build first the way `build.bat Editor` does; the README says to run that once.
+- Checked: a new `empty` project configured with `cmake --preset Release` and `--preset Editor` (compile database has `GameModule.cpp`). Not checked: opening it in Visual Studio or CLion, a full build through a preset.
+
 ## clangd support in projects (2026-11-14, 0.9.6)
 
 - `templates/project/.clangd` (and one at the engine root) points clangd at `build/Editor/compile_commands.json`, so clangd-based editors (Zed, Neovim, Helix, CLion, VS Code with the clangd extension) resolve engine headers and macros such as `MEALKIT_GAME_MAIN` with no setup. Before, only the VS Code C/C++ extension found the database (`.vscode/settings.json`); clangd looks only in the folder and `build/`, so it reported unknown types.

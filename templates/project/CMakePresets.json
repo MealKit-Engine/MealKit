@@ -1,0 +1,41 @@
+{
+    "version": 6,
+    "cmakeMinimumRequired": { "major": 3, "minor": 25, "patch": 0 },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "architecture": { "value": "x64", "strategy": "external" },
+            "toolset": { "value": "host=x64", "strategy": "external" },
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            },
+            "condition": { "type": "equals", "lhs": "${hostSystemName}", "rhs": "Windows" }
+        },
+        {
+            "name": "Editor",
+            "displayName": "Editor (game DLL, hot reload; build the engine Editor build first)",
+            "inherits": "base",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "RelWithDebInfo", "MEALKIT_BUILD_KIND": "Editor" }
+        },
+        {
+            "name": "Release",
+            "displayName": "Release (shipping exe)",
+            "inherits": "base",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+        },
+        {
+            "name": "Debug",
+            "displayName": "Debug (shipping exe)",
+            "inherits": "base",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+        }
+    ],
+    "buildPresets": [
+        { "name": "Editor", "configurePreset": "Editor" },
+        { "name": "Release", "configurePreset": "Release" },
+        { "name": "Debug", "configurePreset": "Debug" }
+    ]
+}
