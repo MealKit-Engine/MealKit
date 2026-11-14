@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Editor: engine change found when a project opens (2026-11-15, editor 0.2.11)
+
+- A game code build from the editor first brings the engine editor build up to date; after an engine change that means relinking the mealkit.dll the running editor holds, which failed (LNK1104 "cannot open ... for writing") before the restart prompt appeared, and the prompt opened during the first frames was closed again by startup focus changes.
+- `Editor::startEngineCheck` (on project open): engine sources (`engine/`, `modules/`, `cmake/`, `VERSION`, `modules.lock`) newer than `build/<Editor>/.ninja_log` mean the engine is stale; game code builds then open the restart prompt instead of starting, and the prompt stays asked until a button answers it. `.ninja_log` is rewritten by every engine build (the CMake glob check always runs), so a rebuild clears it; a `ninja -n` dry run was tried and always plans a CMake rerun with `CONFIGURE_DEPENDS` globs. Installed engines and PCs without a compiler skip it.
+- Checked: an up-to-date engine opens RngUnlimited and loads its game code with no prompt; a touched engine header opens the prompt at once (sandbox) and `--build-game` starts no build. Not checked: the whole restart path by hand (`toolsebuild_editor.ps1` is unchanged).
+
 ## Templates without game shape: matchflow, screens, camrig modules (2026-11-15, 0.9.8)
 
 - Decided with the user (`docs/DECISIONS.md` "Templates carry no game shape"): RngUnlimited, a card battler made from `empty2d`, carried a start countdown, rounds, a lobby and a character-following camera it didn't use.

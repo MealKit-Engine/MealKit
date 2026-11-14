@@ -805,6 +805,7 @@ Could not start MealKit Manager = MealKit Manager를 시작하지 못했습니�
 The engine changed, but this editor is still using the old engine (mealkit.dll), so the engine can't be rebuilt while it is open. = 엔진이 바뀌었지만 이 에디터는 아직 예전 엔진(mealkit.dll)을 쓰고 있어서, 에디터가 열린 동안에는 엔진을 다시 빌드할 수 없습니다.
 Restart saves your changes, closes the editor, builds the engine in a console window and opens this project again. The game code is built when it opens. = 다시 시작하면 변경을 저장하고 에디터를 닫은 뒤, 콘솔 창에서 엔진을 빌드하고 이 프로젝트를 다시 엽니다. 게임 코드는 열릴 때 빌드됩니다.
 Save, Restart and Rebuild = 저장하고 다시 시작해 빌드
+The engine changed: restart the editor to rebuild it = 엔진이 바뀌었습니다: 에디터를 다시 시작해 빌드하세요
 This engine has no tools\\rebuild_editor.ps1: close the editor and rebuild the engine's editor = 이 엔진에는 tools\\rebuild_editor.ps1이 없습니다: 에디터를 닫고 엔진의 에디터를 다시 빌드하세요
 Could not start the engine rebuild = 엔진 다시 빌드를 시작하지 못했습니다
 
