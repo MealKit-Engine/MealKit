@@ -1,12 +1,12 @@
 # mkui: game UI runtime (MkUI): .ui reading, layout, text, view model binding -> 2D quads. No engine headers; the host gives
 # files, strings, image decoding, atlas upload and view model access (mkui/Host.h) and draws the quads (mkui/Ui.h).
-# Built standalone it includes tests; added by another project with add_subdirectory, only the library.
+# Built standalone it includes tests and the MkUI Designer (tool/); added by another project with add_subdirectory, only the library.
 #   cmake -S . -B build && cmake --build build && ctest --test-dir build
 # Values the including side can set (defaults to this repo's third_party/):
 #   MKUI_STB_DIR          folder containing stb_truetype.h (the implementation is compiled here)
 #   MKUI_MKCONTRACT_DIR   mkcontract source folder, used only if no mkcontract target exists yet ("@format ui N" lines)
 cmake_minimum_required(VERSION 3.25)
-project(mkui VERSION 0.2.0 LANGUAGES CXX)
+project(mkui VERSION 0.6.1 LANGUAGES CXX)
 
 if(NOT MKUI_STB_DIR)
     set(MKUI_STB_DIR ${CMAKE_CURRENT_SOURCE_DIR}/third_party/stb)
@@ -19,6 +19,7 @@ if(NOT TARGET mkcontract)
     add_subdirectory(${MKUI_MKCONTRACT_DIR} ${CMAKE_CURRENT_BINARY_DIR}/mkcontract)
 endif()
 option(MKUI_BUILD_TESTS "Build mkui tests" ${PROJECT_IS_TOP_LEVEL})
+option(MKUI_BUILD_TOOL "Build the MkUI Designer (SDL3 + Dear ImGui)" ${PROJECT_IS_TOP_LEVEL})
 
 add_library(mkui STATIC
     include/mkui/Types.h
@@ -56,6 +57,7 @@ if(MKUI_BUILD_TESTS)
     enable_testing()
     add_executable(mkui_tests tests/UiTests.cpp)
     target_link_libraries(mkui_tests PRIVATE mkui)
+    target_compile_definitions(mkui_tests PRIVATE MKUI_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}") # Penpot expected files
     if(MSVC)
         target_compile_options(mkui_tests PRIVATE /W4 /permissive- /utf-8)
         target_compile_definitions(mkui_tests PRIVATE _CRT_SECURE_NO_WARNINGS)
@@ -63,4 +65,8 @@ if(MKUI_BUILD_TESTS)
         target_compile_options(mkui_tests PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME mkui_tests COMMAND mkui_tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+endif()
+
+if(MKUI_BUILD_TOOL)
+    add_subdirectory(tool)
 endif()

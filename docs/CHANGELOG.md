@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## UI: no wrong pictures on a frame whose atlas restarts (2026-11-15, MkUI v0.6.1)
+
+- RngUnlimited flashed wrong pictures for a frame when its party screen paged: `Atlas::image` found the image atlas full in the middle of `System::render`, cleared and repacked it, and the quads emitted earlier that frame pointed at regions that now held other pictures.
+- `Atlas::rebuilds()` counts image atlas restarts and glyph rebakes. `render()` runs the world and screen passes once more when it changed during the frame, and only once, so a working set that can never fit doesn't loop (it stays wrong as before, with the warning). Shaped text is reshaped after any restart, since it keeps glyph atlas coordinates between frames.
+- Pulled with `tools\update_mkui.ps1` (third_party/mkui v0.2.0 → v0.6.1; the runtime files in between were the same apart from CMakeLists' Designer option, off when included).
+- Checked: MkUI build and `mkui_tests` (new atlas test fails without the redraw), engine Release and Editor builds. Not checked: `tools\check.ps1` (not run), the glyph rebake path (tests have no fonts), RngUnlimited by eye.
+
 ## Editor: engine change found when a project opens (2026-11-15, editor 0.2.11)
 
 - A game code build from the editor first brings the engine editor build up to date; after an engine change that means relinking the mealkit.dll the running editor holds, which failed (LNK1104 "cannot open ... for writing") before the restart prompt appeared, and the prompt opened during the first frames was closed again by startup focus changes.
