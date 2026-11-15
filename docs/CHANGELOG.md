@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## UI: text squeezed to its box (2026-11-16, MkUI v0.8.0)
+
+- `squeeze` on a text node: a line wider than the box is drawn squeezed sideways to the box width (font size kept, the line starts at the box's left edge); lines that fit keep their `textAlign`. Scratch draws text that doesn't fit this way, and RngUnlimited's card faces, drawn at run time from the original card layouts, squeeze the same texts the original did. The editor's overflow warning ignores width for squeezed text.
+- Pulled with `tools\update_mkui.ps1 -Ref v0.8.0`. Manual: `manual/ui.md` text properties (English and Korean).
+- Checked: MkUI build and `mkui_tests` (new `testSqueeze` with inline pictures: squeezed, unsqueezed, fitting line), engine Release and Editor builds, docs `build.py check`. Not checked: `tools\check.ps1` (not run), squeezed glyph quality by eye beyond RngUnlimited's cards.
+
 ## UI: no wrong pictures on a frame whose atlas restarts (2026-11-15, MkUI v0.6.1)
 
 - RngUnlimited flashed wrong pictures for a frame when its party screen paged: `Atlas::image` found the image atlas full in the middle of `System::render`, cleared and repacked it, and the quads emitted earlier that frame pointed at regions that now held other pictures.
