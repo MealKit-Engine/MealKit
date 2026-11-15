@@ -1300,9 +1300,14 @@ TEST_CASE(ui, ui_source) {
     TEST_CHECK(files >= 20);
 
     // Sample screens with components: Document nodes map back to source nodes (a use subtree to the use node)
-    for (const char* screen : {"ui/hud.ui", "ui/menu.ui", "ui/settings.ui"}) {
+    // menu.ui comes with the sandbox's screens source module (its own assets/, not the sample's)
+    const std::string sandbox = engine + "/samples/sandbox";
+    const std::pair<const char*, std::string> screens[] = {{"ui/hud.ui", sandbox + "/assets/ui/hud.ui"},
+                                                           {"ui/menu.ui", sandbox + "/modules/screens/assets/ui/menu.ui"},
+                                                           {"ui/settings.ui", sandbox + "/assets/ui/settings.ui"}};
+    for (const auto& [screen, file] : screens) {
         std::string text;
-        TEST_CHECK(readTextFile(findAssetFile(screen), text));
+        TEST_CHECK(readTextFile(file, text));
         ui::Source source;
         TEST_CHECK(ui::parseSource(text, source));
         ui::Document doc;
