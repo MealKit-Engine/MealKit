@@ -3,6 +3,11 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## UI: the default font is the first font file by name (2026-11-16, MkUI v0.11.1)
+
+- MkUI took `assets/fonts` files `.ttf` first, then `.otf`, each in the host's listing order, and the first became the font of every text without `font`: RngUnlimited adding Russo One (`.ttf`) beside its Pretendard body font (`.otf`) turned all its text into Russo One. The files are now sorted by file name whatever the extension.
+- Checked: MkUI build and tests; RngUnlimited menu (Pretendard) and turn banner (Russo One, slanted) by capture on DX12 and Vulkan.
+
 ## UI: slanted text (2026-11-16, MkUI v0.11.0, MkRender v0.10.2)
 
 - `skew <degrees>` / `skewField <field>` on a text node (-60..60, positive leans the tops right): glyphs, inline pictures and underlines are sheared about each line's baseline, like an italic face. For fonts that have none: RngUnlimited draws its turn banner and battle phrases in Russo One slanted this way instead of baking the original's italic font.
