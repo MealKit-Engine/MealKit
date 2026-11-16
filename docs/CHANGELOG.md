@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## UI: slanted text (2026-11-16, MkUI v0.11.0, MkRender v0.10.2)
+
+- `skew <degrees>` / `skewField <field>` on a text node (-60..60, positive leans the tops right): glyphs, inline pictures and underlines are sheared about each line's baseline, like an italic face. For fonts that have none: RngUnlimited draws its turn banner and battle phrases in Russo One slanted this way instead of baking the original's italic font.
+- The shear rides in `Quad::flags` bits 16-31 (signed 1/10000, `mkui::quadShear`), so the 112 byte quad layout and every binding stay as they were. `Ui.hlsl` (MkRender, DX12 and Vulkan from the same DXC source) and `mkui::tessellate` shear the corners before rotation; UVs and the pixel shader stay unsheared. MkRender's change went on its `release-0.10` branch as v0.10.2 (main has it too).
+- The MkUI atlas restart check ("pictures drawn before the restart use the fresh atlas"), failing since v0.9.2, expected positions from before the texel border; the redraw itself worked. The check now expects the bordered rows and passes.
+- Manual: `manual/ui.md` text row and binding table (English and Korean).
+- Checked: MkUI build and `mkui_tests` (new `testSkew`: shear bits, lean direction, `skewField`, tessellated corners), engine Editor, Release and Vulkan builds, docs `build.py check`. Not checked: slanted text on screen (RngUnlimited's turn banner, next), `tools\check.ps1` (not run).
+
 ## Game: [Quit] stops editor play; settings functions for a game's own window (2026-11-16, engine 0.9.9)
 
 - `MatchService::quit()` (game module v0.2.6, `kApiVersion` 26): games ask to quit instead of calling `ctx.window.close()`. The shipping exe closes its window after the game's update; editor play (editor module v0.2.13) stops play like [Leave]. Before, the editor handed the game its own window, so a game's [Quit] closed the editor. The `screens` source module v0.1.1 (`D:\Personal\module-screens`) uses it, updated in `samples/sandbox` and `samples/coop`.

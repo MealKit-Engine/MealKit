@@ -299,7 +299,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ==============================================================================
-mkrender (MkRender: mkrhi graphics layer, mkrender renderer) v0.10.1 (0dc0716)
+mkrender (MkRender: mkrhi graphics layer, mkrender renderer) v0.10.2 (6f1e785)
 ==============================================================================
 MIT License
 
@@ -324,7 +324,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ==============================================================================
-mkui (MkUI runtime) v0.10.0 (2fdc9a3)
+mkui (MkUI runtime) v0.11.0 (d9eeb15)
 ==============================================================================
 MIT License
 
