@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## UI: text outline (2026-11-16, MkUI v0.9.0, MkRender v0.10.1)
+
+- `outline <width> [color]` on a text node, `outlineField` / `outlineColorField` for per-item values: an outline outside the glyphs (logical units, capped at 0.135 em, the glyph atlas' SDF padding). Without a color each glyph's own color is used, which makes the text bolder. Glyph quads carry it in `strokeWidth`/`strokeColor` (unused for glyphs before), and the UI shader draws `strokeWidth` screen px outside the SDF edge. The triangle path (`tessellate`) doesn't draw it.
+- Wanted by RngUnlimited, which drew damage numbers eight times and other text five times to fake the original's Animated Text outline and weight.
+- MkRender: the shader change went to its `main` and, cherry-picked onto `v0.10.0`, as `v0.10.1` (branch `release-0.10`), so the engine doesn't take MkRender's later editor work with it. Pulled with `tools\update_mkui.ps1 -Ref v0.9.0` and `tools\update_mkrender.ps1 -Ref v0.10.1`. Manual: `manual/ui.md` (English and Korean).
+- Checked: MkUI build and `mkui_tests` (outline parses), engine Release and Editor builds (shaders to DXIL and SPIR-V), RngUnlimited damage numbers, speed orbs, card names and party texts by capture (DX12). Not checked: Vulkan by eye, `tools\check.ps1` (not run).
+
 ## UI: text squeezed to its box (2026-11-16, MkUI v0.8.0)
 
 - `squeeze` on a text node: a line wider than the box is drawn squeezed sideways to the box width (font size kept, the line starts at the box's left edge); lines that fit keep their `textAlign`. Scratch draws text that doesn't fit this way, and RngUnlimited's card faces, drawn at run time from the original card layouts, squeeze the same texts the original did. The editor's overflow warning ignores width for squeezed text.
@@ -20,7 +27,8 @@ When a roadmap item is done, its details move here and it is removed from ROADMA
 
 - A game code build from the editor first brings the engine editor build up to date; after an engine change that means relinking the mealkit.dll the running editor holds, which failed (LNK1104 "cannot open ... for writing") before the restart prompt appeared, and the prompt opened during the first frames was closed again by startup focus changes.
 - `Editor::startEngineCheck` (on project open): engine sources (`engine/`, `modules/`, `cmake/`, `VERSION`, `modules.lock`) newer than `build/<Editor>/.ninja_log` mean the engine is stale; game code builds then open the restart prompt instead of starting, and the prompt stays asked until a button answers it. `.ninja_log` is rewritten by every engine build (the CMake glob check always runs), so a rebuild clears it; a `ninja -n` dry run was tried and always plans a CMake rerun with `CONFIGURE_DEPENDS` globs. Installed engines and PCs without a compiler skip it.
-- Checked: an up-to-date engine opens RngUnlimited and loads its game code with no prompt; a touched engine header opens the prompt at once (sandbox) and `--build-game` starts no build. Not checked: the whole restart path by hand (`toolsebuild_editor.ps1` is unchanged).
+- Checked: an up-to-date engine opens RngUnlimited and loads its game code with no prompt; a touched engine header opens the prompt at once (sandbox) and `--build-game` starts no build. Not checked: the whole restart path by hand (`tools
+ebuild_editor.ps1` is unchanged).
 
 ## Templates without game shape: matchflow, screens, camrig modules (2026-11-15, 0.9.8)
 
