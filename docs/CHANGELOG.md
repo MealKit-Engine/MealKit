@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## UI: no dark fringe around images (2026-11-16, MkUI v0.9.1)
+
+- UI images are sampled with straight alpha and bilinear filtering, so texels along an edge mixed in the colour of their transparent neighbours, which most exporters and browser canvases leave black: a thin dark line around pictures drawn larger or smaller than their pixels. `Atlas::image` now gives each transparent or nearly transparent texel (alpha under 32) the alpha-weighted colour of its 3x3 neighbourhood before uploading it. Alpha is unchanged, so only edges change; shaders and the triangle path are untouched.
+- Reported in RngUnlimited (speed orbs, turn banner, portraits). Pulled with `tools\update_mkui.ps1 -Ref v0.9.1`.
+- Checked: MkUI build and tests, engine Release and Editor builds, RngUnlimited battle and party screens by capture (DX12). Not checked: Vulkan by eye, `tools\check.ps1` (not run).
+
 ## UI: text outline (2026-11-16, MkUI v0.9.0, MkRender v0.10.1)
 
 - `outline <width> [color]` on a text node, `outlineField` / `outlineColorField` for per-item values: an outline outside the glyphs (logical units, capped at 0.135 em, the glyph atlas' SDF padding). Without a color each glyph's own color is used, which makes the text bolder. Glyph quads carry it in `strokeWidth`/`strokeColor` (unused for glyphs before), and the UI shader draws `strokeWidth` screen px outside the SDF edge. The triangle path (`tessellate`) doesn't draw it.
