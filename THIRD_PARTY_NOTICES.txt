@@ -324,7 +324,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ==============================================================================
-mkui (MkUI runtime) v0.9.1 (52fabfb)
+mkui (MkUI runtime) v0.9.2 (2c900e9)
 ==============================================================================
 MIT License
 
