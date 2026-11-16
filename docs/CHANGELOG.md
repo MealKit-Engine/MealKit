@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## UI: text narrowed sideways by a field (2026-11-16, MkUI v0.10.0)
+
+- `squeezeField <field>` on a text node: every line is drawn narrower sideways by a number field (0..1, 1 = as shaped), keeping its `textAlign`; with `squeeze`, a line still wider than the box is then fitted to it. Scratch's Animated Text draws long numbers this way, and RngUnlimited copies it (party numbers at 90%/80% above 999/1999, top HUD values at 66% above 99). `squeeze` alone can't do it: it only fits the box, and the game can't measure text.
+- Pulled with `tools\update_mkui.ps1 -Ref v0.10.0`. Manual: `manual/ui.md` binding table (English and Korean).
+- Checked: MkUI build and `mkui_tests` (new `testSqueezeField`: narrowed and centred, narrowed then fitted). The MkUI test "pictures drawn before the restart use the fresh atlas" also fails on v0.9.2, before this change. Not checked: `tools\check.ps1` (not run).
+
 ## Editor: play starts at the first screen by default (2026-11-16, editor module v0.2.12)
 
 - The play option "Start at the first screen" (solo play of a game with menus starts at its title and menus, like the exe) was off on every editor start. It is now a preference (`playMenus` in `%LOCALAPPDATA%\MealKit\editor_settings.txt`), on by default, saved when the checkbox changes.
