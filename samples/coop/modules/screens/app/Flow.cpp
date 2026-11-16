@@ -196,7 +196,7 @@ void Flow::updateMenu(game::GameContext& ctx, FlowSave save) {
             m_menuScreen = Screen::Join;
             show(ctx, Screen::Join);
             return;
-        } else if (a.name == "menu.quit") ctx.window.close();
+        } else if (a.name == "menu.quit") ctx.match.quit(); // the exe closes its window, editor play stops
         else if (a.name == "menu.back") {
             m_menuScreen = Screen::Title;
             show(ctx, Screen::Title);

@@ -1,7 +1,7 @@
 # MealKit source module (docs/MODULES.md in the engine). Read by the engine build and tools\module.ps1.
 @format module 1
 name screens
-version 0.1.0
+version 0.1.1
 engine 0.9
 title Screen flow
 summary Title, menu, join (LAN rooms, address, Steam), lobby with chat, loading, pause and results screens over the engine's match service

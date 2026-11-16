@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Game: [Quit] stops editor play; settings functions for a game's own window (2026-11-16, engine 0.9.9)
+
+- `MatchService::quit()` (game module v0.2.6, `kApiVersion` 26): games ask to quit instead of calling `ctx.window.close()`. The shipping exe closes its window after the game's update; editor play (editor module v0.2.13) stops play like [Leave]. Before, the editor handed the game its own window, so a game's [Quit] closed the editor. The `screens` source module v0.1.1 (`D:\Personal\module-screens`) uses it, updated in `samples/sandbox` and `samples/coop`.
+- `settings::Service` (settings module v0.1.5) has what the standard screen did inside, for a game that draws its own settings window: `displaySizes()` (empty in editor play), `confirming()`/`confirmSecondsLeft()`/`keep()`/`revert()` (the 15 second display check), `rebind(action)`/`rebindingAction()`/`resetKeys()`. The rebinding state is an input action index now, not a screen row. Asked by RngUnlimited (its RNG-style settings window).
+- Checked: engine Editor and Release builds; `sandbox.exe --ui-press 20:start,60:quit` exits at once; RngUnlimited editor play with a dev trigger that presses its [Quit] logs "Play stopped by the game" and the editor keeps running to its capture. Not checked: `tools\check.ps1` (not run), the new settings functions from a game (RngUnlimited's window comes next).
+
 ## UI: text narrowed sideways by a field (2026-11-16, MkUI v0.10.0)
 
 - `squeezeField <field>` on a text node: every line is drawn narrower sideways by a number field (0..1, 1 = as shaped), keeping its `textAlign`; with `squeeze`, a line still wider than the box is then fitted to it. Scratch's Animated Text draws long numbers this way, and RngUnlimited copies it (party numbers at 90%/80% above 999/1999, top HUD values at 66% above 99). `squeeze` alone can't do it: it only fits the box, and the game can't measure text.
