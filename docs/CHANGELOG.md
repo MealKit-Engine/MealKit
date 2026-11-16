@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Editor: play starts at the first screen by default (2026-11-16, editor module v0.2.12)
+
+- The play option "Start at the first screen" (solo play of a game with menus starts at its title and menus, like the exe) was off on every editor start. It is now a preference (`playMenus` in `%LOCALAPPDATA%\MealKit\editor_settings.txt`), on by default, saved when the checkbox changes.
+- Asked by the RngUnlimited designer, whose play went straight into a match. `tools\module.ps1 engine bump editor`.
+- Checked: engine Editor build. Not checked: `tools\check.ps1` (not run).
+
 ## UI: no dark fringe around images (2026-11-16, MkUI v0.9.1)
 
 - UI images are sampled with straight alpha and bilinear filtering, so texels along an edge mixed in the colour of their transparent neighbours, which most exporters and browser canvases leave black: a thin dark line around pictures drawn larger or smaller than their pixels. `Atlas::image` now gives each transparent or nearly transparent texel (alpha under 32) the alpha-weighted colour of its 3x3 neighbourhood before uploading it. Alpha is unchanged, so only edges change; shaders and the triangle path are untouched.
