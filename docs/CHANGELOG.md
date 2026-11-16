@@ -9,6 +9,11 @@ When a roadmap item is done, its details move here and it is removed from ROADMA
 - Asked by the RngUnlimited designer, whose play went straight into a match. `tools\module.ps1 engine bump editor`.
 - Checked: engine Editor build. Not checked: `tools\check.ps1` (not run).
 
+## UI: image edges repeat into the atlas gap (2026-11-16, MkUI v0.9.2)
+
+- The image atlas leaves a 1 px transparent gap between images, and bilinear filtering at the edge of a quad read half of it, so an image whose edge is solid colour (a picture cut into bands, such as RngUnlimited's battle HUD panels, or a map) got a thin dark line along that edge. `Atlas::image` now places each image with one texel of border on every side that repeats its edge texels (`extrudeEdges`, as clamp-to-edge would); UVs point at the image inside it. Atlas use grows by 2 px per image side.
+- Pulled with `tools\update_mkui.ps1 -Ref v0.9.2`.
+
 ## UI: no dark fringe around images (2026-11-16, MkUI v0.9.1)
 
 - UI images are sampled with straight alpha and bilinear filtering, so texels along an edge mixed in the colour of their transparent neighbours, which most exporters and browser canvases leave black: a thin dark line around pictures drawn larger or smaller than their pixels. `Atlas::image` now gives each transparent or nearly transparent texel (alpha under 32) the alpha-weighted colour of its 3x3 neighbourhood before uploading it. Alpha is unchanged, so only edges change; shaders and the triangle path are untouched.
