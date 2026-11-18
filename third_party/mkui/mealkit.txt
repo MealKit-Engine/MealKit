@@ -2,7 +2,7 @@
 # THIRD_PARTY_NOTICES.txt from these files; tools\check_layout.ps1 checks them. Keys: docs/CODING_MODEL.md "외부 라이브러리 두기".
 # Update with tools\update_mkui.ps1 -From <MkUI checkout>; work on both with -DMEALKIT_MKUI_DIR=<checkout>.
 name mkui (MkUI runtime)
-version v0.11.1 (f31dd2b)
+version v0.12.0 (86677d2)
 license MIT
 licenseFile LICENSE
 source https://github.com/MealKit-Engine/MkUI

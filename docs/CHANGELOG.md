@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## UI: images multiplied by a multi-stop gradient (2026-11-18, MkUI v0.12.0, MkRender v0.10.3)
+
+- `gradientField <field>` on an image node: a string `"<position> <color> ..."` (positions as fractions of the drawn width from the left edge, stops outside 0..1 set the colour at the edge, `#rrggbb[aa]`, any number of stops) multiplies the picture after its tint. Asked by RngUnlimited, whose portrait frames share one white name band picture per frame and give each character its own band gradient from content (the original's SVG stops, up to four with opacity).
+- MkUI draws the picture as one piece per stop interval (split UVs): an image quad with `kQuadLinear` whose tint runs from `color0` to `strokeColor` (unused by images before; `color1` stays the brightness), so the 112 byte layout is unchanged. `Ui.hlsl` (DX12 and Vulkan from the same DXC source) and `mkui::tessellate` apply it. MkRender's change went on `release-0.10` as v0.10.3 (main has it too).
+- Manual: `manual/ui.md` binding table (English and Korean).
+- Checked: MkUI build and `mkui_tests` (new `testImageGradient`: pieces at the stops, sorted stops, edge colours from stops outside, tint multiplied, tessellated vertex colours), engine Editor and Release builds, docs `build.py check`. Not checked: `tools\check.ps1` (not run); on screen through RngUnlimited's name bands (next).
+
 ## UI: the default font is the first font file by name (2026-11-16, MkUI v0.11.1)
 
 - MkUI took `assets/fonts` files `.ttf` first, then `.otf`, each in the host's listing order, and the first became the font of every text without `font`: RngUnlimited adding Russo One (`.ttf`) beside its Pretendard body font (`.otf`) turned all its text into Russo One. The files are now sorted by file name whatever the extension.
