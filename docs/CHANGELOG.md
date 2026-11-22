@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Asset browser: search, kinds, favorites, recent, path bar (2026-11-22, Editor C item 25; module-editor v0.2.15)
+- **[Assets] window** (`EditorAssets.cpp`): a path bar whose parts are buttons (go up to that folder); a search box that matches every file under `assets` case-insensitively (list shows paths; the all-files list is read only while searching, once a second); a kind filter combo (all, models, scenes and prefabs, tables and text, sounds, images, other); **Favorites** and **Recent** views above the folder tree.
+- **Favorites / recent**: context menu "Add to Favorites"; recent = opened with a double-click or dragged out, newest first, 12 kept. Per project in `build/editor/asset_favorites.txt` and `asset_recent.txt` (one relative path per line, like `recent_scenes.txt`). Entries whose file is gone are hidden in those views. "Show in Folder" jumps from a search hit or list entry to its folder (`revealAsset` also clears search and filter).
+- **Also**: `module-editor` now carries the header staleness scan of `GameModuleHost::olderThanEngine` that had only been edited in the engine's vendored copy (a bump would have reverted it).
+- **Verified**: Linux Editor build, capture at 2600x1500 shows the path bar, search box, kind combo and Favorites/Recent entries. Typing a search, starring and persistence weren't exercised (no input automation).
+- **Left**: item 27 (preview pane). On Linux `module.ps1 engine local on` leaves no junction (New-Item Junction): a symlink `modules/editor -> ../../module-editor` was made by hand and removed before `local off`.
+
 ## Game code build time (2026-11-22)
 
 - Part D of ROADMAP "Linux editor finish and editor reinforcement". Measured first, on Linux (clang 21, 14 cores, `RelWithDebInfo` Editor build, the `arena` template as a new project, 15 game files). The vcvars64 step does not exist on Linux, so it is not measured (ROADMAP keeps it).
