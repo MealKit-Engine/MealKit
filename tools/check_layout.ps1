@@ -12,7 +12,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $engine = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
-if ($Project -eq "") { $Project = Join-Path $engine "samples\sandbox" }
+if ($Project -eq "") { $Project = Join-Path $engine "samples/sandbox" }
 $Project = (Resolve-Path $Project).Path.TrimEnd("\")
 # The engine repo's reference samples (samples\<name>): code is in sim/ view/ app/ next to assets/, libraries are the engine's
 $isEngine = (Split-Path -Parent $Project) -ieq (Join-Path $engine "samples")
@@ -51,7 +51,7 @@ function Warn([string]$path, [string]$msg) { $script:warnings += "warning: $(Rel
 # ---------------------------------------------------------------- Designated folders
 $wanted = if ($isEngine) { @("assets") } else { $topFolders }
 foreach ($f in $wanted) {
-    if (-not (Test-Path (Join-Path $Project $f))) { $warnings += "warning: $($f)/: missing folder (tools\upgrade_project.ps1 creates it)" }
+    if (-not (Test-Path (Join-Path $Project $f))) { $warnings += "warning: $($f)/: missing folder (tools/upgrade_project.ps1 creates it)" }
 }
 
 # ---------------------------------------------------------------- assets/ (project, and modules/<name>/assets/ per module)
@@ -61,7 +61,7 @@ function Check-Assets([string]$assets, [bool]$wantKinds) {
     $depth = $label.Split("/").Count - 1 # which path segment the kind folder is
     if ($wantKinds) {
         foreach ($k in $kinds.Keys) {
-            if (-not (Test-Path (Join-Path $assets $k))) { $script:warnings += "warning: $label$($k)/: missing kind folder (tools\upgrade_project.ps1 creates it)" }
+            if (-not (Test-Path (Join-Path $assets $k))) { $script:warnings += "warning: $label$($k)/: missing kind folder (tools/upgrade_project.ps1 creates it)" }
         }
     }
     foreach ($item in Get-ChildItem $assets -Force) {

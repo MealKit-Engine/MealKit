@@ -5,6 +5,12 @@ $engine = ""
 foreach ($line in Get-Content (Join-Path $PSScriptRoot "mealkit.project")) {
     if ($line -match "^\s*engine\s*[= ]\s*(.+?)\s*$") { $engine = $Matches[1] }
 }
+# The engine line may be a Windows path (D:\...). Elsewhere: MEALKIT_ROOT, then a MealKit folder beside the project or two levels up (games/<name>).
+if (-not $engine -or -not (Test-Path (Join-Path $engine "tools/build.ps1"))) {
+    foreach ($candidate in @($env:MEALKIT_ROOT, (Join-Path $PSScriptRoot "../MealKit"), (Join-Path $PSScriptRoot "../../MealKit"))) {
+        if ($candidate -and (Test-Path (Join-Path $candidate "tools/build.ps1"))) { $engine = (Resolve-Path $candidate).Path; break }
+    }
+}
 $script = Join-Path $engine "tools/build.ps1"
 if (-not $engine -or -not (Test-Path $script)) {
     Write-Host "[MealKit] Engine not found at `"$engine`" - set the engine line in mealkit.project"

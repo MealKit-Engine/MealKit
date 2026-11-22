@@ -12,7 +12,7 @@
 #     Presets   Release plus every engine preset (engine repository: also <sample>_solo.exe without net and <sample>_noaudio.exe without audio, docs/ENGINE_MODULES.md "Presets")
 #     EOS       Release with the EOS online backend (build/EOS, needs third_party/eos)
 #     Headless  Linux/macOS: headless game + tests in <project>/build/Headless/bin
-#     Linux: Editor, VulkanEditor and Vulkan build the X11 front end with the Vulkan backend (Editor = VulkanEditor there)
+#     Linux: every configuration but Headless builds the X11 front end with the Vulkan backend (Editor = VulkanEditor, Release = the Linux game exe)
 #     Editor    editor build in <project>/build/Editor/bin:
 #                 engine repository: mealkit.dll + MealKitEditor.exe + sample game DLL
 #                 game project:      <name>_game.dll only (builds the engine editor first if needed)
@@ -96,7 +96,7 @@ if ($onWindows) {
     }
 } else {
     if ($Config -eq "ClangCL") { Fail "ClangCL is a Windows configuration (clang is already the compiler here)" }
-    if ($Config -in @("Editor", "VulkanEditor", "Vulkan")) {
+    if ($Config -notin @("Headless", "HeadlessOnly")) { # every other configuration is a front end build here (Release, Export ... = the Linux game exe)
         if (-not $IsLinux) { Fail "$Config needs a front end, which exists on Windows and Linux only (macOS: ROADMAP stage 5)" }
         $extra += "-DMEALKIT_LINUX_FRONTEND=ON"
     }
@@ -115,6 +115,16 @@ if ($isEditor -and $projectDir -ne $engineDir -and -not $installedEngine) {
 if ($Config -eq "Export") { Invoke-Self $projectDir "Release" "The Release build used for cooking failed." }
 
 $buildDir = Join-Path (Join-Path $projectDir "build") $buildName
+# A tree configured on Windows (MSVC, absolute C:/ paths) can't be reused here: keep it as <name>.windows, like build/Editor.windows
+if ((-not $onWindows) -and (Test-Path (Join-Path $buildDir "CMakeCache.txt"))) {
+    $foreign = Select-String -Path (Join-Path $buildDir "CMakeCache.txt") -Pattern '^CMAKE_CXX_COMPILER:[A-Z]+=[A-Za-z]:/' -Quiet
+    if ($foreign) {
+        $kept = "$buildDir.windows"
+        if (Test-Path $kept) { Fail "$buildDir was configured on Windows and $kept already exists: remove one of them." }
+        Move-Item $buildDir $kept
+        Write-Host "[MealKit] Moved the Windows build tree to $kept"
+    }
+}
 # Editor builds are rebuilt often (hot reload): configure only once, Ninja re-runs CMake when CMakeLists change.
 $configured = (Test-Path (Join-Path $buildDir "build.ninja")) -and (Test-Path (Join-Path $buildDir "CMakeCache.txt"))
 if (-not ($isEditor -and $configured)) {

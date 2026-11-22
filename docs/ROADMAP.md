@@ -6,12 +6,13 @@
 
 Stages 0~4 are done (v0.4~v0.8), the contract freeze review and the cookbook are done (v0.9.0, `docs/CONTRACTS.md`), the engine is a kernel plus 20 engine module repos (`docs/ENGINE_MODULES.md`), the game UI runtime and its Designer live in MkUI (UI 2a), and the repos are public (first green public CI on Linux x64 and macOS ARM64 2026-11-03). Until v1.0 only fixes go in, plus the decided exceptions that only add to frozen formats (designer independence, the game UI editor; `docs/DECISIONS.md` 2026-11-03 and 2026-11-04).
 
-**Next, in order**:
-1. 2D on the 3D engine: what is left of the sprite item.
-2. Designer independence D4 (with FuseTag M5).
-3. UI 2: MkUI's XAML-like layer, one piece at a time.
-4. After publication: the checks and the v1.0.0 release.
-5. When devices and accounts are available: EOS measurements, cross-platform determinism and crossplay on real devices, minimum spec measurements → stage 5 (v1.x).
+**Next, in order** (changed 2026-11-22, `docs/DECISIONS.md` "Linux editor and editor reinforcement come first"; game work such as FuseTag M5/M6 waits):
+1. Linux editor finish and editor reinforcement, including what the scene-editing move left unfinished ("In progress" first item).
+2. 2D on the 3D engine: what is left of the sprite item (the flipbook preview is MkRender's, so it comes with item 1's MkRender work).
+3. Designer independence D4 (with FuseTag M5, later).
+4. UI 2: MkUI's XAML-like layer, one piece at a time.
+5. After publication: the checks and the v1.0.0 release.
+6. When devices and accounts are available: EOS measurements, cross-platform determinism and crossplay on real devices, minimum spec measurements → stage 5 (v1.x).
 
 Not scheduled (picked before work starts): the open editor usability items (tables and spreadsheets 39~43 among them), AI agents and game developer ease A1~A7, visual feedback proposals, technical artist T1~T14, roles review R1~R7, optimization #5~#7, modules ⑨, the tool suite rows.
 
@@ -66,6 +67,21 @@ The engine version is `VERSION` at the repo root. **v0.n = the engine having fin
 ---
 
 ## In progress
+
+### [ ] Linux editor finish and editor reinforcement (decided 2026-11-22, `docs/DECISIONS.md` "Linux editor and editor reinforcement come first"; Linux done part in `docs/CHANGELOG.md` "Linux editor")
+Order inside the item: A, then B; C and D one piece at a time.
+- **A. Linux editor** (moved here from "Editors on other OSes"; macOS stays in stage 5):
+  - MkRender on Linux: builds and runs (CHANGELOG "MkRender on Linux"). Left: hand editing checks, `--render-golden` on Linux, the editor's [Open in MkRender] finding it, the Manager installing it.
+  - Linux paths in the Manager's engine scripts (`tools\*.ps1` path joins).
+  - Linux game exe and Export: done (CHANGELOG "Linux game exe and Export"). `mp_test` between Linux peers passes (CHANGELOG "mp_test on Linux"). Left: Steam login on Linux, Debug/Profile/Presets builds, a clean machine's libraries. Game project editor builds on Linux: done (CHANGELOG "Game project editor on Linux"). Left: an existing game project (FuseTag) is on engine 0.9.5 and needs its engine modules updated before it builds.
+  - `check.ps1` on Linux: static, unit and det groups run (CHANGELOG "check.ps1 and CI on Linux"). Left: the tools, render, editor, project and export groups (SKIP on Linux now); the first run of the new CI job `linux-frontend` on GitHub.- **B. Left over from moving scene editing and sprite editing to MkRender** (CHANGELOG "MkRender step 10", "Scene editing in MkRender, leftovers"; MkRender's own list is its `docs/ROADMAP.md`). Not checked or not moved yet:
+  - Dragging a `gizmo=radius` handle, and the Vulkan build of MkRender, were never checked by hand (`check.ps1` golden and Vulkan golden run MkRender and SKIP when it isn't built).
+  - MkRender's look next to the editor at the same DPI (TOOL_DESIGN section 6 item 7), then the MkRender row of section 7.
+  - Flipbook clip preview on the selected sprite, once the engine has clips (needs "2D on the 3D engine").
+  - Editor usability items whose home moved: the scene tree (19~23), inspector (10) and viewport icon (30, 31) items now apply to MkRender's hierarchy, inspector and view, not the editor, which keeps only a read-only preview. Re-home each in the right app before it is picked (the "Editor usability" section below still names the editor).
+  - What the editor kept after the move (read-only preview, Look Dev, view modes, look-through and cutscene previews, play view): check each still works on Linux, and list what MkRender doesn't cover yet (MkUI's own "Not moved yet" list: drag from the library onto the canvas, the editor's inspector rows, the empty-screen guide, is in "UI 2").
+- **C. Editor reinforcement** (the editor is now the play view, assets, tables, project and build host): items picked from "Editor usability" below, in its suggested order: 25, 27 (asset browser), 37, 38 (shortcuts, status-bar hints), 39~43 (tables and spreadsheets), build profiles per platform/backend.
+- **D. Game code build time** ("Smaller engine items") fits here: opening a project rebuilds the game DLL nearly every time.
 
 ### [ ] Templates without game shape: what is left (decided 2026-11-15, `docs/DECISIONS.md` "Templates carry no game shape"; done part in `docs/CHANGELOG.md`)
 - Publish `matchflow`, `screens`, `camrig` (GitHub `KingProtea99/module-<name>`, tag `v0.1.0`, entries in MealKit-Modules) so `-Modules screens` works by name; until then pass the folders.
@@ -155,7 +171,7 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 ### [ ] Editors on other OSes (macOS, Linux)
 - **Done on Windows** (2026-11-02, v0.8.1): build logic in `tools/build.ps1` (PowerShell 5.1 and 7), `build.ps1` for Linux/macOS, `check_layout` catches asset references with differing case, default symbol visibility and PIC on Linux/macOS Editor builds, `dlopen` loading, game library `<name>_game.dll/.so/.dylib`, editor project paths with `/`.
 - **Done on Linux** (2026-11-22): X11 window, input, gamepads, file dialogs, posix processes and images, the editor's build/PowerShell calls, Vulkan Xlib surface; `pwsh build.ps1 Editor` builds and runs the editor (`docs/CHANGELOG.md` "Linux editor").
-- **Left**: the MkRender tool on Linux (its CMake builds it on Windows only), Linux paths in the Manager's engine scripts (`tools\*.ps1` joins), the Linux game exe and Export (`Vulkan` config builds the front end but isn't checked), game project editor builds on Linux, `check.ps1` groups on Linux, CI for the Linux front end; macOS window/input/process layers and signed library rules for hot reload. Exporting for platforms the editor's OS can't build (macOS/iOS only on macOS): remote builds or CI, decided then.
+- **Left**: the Linux items moved to "In progress" ("Linux editor finish and editor reinforcement", 2026-11-22). Still here: macOS window/input/process layers and signed library rules for hot reload. Exporting for platforms the editor's OS can't build (macOS/iOS only on macOS): remote builds or CI, decided then.
 
 ### [ ] Consoles (Xbox, PlayStation, Switch)
 - **Start conditions**: registration in each platform's developer program and dev kits.

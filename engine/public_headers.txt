@@ -53,8 +53,10 @@ game/Save.h
 
 # View side (view/, app/)
 platform/Window.h
+platform/Paths.h
 render/Renderer.h
 render/DrawList.h
+render/Sprites.h
 render/ModelDraw.h
 render/SceneLights.h
 camera/Brain.h

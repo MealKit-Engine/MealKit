@@ -20,7 +20,7 @@ function Get-EngineModules([string]$root) {
 function Get-EngineModuleFiles([string]$root) {
     $files = @()
     foreach ($m in Get-EngineModules $root) {
-        $editorDir = (Join-Path $m.Dir "editor") + "\"
+        $editorDir = (Join-Path $m.Dir "editor") + [IO.Path]::DirectorySeparatorChar
         foreach ($f in Get-ChildItem -Path $m.Dir -Recurse -Include *.cpp, *.h) {
             $owner = if ($f.FullName.StartsWith($editorDir, [StringComparison]::OrdinalIgnoreCase)) { "editor" } else { $m.Name }
             $f | Add-Member -NotePropertyName Module -NotePropertyValue $owner -Force

@@ -6,7 +6,7 @@
 # Game code (samples/*) doesn't use OS APIs (it receives them via GameContext).
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-. "$PSScriptRoot\engine_modules_common.ps1"
+. "$PSScriptRoot/engine_modules_common.ps1"
 
 $osHeaders = 'windows\.h|winsock2?\.h|ws2tcpip\.h|mstcpip\.h|shobjidl\.h|shlobj\.h|shellapi\.h|commdlg\.h|wincodec\.h|dwmapi\.h|' +
     'unistd\.h|pthread\.h|dlfcn\.h|fcntl\.h|netdb\.h|sys/\w+\.h|arpa/\w+\.h|' +
@@ -20,7 +20,7 @@ $callPattern = '\b(MultiByteToWideChar|WideCharToMultiByte|_wfopen(_s)?|LoadLibr
 
 $files = @()
 $files += Get-EngineModuleFiles $root |
-    Where-Object { $_.FullName -notmatch '\\mealkit\\platform\\(win32|posix)\\' }
+    Where-Object { $_.FullName -notmatch '[\\/]mealkit[\\/]platform[\\/](win32|posix|linux)[\\/]' }
 $files += Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Include *.cpp, *.h
 
 $problems = @()

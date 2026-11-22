@@ -3,6 +3,39 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## mp_test on Linux (2026-11-22)
+
+- `tools/mp_test.ps1` runs under pwsh on Linux: default exe `build/<Config>/bin/sandbox` (no `.exe`), log paths with `/`, `desync_diff.ps1` called through the running PowerShell.
+- Passed with the Linux Release build: `-Headless -Clients 3 -Ticks 900`, windowed `-Clients 2 -Ticks 600`, `-Lag 120 -Jitter 30 -Loss 3`, `-DesyncTest 200`, `-LateJoin` (3000 ticks), `-HostLeave` (2 migrations). All peers equal at the end.
+- Not done: Linux against Windows peers (`-Peer host|join` between two machines; CI compares per-tick hashes).
+
+## check.ps1 and CI on Linux (2026-11-22)
+
+- `tools/check.ps1` runs under pwsh on Linux: exe names without `.exe` (`$exeExt`), paths with `/`, `Run` through `/bin/sh`, builds through `tools/build.ps1`, sub-scripts through the running PowerShell (`$ps`). Groups `tools`, `render`, `editor`, `project`, `export` SKIP on Linux until ported.
+- `check_platform`, `check_modules`, `check_public_headers`, `check_strings`, `check_layout`, `check_libs`, `gen_notices` and `engine_modules_common` accept both path separators; the platform folder `linux` may use OS APIs.
+- Run on Linux: static (all 6), unit, and det (mp_test 1+3, coop, headless replay, desync, late join, host migration, replays, scenarios, shadow + rewind) pass.
+- Two static findings fixed on the way: `platform/Paths.h` and `render/Sprites.h` added to `engine/public_headers.txt` (used by the sample screens module and templates/empty2d), and the 5 stale matchflow keys ("Phase" ...) removed from `ko.txt` (MatchFlow is a source module now, whose field texts aren't translated there, like chat and cooldown).
+- CI: new job `linux-frontend` (ubuntu-24.04, X11 dev packages): the Linux Release and Editor builds, `ci_test.ps1` and a headless `mp_test`; `compare` expects `linux-x64-frontend`. The runner has no GPU, so nothing draws there. Not run on GitHub yet.
+
+## Game project editor on Linux (2026-11-22)
+
+- A new project (`tools/new_project.ps1`, arena template) builds its editor game library on Linux: `mk-build.ps1 -Config Editor -Repo <project>` gives `build/Editor/bin/<name>_game.so`. `MealKitEditor --project <folder>` loads it (`Game module '<name>' loaded (#1)`), and rebuilding while the editor is in edit mode swaps it in (`#2`, copy in `bin/hot/<name>.<pid>.<n>.so`).
+- `cmake/MealKit.cmake`: the project's editor build does `find_package(Threads)` before including the engine's `MealKitTargets.cmake` (its `mealkit` link interface names `Threads::Threads`).
+- `build.ps1` of a project (and `templates/project/build.ps1`): when the `engine` line of `mealkit.project` is a path that doesn't exist (a Windows path on Linux), it tries `MEALKIT_ROOT`, then `../MealKit` and `../../MealKit`.
+
+## Linux game exe and Export (2026-11-22)
+
+- Part A of ROADMAP "Linux editor finish and editor reinforcement". `tools/build.ps1 -Config Release|Export|Debug|Profile` now builds the X11 front end with Vulkan on Linux (every configuration but Headless/HeadlessOnly passes `MEALKIT_LINUX_FRONTEND=ON`), so `build/Release/bin/sandbox` and `coop` are the Linux game exes. A tree configured on Windows (MSVC in `CMakeCache.txt`) is moved to `build/<name>.windows` first, as `build/Editor.windows` was (the Release, Export, Headless and Vulkan trees were moved).
+- Steam: `engine/CMakeLists.txt` picks `MEALKIT_STEAM_LIB`/`MEALKIT_STEAM_RUNTIME` by OS (Windows `steam_api64.lib/.dll`, Linux `redistributable_bin/linux64/libsteam_api.so`, copied beside the exe, `$ORIGIN` rpath); `OnlineSteam.cpp` casts to Steam's `uint64` where `u64` (`unsigned long`) made `CSteamID(...)` ambiguous.
+- Shipping size: Linux/macOS Game builds compile with `-ffunction-sections -fdata-sections` and link with `--gc-sections` (macOS `-dead_strip`), and Export links with `-s`. The sandbox exe went from 6.2 MB (over the 5 MB budget) to 4.1 MB; code layout only, `-ffp-contract=off` stays.
+- Checked: Release build of every target; `sandbox --bot --exit-tick 300 --capture` (60 fps on Intel MTL, audio voices, in sync, screenshot drawn); Export of sandbox and coop (`samples/sandbox/export/sandbox/`: exe, `sandbox.pak`, `libsteam_api.so`, notices) and that exported exe running from its folder (`FINAL ... desync=0`). Not checked: `mp_test` between Linux peers, per-tick hashes against a Windows run (CI does that), Steam login on Linux, `Presets`, Debug and Profile builds, a clean Linux machine's libraries (`ldd` shows none missing here).
+
+## MkRender on Linux (2026-11-22)
+
+- Part A of ROADMAP "Linux editor finish and editor reinforcement". MkRender (`tool/`) builds and runs on Linux X11 with the Vulkan backend: `MKRENDER_BUILD_TOOL` defaults ON on Linux too (`cmake -S . -B build/linux -G Ninja -DMKRENDER_BUILD_TOOL=ON`, DXC from `~/.local/share/MealKit/tools`).
+- `tool/main.cpp`: the window handle is a `mkrhi::XlibWindow` (SDL's X11 display and window number) on Linux, SDL is told to use X11 (XWayland on Wayland desktops, like the editor), and a local named `unix` (a predefined macro in GNU mode) is renamed. `tool/CMakeLists.txt`: mkrhi and `mkrender_imgui` need each other, so GNU ld gets them in a `LINK_GROUP:RESCAN` (MSVC unchanged).
+- Checked: `--project samples/sandbox --capture` draws the arena scene with the hierarchy, inspector, Look Dev tab and stats (Intel MTL, Mesa, about 69 fps); `mkrender_tests` and `mkrender_strings_test` pass on Linux. Not checked: editing by hand (gizmos, undo, saving), `--render-golden` on Linux, the editor's [Open in MkRender] launching it, Wayland-native windows.
+
 ## Linux editor (2026-11-22)
 
 - Platform layer `platform/linux/` (X11, `docs/DECISIONS.md` 2026-11-22): `Window.cpp` (Xlib window, `_NET_WM_STATE` fullscreen/maximize, XInput2 raw motion, XIM text, XRandR display sizes, pointer grab for captured cursors), `ImGuiPlatform.cpp` (the engine's own ImGui glue: keys, mouse, cursor shapes, CLIPBOARD selection, `Xft.dpi` scale), `Gamepad.cpp` (evdev, Linux gamepad layout), `FileDialog.cpp` (zenity, kdialog), `X11Keys.h` (key symbols to the Win32 key codes of `platform/Input.h`). `posix/Process.cpp` (`/bin/sh -c`, pipes, process groups with `PR_SET_PDEATHSIG`) and `posix/Image.cpp` (stb_image, stb_image_write).

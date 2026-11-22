@@ -7,8 +7,8 @@
 param([string[]]$Path = @())
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-. "$PSScriptRoot\engine_modules_common.ps1"
-$listFile = Join-Path $root "engine\public_headers.txt"
+. "$PSScriptRoot/engine_modules_common.ps1"
+$listFile = Join-Path $root "engine/public_headers.txt"
 
 $public = @{}
 $problems = @()
@@ -16,7 +16,7 @@ foreach ($line in [IO.File]::ReadAllLines($listFile)) {
     $h = ($line -replace '#.*$', '').Trim()
     if (-not $h) { continue }
     $public[$h] = $true
-    if (-not (Resolve-EngineHeader $root $h)) { $problems += "engine\public_headers.txt: mealkit/$h isn't in that module's include/ folder" }
+    if (-not (Resolve-EngineHeader $root $h)) { $problems += "engine/public_headers.txt: mealkit/$h isn't in that module's include/ folder" }
 }
 
 $dirs = @()
@@ -32,14 +32,14 @@ foreach ($p in $Path) { $dirs += (Resolve-Path $p).Path }
 $count = 0
 foreach ($dir in $dirs) {
     foreach ($f in Get-ChildItem -Path $dir -Recurse -Include *.h, *.hpp, *.cpp, *.inl) {
-        if ($f.FullName -match '\\(build|export|third_party)\\') { continue }
+        if ($f.FullName -match '[\\/](build|export|third_party)[\\/]') { continue }
         $count++
         $rel = if ($f.FullName.StartsWith($root)) { $f.FullName.Substring($root.Length + 1) } else { $f.FullName }
         $n = 0
         foreach ($line in [IO.File]::ReadAllLines($f.FullName)) {
             $n++
             if ($line -match '^\s*#\s*include\s*["<]mealkit/([^">]+)[">]' -and -not $public.ContainsKey($Matches[1])) {
-                $problems += "${rel}:${n}: includes mealkit/$($Matches[1]), which isn't a public header (engine\public_headers.txt)"
+                $problems += "${rel}:${n}: includes mealkit/$($Matches[1]), which isn't a public header (engine/public_headers.txt)"
             }
         }
     }
@@ -47,7 +47,7 @@ foreach ($dir in $dirs) {
 
 if ($problems.Count -gt 0) {
     $problems | ForEach-Object { Write-Output "error: $_" }
-    Write-Output "FAIL public headers: $($problems.Count) problem(s) - game code uses only engine\public_headers.txt (add a header there if games need it)"
+    Write-Output "FAIL public headers: $($problems.Count) problem(s) - game code uses only engine/public_headers.txt (add a header there if games need it)"
     exit 1
 }
 Write-Output "OK public headers: $count game code file(s) include only the $($public.Count) public engine headers"

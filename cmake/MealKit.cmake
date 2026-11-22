@@ -81,6 +81,12 @@ else()
     if(MSVC AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE ON)
     endif()
+    if(NOT MSVC)
+        # Linux/macOS shipping exe: drop unused functions and data (MSVC's /OPT:REF); the symbol table goes in Export builds
+        # (after MEALKIT_DEBUG_UI is decided below). Code layout only: floating-point results don't change (-ffp-contract=off stays).
+        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:-ffunction-sections> $<$<COMPILE_LANGUAGE:C,CXX>:-fdata-sections>)
+        add_link_options($<IF:$<BOOL:${APPLE}>,-Wl$<COMMA>-dead_strip,-Wl$<COMMA>--gc-sections>)
+    endif()
 endif()
 
 # Graphics API backend (mealkit/rhi/<api>/, one per build). Shipping Windows builds use DX12; Vulkan via build.bat Vulkan/VulkanEditor.
@@ -98,6 +104,9 @@ if(MEALKIT_HEADLESS_ONLY)
     set(MEALKIT_DEBUG_UI OFF)
 elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
     set(MEALKIT_DEBUG_UI ON) # the editor draws with ImGui
+endif()
+if(NOT MSVC AND NOT MEALKIT_DEBUG_UI AND NOT MEALKIT_HEADLESS_ONLY AND MEALKIT_BUILD_KIND STREQUAL "Game")
+    add_link_options(-s) # shipping exe (build.ps1 Export): no symbol table
 endif()
 # Live connection (mealkit/live/Server.h, the contract between tools): dev build game exes open a 127.0.0.1 server. Excluded from shipping builds (Export).
 # The editor opens it regardless of this value. When on, the engine target passes MEALKIT_LIVE=1
@@ -383,6 +392,9 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT MEALKIT_IS_ENGINE)
     set(MEALKIT_EDITOR_SDK "${MEALKIT_ENGINE_DIR}/build/${mealkit_editor_build}" CACHE PATH "Engine editor build folder (mealkit.dll, MealKitEditor.exe)")
     if(NOT EXISTS "${MEALKIT_EDITOR_SDK}/MealKitTargets.cmake")
         message(FATAL_ERROR "Engine editor build not found in ${MEALKIT_EDITOR_SDK}. Run ${MEALKIT_ENGINE_DIR}\\build.bat ${mealkit_editor_build} first.")
+    endif()
+    if(NOT WIN32)
+        find_package(Threads REQUIRED) # the exported mealkit target's link interface names Threads::Threads
     endif()
     include("${MEALKIT_EDITOR_SDK}/MealKitTargets.cmake")
     set(MEALKIT_STEAM_DLL "")

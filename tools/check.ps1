@@ -127,18 +127,29 @@ function Selected([string]$group) { return [bool]$groups[$group] }
 $needRelease = (Selected "unit") -or (Selected "det") -or (Selected "game") -or (Selected "project") -or (Selected "export")
 $needEditor = (Selected "unit") -or (Selected "tools") -or (Selected "render") -or (Selected "editor")
 
-$release = Join-Path $root "build\Release\bin"
-$editorBin = Join-Path $root "build\Editor\bin"
-$game = Join-Path $release "sandbox.exe"
-$headless = Join-Path $release "sandbox_headless.exe"
-$coopGame = Join-Path $release "coop.exe"
-$editor = Join-Path $editorBin "MealKitEditor.exe"
+$onWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
+$exeExt = if ($onWindows) { ".exe" } else { "" }
+$ps = (Get-Process -Id $PID).Path # the same PowerShell (5.1, or pwsh on Linux)
+$release = Join-Path $root "build/Release/bin"
+$editorBin = Join-Path $root "build/Editor/bin"
+$game = Join-Path $release "sandbox$exeExt"
+$headless = Join-Path $release "sandbox_headless$exeExt"
+$coopGame = Join-Path $release "coop$exeExt"
+$editor = Join-Path $editorBin "MealKitEditor$exeExt"
 $results = @()
 $step = 0
 
 # One item: PASS if $body returns $true. Output goes to a log file.
+# Groups that still need Windows (editor/MkRender captures, project builds through build.bat, Windows folders): SKIP on Linux until they are ported (docs/ROADMAP.md)
+$windowsOnlyGroups = @("tools", "render", "editor", "project", "export")
 function Invoke-Check([string]$group, [string]$name, [scriptblock]$body) {
     if (-not (Selected $group)) { return }
+    if ((-not $onWindows) -and ($windowsOnlyGroups -contains $group) -and $name -notlike "*build*") {
+        $script:step++
+        Write-Host ("{0,-4} {1,-34} {2,7:N1}s  {3}" -f "SKIP", $name, 0, "SKIP: group '$group' is Windows only for now") -ForegroundColor Yellow
+        $script:results += [pscustomobject]@{ Group = $group; Name = $name; Ok = $true; Skipped = $true; Warned = $false; Seconds = 0; Log = "" }
+        return
+    }
     $script:step++
     $log = Join-Path $out ("{0:D2}-{1}.log" -f $script:step, ($name -replace '[^A-Za-z0-9]+', '-'))
     $watch = [Diagnostics.Stopwatch]::StartNew()
@@ -163,12 +174,15 @@ function Invoke-Check([string]$group, [string]$name, [scriptblock]$body) {
 
 # Runs a program and logs stdout/stderr (cmd sends them to the file directly). Returns the exit code.
 function Run([string]$log, [string]$exe, [string]$arguments) {
-    & cmd.exe /d /s /c "`"`"$exe`" $arguments > `"$log`" 2>&1`""
+    if ($onWindows) { & cmd.exe /d /s /c "`"`"$exe`" $arguments > `"$log`" 2>&1`"" }
+    else { & /bin/sh -c "`"$exe`" $arguments > `"$log`" 2>&1" }
     return $LASTEXITCODE
 }
 
 function Build([string]$log, [string]$kind) {
-    $code = Run $log "$root\build.bat" $kind
+    # Linux: the shared build script (every configuration but Headless is the X11 front end with Vulkan)
+    if ($onWindows) { $code = Run $log "$root/build.bat" $kind }
+    else { $code = Run $log $ps "-NoProfile -File `"$root/tools/build.ps1`" -Project `"$root`" -Config $(if ($kind) { $kind } else { 'Release' })" }
     return $code -eq 0 -and (Select-String -Path $log -Pattern "Build OK|Export OK" -Quiet)
 }
 
@@ -188,13 +202,13 @@ $groups["build-editor"] = $needEditor
 # Determinism key: the Release build's simulation version (cmake/BuildInfo.cmake, hash of sources touching the simulation) + content the simulation reads
 function Get-DetKey {
     $parts = @()
-    foreach ($h in @(Get-ChildItem (Join-Path $root "build\Release\samples") -Recurse -Filter mealkit_build_info.h -ErrorAction SilentlyContinue | Sort-Object FullName)) {
+    foreach ($h in @(Get-ChildItem (Join-Path $root "build/Release/samples") -Recurse -Filter mealkit_build_info.h -ErrorAction SilentlyContinue | Sort-Object FullName)) {
         $parts += "$($h.Directory.Name) " + (Select-String -Path $h.FullName -Pattern "SIM_VERSION (\w+)").Matches[0].Groups[1].Value
     }
     if ($parts.Count -eq 0) { return "" }
     $content = @()
     foreach ($sample in @(Get-ChildItem (Join-Path $root "samples") -Directory)) {
-        $content += @(@("mealkit.project", "assets\game.tuning") | ForEach-Object { Join-Path $sample.FullName $_ } | Where-Object { Test-Path $_ })
+        $content += @(@("mealkit.project", "assets/game.tuning") | ForEach-Object { Join-Path $sample.FullName $_ } | Where-Object { Test-Path $_ })
         $content += @(Get-ChildItem (Join-Path $sample.FullName "assets") -Recurse -File -Include *.scene, *.glb, *.gltf, *.table -ErrorAction SilentlyContinue | ForEach-Object FullName)
     }
     $content += @(Get-ChildItem (Join-Path $root "samples") -Recurse -File -Filter *.rec | ForEach-Object FullName)
@@ -208,10 +222,10 @@ Invoke-Check build-editor "Editor build" { param($log) Build $log "Editor" }
 Invoke-Check build-release "Release build" { param($log) Build $log "" }
 $unitArgs = if ($null -ne $unitAreas) { "--only $($unitAreas -join ',')" } else { "" }
 $releaseUnitLog = ""
-Invoke-Check unit "Unit tests (Release)" { param($log) $script:releaseUnitLog = $log; (Run $log "$release\mealkit_tests.exe" $unitArgs) -eq 0 }
+Invoke-Check unit "Unit tests (Release)" { param($log) $script:releaseUnitLog = $log; (Run $log "$release/mealkit_tests$exeExt" $unitArgs) -eq 0 }
 Invoke-Check unit "Unit tests (Editor) + DetMath bits" {
     param($log)
-    if ((Run $log "$editorBin\mealkit_tests.exe" $unitArgs) -ne 0) { return $false }
+    if ((Run $log "$editorBin/mealkit_tests$exeExt" $unitArgs) -ne 0) { return $false }
     # detmath-bits is printed by the det_math (core area) test. Not compared if excluded by --only
     $a = @((Select-String -Path $log -Pattern "^detmath-bits (\w+)").Matches)
     $b = if ($releaseUnitLog) { @((Select-String -Path $releaseUnitLog -Pattern "^detmath-bits (\w+)").Matches) } else { @() }
@@ -222,41 +236,41 @@ Invoke-Check unit "Unit tests (Editor) + DetMath bits" {
 }
 Invoke-Check static "Editor strings (ko.txt)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_strings.ps1" 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/check_strings.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
 Invoke-Check static "Project layout + notices" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layout.ps1" 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/check_layout.ps1" 2>&1
     $code = $LASTEXITCODE
-    $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\gen_notices.ps1" -Check 2>&1
+    $output += & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/gen_notices.ps1" -Check 2>&1
     $output | Out-File -Encoding utf8 $log
     return $code -eq 0 -and $LASTEXITCODE -eq 0
 }
 Invoke-Check static "Platform layer (OS APIs)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_platform.ps1" 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/check_platform.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
 Invoke-Check static "Engine modules (manifests and includes)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_modules.ps1" 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/check_modules.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
 # Game code (samples, templates, source modules) includes only engine\public_headers.txt (the headers v1.x keeps source compatible)
 Invoke-Check static "Public headers (game code)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_public_headers.ps1" 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/check_public_headers.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
 # Tool suite runtimes (third_party/mkaudio = separate repo MkAudio) don't use engine headers/macros
 Invoke-Check static "Engine libs (no engine headers)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_libs.ps1" 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/check_libs.ps1" 2>&1
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
@@ -275,7 +289,7 @@ if ($detKey -and -not $detForced) {
 
 Invoke-Check det "Determinism (mp_test 1+3, 900 ticks)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 3 -Ticks 900 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/mp_test.ps1" -Clients 3 -Ticks 900 2>&1
     $output | Out-File -Encoding utf8 $log
     return ($output -match "^PASS").Count -gt 0
 }
@@ -283,7 +297,7 @@ Invoke-Check det "Determinism (mp_test 1+3, 900 ticks)" {
 # Co-op sample: active ragdolls, chasers on the nav grid, terrain heightfield (headless 1+3, 1800 ticks = past the first catches and revives)
 Invoke-Check det "Determinism coop (mp_test 1+3 headless, 1800 ticks)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Exe $coopGame -Clients 3 -Ticks 1800 -Headless 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/mp_test.ps1" -Exe $coopGame -Clients 3 -Ticks 1800 -Headless 2>&1
     $output | Out-File -Encoding utf8 $log
     return ($output -match "^PASS").Count -gt 0
 }
@@ -291,21 +305,21 @@ Invoke-Check det "Determinism coop (mp_test 1+3 headless, 1800 ticks)" {
 # Headless: the same determinism tests without a window + replaying the input recording with another executable (sandbox.exe --headless) to check per-tick hashes match
 Invoke-Check det "Headless (mp_test, record + replay)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 3 -Ticks 900 -Headless 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/mp_test.ps1" -Clients 3 -Ticks 900 -Headless 2>&1
     $output | Out-File -Encoding utf8 $log
     if (($output -match "^PASS").Count -eq 0) { return "mp_test -Headless failed" }
     $rec = Join-Path $out "headless.rec"
-    Run "$log.record" $headless "--seed 7 --exit-tick 900 --record-inputs `"$rec`" --hash-log `"$out\headless-hashes.txt`"" | Out-Null
-    $code = Run "$log.replay" $game "--headless --replay-inputs `"$rec`" --hash-log `"$out\replay-hashes.txt`""
+    Run "$log.record" $headless "--seed 7 --exit-tick 900 --record-inputs `"$rec`" --hash-log `"$out/headless-hashes.txt`"" | Out-Null
+    $code = Run "$log.replay" $game "--headless --replay-inputs `"$rec`" --hash-log `"$out/replay-hashes.txt`""
     if ($code -ne 0 -or -not (Has "$log.replay" "^REPLAY ok")) { return "replay failed" }
-    if ((Get-FileHash "$out\headless-hashes.txt").Hash -ne (Get-FileHash "$out\replay-hashes.txt").Hash) { return "hash logs differ" }
+    if ((Get-FileHash "$out/headless-hashes.txt").Hash -ne (Get-FileHash "$out/replay-hashes.txt").Hash) { return "hash logs differ" }
     return $true
 }
 
 # Desync diagnostics: when one client deliberately diverges, does everyone detect the desync, and does the dump comparison pinpoint that tick (headless 1+1)
 Invoke-Check det "Desync dumps + desync_diff" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 1 -Ticks 400 -Headless -DesyncTest 200 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/mp_test.ps1" -Clients 1 -Ticks 400 -Headless -DesyncTest 200 2>&1
     $output | Out-File -Encoding utf8 $log
     return ($output -match "^PASS").Count -gt 0
 }
@@ -313,7 +327,7 @@ Invoke-Check det "Desync dumps + desync_diff" {
 # Late join/reconnect: do someone who left and rejoined with the same name and someone newly joining mid-match keep the same hash to the end (headless 1+2+1)
 Invoke-Check det "Late join + rejoin (mp_test -LateJoin)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 2 -Ticks 3000 -Headless -LateJoin 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/mp_test.ps1" -Clients 2 -Ticks 3000 -Headless -LateJoin 2>&1
     $output | Out-File -Encoding utf8 $log
     return ($output -match "^PASS: 4 peers").Count -gt 0
 }
@@ -321,7 +335,7 @@ Invoke-Check det "Late join + rejoin (mp_test -LateJoin)" {
 # Host migration: when the host leaves normally (Handoff) and the successor also crashes, do the remaining two clients keep the same hash to the end (headless 1+3)
 Invoke-Check det "Host migration (mp_test -HostLeave)" {
     param($log)
-    $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\mp_test.ps1" -Clients 3 -Ticks 3000 -Headless -HostLeave 2>&1
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/mp_test.ps1" -Clients 3 -Ticks 3000 -Headless -HostLeave 2>&1
     $output | Out-File -Encoding utf8 $log
     return ($output -match "^PASS: 2 peers").Count -gt 0
 }
@@ -333,7 +347,7 @@ Invoke-Check det "Committed replays (samples/*/replays)" {
     $recs = @(Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Filter *.rec | Where-Object { $_.Directory.Name -eq "replays" })
     if ($recs.Count -eq 0) { return "no recordings" }
     foreach ($rec in $recs) {
-        $exe = Join-Path $release "$($rec.Directory.Parent.Name)_headless.exe"
+        $exe = Join-Path $release "$($rec.Directory.Parent.Name)_headless$exeExt"
         $code = Run "$log.$($rec.BaseName)" $exe "--replay-inputs `"$($rec.FullName)`""
         if ($code -ne 0 -or -not (Has "$log.$($rec.BaseName)" "^REPLAY ok")) { return "$($rec.Name) differs - re-record if intended" }
     }
@@ -347,7 +361,7 @@ Invoke-Check det "Scenario tests (samples/*/tests)" {
     $files = @(Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Filter *.scenario | Where-Object { $_.Directory.Name -eq "tests" })
     if ($files.Count -eq 0) { return "no scenarios" }
     foreach ($f in $files) {
-        $exe = Join-Path $release "$($f.Directory.Parent.Name)_headless.exe"
+        $exe = Join-Path $release "$($f.Directory.Parent.Name)_headless$exeExt"
         $code = Run "$log.$($f.BaseName)" $exe "--test `"$($f.FullName)`""
         if ($code -ne 0 -or -not (Has "$log.$($f.BaseName)" "^SCENARIO ok")) { return "$($f.Name) failed (see $log.$($f.BaseName))" }
     }
@@ -358,7 +372,7 @@ Invoke-Check det "Scenario tests (samples/*/tests)" {
 if (-not $Quick) {
     Invoke-Check det "Shadow simulation + rewind" {
         param($log)
-        Run $log $game "--bot --mute --seed 7 --exit-tick 900 --shadow --rewind-test --vsync 0 --size 640 360 --hash-log `"$out\window-hashes.txt`"" | Out-Null
+        Run $log $game "--bot --mute --seed 7 --exit-tick 900 --shadow --rewind-test --vsync 0 --size 640 360 --hash-log `"$out/window-hashes.txt`"" | Out-Null
         return (Has $log "^SHADOW ok") -and (Has $log "^REWIND ok")
     }
     Invoke-Check det "Headless = window (900 tick hashes)" {
@@ -396,10 +410,10 @@ if (-not $Quick) {
         # The same on every PC, so compared even when the adapter differs; any rise over the baseline (+1 for rounding) warns. The goal is 0
         $allocs = if ($m.Groups[7].Success) { [double]$m.Groups[7].Value } else { -1 }
         $adapter = ((Select-String -Path $report -Pattern '^gpu\s+(.+?) \|').Matches[0].Groups[1].Value).Trim()
-        $baseFile = Join-Path $root "engine\tests\perf\baseline.txt"
+        $baseFile = Join-Path $root "engine/tests/perf/baseline.txt"
         if ($UpdatePerf) {
             New-Item -ItemType Directory -Force (Split-Path $baseFile) | Out-Null
-            $lines = @("# Performance baseline for tools\check.ps1 (sandbox.exe --benchmark 10, fixed seed + bots). Rewrite with check.ps1 -UpdatePerf on the measuring PC",
+            $lines = @("# Performance baseline for tools/check.ps1 (sandbox$exeExt --benchmark 10, fixed seed + bots). Rewrite with check.ps1 -UpdatePerf on the measuring PC",
                 "# Values over baseline * (1 + tolerance %) (and over the absolute slack: 0.5 ms for times, 32 MB for memory) are warnings",
                 "adapter $adapter", "tolerance 20")
             foreach ($k in $now.Keys) { $lines += "$k $($now[$k])" }
@@ -451,12 +465,12 @@ if (-not $Quick) {
     # Crash report (ROADMAP "Crash reports"): crash on purpose → crash/pending/ (minidump, info, log) → the next run bundles crash/<time>.zip with replay.rec
     Invoke-Check game "Crash report" {
         param($log)
-        $crashDir = Join-Path $env:LOCALAPPDATA "sandbox\crash" # userFolder of the sample's mealkit.project
+        $crashDir = Join-Path $env:LOCALAPPDATA "sandbox/crash" # userFolder of the sample's mealkit.project
         $before = @(Get-ChildItem $crashDir -Filter *.zip -ErrorAction SilentlyContinue | ForEach-Object FullName)
         $rec = Join-Path $out "crash.rec"
         $code = Run $log $game "--bot --mute --vsync 0 --exit-tick 900 --crash-at 120 --record-inputs `"$rec`""
         if ($code -eq 0) { return "the game did not crash" }
-        if (-not (Test-Path (Join-Path $crashDir "pending\crash.dmp"))) { return "no crash.dmp in crash\pending" }
+        if (-not (Test-Path (Join-Path $crashDir "pending/crash.dmp"))) { return "no crash.dmp in crash/pending" }
         $log2 = "$log.next"
         $code = Run $log2 $game "--bot --mute --vsync 0 --exit-tick 30 --crash-at 100000"
         $new = @(Get-ChildItem $crashDir -Filter *.zip | Where-Object { $before -notcontains $_.FullName })
@@ -468,8 +482,8 @@ if (-not $Quick) {
     # GPU capture (ROADMAP "GPU capture button and editor view modes"): if RenderDoc is present, capture one frame with --gpu-capture-at and check an .rdc appears
     Invoke-Check game "GPU capture (RenderDoc)" {
         param($log)
-        if (-not (Test-Path "$env:ProgramFiles\RenderDoc\renderdoc.dll")) { return "SKIP: RenderDoc not installed" }
-        $dir = Join-Path $env:LOCALAPPDATA "MealKit\gpu-captures"
+        if (-not (Test-Path "$env:ProgramFiles/RenderDoc/renderdoc.dll")) { return "SKIP: RenderDoc not installed" }
+        $dir = Join-Path $env:LOCALAPPDATA "MealKit/gpu-captures"
         $before = @(Get-ChildItem $dir -Filter *.rdc -ErrorAction SilentlyContinue).Count
         $code = Run $log $game "--bot --mute --vsync 0 --exit-tick 120 --gpu-capture-at 30"
         $after = @(Get-ChildItem $dir -Filter *.rdc -ErrorAction SilentlyContinue)
@@ -487,10 +501,10 @@ if (-not $Quick) {
         param($log)
         $p = Start-Process -FilePath $game -ArgumentList "--bot --mute --vsync 0 --size 640 360 --exit-tick 600" -PassThru -WindowStyle Hidden
         try {
-            & powershell -NoProfile -ExecutionPolicy Bypass -File "$root\tools\live_probe.ps1" -Kind game -Wait 20 -Events 2 *> $log
+            & $ps -NoProfile -ExecutionPolicy Bypass -File "$root/tools/live_probe.ps1" -Kind game -Wait 20 -Events 2 *> $log
             $code = $LASTEXITCODE
         } finally { $p.WaitForExit(60000) | Out-Null }
-        $left = Test-Path (Join-Path $root "build\live\game-$($p.Id).json")
+        $left = Test-Path (Join-Path $root "build/live/game-$($p.Id).json")
         return $code -eq 0 -and -not $left -and (Has $log "^event stats: ")
     }
     # Tool shortcuts (editor/Tools.h): finds manifests and recognizes tools with a different contract version
@@ -498,9 +512,9 @@ if (-not $Quick) {
         param($log)
         $dir = Join-Path $out "tools"
         Remove-Item -Recurse -Force $dir -ErrorAction SilentlyContinue
-        New-Item -ItemType Directory -Force "$dir\good", "$dir\old" | Out-Null
-        [IO.File]::WriteAllText("$dir\good\mealkit-tool.txt", "# MealKit tool manifest`n@format tool 1`nname Check Tool`nexe $game`nversion 1.0`nprotocol 1`nopens .table`n")
-        [IO.File]::WriteAllText("$dir\old\mealkit-tool.txt", "@format tool 1`nname Old Tool`nexe old.exe`nprotocol 999`n")
+        New-Item -ItemType Directory -Force "$dir/good", "$dir/old" | Out-Null
+        [IO.File]::WriteAllText("$dir/good/mealkit-tool.txt", "# MealKit tool manifest`n@format tool 1`nname Check Tool`nexe $game`nversion 1.0`nprotocol 1`nopens .table`n")
+        [IO.File]::WriteAllText("$dir/old/mealkit-tool.txt", "@format tool 1`nname Old Tool`nexe old$exeExt`nprotocol 999`n")
         $code = Run $log $editor "--list-tools --tool-path `"$dir`""
         return $code -eq 0 -and (Has $log "^tool: Check Tool 1\.0 protocol 1 .*sandbox\.exe$") -and (Has $log "^tool: Old Tool .*\(protocol differs\)")
     }
@@ -509,13 +523,13 @@ if (-not $Quick) {
     Invoke-Check tools "Blender add-on export" {
         param($log)
         $blender = $env:MEALKIT_BLENDER
-        if (-not $blender) { $blender = "$env:ProgramFiles\Blender Foundation\Blender 5.2\blender.exe" }
+        if (-not $blender) { $blender = "$env:ProgramFiles/Blender Foundation/Blender 5.2/blender$exeExt" }
         if (-not (Test-Path $blender)) { return "SKIP: no Blender 5.2 (set MEALKIT_BLENDER)" }
         $dir = Join-Path $out "blender-addon"
         if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
         # Run (cmd /s /c) can't wrap exe paths with spaces (Program Files), so it's called directly
         $ErrorActionPreference = "Continue" # lines Blender writes to stderr aren't treated as errors
-        & $blender -b --factory-startup --python "$root\tools\blender-addon\test\test_export.py" -- $dir 2>&1 | Out-File $log -Encoding utf8
+        & $blender -b --factory-startup --python "$root/tools/blender-addon/test/test_export.py" -- $dir 2>&1 | Out-File $log -Encoding utf8
         return $LASTEXITCODE -eq 0 -and (Has $log "BLENDER ADDON ok")
     }
     Invoke-Check tools "Penpot screens = engine layout" {
@@ -527,14 +541,14 @@ if (-not $Quick) {
     # (pixels with channel difference over 48 at most 1%). Catches missing or badly misplaced nodes
     Invoke-Check tools "Penpot screens = engine pixels" {
         param($log)
-        $previews = @(Get-ChildItem (Join-Path $sandbox "art\ui\preview") -Filter *.png -ErrorAction SilentlyContinue)
+        $previews = @(Get-ChildItem (Join-Path $sandbox "art/ui/preview") -Filter *.png -ErrorAction SilentlyContinue)
         if ($previews.Count -eq 0) { return "SKIP: no art/ui/preview images" }
         foreach ($p in $previews) {
             $png = Join-Path $out ("engine-" + $p.Name)
             $code = Run "$log.render" $editor "--project `"$sandbox`" --lang en --ui-render ui/$($p.BaseName).ui `"$png`""
             Get-Content "$log.render" | Add-Content $log
             if ($code -ne 0) { return $false }
-            $diff = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $p.FullName -B $png -Threshold 48 -MaxBadPercent 1 -MaxDiff 255 2>&1
+            $diff = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/compare_images.ps1" -A $p.FullName -B $png -Threshold 48 -MaxBadPercent 1 -MaxDiff 255 2>&1
             "$($p.Name): $diff" | Add-Content $log
             if ($LASTEXITCODE -ne 0) { return $false }
         }
@@ -549,7 +563,7 @@ if (-not $Quick) {
     # Scene editing is MkRender's (ROADMAP "Scene editing moves to MkRender" phase 6): the sandbox arena with an object selected, kinds from the game
     Invoke-Check editor "MkRender capture (scene editing)" {
         param($log)
-        $mk = Join-Path (Split-Path $root -Parent) "MkRenderuildin\MkRender.exe"
+        $mk = Join-Path (Split-Path $root -Parent) "MkRenderuildin/MkRender$exeExt"
         if (-not (Test-Path $mk)) { return "SKIP: MkRender not built ($mk)" }
         $png = Join-Path $out "mkrender.png"
         $code = Run $log $mk "--project `"$sandbox`" --frames 60 --select 25 --capture `"$png`""
@@ -566,19 +580,19 @@ if (-not $Quick) {
     Invoke-Check render "Editor look dev (offscreen, DX12 debug layer)" {
         param($log)
         $png = Join-Path $out "editor-lookdev.png"
-        $code = Run $log $editor "--project `"$sandbox`" `"$sandbox\assets\scenes\styles.scene`" --frames 60 --lookdev --lookdev-model models/props/style_figure.glb --debug --capture `"$png`""
+        $code = Run $log $editor "--project `"$sandbox`" `"$sandbox/assets/scenes/styles.scene`" --frames 60 --lookdev --lookdev-model models/props/style_figure.glb --debug --capture `"$png`""
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]") -and -not (Has $log "\[D3D12\]")
     }
     # Graphics regression test (ROADMAP "Graphics regression tests"): draws fixed scenes (engine\tests\golden\shots.txt) without UI and compares with reference images.
     # On differences, build\check\golden\<name>-diff.png (red = differing pixels). Different GPUs/drivers may differ slightly, so there's a threshold
     # The shots are drawn by the MkRender scene editor (sibling repo ..\MkRender: build\bin, build-vulkan\bin; SKIP when not built),
     # which draws scenes like the engine without the editor (ROADMAP "Scene editing moves to MkRender" phase 6)
-    $goldenDir = Join-Path $root "engine\tests\golden"
+    $goldenDir = Join-Path $root "engine/tests/golden"
     $mkRenderRoot = Join-Path (Split-Path $root -Parent) "MkRender"
     function Compare-Golden([string]$log, [string]$exe, [string]$suffix) {
         if (-not (Test-Path $exe)) { return "SKIP: MkRender not built ($exe)" }
         $dir = Join-Path $out "golden$suffix"
-        $code = Run $log $exe "--project `"$sandbox`" --render-golden `"$goldenDir\shots.txt`" `"$dir`""
+        $code = Run $log $exe "--project `"$sandbox`" --render-golden `"$goldenDir/shots.txt`" `"$dir`""
         if ($code -ne 0) { return "render failed" }
         $problems = @()
         foreach ($png in Get-ChildItem $dir -Filter *.png | Where-Object { $_.Name -notlike "*-diff.png" }) {
@@ -586,15 +600,15 @@ if (-not $Quick) {
             if ($UpdateGolden -and $suffix -eq "") { Copy-Item $png.FullName $golden -Force; continue }
             if (-not (Test-Path $golden)) { $problems += "$($png.BaseName): no golden image (run check.ps1 -UpdateGolden)"; continue }
             $diff = Join-Path $dir ($png.BaseName + "-diff.png")
-            $r = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $golden -B $png.FullName -Threshold 8 -MaxBadPercent 0.5 -MaxDiff 255 -DiffOut $diff 2>&1
+            $r = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/compare_images.ps1" -A $golden -B $png.FullName -Threshold 8 -MaxBadPercent 0.5 -MaxDiff 255 -DiffOut $diff 2>&1
             Add-Content $log "$($png.Name): $($r | Select-Object -First 1)"
             if ($LASTEXITCODE -ne 0) { $problems += "$($png.BaseName): $($r | Select-Object -First 1)" }
         }
-        if ($UpdateGolden -and $suffix -eq "") { return "SKIP: golden images updated in engine\tests\golden" }
+        if ($UpdateGolden -and $suffix -eq "") { return "SKIP: golden images updated in engine/tests/golden" }
         if ($problems.Count -gt 0) { return ($problems -join "; ") }
         return $true
     }
-    Invoke-Check render "Graphics regression (golden images)" { param($log) Compare-Golden $log (Join-Path $mkRenderRoot "build\bin\MkRender.exe") "" }
+    Invoke-Check render "Graphics regression (golden images)" { param($log) Compare-Golden $log (Join-Path $mkRenderRoot "build/bin/MkRender$exeExt") "" }
     Invoke-Check editor "Editor play (solo, shadow)" {
         param($log)
         $png = Join-Path $out "editor-play.png"
@@ -609,8 +623,8 @@ if (-not $Quick) {
     }
     # RHI backends (ROADMAP stage 2 "RHI layer"): does the Vulkan editor draw the same scene the same as DX12, with no validation layer errors.
     # The editor edit screen is the same every run (the game screen changes over time). The status bar (fps) is excluded.
-    $vkEditorBin = Join-Path $root "build\VulkanEditor\bin"
-    $vkEditor = Join-Path $vkEditorBin "MealKitEditor.exe"
+    $vkEditorBin = Join-Path $root "build/VulkanEditor/bin"
+    $vkEditor = Join-Path $vkEditorBin "MealKitEditor$exeExt"
     Invoke-Check render "Vulkan editor build" { param($log) Build $log "VulkanEditor" }
     Invoke-Check render "Vulkan = DX12 (editor capture)" {
         param($log)
@@ -623,12 +637,12 @@ if (-not $Quick) {
         if ((Run "$log.dx12" $editor "$common `"$dx`"") -ne 0 -or -not (Test-Path $dx)) { return "DX12 capture failed" }
         if ((Run "$log.vulkan" $vkEditor "$common `"$vk`"") -ne 0 -or -not (Test-Path $vk)) { return "Vulkan capture failed" }
         # The log lines (DLL path/port/token/time differ per run) and status bar are excluded. In the default 1600x900 layout the bottom strip starts at about y = 498
-        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\compare_images.ps1" -A $dx -B $vk -IgnoreBottom 490 -DiffOut (Join-Path $out "backend-diff.png") 2>&1
+        $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/compare_images.ps1" -A $dx -B $vk -IgnoreBottom 490 -DiffOut (Join-Path $out "backend-diff.png") 2>&1
         $output | Out-File -Encoding utf8 $log
         if ($LASTEXITCODE -ne 0) { return ($output | Select-Object -First 1) }
         return $true
     }
-    Invoke-Check render "Graphics regression (Vulkan)" { param($log) Compare-Golden $log (Join-Path $mkRenderRoot "build-vulkan\bin\MkRender.exe") "-vulkan" }
+    Invoke-Check render "Graphics regression (Vulkan)" { param($log) Compare-Golden $log (Join-Path $mkRenderRoot "build-vulkan/bin/MkRender$exeExt") "-vulkan" }
     Invoke-Check render "Vulkan validation layer (play)" {
         param($log)
         $png = Join-Path $out "vulkan-play.png"
@@ -642,7 +656,7 @@ if (-not $Quick) {
     Invoke-Check render "Vulkan validation layer (look dev)" {
         param($log)
         $png = Join-Path $out "vulkan-lookdev.png"
-        $code = Run $log $vkEditor "--project `"$sandbox`" `"$sandbox\assets\scenes\styles.scene`" --frames 60 --lookdev --lookdev-model models/props/style_figure.glb --debug --capture `"$png`""
+        $code = Run $log $vkEditor "--project `"$sandbox`" `"$sandbox/assets/scenes/styles.scene`" --frames 60 --lookdev --lookdev-model models/props/style_figure.glb --debug --capture `"$png`""
         if (Has $log "validation layer unavailable") { return "SKIP: Vulkan SDK not installed (validation layer)" }
         if ($code -ne 0 -or -not (Test-Path $png)) { return "capture failed" }
         $issues = @(Select-String -Path $log -Pattern "\[Vulkan\]")
@@ -656,7 +670,7 @@ if (-not $Quick) {
         return $code -eq 0 -and (Has $log "Play mode: 3 player") -and -not (Has $log "Play stopped")
     }
     # Build failure: putting forbidden code in sim/ makes SimCheck stop the build, and the editor must still be able to play with the previous DLL
-    $bad = Join-Path $root "samples\sandbox\sim\ZzCheckFailure.cpp"
+    $bad = Join-Path $root "samples/sandbox/sim/ZzCheckFailure.cpp"
     try {
         Set-Content -Path $bad -Value "// Temporary file created by tools/check.ps1 (SimCheck failure test)`r`n#include <random>`r`n" -Encoding UTF8
         Invoke-Check editor "SimCheck stops a bad build" {
@@ -681,34 +695,34 @@ if (-not $Quick) {
         param($log)
         $projects = Join-Path $env:TEMP "mealkit-check-projects" # must be outside the engine folder
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
-        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\new_project.ps1" -Name CheckGame -Path $projects 2>&1
-        $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\upgrade_project.ps1" -Project "$projects\CheckGame" 2>&1
+        $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/new_project.ps1" -Name CheckGame -Path $projects 2>&1
+        $output += & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/upgrade_project.ps1" -Project "$projects/CheckGame" 2>&1
         $output | Out-File -Encoding utf8 $log
-        $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layout.ps1" -Project "$projects\CheckGame" 2>&1
+        $output += & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/check_layout.ps1" -Project "$projects/CheckGame" 2>&1
         $layoutOk = $LASTEXITCODE -eq 0 -and (($output -match "^OK layout: .* \(0 warning").Count -gt 0)
         # Game libraries: adding a header-only library works from view/ and is SimCheck SIM011 from sim/
-        $lib = "$projects\CheckGame\third_party\checklib"
+        $lib = "$projects/CheckGame/third_party/checklib"
         New-Item -ItemType Directory -Force $lib | Out-Null
-        Set-Content "$lib\checklib.h" "#pragma once`r`ninline int checkLib() { return 1; }" -Encoding UTF8
-        Set-Content "$lib\LICENSE" "MIT" -Encoding UTF8
-        Set-Content "$lib\mealkit.txt" "name checklib`r`nversion 1`r`nlicense MIT`r`nsource local`r`n" -Encoding UTF8
-        Set-Content "$projects\CheckGame\source\sim\ZzLib.cpp" "#include `"checklib.h`"`r`n" -Encoding UTF8
-        $sim = & "$root\build\Release\tools\mealkit_simcheck.exe" "$projects\stamp" --third-party $lib "$projects\CheckGame\source\sim\ZzLib.cpp" 2>&1
+        Set-Content "$lib/checklib.h" "#pragma once`r`ninline int checkLib() { return 1; }" -Encoding UTF8
+        Set-Content "$lib/LICENSE" "MIT" -Encoding UTF8
+        Set-Content "$lib/mealkit.txt" "name checklib`r`nversion 1`r`nlicense MIT`r`nsource local`r`n" -Encoding UTF8
+        Set-Content "$projects/CheckGame/source/sim/ZzLib.cpp" "#include `"checklib.h`"`r`n" -Encoding UTF8
+        $sim = & "$root/build/Release/tools/mealkit_simcheck$exeExt" "$projects/stamp" --third-party $lib "$projects/CheckGame/source/sim/ZzLib.cpp" 2>&1
         $output += $sim
         $simOk = ($sim -match "SIM011").Count -gt 0
         # Platform branches in sim/ are SIM015 (crossplay: every platform runs the same simulation code)
-        Set-Content "$projects\CheckGame\source\sim\ZzPlatform.cpp" "#if defined(_WIN32) || __aarch64__`r`nint x;`r`n#endif`r`n" -Encoding UTF8
-        $psim = & "$root\build\Release\tools\mealkit_simcheck.exe" "$projects\stamp" "$projects\CheckGame\source\sim\ZzPlatform.cpp" 2>&1
+        Set-Content "$projects/CheckGame/source/sim/ZzPlatform.cpp" "#if defined(_WIN32) || __aarch64__`r`nint x;`r`n#endif`r`n" -Encoding UTF8
+        $psim = & "$root/build/Release/tools/mealkit_simcheck$exeExt" "$projects/stamp" "$projects/CheckGame/source/sim/ZzPlatform.cpp" 2>&1
         $output += $psim
         $simOk = $simOk -and ($psim -match "SIM015").Count -ge 2
         # Source modules: a module's sim/ including game source/ is SIM013, a module not in requires is SIM014 (docs/MODULES.md)
-        $mod = "$projects\CheckGame\modules\checkmod"
-        New-Item -ItemType Directory -Force "$mod\sim" | Out-Null
-        Set-Content "$mod\module.txt" "@format module 1`r`nname checkmod`r`nversion 0.1.0`r`nrequires`r`n" -Encoding UTF8
-        Set-Content "$mod\sim\Bad.cpp" "#include `"sim/World.h`"`r`n#include `"othermod/sim/X.h`"`r`n" -Encoding UTF8
-        New-Item -ItemType Directory -Force "$projects\CheckGame\modules\othermod\sim" | Out-Null
-        Set-Content "$projects\CheckGame\modules\othermod\module.txt" "@format module 1`r`nname othermod`r`nversion 0.1.0`r`n" -Encoding UTF8
-        $msim = & "$root\build\Release\tools\mealkit_simcheck.exe" "$projects\stamp" --modules "$projects\CheckGame\modules" "$mod\sim\Bad.cpp" 2>&1
+        $mod = "$projects/CheckGame/modules/checkmod"
+        New-Item -ItemType Directory -Force "$mod/sim" | Out-Null
+        Set-Content "$mod/module.txt" "@format module 1`r`nname checkmod`r`nversion 0.1.0`r`nrequires`r`n" -Encoding UTF8
+        Set-Content "$mod/sim/Bad.cpp" "#include `"sim/World.h`"`r`n#include `"othermod/sim/X.h`"`r`n" -Encoding UTF8
+        New-Item -ItemType Directory -Force "$projects/CheckGame/modules/othermod/sim" | Out-Null
+        Set-Content "$projects/CheckGame/modules/othermod/module.txt" "@format module 1`r`nname othermod`r`nversion 0.1.0`r`n" -Encoding UTF8
+        $msim = & "$root/build/Release/tools/mealkit_simcheck$exeExt" "$projects/stamp" --modules "$projects/CheckGame/modules" "$mod/sim/Bad.cpp" 2>&1
         $output += $msim
         $simOk = $simOk -and ($msim -match "SIM013").Count -gt 0 -and ($msim -match "SIM014").Count -gt 0
         $output | Out-File -Encoding utf8 $log
@@ -720,20 +734,20 @@ if (-not $Quick) {
         param($log)
         # tools\new_project.ps1 -Template empty: its own sim/view/app (no menus or match flow since 2026-11-15). Builds the game DLL against
         # the engine's Editor build, plays 2 bot players in the editor (shadow simulation on), then checks upgrade and layout
-        if (-not (Test-Path "$root\build\Editor\MealKitTargets.cmake")) { return "SKIP: no Editor build (build.bat Editor)" }
+        if (-not (Test-Path "$root/build/Editor/MealKitTargets.cmake")) { return "SKIP: no Editor build (build.bat Editor)" }
         $projects = Join-Path $env:TEMP "mealkit-check-empty" # must be outside the engine folder
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
-        $output = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\new_project.ps1" -Name EmptyCheck -Path $projects -Template empty 2>&1
-        $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\upgrade_project.ps1" -Project "$projects\EmptyCheck" -Source 2>&1
-        $output += & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\check_layout.ps1" -Project "$projects\EmptyCheck" 2>&1
+        $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/new_project.ps1" -Name EmptyCheck -Path $projects -Template empty 2>&1
+        $output += & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/upgrade_project.ps1" -Project "$projects/EmptyCheck" -Source 2>&1
+        $output += & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/check_layout.ps1" -Project "$projects/EmptyCheck" 2>&1
         $output | Out-File -Encoding utf8 $log
         $created = ($output -match "empty template").Count -gt 0 -and ($output -match "^Done: 0 change").Count -gt 0 -and
                    ($output -match "^OK layout: .* \(0 warning").Count -gt 0
         $build = "$log.build.txt"
-        $code = Run $build "$projects\EmptyCheck\build.bat" "Editor"
+        $code = Run $build "$projects/EmptyCheck/build.bat" "Editor"
         $built = $code -eq 0 -and (Has $build "Build OK")
         $play = "$log.play.txt"
-        if ($built) { Run $play $editor "--project `"$projects\EmptyCheck`" --play --players 2 --bot --frames 300" | Out-Null }
+        if ($built) { Run $play $editor "--project `"$projects/EmptyCheck`" --play --players 2 --bot --frames 300" | Out-Null }
         $played = $built -and (Has $play "Game module 'EmptyCheck' loaded") -and (Has $play "Match 1 started with 2") -and -not (Has $play "ERROR|desync")
         Get-Content $build, $play -ErrorAction SilentlyContinue | Add-Content $log
         if ($created -and $played) { Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue }
@@ -746,26 +760,26 @@ if (-not $Quick) {
         $ErrorActionPreference = "Continue" # refusals and git notices go to stderr. Results are checked via exit codes and files
         $t = Join-Path $env:TEMP "mealkit-check-modules"
         Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue
-        $proj = "$t\Game"; $src = "$t\mod-cool"
-        New-Item -ItemType Directory -Force "$proj\source\sim", "$src\sim", "$src\tests" | Out-Null
-        [IO.File]::WriteAllText("$proj\mealkit.project", "@format project 1`nname Game`n")
-        [IO.File]::WriteAllText("$src\module.txt", "@format module 1`nname cool`nversion 0.1.0`n")
-        foreach ($f in "A", "B", "Gone") { [IO.File]::WriteAllText("$src\sim\$f.h", "$f 1") }
-        [IO.File]::WriteAllText("$src\tests\T.cpp", "t")
-        $tool = "$PSScriptRoot\module.ps1"
+        $proj = "$t/Game"; $src = "$t/mod-cool"
+        New-Item -ItemType Directory -Force "$proj/source/sim", "$src/sim", "$src/tests" | Out-Null
+        [IO.File]::WriteAllText("$proj/mealkit.project", "@format project 1`nname Game`n")
+        [IO.File]::WriteAllText("$src/module.txt", "@format module 1`nname cool`nversion 0.1.0`n")
+        foreach ($f in "A", "B", "Gone") { [IO.File]::WriteAllText("$src/sim/$f.h", "$f 1") }
+        [IO.File]::WriteAllText("$src/tests/T.cpp", "t")
+        $tool = "$PSScriptRoot/module.ps1"
         $modOut = [Collections.Generic.List[string]]::new() # $out is check.ps1's log folder
-        function Mod { & powershell -NoProfile -ExecutionPolicy Bypass -File $tool @args -Project $proj 2>&1 | ForEach-Object { $modOut.Add("$_") }; return $LASTEXITCODE }
-        $ok = (Mod add $src) -eq 0 -and -not (Test-Path "$proj\modules\cool\tests") -and (Test-Path "$proj\modules\cool\module.files")
-        [IO.File]::WriteAllText("$proj\modules\cool\sim\B.h", "B mine")
-        [IO.File]::WriteAllText("$src\module.txt", "@format module 1`nname cool`nversion 0.2.0`n")
-        foreach ($f in "A", "B") { [IO.File]::WriteAllText("$src\sim\$f.h", "$f 2") }
-        Remove-Item "$src\sim\Gone.h"
+        function Mod { & $ps -NoProfile -ExecutionPolicy Bypass -File $tool @args -Project $proj 2>&1 | ForEach-Object { $modOut.Add("$_") }; return $LASTEXITCODE }
+        $ok = (Mod add $src) -eq 0 -and -not (Test-Path "$proj/modules/cool/tests") -and (Test-Path "$proj/modules/cool/module.files")
+        [IO.File]::WriteAllText("$proj/modules/cool/sim/B.h", "B mine")
+        [IO.File]::WriteAllText("$src/module.txt", "@format module 1`nname cool`nversion 0.2.0`n")
+        foreach ($f in "A", "B") { [IO.File]::WriteAllText("$src/sim/$f.h", "$f 2") }
+        Remove-Item "$src/sim/Gone.h"
         $ok = $ok -and (Mod update cool) -eq 0
-        $ok = $ok -and (Get-Content "$proj\modules\cool\sim\A.h") -eq "A 2" -and (Get-Content "$proj\modules\cool\sim\B.h") -eq "B mine" -and
-            (Test-Path "$proj\modules\cool\sim\B.h.new") -and -not (Test-Path "$proj\modules\cool\sim\Gone.h")
-        [IO.File]::WriteAllText("$proj\source\sim\W.h", "#include `"cool/sim/A.h`"`n")
-        $ok = $ok -and (Mod remove cool) -ne 0 -and (Test-Path "$proj\modules\cool")
-        $ok = $ok -and (Mod remove cool -Force) -eq 0 -and -not (Test-Path "$proj\modules\cool")
+        $ok = $ok -and (Get-Content "$proj/modules/cool/sim/A.h") -eq "A 2" -and (Get-Content "$proj/modules/cool/sim/B.h") -eq "B mine" -and
+            (Test-Path "$proj/modules/cool/sim/B.h.new") -and -not (Test-Path "$proj/modules/cool/sim/Gone.h")
+        [IO.File]::WriteAllText("$proj/source/sim/W.h", "#include `"cool/sim/A.h`"`n")
+        $ok = $ok -and (Mod remove cool) -ne 0 -and (Test-Path "$proj/modules/cool")
+        $ok = $ok -and (Mod remove cool -Force) -eq 0 -and -not (Test-Path "$proj/modules/cool")
         Push-Location $src
         git init -q; git -c user.name=check -c user.email=check@localhost add -A 2>$null; git -c user.name=check -c user.email=check@localhost commit -qm v 2>$null; git tag v0.2.0
         Pop-Location
@@ -774,7 +788,7 @@ if (-not $Quick) {
         # Registry names: find/add via a local index.json (shaped like MealKit-Modules tools/build_index.py), refused if the commit differs
         $commit = (git -C $src rev-parse HEAD).Trim()
         $repo = "file:///$($src.Replace('\', '/'))"
-        $index = "$t\index.json"
+        $index = "$t/index.json"
         $writeIndex = { param($c) [IO.File]::WriteAllText($index, (@{ format = 1; modules = @(@{ name = "cool"; repo = $repo; author = "check"; title = "Cool";
             summary = "check module"; tags = @("timer"); latest = "0.2.0"; versions = @(@{ version = "0.2.0"; tag = "v0.2.0"; commit = $c;
             engine = ((Get-Content "$root\VERSION") -replace '^(\d+\.\d+).*$', '$1'); requires = @() }) }) } | ConvertTo-Json -Depth 6)) }
@@ -783,7 +797,7 @@ if (-not $Quick) {
         $ok = $ok -and (Mod add cool -Index $index) -eq 0 -and
             ((Get-Content "$proj\modules\cool\module.files") -match "^source registry cool 0\.2\.0 $commit ").Count -eq 1
         & $writeIndex ("0" * 40)
-        $ok = $ok -and (Mod remove cool -Force) -eq 0 -and (Mod add cool -Index $index) -ne 0 -and -not (Test-Path "$proj\modules\cool")
+        $ok = $ok -and (Mod remove cool -Force) -eq 0 -and (Mod add cool -Index $index) -ne 0 -and -not (Test-Path "$proj/modules/cool")
         $modOut | Out-File -Encoding utf8 $log
         Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue
         return $ok
@@ -792,7 +806,7 @@ if (-not $Quick) {
         param($log)
         if (-not (Build $log "Export")) { return $false }
         foreach ($name in "sandbox", "coop") { # every reference sample ships
-            $exe = Join-Path $root "samples\$name\export\$name\$name.exe"
+            $exe = Join-Path $root "samples/$name/export/$name/$name$exeExt"
             if (-not (Test-Path $exe)) { return "$exe missing" }
             # Shipping builds have no live connection server (MEALKIT_LIVE=0) and no dev project folder
             $text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))

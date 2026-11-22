@@ -11,7 +11,7 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 
 $dirs = @()
-$engineLibs = Join-Path $root "engine\libs"
+$engineLibs = Join-Path $root "engine/libs"
 if (Test-Path $engineLibs) { $dirs += Get-ChildItem -Path $engineLibs -Directory }
 foreach ($d in Get-ChildItem -Path (Join-Path $root "third_party") -Directory) {
     $meta = Join-Path $d.FullName "mealkit.txt"

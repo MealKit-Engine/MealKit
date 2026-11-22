@@ -10,7 +10,7 @@
 # platform/<os>/ implementation files implement headers from several modules (platform/Socket.h etc.), so they're excluded; check_platform.ps1 covers them.
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-. "$PSScriptRoot\engine_modules_common.ps1"
+. "$PSScriptRoot/engine_modules_common.ps1"
 $problems = @()
 $warnings = @()
 
@@ -108,7 +108,7 @@ function KindAllows([string]$from, [string]$to) {
     }
 }
 $files = Get-EngineModuleFiles $root |
-    Where-Object { $_.FullName -notmatch '\\mealkit\\platform\\(win32|posix)\\' }
+    Where-Object { $_.FullName -notmatch '[\\/]mealkit[\\/]platform[\\/](win32|posix|linux)[\\/]' }
 $edges = 0
 $used = @{}
 foreach ($f in $files) {
@@ -158,7 +158,7 @@ foreach ($block in [regex]::Matches($cmake, '(?s)(?:set|list\(APPEND)\s*\(?\s*ME
 }
 $coreEdges = 0
 foreach ($f in $files) {
-    if ($f.FullName -notmatch '\\(?:include|src)\\(mealkit\\.+)$') { continue }
+    if ($f.FullName -notmatch '[\\/](?:include|src)[\\/](mealkit[\\/].+)$') { continue }
     $key = $Matches[1].Replace('\', '/')
     if (-not $core.ContainsKey($key)) { continue }
     $rel = $f.FullName.Substring($root.Length + 1)
@@ -171,7 +171,7 @@ foreach ($f in $files) {
         if (-not $core.ContainsKey($Matches[1])) { $problems += "${rel}:${n}: core file includes $($Matches[1]) (not in MEALKIT_CORE_SOURCES)" }
     }
 }
-if ($core.Count -eq 0) { $problems += "engine\CMakeLists.txt: MEALKIT_CORE_SOURCES not found" }
+if ($core.Count -eq 0) { $problems += "engine/CMakeLists.txt: MEALKIT_CORE_SOURCES not found" }
 
 $warnings | ForEach-Object { Write-Host "warning: $_" -ForegroundColor Yellow }
 if ($problems.Count -gt 0) {

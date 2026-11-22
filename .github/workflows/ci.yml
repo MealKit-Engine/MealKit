@@ -1,5 +1,5 @@
 # MealKit CI build matrix (docs/ROADMAP.md stage 1 "CI build matrix", docs repo "Engine development > Testing").
-# On every commit, builds Windows MSVC (Release, Editor) and clang-cl plus Linux x64 and macOS ARM64 Clang headless,
+# On every commit, builds Windows MSVC (Release, Editor) and clang-cl, Linux x64 Clang headless and the Linux X11 + Vulkan front end (no GPU: build, tests and mp_test only), and macOS ARM64 Clang headless,
 # runs tools/ci_test.ps1 (unit tests, fixed input recording replay, headless mp_test) in each build, then
 # tools/ci_compare.ps1 checks that detmath-bits and per-tick hashes match across all builds. Any difference fails.
 # The runners have no GPU, so screen capture and shadow/rewind checks stay in local tools/check.ps1. No Steam/EOS SDK, so the "none" backend is built.
@@ -104,9 +104,35 @@ jobs:
           path: ci-out/${{ matrix.name }}
           if-no-files-found: ignore
 
+  linux-frontend:
+    name: Linux front end (X11 + Vulkan)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tools
+        run: sudo apt-get update && sudo apt-get install -y ninja-build clang libx11-dev libxext-dev libxi-dev libxrandr-dev
+      - name: Build (the Linux game exe, headless exes, mealkit_tests)
+        shell: pwsh
+        run: ./build.ps1 Release -Target sandbox, sandbox_headless, coop_headless, mealkit_tests # the X11 + Vulkan front end (MEALKIT_LINUX_FRONTEND=ON through tools/build.ps1)
+      - name: Build (Editor: mealkit + sample game libraries)
+        shell: pwsh
+        run: ./build.ps1 Editor
+      - name: Test (the same replays and hashes as the headless job)
+        shell: pwsh
+        run: tools/ci_test.ps1 -Bin build/Release/bin -Name linux-x64-frontend -Out ci-out/linux-x64-frontend
+      - name: Multiplayer between Linux peers (mp_test)
+        shell: pwsh
+        run: tools/mp_test.ps1 -Headless -Clients 3 -Ticks 900
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: linux-x64-frontend
+          path: ci-out/linux-x64-frontend
+          if-no-files-found: ignore
+
   compare:
     name: Compare hashes across builds
-    needs: [windows, headless]
+    needs: [windows, headless, linux-frontend]
     if: ${{ !cancelled() }}
     runs-on: ubuntu-24.04
     steps:
@@ -118,4 +144,4 @@ jobs:
         shell: pwsh
         run: >
           tools/ci_compare.ps1 -Dir ci-results -Reference windows-msvc
-          -Expect windows-msvc,windows-clang-cl,windows-msvc-editor,linux-x64-clang,macos-arm64-clang
+          -Expect windows-msvc,windows-clang-cl,windows-msvc-editor,linux-x64-clang,linux-x64-frontend,macos-arm64-clang

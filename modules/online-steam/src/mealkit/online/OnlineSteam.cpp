@@ -158,7 +158,7 @@ void Service::joinLobby(u64 lobbyId) {
         return;
     }
     m->state = LobbyState::Joining;
-    m->entered.Set(SteamMatchmaking()->JoinLobby(CSteamID(lobbyId)), m, &Impl::onEntered);
+    m->entered.Set(SteamMatchmaking()->JoinLobby(CSteamID(static_cast<uint64>(lobbyId))), m, &Impl::onEntered);
 }
 
 void Service::leaveLobby() {
@@ -184,7 +184,7 @@ net::Address Service::lobbyOwnerAddress() const {
 
 void Service::setLobbyOwner(u64 userId) {
     if (!isLobbyOwner() || userId == 0 || userId == localUserId()) return;
-    if (SteamMatchmaking()->SetLobbyOwner(m->lobby, CSteamID(userId)))
+    if (SteamMatchmaking()->SetLobbyOwner(m->lobby, CSteamID(static_cast<uint64>(userId))))
         MEALKIT_INFO("Steam lobby owner -> %llu (host migration)", static_cast<unsigned long long>(userId));
 }
 

@@ -40,7 +40,7 @@ param(
 
 if ($Exe -eq "") {
     $root = Split-Path -Parent $PSScriptRoot
-    $Exe = Join-Path $root "build\$Config\bin\sandbox.exe"
+    $Exe = Join-Path $root "build/$Config/bin/sandbox$(if ($IsWindows -or $PSVersionTable.PSVersion.Major -lt 6) { '.exe' })"
 }
 if (-not (Test-Path $Exe)) { Write-Error "Build first: $Exe not found"; exit 1 }
 $exe = (Resolve-Path $Exe).Path
@@ -67,13 +67,13 @@ if ($Peer -ne "") {
     $peerArgs += " --hash-log `"$hashLog`" $common"
     Write-Host "$Peer`: $exe $peerArgs"
     $p = Start-Process -FilePath $exe -PassThru -NoNewWindow -ArgumentList $peerArgs `
-        -RedirectStandardOutput "$logDir\peer.txt" -RedirectStandardError "$logDir\peer_err.txt"
+        -RedirectStandardOutput "$logDir/peer.txt" -RedirectStandardError "$logDir/peer_err.txt"
     # The host waits for the other device, so allow time to start it by hand
     $timeoutMs = [int](($Ticks / 30.0 + 120) * 1000 * (1 + ($Lag + $Jitter) / 100.0))
     if (-not $p.WaitForExit($timeoutMs)) { $p.Kill(); Write-Warning "Peer timed out" }
-    $line = Select-String -Path "$logDir\peer.txt" -Pattern "^FINAL" | Select-Object -Last 1
+    $line = Select-String -Path "$logDir/peer.txt" -Pattern "^FINAL" | Select-Object -Last 1
     # Build log line: "Build: version ..., simulation <hex>, <determinism group>"
-    $build = Select-String -Path "$logDir\peer.txt", "$logDir\peer_err.txt" -Pattern "simulation [0-9a-f]+, ([\w-]+)" | Select-Object -First 1
+    $build = Select-String -Path "$logDir/peer.txt", "$logDir/peer_err.txt" -Pattern "simulation [0-9a-f]+, ([\w-]+)" | Select-Object -First 1
     $group = if ($build) { $build.Matches[0].Groups[1].Value } else { "unknown" }
     if (Test-Path $hashLog) {
         $named = Join-Path $logDir "peer-$group.hashes.txt"
@@ -104,14 +104,14 @@ $started = Get-Date
 if ($DesyncTest -gt 0) {
     # Dev builds dump into <project>\build\desync only when <project>\build exists (an engine repo sample may not have one yet)
     $repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe))) # exe is <repo>\build\<config>\bin
-    $sampleDir = Join-Path $repo ("samples\" + [IO.Path]::GetFileNameWithoutExtension($exe).Replace("_headless", ""))
+    $sampleDir = Join-Path $repo ("samples/" + [IO.Path]::GetFileNameWithoutExtension($exe).Replace("_headless", ""))
     if (Test-Path $sampleDir) { New-Item -ItemType Directory -Force (Join-Path $sampleDir "build") | Out-Null }
 }
 $hostArgs = "--host $Port --local --players $maxPlayers --auto-start $players --match-data $Bodies --seed 12345$hostExtra $common"
 if ($HostLeave) { $hostArgs = $hostArgs -replace "--exit-tick $Ticks", "--exit-tick $([int]($Ticks / 4))" }
 $procs += Start-Process -FilePath $exe -PassThru -NoNewWindow `
     -ArgumentList $hostArgs `
-    -RedirectStandardOutput "$logDir\host.txt" -RedirectStandardError "$logDir\host_err.txt"
+    -RedirectStandardOutput "$logDir/host.txt" -RedirectStandardError "$logDir/host_err.txt"
 Start-Sleep -Milliseconds 500
 $leaver = $null
 for ($i = 1; $i -le $Clients; $i++) {
@@ -120,18 +120,18 @@ for ($i = 1; $i -le $Clients; $i++) {
     if ($LateJoin -and $i -eq 1) { $clientArgs = ($clientArgs -replace "--exit-tick $Ticks", "--exit-tick $([int]($Ticks / 4))") + " --name c1" }
     if ($HostLeave) { $clientArgs += " --abort-host-at $([int]($Ticks / 2))" }
     $p = Start-Process -FilePath $clientPath -PassThru -NoNewWindow -ArgumentList $clientArgs `
-        -RedirectStandardOutput "$logDir\client$i.txt" -RedirectStandardError "$logDir\client${i}_err.txt"
+        -RedirectStandardOutput "$logDir/client$i.txt" -RedirectStandardError "$logDir/client${i}_err.txt"
     if ($LateJoin -and $i -eq 1) { $leaver = $p } else { $procs += $p }
 }
 if ($LateJoin) {
     # Newcomer: shortly after the match starts. Rejoiner: with the same name after client 1 leaves
     Start-Sleep -Milliseconds 1500
     $procs += Start-Process -FilePath $clientPath -PassThru -NoNewWindow -ArgumentList "--join 127.0.0.1:$Port --threads 2 $common" `
-        -RedirectStandardOutput "$logDir\late.txt" -RedirectStandardError "$logDir\late_err.txt"
+        -RedirectStandardOutput "$logDir/late.txt" -RedirectStandardError "$logDir/late_err.txt"
     if (-not $leaver.WaitForExit(60000)) { $leaver.Kill() }
     Start-Sleep -Milliseconds 1500 # restart time: even if the disconnect notice is lost (-Loss, -Lag), the old connection goes quiet so the same name gets the slot
     $procs += Start-Process -FilePath $clientPath -PassThru -NoNewWindow -ArgumentList "--join 127.0.0.1:$Port --threads 1 --name c1 $common" `
-        -RedirectStandardOutput "$logDir\rejoin.txt" -RedirectStandardError "$logDir\rejoin_err.txt"
+        -RedirectStandardOutput "$logDir/rejoin.txt" -RedirectStandardError "$logDir/rejoin_err.txt"
 }
 
 $timeoutMs = [int](($Ticks / 30.0 + 30) * 1000 * (1 + ($Lag + $Jitter) / 100.0)) # if the lag exceeds the input delay, the match slows down
@@ -146,14 +146,14 @@ if ($LateJoin) {
     $players = $names.Count
 }
 if ($HostLeave) { # the host that left and the crashed successor (who it is depends on connection order) don't reach the end
-    $names = @($names | Where-Object { $_ -ne "host" -and -not (Select-String -Path "$logDir\${_}_err.txt" -Pattern "--abort-host-at" -Quiet) })
+    $names = @($names | Where-Object { $_ -ne "host" -and -not (Select-String -Path "$logDir/${_}_err.txt" -Pattern "--abort-host-at" -Quiet) })
     $players = $names.Count
-    $took = @(Select-String -Path ($names | ForEach-Object { "$logDir\${_}_err.txt" }) -Pattern "takes over the session").Count
+    $took = @(Select-String -Path ($names | ForEach-Object { "$logDir/${_}_err.txt" }) -Pattern "takes over the session").Count
     Write-Host "$took host migration log line(s) in the remaining clients"
     if ($took -lt 2 * $players) { Write-Host "FAIL: expected two host migrations in every remaining client, see $logDir" -ForegroundColor Red; exit 1 }
 }
 foreach ($n in $names) {
-    $line = Select-String -Path "$logDir\$n.txt" -Pattern "^FINAL" | Select-Object -Last 1
+    $line = Select-String -Path "$logDir/$n.txt" -Pattern "^FINAL" | Select-Object -Last 1
     $text = if ($line) { $line.Line } else { "(no FINAL line)" }
     Write-Host ("{0,-8} {1}" -f $n, $text)
     $finals += $text
@@ -163,13 +163,13 @@ if ($DesyncTest -gt 0) {
     # Dumps go to build\desync in the executable's project folder (seed 12345 = 3039). The engine repo's samples are
     # samples\<exe name> next to its build\ folder; their build\ is created when the test starts (see below)
     $buildRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe)) # <project>\build
-    $dumpDir = if (Test-Path $sampleDir) { Join-Path $sampleDir "build\desync" } else { Join-Path $buildRoot "desync" }
+    $dumpDir = if (Test-Path $sampleDir) { Join-Path $sampleDir "build/desync" } else { Join-Path $buildRoot "desync" }
     $dumps = @(Get-ChildItem $dumpDir -Filter "desync_0000000000003039_t*.txt" -ErrorAction SilentlyContinue |
         Where-Object { $_.LastWriteTime -ge $started })
     $desynced = @($finals | Where-Object { $_ -match "desync=1" }).Count
     Write-Host "$desynced of $players peer(s) report a desync, $($dumps.Count) dump(s) in $dumpDir"
     if ($dumps.Count -ge 2) {
-        $diff = & powershell -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\desync_diff.ps1" -A $dumps[0].FullName -B $dumps[1].FullName
+        $diff = & (Get-Process -Id $PID).Path -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/desync_diff.ps1" -A $dumps[0].FullName -B $dumps[1].FullName
         $diff | ForEach-Object { Write-Host $_ }
         if ($desynced -eq $players -and ($diff -match "first diverging tick: $DesyncTest ").Count -gt 0) {
             Write-Host "PASS: desync at tick $DesyncTest found by the dumps" -ForegroundColor Green

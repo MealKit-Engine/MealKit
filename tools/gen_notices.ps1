@@ -122,7 +122,7 @@ if ($Project -ne "") {
     if ($Project -ine $engine) {
         foreach ($m in (Read-Libraries (Join-Path $Project "third_party"))) { $blocks += Notice-Block (Title-Of $m) (License-Text $m) }
     }
-    $fonts = Join-Path $Project "assets\fonts"
+    $fonts = Join-Path $Project "assets/fonts"
     if (Test-Path $fonts) {
         foreach ($f in (Get-ChildItem $fonts -Recurse -File -Filter *.txt | Sort-Object FullName)) {
             $blocks += Notice-Block "Font: $($f.BaseName)" (([IO.File]::ReadAllText($f.FullName, $utf8)).Replace("`r`n", "`n").TrimEnd())
@@ -134,16 +134,16 @@ if ($Project -ne "") {
     exit 0
 }
 
-$versionsPath = Join-Path $engine "third_party\VERSIONS.txt"
+$versionsPath = Join-Path $engine "third_party/VERSIONS.txt"
 $noticesPath = Join-Path $engine "THIRD_PARTY_NOTICES.txt"
 $versions = Build-Versions $engineLibs
 $notices = Build-EngineNotices $engineLibs
 if ($Check) {
     $bad = @()
-    if (-not (Same-Text $versionsPath $versions)) { $bad += "third_party\VERSIONS.txt" }
+    if (-not (Same-Text $versionsPath $versions)) { $bad += "third_party/VERSIONS.txt" }
     if (-not (Same-Text $noticesPath $notices)) { $bad += "THIRD_PARTY_NOTICES.txt" }
     if ($bad.Count) {
-        Write-Host "Out of date: $($bad -join ', ') - run tools\gen_notices.ps1 (do not edit them by hand)" -ForegroundColor Red
+        Write-Host "Out of date: $($bad -join ', ') - run tools/gen_notices.ps1 (do not edit them by hand)" -ForegroundColor Red
         exit 1
     }
     Write-Host "OK notices: $($engineLibs.Count) libraries"
@@ -151,4 +151,4 @@ if ($Check) {
 }
 Write-Crlf $versionsPath $versions
 Write-Crlf $noticesPath $notices
-Write-Host "Wrote third_party\VERSIONS.txt and THIRD_PARTY_NOTICES.txt ($($engineLibs.Count) libraries)"
+Write-Host "Wrote third_party/VERSIONS.txt and THIRD_PARTY_NOTICES.txt ($($engineLibs.Count) libraries)"
