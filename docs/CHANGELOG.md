@@ -3,6 +3,17 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Packaging scripts on Linux (2026-11-22)
+
+- Part A of ROADMAP "Linux editor finish and editor reinforcement". `tools/package_engine.ps1` and `tools/package_tool.ps1` run under pwsh on Linux and write `mealkit-engine-<VERSION>-linux-x64.zip` / `mealkit-tool-<name>-<version>-linux-x64.zip` (x86_64 only; Windows output and names unchanged). Paths use `/`; tool exe names lose `.exe`.
+- Engine package on Linux: tracked files, `build/Editor/bin/MealKitEditor`, `libmealkit.so`, `tools/mealkit_simcheck`, `mealkit_stringcheck`, `MealKitTargets.cmake` with absolute paths made relative. `libmealkit.so` is shipped in `bin/` (not `engine/`) because the editor's runpath is `$ORIGIN`, and the targets file points there. 59 MB, unix permissions kept in the zip.
+- Checked: package from the Editor build, unzipped; `new_project.ps1` from the unzipped engine, the new project's editor build links against it without rebuilding the engine (20 steps, 9 s), `MealKitEditor --project ... --frames 30 --capture` from the package loads `PkgTest_game.so` and draws; `ldd` finds `libmealkit.so` in the package's `bin/`. `package_tool` on MkRender 0.11.0 (exe, manifest, icon font). `release_index.ps1` needs no change to run on Linux (engine and tool entries written from windows-named copies of the zips).
+- Not done: `release_index.ps1` refuses `linux-x64` names (an index has no platform field, so a Linux and a Windows zip of one version would replace each other: needs a decision). Manager on Linux: `MealKitManager --engine <MealKit> --list` works but says "editor not built" (looks for `MealKitEditor.exe`), and `--new` fails with "Cannot start powershell.exe" (`Job.cpp`); `install.ps1` uses COM shortcuts and Visual Studio checks. Both are the Manager repo's. MealKit-Contract `tools/vendor.ps1` is that repo's. Windows PowerShell 5.1 and the Windows paths of the two scripts weren't run.
+
+## Debug, Profile and Presets builds on Linux (2026-11-22)
+
+- `mk-build.ps1 -Config Debug`, `Profile` (Tracy) and `Presets` (`sandbox_solo`, `sandbox_noaudio`) build on Linux with no code change (front end, Vulkan, clang). Checked: each configuration built; `build/Debug`, `build/Profile`, `sandbox_solo` and `sandbox_noaudio` run `--bot --exit-tick 120` to `FINAL ... desync=0` (the solo and noaudio presets have no net or audio voices as intended), and `mealkit_tests` from the Presets tree passes. Debug run time not measured.
+
 ## MkRender golden and Open in MkRender on Linux (2026-11-22)
 
 - Part A of ROADMAP "Linux editor finish and editor reinforcement". `MkRender --project samples/sandbox --render-golden engine/tests/golden/shots.txt <folder>` runs on Linux (Vulkan, Intel MTL, Mesa): 20 shots in about 23 s, all within the `check.ps1` limits against the Windows reference images (largest: `terrain_hills` max channel diff 58 on 20 pixels, `post_graded` 313 pixels = 0.022 %, limit 0.5 %).

@@ -1,15 +1,18 @@
 # Packs a built MealKit tool (MkAudio, MkRender, MkUI, ...) as a zip MealKit Manager installs (ROADMAP R2, docs/DECISIONS.md "How the Manager installs"):
 #   tools\package_tool.ps1 -Folder <the tool's bin folder, holding mealkit-tool.txt> [-Out <folder>]
 # The folder is zipped as it is (without .pdb/.ilk); mealkit-tool.txt names the tool, its version and its exe.
-# Writes <Out>\mealkit-tool-<name>-<version>-windows-x64.zip and prints its size and SHA-256.
+# Writes <Out>\mealkit-tool-<name>-<version>-windows-x64.zip (linux-x64 on Linux; PowerShell 7 there, the exe has no .exe) and prints its size and SHA-256.
 # Publish it with tools\release_index.ps1 -Zip <zip> -Url <address> -Engines <MINORs it works with>.
 param(
     [Parameter(Mandatory = $true)][string]$Folder,
     [string]$Out = ""
 )
 $ErrorActionPreference = "Stop"
+$onLinux = ($PSVersionTable.PSVersion.Major -ge 6) -and $IsLinux
+$platform = if ($onLinux) { "linux-x64" } else { "windows-x64" }
+if ($onLinux -and (& uname -m) -ne "x86_64") { Write-Host "[MealKit] only x86_64 Linux is packaged"; exit 1 }
 $Folder = (Resolve-Path $Folder).Path
-if (-not $Out) { $Out = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")).Path "build\package" }
+if (-not $Out) { $Out = Join-Path (Resolve-Path (Join-Path $PSScriptRoot "..")).Path "build/package" }
 $manifest = Join-Path $Folder "mealkit-tool.txt"
 if (-not (Test-Path $manifest)) { Write-Host "[MealKit] no mealkit-tool.txt in $Folder"; exit 1 }
 $keys = @{}
@@ -20,15 +23,15 @@ foreach ($k in @("name", "version", "exe", "protocol")) { if (-not $keys[$k]) { 
 if ($keys.version -notmatch '^\d+\.\d+\.\d+$') { Write-Host "[MealKit] version '$($keys.version)' isn't x.y.z (a manifest from the source tree, not the build?)"; exit 1 }
 if ($keys.name -notmatch '^[A-Za-z][A-Za-z0-9_-]*$') { Write-Host "[MealKit] tool name '$($keys.name)' can't be a file name"; exit 1 }
 $exe = $keys.exe
-if (-not $exe.EndsWith(".exe")) { $exe += ".exe" }
+if ($onLinux) { $exe = $exe -replace '\.exe$', "" } elseif (-not $exe.EndsWith(".exe")) { $exe += ".exe" }
 if (-not (Test-Path (Join-Path $Folder $exe))) { Write-Host "[MealKit] $exe not found in $Folder"; exit 1 }
 
-$base = "mealkit-tool-$($keys.name)-$($keys.version)-windows-x64"
+$base = "mealkit-tool-$($keys.name)-$($keys.version)-$platform"
 $stage = Join-Path $Out $base
 if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
 New-Item -ItemType Directory -Force $stage | Out-Null
 Get-ChildItem $Folder -Recurse -File | Where-Object { $_.Extension -notin @(".pdb", ".ilk") } | ForEach-Object {
-    $rel = $_.FullName.Substring($Folder.Length).TrimStart("\")
+    $rel = $_.FullName.Substring($Folder.Length).TrimStart("\", "/")
     $dst = Join-Path $stage $rel
     New-Item -ItemType Directory -Force (Split-Path $dst -Parent) | Out-Null
     Copy-Item $_.FullName $dst
