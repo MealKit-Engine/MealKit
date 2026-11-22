@@ -82,7 +82,6 @@ Order inside the item: A, then B; C and D one piece at a time.
   - The editor's multi-player play start hangs now and then on Linux (about 4 of 20 runs of `--play --players 2|3 --bot`; the next run is fine). One hang under gdb: the main thread sat in `DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT`, a Vulkan wait with an infinite timeout that never returned (candidates in MkRender `src/mkrhi/vulkan/VkDevice.cpp`: `vkWaitForFences` and `vkAcquireNextImageKHR` with `UINT64_MAX`, lines 1139~1141, 1257; Intel MTL, Mesa 26.0.8, 2 or 3 processes drawing at once). Find the cause (or add a timeout that logs and recovers) before the Linux play view counts as done.
   - MkRender coverage and the editor's usability items now live in MkRender's own list (`../MkRender/docs/ROADMAP.md` 4 and 5: scene tree 19~23, inspector 10, viewport 29~31 re-homed there on 2026-11-22; what MkRender doesn't cover yet is listed there too).
 - **C. Editor reinforcement** (the editor is now the play view, assets, tables, project and build host): items picked from "Editor usability" below, in its suggested order: 25, 27 (asset browser), 37, 38 (shortcuts, status-bar hints), 39~43 (tables and spreadsheets), build profiles per platform/backend.
-- **D. Game code build time** ("Smaller engine items") fits here: opening a project rebuilds the game DLL nearly every time.
 
 ### [ ] Templates without game shape: what is left (decided 2026-11-15, `docs/DECISIONS.md` "Templates carry no game shape"; done part in `docs/CHANGELOG.md`)
 - Publish `matchflow`, `screens`, `camrig` (GitHub `KingProtea99/module-<name>`, tag `v0.1.0`, entries in MealKit-Modules) so `-Modules screens` works by name; until then pass the folders.
@@ -218,11 +217,9 @@ Today a match is lockstep with the host as player and relay (`module-net` `Locks
 ### [ ] Game screen UI part 3: Penpot sources for the default screens — when a designer who works in Penpot appears
 - Redraw the hand-written default screens (title, menu, join, lobby, loading, pause, results, message, settings, HUD) in Penpot and export them to `art/ui/`. Penpot sources are saved by hand (`docs/DECISIONS.md` 2026-10-20). Check state variants and per-token-set themes in real Penpot at the same time. Screens are otherwise edited in MkUI Designer.
 
-### [ ] Game code build time (proposed 2026-11-12)
-Opening a project builds the game DLL when it is missing, older than `mealkit.lib`, older than any engine header or older than its sources (`EditorMain.cpp`, `GameModuleHost::olderThanEngine`/`olderThanSources`), so after an engine rebuild nearly every open builds. FuseTag (20 `.cpp`) spends up to 6 to 13.5 s per file in its `.ninja_log` (`GameSession.cpp` 13.5 s, `GameModule.cpp` 12.4 s) and up to about 14 s of compiling in parallel, plus vcvars64 and CMake configure (not measured yet). Measure the steps first, then:
-- Precompiled headers in `mealkit_add_game()` (no target uses `target_precompile_headers` today): the engine headers every `app/` file reparses.
-- Cache the vcvars64 environment between builds instead of running `vcvars64.bat` each time.
-- Fewer heavy engine headers pulled into game `app/` files.
+### [ ] Game code build time: what is left (done part in `docs/CHANGELOG.md` "Game code build time")
+- Windows only, not measured yet: time `vcvars64.bat` and the CMake configure per open on the Windows editor, and if they are seconds, cache the vcvars64 environment between builds instead of running it each time. Also measure the MSVC compile with and without the new precompiled header (`-DMEALKIT_GAME_PCH=OFF`) and check `/Zi` PDB sharing with it.
+- Dropped by the Linux numbers: fewer engine headers in `app/` files (`GameSession.cpp`: 5.8 s of which header parsing is about 0.6 s, the rest is code generation). Reopen only if the MSVC numbers differ.
 
 ### [ ] Small leftovers
 - Shipping exe size breakdown: FuseTag's Release exe is 4.63 MB of the 5 MB budget (LTCG and `/OPT:REF` already drop unused code). Measure what each library and module takes before the next runtime library is added.

@@ -465,6 +465,18 @@ endif()
 # otherwise header-only: the include folder (mealkit.txt's include, default that folder) is attached only to the game exe/DLL. Not usable in sim/ (SimCheck SIM011).
 # The project folder is where the top-level CMakeLists.txt is. assets/ under it is used, and shipping builds go to export/<name>/.
 # game_export target: gathers game executable + assets + Steam DLL + license notices into export/<name>/ (build.bat Export).
+# Precompiled header for game targets (Game exe and Editor DLL): cmake/MealKitGamePch.h holds the standard and engine headers most view/ and app/
+# files include. sim/ files and the headless file are left out: they also build in <game>_headless against the kernel only, and a force-included
+# header there would hide a missing include until that build. OFF (-DMEALKIT_GAME_PCH=OFF) restores plain compiles, for measuring or a compiler problem.
+option(MEALKIT_GAME_PCH "Precompiled header for game view/ and app/ files" ON)
+function(mealkit_game_pch target)
+    if(NOT MEALKIT_GAME_PCH)
+        return()
+    endif()
+    target_precompile_headers(${target} PRIVATE "${MEALKIT_ENGINE_DIR}/cmake/MealKitGamePch.h")
+    set_source_files_properties(${ARGN} PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
+endfunction()
+
 function(mealkit_add_game name)
     cmake_parse_arguments(PARSE_ARGV 1 ARG "" "SOURCE_DIR;GAME_MAIN;MODULE;HEADLESS;STEAM_APP_ID;PRESET" "SOURCES;WITHOUT")
     if(NOT ARG_SOURCE_DIR)
@@ -813,6 +825,7 @@ function(mealkit_add_game name)
         # <name>_game.dll/.so/.dylib next to the editor (no "lib" prefix; shared libraries go to bin/ on every OS)
         set_target_properties(${name}_game PROPERTIES PREFIX "" LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
         target_link_libraries(${name}_game PRIVATE mealkit ${game_libs})
+        mealkit_game_pch(${name}_game ${sim_sources} "${ARG_HEADLESS}")
         target_include_directories(${name}_game PRIVATE ${source_dir} ${module_includes})
         target_include_directories(${name}_game SYSTEM PRIVATE ${game_lib_includes})
         target_compile_definitions(${name}_game PRIVATE MEALKIT_GAME_NAME="${name}")
@@ -870,6 +883,7 @@ function(mealkit_add_game name)
         target_sources(${name} PRIVATE "${icon_file}")
     endif()
     target_link_libraries(${name} PRIVATE mealkit${engine_suffix} ${game_libs})
+    mealkit_game_pch(${name} ${sim_sources} "${ARG_HEADLESS}")
     if(WIN32 AND MSVC AND NOT MEALKIT_DEBUG_UI)
         # Shipping exe (Export) is a GUI program: no console window behind it. main() stays the same; run from a command prompt, attachParentConsole attaches
         target_link_options(${name} PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
