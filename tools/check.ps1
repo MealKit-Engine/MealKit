@@ -136,15 +136,20 @@ $game = Join-Path $release "sandbox$exeExt"
 $headless = Join-Path $release "sandbox_headless$exeExt"
 $coopGame = Join-Path $release "coop$exeExt"
 $editor = Join-Path $editorBin "MealKitEditor$exeExt"
+# MkRender (sibling repo): Windows builds DX12 in build\bin and Vulkan in build-vulkan\bin, Linux builds Vulkan only in build/linux/bin
+$mkRenderRoot = Join-Path (Split-Path $root -Parent) "MkRender"
+$mkRenderBin = if ($onWindows) { "build/bin" } else { "build/linux/bin" }
 $results = @()
 $step = 0
 
 # One item: PASS if $body returns $true. Output goes to a log file.
 # Groups that still need Windows (editor/MkRender captures, project builds through build.bat, Windows folders): SKIP on Linux until they are ported (docs/ROADMAP.md)
 $windowsOnlyGroups = @("tools", "render", "editor", "project", "export")
+# Checks of those groups that already run on Linux (MkRender builds there: ../MkRender/build/linux/bin)
+$linuxChecks = @("MkRender capture (scene editing)", "Graphics regression (golden images)")
 function Invoke-Check([string]$group, [string]$name, [scriptblock]$body) {
     if (-not (Selected $group)) { return }
-    if ((-not $onWindows) -and ($windowsOnlyGroups -contains $group) -and $name -notlike "*build*") {
+    if ((-not $onWindows) -and ($windowsOnlyGroups -contains $group) -and $name -notlike "*build*" -and $linuxChecks -notcontains $name) {
         $script:step++
         Write-Host ("{0,-4} {1,-34} {2,7:N1}s  {3}" -f "SKIP", $name, 0, "SKIP: group '$group' is Windows only for now") -ForegroundColor Yellow
         $script:results += [pscustomobject]@{ Group = $group; Name = $name; Ok = $true; Skipped = $true; Warned = $false; Seconds = 0; Log = "" }
@@ -563,7 +568,7 @@ if (-not $Quick) {
     # Scene editing is MkRender's (ROADMAP "Scene editing moves to MkRender" phase 6): the sandbox arena with an object selected, kinds from the game
     Invoke-Check editor "MkRender capture (scene editing)" {
         param($log)
-        $mk = Join-Path (Split-Path $root -Parent) "MkRenderuildin/MkRender$exeExt"
+        $mk = Join-Path $mkRenderRoot "$mkRenderBin/MkRender$exeExt"
         if (-not (Test-Path $mk)) { return "SKIP: MkRender not built ($mk)" }
         $png = Join-Path $out "mkrender.png"
         $code = Run $log $mk "--project `"$sandbox`" --frames 60 --select 25 --capture `"$png`""
@@ -588,7 +593,6 @@ if (-not $Quick) {
     # The shots are drawn by the MkRender scene editor (sibling repo ..\MkRender: build\bin, build-vulkan\bin; SKIP when not built),
     # which draws scenes like the engine without the editor (ROADMAP "Scene editing moves to MkRender" phase 6)
     $goldenDir = Join-Path $root "engine/tests/golden"
-    $mkRenderRoot = Join-Path (Split-Path $root -Parent) "MkRender"
     function Compare-Golden([string]$log, [string]$exe, [string]$suffix) {
         if (-not (Test-Path $exe)) { return "SKIP: MkRender not built ($exe)" }
         $dir = Join-Path $out "golden$suffix"
@@ -608,7 +612,7 @@ if (-not $Quick) {
         if ($problems.Count -gt 0) { return ($problems -join "; ") }
         return $true
     }
-    Invoke-Check render "Graphics regression (golden images)" { param($log) Compare-Golden $log (Join-Path $mkRenderRoot "build/bin/MkRender$exeExt") "" }
+    Invoke-Check render "Graphics regression (golden images)" { param($log) Compare-Golden $log (Join-Path $mkRenderRoot "$mkRenderBin/MkRender$exeExt") "" }
     Invoke-Check editor "Editor play (solo, shadow)" {
         param($log)
         $png = Join-Path $out "editor-play.png"
