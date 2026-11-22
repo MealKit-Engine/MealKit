@@ -27,8 +27,9 @@ public:
     ImGuiLayer(const ImGuiLayer&) = delete;
     ImGuiLayer& operator=(const ImGuiLayer&) = delete;
 
-    // If iniPath is empty, window positions aren't saved
-    bool init(Window& window, render::Renderer& renderer, const std::string& iniPath);
+    // If iniPath is empty, window positions aren't saved. iconFont (the editor: <engine>/third_party/fluent-icons/FluentSystemIcons-Regular.ttf)
+    // is merged into the default font for icon glyphs; empty = no icons (the dev game overlay)
+    bool init(Window& window, render::Renderer& renderer, const std::string& iniPath, const std::string& iconFont = {});
     void shutdown();
     // Switches the window layout file (per-project layouts). The already loaded layout is written to the old file and the new file is read. true if the new file exists
     bool setIniPath(const std::string& iniPath);

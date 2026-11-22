@@ -31,7 +31,14 @@ struct WindowPlacement {
     bool maximized = false;
 };
 
+// Native window handle for the RHI on Linux (X11): nativeHandle() points at this
+struct XlibWindowHandle {
+    void* display = nullptr;  // Display*
+    unsigned long window = 0; // X11 Window
+};
+
 // Hook letting other modules (editor UI etc.) see window messages first. Returning nonzero treats the message as handled.
+// Windows: (hwnd, msg, wparam, lparam). Linux: (XEvent*, event type, 0, 0)
 using MessageHook = std::intptr_t (*)(void* user, void* hwnd, u32 msg, std::uintptr_t wparam, std::intptr_t lparam);
 
 class Window {
@@ -46,7 +53,7 @@ public:
     // Processes messages and updates input state. false when the window is closed.
     bool pumpMessages();
 
-    void* nativeHandle() const { return m_hwnd; } // HWND
+    void* nativeHandle() const { return m_hwnd; } // Windows: HWND, Linux: XlibWindowHandle*
     u32 width() const { return m_width; }
     u32 height() const { return m_height; }
     bool minimized() const { return m_minimized; }
@@ -68,11 +75,12 @@ public:
     Input& input() { return m_input; }
     void setMessageHook(MessageHook hook, void* user);
 
-    // Called from WndProc.
+    // Called from WndProc (Linux: for each XEvent).
     std::intptr_t handleMessage(void* hwnd, u32 msg, std::uintptr_t wparam, std::intptr_t lparam);
 
 private:
     void* m_hwnd = nullptr;
+    void* m_platform = nullptr; // per-OS state (Linux: X11 connection, input method, atoms)
     u32 m_width = 0;
     u32 m_height = 0;
     bool m_minimized = false;

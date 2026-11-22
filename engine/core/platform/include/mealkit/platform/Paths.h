@@ -4,9 +4,33 @@
 #include <string>
 #include <vector>
 
+// Path separator as a string literal, for joining paths with literal concatenation: dir + MEALKIT_SEP "build" MEALKIT_SEP "editor"
+// ("\\" on Windows, "/" elsewhere). Windows also accepts '/', but paths shown to users and compared as text stay in one notation.
+#if defined(_WIN32)
+#define MEALKIT_SEP "\\"
+#else
+#define MEALKIT_SEP "/"
+#endif
+
 // Files/folders (UTF-8 paths). The implementation is split into what std::filesystem can do (platform/Paths.cpp) and
 // what needs OS calls (platform/win32/Paths.cpp, platform/posix/Paths.cpp).
 namespace mealkit {
+
+inline constexpr char kPathSeparator = MEALKIT_SEP[0];
+// Both '/' and '\\' turned into this OS's separator
+inline std::string nativePath(std::string path) {
+    for (char& c : path)
+        if (c == '/' || c == '\\') c = kPathSeparator;
+    return path;
+}
+// "C:\\x", "C:/x", "\\\\server\\x" on Windows; "/x" elsewhere
+inline bool isAbsolutePath(const std::string& path) {
+#if defined(_WIN32)
+    return (path.size() > 1 && path[1] == ':') || (path.size() > 1 && path[0] == '\\' && path[1] == '\\');
+#else
+    return !path.empty() && path[0] == '/';
+#endif
+}
 
 // Folder containing the executable (UTF-8, no trailing separator)
 std::string executableDirectory();

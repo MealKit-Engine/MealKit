@@ -2,7 +2,7 @@
 
 #include "mealkit/core/Types.h"
 
-// Gamepads (platform layer). Windows uses XInput (Xbox/XInput-compatible pads, 4 slots).
+// Gamepads (platform layer). Windows uses XInput (Xbox/XInput-compatible pads, 4 slots), Linux evdev (/dev/input/event*, Linux gamepad button layout).
 // Reading unconnected slots is slow (about 14 µs per slot, docs/DECISIONS.md 2026-10-18), so they're checked only once per second.
 // The engine (shipping exe, editor play, join windows) makes one, updates it every frame, and passes the first connected pad to input actions.
 namespace mealkit {
@@ -36,6 +36,7 @@ public:
 private:
     PadState m_pads[kSlots];
     f64 m_untilCheck[kSlots] = {}; // unconnected slots: seconds left until the next check
+    void* m_platform = nullptr;    // Linux: open evdev devices (made on the first update, kept for the process lifetime)
 };
 
 } // namespace mealkit

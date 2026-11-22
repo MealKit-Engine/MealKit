@@ -15,7 +15,7 @@
 #   MKRENDER_USER_CONFIG       header with the host's own math/mesh/image types (include/mkrender/Config.h), and
 #   MKRENDER_USER_CONFIG_INCLUDE_DIRS  the folders it needs
 cmake_minimum_required(VERSION 3.25)
-project(mkrender VERSION 0.10.3 LANGUAGES C CXX)
+project(mkrender VERSION 0.11.0 LANGUAGES C CXX)
 
 set(MKRHI_BACKEND "DX12" CACHE STRING "mkrhi graphics backend (DX12 or Vulkan)")
 set_property(CACHE MKRHI_BACKEND PROPERTY STRINGS DX12 Vulkan)
@@ -276,6 +276,17 @@ if(MKRENDER_BUILD_TESTS)
         target_compile_options(mkrender_tests PRIVATE -Wall -Wextra)
     endif()
     add_test(NAME mkrender_tests COMMAND mkrender_tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    # Render goldens without the engine (tests/GoldenTest.cpp): a hidden window, fixed scenes, tests/golden/*.png. Skips without a GPU
+    if(WIN32 AND TARGET mkrender)
+        add_executable(mkrender_golden tests/GoldenTest.cpp)
+        target_link_libraries(mkrender_golden PRIVATE mkrender)
+        target_include_directories(mkrender_golden SYSTEM PRIVATE ${MKTERRAIN_STB_DIR})
+        target_compile_definitions(mkrender_golden PRIVATE MKRENDER_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden" _CRT_SECURE_NO_WARNINGS)
+        if(MSVC)
+            target_compile_options(mkrender_golden PRIVATE /W4 /permissive- /utf-8)
+        endif()
+        add_test(NAME mkrender_golden COMMAND mkrender_golden WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    endif()
 endif()
 
 if(MKRENDER_BUILD_TOOL AND TARGET mkrender)

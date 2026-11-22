@@ -200,7 +200,8 @@ set(MEALKIT_FRONT_SOURCES
     ../modules/render/src/mealkit/render/ShaderReload.cpp)
 
 # Platform layer implementations (docs/CODING_MODEL.md "Graphics APIs and OS features"): OS APIs are called only inside platform/<os>/.
-# posix/ has what headless (Linux/macOS) needs (time, files, UDP, logging) and dynamic libraries. Window, input, dialogs, images are Windows only (stage 5).
+# posix/ has what headless (Linux/macOS) needs (time, files, UDP, logging), dynamic libraries, child processes and images.
+# linux/ is the X11 window, input, gamepads and file dialogs (docs/DECISIONS.md 2026-11-22). macOS has no front end yet (stage 5).
 if(WIN32)
     list(APPEND MEALKIT_CORE_SOURCES
         core/platform/src/mealkit/platform/win32/Clock.cpp
@@ -220,7 +221,17 @@ else()
         core/platform/src/mealkit/platform/posix/Paths.cpp
         core/platform/src/mealkit/platform/posix/Socket.cpp
         core/platform/src/mealkit/platform/posix/System.cpp)
-    list(APPEND MEALKIT_FRONT_SOURCES core/platform/src/mealkit/platform/posix/DynamicLibrary.cpp)
+    list(APPEND MEALKIT_FRONT_SOURCES
+        core/platform/src/mealkit/platform/posix/DynamicLibrary.cpp
+        core/platform/src/mealkit/platform/posix/Image.cpp
+        core/platform/src/mealkit/platform/posix/Process.cpp)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        list(APPEND MEALKIT_FRONT_SOURCES
+            core/platform/src/mealkit/platform/linux/X11Keys.h
+            core/platform/src/mealkit/platform/linux/FileDialog.cpp
+            core/platform/src/mealkit/platform/linux/Gamepad.cpp
+            core/platform/src/mealkit/platform/linux/Window.cpp)
+    endif()
 endif()
 
 # RHI backend (MEALKIT_RHI, cmake/MealKit.cmake): graphics APIs are called only inside rhi/<api>/ (tools\check_platform.ps1)
@@ -233,7 +244,12 @@ if(MEALKIT_DEBUG_UI)
     list(APPEND MEALKIT_FRONT_SOURCES ../modules/debug/include/mealkit/debug/ImGuiLayer.h ../modules/debug/src/mealkit/debug/ImGuiLayer.cpp
         ../modules/debug/include/mealkit/debug/DebugDraw.h ../modules/debug/include/mealkit/debug/DebugDrawRender.h ../modules/debug/src/mealkit/debug/DebugDraw.cpp
         core/core/include/mealkit/core/AllocCount.h core/core/src/mealkit/core/AllocCount.cpp
-        core/platform/include/mealkit/platform/ImGuiPlatform.h core/platform/src/mealkit/platform/win32/ImGuiPlatform.cpp)
+        core/platform/include/mealkit/platform/ImGuiPlatform.h)
+    if(WIN32)
+        list(APPEND MEALKIT_FRONT_SOURCES core/platform/src/mealkit/platform/win32/ImGuiPlatform.cpp)
+    else()
+        list(APPEND MEALKIT_FRONT_SOURCES core/platform/src/mealkit/platform/linux/ImGuiPlatform.cpp)
+    endif()
 endif()
 
 # Frame allocation counter (core/AllocCount.h): replaces operator new only in the dev game exe (static), not in mealkit.dll
@@ -514,7 +530,17 @@ else()
     target_link_libraries(${mealkit_core_target} PUBLIC Threads::Threads)
 endif()
 if(NOT MEALKIT_HEADLESS_ONLY)
-    target_link_libraries(mealkit PUBLIC windowscodecs uuid dwmapi comdlg32 xinput)
+    if(WIN32)
+        target_link_libraries(mealkit PUBLIC windowscodecs uuid dwmapi comdlg32 xinput)
+    else()
+        # X11 window (platform/linux/): Xlib, XInput2 raw motion, XRandR display modes. Ubuntu: libx11-dev libxi-dev libxrandr-dev
+        find_package(X11 REQUIRED)
+        if(NOT X11_Xi_FOUND OR NOT X11_Xrandr_FOUND)
+            message(FATAL_ERROR "The Linux front end needs XInput2 and XRandR headers (Ubuntu: sudo apt install libxi-dev libxrandr-dev)")
+        endif()
+        target_link_libraries(mealkit PRIVATE X11::X11 X11::Xi X11::Xrandr ${CMAKE_DL_LIBS})
+        target_include_directories(mealkit PRIVATE ${MEALKIT_THIRD_PARTY}/stb) # posix/Image.cpp
+    endif()
     if(MEALKIT_RHI STREQUAL "Vulkan")
         # Built without the SDK: headers are in third_party, the loader (vulkan-1.dll) is loaded at runtime by volk
         set(MEALKIT_VULKAN_INCLUDES ${MEALKIT_THIRD_PARTY}/vulkan-headers/include ${MEALKIT_THIRD_PARTY}/volk ${MEALKIT_THIRD_PARTY}/vma)
@@ -536,7 +562,11 @@ set_target_properties(mealkit_simcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMA
 if(NOT MEALKIT_HEADLESS_ONLY)
     add_executable(mealkit_stringcheck tools/StringCheck.cpp)
     target_include_directories(mealkit_stringcheck SYSTEM PRIVATE ${MEALKIT_THIRD_PARTY}/stb)
-    target_compile_options(mealkit_stringcheck PRIVATE /W4 /permissive- /utf-8)
+    if(MSVC)
+        target_compile_options(mealkit_stringcheck PRIVATE /W4 /permissive- /utf-8)
+    else()
+        target_compile_options(mealkit_stringcheck PRIVATE -Wall -Wextra)
+    endif()
     set_target_properties(mealkit_stringcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tools)
 endif()
 
@@ -756,8 +786,10 @@ if(MEALKIT_DEBUG_UI)
         ${MEALKIT_THIRD_PARTY}/imgui/imgui.cpp
         ${MEALKIT_THIRD_PARTY}/imgui/imgui_draw.cpp
         ${MEALKIT_THIRD_PARTY}/imgui/imgui_tables.cpp
-        ${MEALKIT_THIRD_PARTY}/imgui/imgui_widgets.cpp
-        ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_win32.cpp)
+        ${MEALKIT_THIRD_PARTY}/imgui/imgui_widgets.cpp)
+    if(WIN32)
+        list(APPEND mealkit_imgui_sources ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_win32.cpp) # Linux: platform/linux/ImGuiPlatform.cpp
+    endif()
     set(mealkit_imgui_includes ${MEALKIT_THIRD_PARTY}/imgui ${MEALKIT_THIRD_PARTY}/imgui/backends)
     if(MEALKIT_RHI STREQUAL "Vulkan")
         list(APPEND mealkit_imgui_sources ${MEALKIT_THIRD_PARTY}/imgui/backends/imgui_impl_vulkan.cpp)
@@ -774,9 +806,13 @@ if(MEALKIT_DEBUG_UI)
     target_compile_definitions(mealkit_imgui PRIVATE IMGUI_IMPL_WIN32_DISABLE_GAMEPAD NOMINMAX WIN32_LEAN_AND_MEAN)
     if(MEALKIT_RHI STREQUAL "Vulkan")
         target_include_directories(mealkit_imgui SYSTEM PRIVATE ${MEALKIT_VULKAN_INCLUDES})
-        target_compile_definitions(mealkit_imgui PRIVATE IMGUI_IMPL_VULKAN_USE_VOLK VK_NO_PROTOTYPES VK_USE_PLATFORM_WIN32_KHR)
+        target_compile_definitions(mealkit_imgui PRIVATE IMGUI_IMPL_VULKAN_USE_VOLK VK_NO_PROTOTYPES $<$<BOOL:${WIN32}>:VK_USE_PLATFORM_WIN32_KHR>)
     endif()
-    target_compile_options(mealkit_imgui PRIVATE /W0 /utf-8)
+    if(MSVC)
+        target_compile_options(mealkit_imgui PRIVATE /W0 /utf-8)
+    else()
+        target_compile_options(mealkit_imgui PRIVATE -w)
+    endif()
     target_sources(mealkit PRIVATE $<TARGET_OBJECTS:mealkit_imgui>)
     add_dependencies(mealkit mealkit_imgui)
     target_include_directories(mealkit SYSTEM PUBLIC ${mealkit_imgui_includes})
@@ -850,14 +886,22 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor")
     target_compile_definitions(mealkit_editor PUBLIC MEALKIT_EDITOR=1)
     target_include_directories(mealkit_editor PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS} ${MEALKIT_MODULE_EDITOR_DIRS})
 
-    add_executable(MealKitEditor ../modules/editor/src/mealkit/editor/EditorMain.cpp res/MealKitEditor.rc)
-    # rc.exe reports no dependencies, so a regenerated icon (tools/make_editor_icon.py) wouldn't reach the exe otherwise
-    set_source_files_properties(res/MealKitEditor.rc PROPERTIES OBJECT_DEPENDS
-        "${CMAKE_CURRENT_SOURCE_DIR}/res/MealKitEditor.ico;${CMAKE_CURRENT_SOURCE_DIR}/res/MealKitEditor.png")
+    add_executable(MealKitEditor ../modules/editor/src/mealkit/editor/EditorMain.cpp)
+    if(WIN32)
+        target_sources(MealKitEditor PRIVATE res/MealKitEditor.rc)
+        # rc.exe reports no dependencies, so a regenerated icon (tools/make_editor_icon.py) wouldn't reach the exe otherwise
+        set_source_files_properties(res/MealKitEditor.rc PROPERTIES OBJECT_DEPENDS
+            "${CMAKE_CURRENT_SOURCE_DIR}/res/MealKitEditor.ico;${CMAKE_CURRENT_SOURCE_DIR}/res/MealKitEditor.png")
+    else()
+        # libmealkit.so and the game libraries sit next to the executable
+        set_target_properties(MealKitEditor PROPERTIES BUILD_RPATH "$ORIGIN")
+    endif()
     target_link_libraries(MealKitEditor PRIVATE mealkit_editor)
     target_include_directories(MealKitEditor PRIVATE ${MEALKIT_MODULE_SOURCES_DIRS} ${MEALKIT_MODULE_EDITOR_DIRS})
     # GUI program: no console window behind it (run from a command prompt, attachParentConsole attaches)
-    target_link_options(MealKitEditor PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
+    if(MSVC)
+        target_link_options(MealKitEditor PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
+    endif()
     # Engine folder used by the project manager's new project creation (the editor isn't distributed)
     target_compile_definitions(MealKitEditor PRIVATE MEALKIT_ENGINE_DIR="${MEALKIT_ENGINE_DIR}")
 

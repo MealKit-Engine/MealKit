@@ -12,7 +12,7 @@ Two kinds of screens:
 - **Occasional screens** (the Manager, QA, a tool's first screen and empty states, dialogs): people open them now and then. Actions are **icon + label** buttons, and each screen has **one main action** drawn as the accent-filled primary button (`New Project`, `Create`). Row actions that are rare (copy path, remove from list) stay in a `More` button and the right-click menu.
 
 - **Icon buttons are square and flat**: clear until hovered, filled with the selection color while a toggle is on (editor `iconButton`, `iconValueButton` for an icon with a count; Manager `App::iconButton`).
-- **Panel tabs show a glyph and the name** (`[tree]  Hierarchy`): on a work screen with five or more panels the glyph finds the tab before the word does, and the same glyph stands for the panel in the Window menu. The glyph comes from the "Panels" table in section 2; the title keeps a fixed id after `###` (`"\xEE\xA3\xBD  " + tr("Hierarchy") + "###Hierarchy"`) so the saved dock layout survives a language or glyph change. Editor helper `iconTitle`.
+- **Panel tabs show a glyph and the name** (`[tree]  Hierarchy`): on a work screen with five or more panels the glyph finds the tab before the word does, and the same glyph stands for the panel in the Window menu. The glyph comes from the "Panels" table in section 2; the title keeps a fixed id after `###` (`icon::kTree + std::string("  ") + tr("Hierarchy") + "###Hierarchy"`) so the saved dock layout survives a language or glyph change. Editor helper `iconTitle`.
 - **Icon-only buttons** for toolbars, row actions, panel headers and the status bar. Each has a tooltip with its name, plus its shortcut when it has one (`Open in Editor  Enter`), and the tooltip still shows while the button is disabled. A tooltip may add one more line that says why it is disabled or what it keeps (`Files you changed are kept as .new`).
 - **Words stay** where an icon would make people guess:
   - the confirm and cancel buttons of dialogs (`Create`, `Remove`, `Cancel`),
@@ -26,7 +26,8 @@ Two kinds of screens:
 
 ## 2. Glyphs
 
-Windows: Segoe Fluent Icons, falling back to Segoe MDL2 Assets, merged into the UI font at the same size. Write glyphs as UTF-8 escapes with the code point in a comment, for example `"\xEE\x9C\x90" // U+E710`.
+The editor: Fluent UI System Icons (`third_party/fluent-icons`, MIT, 20 px regular faces) on every OS, merged into the UI font (docs/DECISIONS.md 2026-11-22). Glyphs are UTF-8 escapes with the Fluent icon name in a comment, for example `"\xEF\x84\x89" // add` (names from upstream `fonts/FluentSystemIcons-Regular.json`, `ic_fluent_<name>_20_regular`); `modules/editor/src/mealkit/editor/ImGuiLayer.h` `icon::` maps each action below to its Fluent glyph.
+The suite tools (Manager, MkAudio, MkUI, MkRender, MkQA) use the same font from their own `third_party/fluent-icons`, copied next to the executable. The code point column below is the old Segoe one, kept as the key of each glyph; each tool's icon constants carry the Fluent code point with the Fluent name in a comment.
 
 | Action | Glyph | Code point |
 |---|---|---|

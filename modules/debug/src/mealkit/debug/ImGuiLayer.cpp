@@ -8,6 +8,7 @@
 #include "mealkit/rhi/Rhi.h"
 
 #include <cstring>
+#include <initializer_list>
 #include <imgui.h>
 #include <imgui_internal.h> // RegisterUserTexture
 
@@ -113,7 +114,7 @@ void applyStyle(float scale) {
 
 ImGuiLayer::~ImGuiLayer() { shutdown(); }
 
-bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::string& iniPath) {
+bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::string& iniPath, const std::string& iconFont) {
     m_window = &window;
     m_renderer = &renderer;
     m_iniPath = iniPath;
@@ -127,25 +128,40 @@ bool ImGuiLayer::init(Window& window, render::Renderer& renderer, const std::str
     const float scale = imguiDpiScale(window);
     applyStyle(scale);
 
-    // Merges Segoe UI for Latin and Malgun Gothic for Korean (Malgun Gothic alone shows backslash as ₩).
+    // Merges a Latin font and a Korean one: Windows Segoe UI + Malgun Gothic (Malgun Gothic alone shows backslash as ₩),
+    // Linux Noto Sans (or DejaVu Sans) + Nanum Gothic (or Noto Sans CJK, face 1 = KR). The first existing file of each group is used.
     // Since 1.92 glyphs are built on demand, so the full Hangul range isn't prebaked.
+    struct FontFile {
+        const char* path;
+        int face;
+    };
+    const std::initializer_list<FontFile> latinFonts = {{"C:\\Windows\\Fonts\\segoeui.ttf", 0},
+                                                        {"/usr/share/fonts/truetype/noto/NotoSans-Regular.ttf", 0},
+                                                        {"/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 0}};
+    const std::initializer_list<FontFile> koreanFonts = {{"C:\\Windows\\Fonts\\malgun.ttf", 0},
+                                                         {"/usr/share/fonts/truetype/nanum/NanumGothic.ttf", 0},
+                                                         {"/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", 1}};
     bool haveFont = false;
-    for (const char* fontPath : {"C:\\Windows\\Fonts\\segoeui.ttf", "C:\\Windows\\Fonts\\malgun.ttf"}) {
-        if (!fileExists(fontPath)) continue;
-        ImFontConfig config;
-        config.MergeMode = haveFont;
-        io.Fonts->AddFontFromFileTTF(fontPath, 16.0f, &config);
-        haveFont = true;
+    for (const std::initializer_list<FontFile>& group : {latinFonts, koreanFonts}) {
+        for (const FontFile& font : group) {
+            if (!fileExists(font.path)) continue;
+            ImFontConfig config;
+            config.MergeMode = haveFont;
+            config.FontNo = font.face;
+            io.Fonts->AddFontFromFileTTF(font.path, 16.0f, &config);
+            haveFont = true;
+            break;
+        }
     }
     if (!haveFont) io.Fonts->AddFontDefault();
-    // Icon glyphs (icon::): Segoe Fluent Icons on Windows 11, Segoe MDL2 Assets on 10. Same code points
-    for (const char* iconPath : {"C:\\Windows\\Fonts\\SegoeIcons.ttf", "C:\\Windows\\Fonts\\segmdl2.ttf"}) {
-        if (!fileExists(iconPath)) continue;
+    // Icon glyphs (editor icon::): Fluent UI System Icons, the same file on every OS (docs/DECISIONS.md 2026-11-22)
+    if (!iconFont.empty() && fileExists(iconFont)) {
         ImFontConfig merge;
         merge.MergeMode = true;
-        merge.GlyphOffset = ImVec2(0.0f, 3.0f); // the icon font has a high baseline, so it's shifted down to the middle of Korean text lines
-        io.Fonts->AddFontFromFileTTF(iconPath, 16.0f, &merge);
-        break;
+        merge.GlyphOffset = ImVec2(0.0f, 2.0f); // centers the 20 px icon grid on Korean text lines
+        io.Fonts->AddFontFromFileTTF(iconFont.c_str(), 17.0f, &merge);
+    } else if (!iconFont.empty()) {
+        MEALKIT_WARN("Icon font not found: %s", iconFont.c_str());
     }
 
     if (!imguiPlatformInit(window)) return false;

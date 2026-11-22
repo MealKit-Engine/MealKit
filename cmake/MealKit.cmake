@@ -13,7 +13,8 @@
 # Must be included from the top-level CMakeLists.txt: the global settings below (C++20, CRT) must apply to game targets too for linking.
 include_guard(GLOBAL)
 
-# Windows uses MSVC (or clang-cl). Linux/macOS build only headless targets (<game>_headless, engine unit tests) with Clang/GCC (CI determinism comparison; full port is ROADMAP stage 5).
+# Windows uses MSVC (or clang-cl). Linux/macOS build headless targets (<game>_headless, engine unit tests) with Clang/GCC (CI determinism comparison).
+# Linux also builds the front end (X11 window, Vulkan renderer, editor) with MEALKIT_LINUX_FRONTEND=ON (build.ps1 Editor/Vulkan; macOS: ROADMAP stage 5).
 if(WIN32)
     if(NOT MSVC)
         message(FATAL_ERROR "MealKit on Windows needs MSVC or clang-cl.")
@@ -26,6 +27,13 @@ else()
         message(FATAL_ERROR "MealKit headless builds need Clang or GCC (got ${CMAKE_CXX_COMPILER_ID}).")
     endif()
     set(MEALKIT_HEADLESS_ONLY ON)
+    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+        option(MEALKIT_LINUX_FRONTEND "Linux: build the X11 window, Vulkan renderer and editor (build.ps1 Editor/Vulkan pass ON)" OFF)
+        if(MEALKIT_LINUX_FRONTEND)
+            set(MEALKIT_HEADLESS_ONLY OFF)
+            set(MEALKIT_RHI "Vulkan" CACHE STRING "RHI backend: DX12 / Vulkan" FORCE) # no DX12 here
+        endif()
+    endif()
 endif()
 
 get_filename_component(MEALKIT_ENGINE_DIR "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
@@ -53,7 +61,7 @@ if(NOT MEALKIT_BUILD_KIND MATCHES "^(Game|Editor)$")
     message(FATAL_ERROR "MEALKIT_BUILD_KIND must be Game or Editor (got '${MEALKIT_BUILD_KIND}')")
 endif()
 if(MEALKIT_HEADLESS_ONLY AND MEALKIT_BUILD_KIND STREQUAL "Editor")
-    message(FATAL_ERROR "The editor build is Windows only (other platforms: ROADMAP stage 5).")
+    message(FATAL_ERROR "The editor build needs a front end: Windows, or Linux with -DMEALKIT_LINUX_FRONTEND=ON (build.ps1 Editor). macOS: ROADMAP stage 5.")
 endif()
 
 set(CMAKE_CXX_STANDARD 20)
@@ -366,8 +374,8 @@ list(REMOVE_DUPLICATES MEALKIT_SELECTED_MODULES)
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT MEALKIT_IS_ENGINE)
     # ---------------------------------------------------------------- Editor build of a game project: imports the engine
-    # The Vulkan editor (build.bat VulkanEditor) uses the engine's build\VulkanEditor
-    if(MEALKIT_RHI STREQUAL "Vulkan")
+    # The Vulkan editor (build.bat VulkanEditor) uses the engine's build\VulkanEditor. Linux has only Vulkan, in build/Editor
+    if(MEALKIT_RHI STREQUAL "Vulkan" AND WIN32)
         set(mealkit_editor_build VulkanEditor)
     else()
         set(mealkit_editor_build Editor)
@@ -842,8 +850,11 @@ function(mealkit_add_game name)
     set_source_files_properties("${icon_rc}" PROPERTIES OBJECT_DEPENDS "${icon_file}")
 
     # Game exe: no editor. ImGui (debug UI) only with MEALKIT_DEBUG_UI (off and excluded for Export).
-    add_executable(${name} ${ARG_GAME_MAIN} ${game_sources} "${icon_rc}")
-    if(icon_found)
+    add_executable(${name} ${ARG_GAME_MAIN} ${game_sources})
+    if(WIN32)
+        target_sources(${name} PRIVATE "${icon_rc}") # Linux: no resource section (desktop files carry icons)
+    endif()
+    if(icon_found AND WIN32)
         target_sources(${name} PRIVATE "${icon_file}")
     endif()
     target_link_libraries(${name} PRIVATE mealkit${engine_suffix} ${game_libs})

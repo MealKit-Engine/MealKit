@@ -154,7 +154,8 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 
 ### [ ] Editors on other OSes (macOS, Linux)
 - **Done on Windows** (2026-11-02, v0.8.1): build logic in `tools/build.ps1` (PowerShell 5.1 and 7), `build.ps1` for Linux/macOS, `check_layout` catches asset references with differing case, default symbol visibility and PIC on Linux/macOS Editor builds, `dlopen` loading, game library `<name>_game.dll/.so/.dylib`, editor project paths with `/`.
-- **Left**: Linux/macOS window, input and process layers; the editor's [Build] menu calling `pwsh build.ps1` there (with posix `Process`); building the editor on those systems; on macOS, signed library rules for hot reload. Exporting for platforms the editor's OS can't build (macOS/iOS only on macOS): remote builds or CI, decided then.
+- **Done on Linux** (2026-11-22): X11 window, input, gamepads, file dialogs, posix processes and images, the editor's build/PowerShell calls, Vulkan Xlib surface; `pwsh build.ps1 Editor` builds and runs the editor (`docs/CHANGELOG.md` "Linux editor").
+- **Left**: the MkRender tool on Linux (its CMake builds it on Windows only), Linux paths in the Manager's engine scripts (`tools\*.ps1` joins), the Linux game exe and Export (`Vulkan` config builds the front end but isn't checked), game project editor builds on Linux, `check.ps1` groups on Linux, CI for the Linux front end; macOS window/input/process layers and signed library rules for hot reload. Exporting for platforms the editor's OS can't build (macOS/iOS only on macOS): remote builds or CI, decided then.
 
 ### [ ] Consoles (Xbox, PlayStation, Switch)
 - **Start conditions**: registration in each platform's developer program and dev kits.

@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
@@ -19,7 +20,7 @@ namespace {
 const FileFilter kCsvFilters[] = {{"CSV (*.csv)", "*.csv"}, {"All files (*.*)", "*.*"}};
 
 std::string backslashes(std::string path) {
-    std::replace(path.begin(), path.end(), '/', '\\');
+    path = nativePath(path);
     return path;
 }
 
@@ -416,12 +417,12 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                 // id: applied on Enter or clicking elsewhere (letters/digits/_/-/. , unique within the table)
                 char temp[128];
                 char* buffer = m_idRow == row ? m_idBuffer : temp;
-                if (m_idRow != row) strncpy_s(temp, t.ids[r].c_str(), _TRUNCATE);
+                if (m_idRow != row) std::snprintf(temp, sizeof(temp), "%s", t.ids[r].c_str());
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 ImGui::InputText("##id", buffer, sizeof(m_idBuffer));
                 if (ImGui::IsItemActivated()) {
                     m_idRow = row;
-                    strncpy_s(m_idBuffer, t.ids[r].c_str(), _TRUNCATE);
+                    std::snprintf(m_idBuffer, sizeof(m_idBuffer), "%s", t.ids[r].c_str());
                 }
                 if (ImGui::IsItemDeactivated() && m_idRow == row) {
                     const std::string id = m_idBuffer;

@@ -121,9 +121,22 @@ function Sync-Entry($e, [string]$into = "") {
     foreach ($rel in $locked.Keys) {
         $full = Join-Path $target $rel
         New-Item -ItemType Directory -Force (Split-Path -Parent $full) | Out-Null
-        $p = Start-Process -FilePath git -ArgumentList @("-C", "`"$dir`"", "cat-file", "blob", $locked[$rel]) -NoNewWindow -Wait -PassThru `
-            -RedirectStandardOutput $full
-        if ($p.ExitCode -ne 0) { throw "could not read $prefix$rel from $dir" }
+        if ($IsLinux -or $IsMacOS) {
+            # PowerShell 7 there rewrites redirected output line by line and drops empty lines: copy git's bytes as they are
+            $psi = New-Object Diagnostics.ProcessStartInfo "git", "-C `"$dir`" cat-file blob $($locked[$rel])"
+            $psi.UseShellExecute = $false
+            $psi.RedirectStandardOutput = $true
+            $proc = [Diagnostics.Process]::Start($psi)
+            $stream = [IO.File]::Create($full)
+            try { $proc.StandardOutput.BaseStream.CopyTo($stream) } finally { $stream.Close() }
+            $proc.WaitForExit()
+            $code = $proc.ExitCode
+        } else {
+            $p = Start-Process -FilePath git -ArgumentList @("-C", "`"$dir`"", "cat-file", "blob", $locked[$rel]) -NoNewWindow -Wait -PassThru `
+                -RedirectStandardOutput $full
+            $code = $p.ExitCode
+        }
+        if ($code -ne 0) { throw "could not read $prefix$rel from $dir" }
     }
     # Empty folders left by removed files
     Get-ChildItem -Path $target -Recurse -Directory | Sort-Object { $_.FullName.Length } -Descending |

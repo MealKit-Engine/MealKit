@@ -11,7 +11,8 @@
 #     VulkanEditor  editor build with the Vulkan backend in <project>/build/VulkanEditor/bin (like Editor)
 #     Presets   Release plus every engine preset (engine repository: also <sample>_solo.exe without net and <sample>_noaudio.exe without audio, docs/ENGINE_MODULES.md "Presets")
 #     EOS       Release with the EOS online backend (build/EOS, needs third_party/eos)
-#     Headless  Linux/macOS until their window/editor exist: headless game + tests in <project>/build/Headless/bin
+#     Headless  Linux/macOS: headless game + tests in <project>/build/Headless/bin
+#     Linux: Editor, VulkanEditor and Vulkan build the X11 front end with the Vulkan backend (Editor = VulkanEditor there)
 #     Editor    editor build in <project>/build/Editor/bin:
 #                 engine repository: mealkit.dll + MealKitEditor.exe + sample game DLL
 #                 game project:      <name>_game.dll only (builds the engine editor first if needed)
@@ -95,6 +96,10 @@ if ($onWindows) {
     }
 } else {
     if ($Config -eq "ClangCL") { Fail "ClangCL is a Windows configuration (clang is already the compiler here)" }
+    if ($Config -in @("Editor", "VulkanEditor", "Vulkan")) {
+        if (-not $IsLinux) { Fail "$Config needs a front end, which exists on Windows and Linux only (macOS: ROADMAP stage 5)" }
+        $extra += "-DMEALKIT_LINUX_FRONTEND=ON"
+    }
     if (-not $env:CC) { $extra += "-DCMAKE_C_COMPILER=clang" }
     if (-not $env:CXX) { $extra += "-DCMAKE_CXX_COMPILER=clang++" }
 }
