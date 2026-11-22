@@ -5,6 +5,15 @@
 $MealKitEngine = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
 $MealKitUtf8 = New-Object System.Text.UTF8Encoding $false
 $MealKitManifestName = ".mealkit-template"
+# The PowerShell running this script (5.1 `powershell` on Windows, `pwsh` on Linux/macOS), for calling the other tools
+$MealKitPs = (Get-Process -Id $PID).Path
+$MealKitSep = [IO.Path]::DirectorySeparatorChar
+# Names of the files in the template manifest and in the maps below are project-relative with '\' on every OS (the format of
+# .mealkit-template). ConvertTo-RelKey turns a native path tail into one, Join-Rel joins one onto a folder with the native separator.
+function ConvertTo-RelKey([string]$path) { return $path.Replace("/", "\") }
+function Join-Rel([string]$base, [string]$rel) { return Join-Path $base $rel.Replace("\", [string]$MealKitSep) }
+# Windows paths ignore case, Linux paths don't
+$MealKitPathCmp = if ($MealKitSep -eq "\") { [StringComparison]::OrdinalIgnoreCase } else { [StringComparison]::Ordinal }
 
 function Get-MealKitVersion {
     return ([IO.File]::ReadAllText((Join-Path $MealKitEngine "VERSION"))).Trim()
@@ -23,12 +32,12 @@ function Get-TemplateTokens([string]$name) {
 # Filled-in template file contents: project-relative path → text
 function Get-RenderedTemplate([string]$name) {
     $tokens = Get-TemplateTokens $name
-    $template = Join-Path $MealKitEngine "templates\project"
+    $template = Join-Path $MealKitEngine "templates/project"
     $files = [ordered]@{}
     Get-ChildItem $template -Recurse -File -Force | Sort-Object FullName | ForEach-Object {
         $text = [IO.File]::ReadAllText($_.FullName, $MealKitUtf8)
         foreach ($k in $tokens.Keys) { $text = $text.Replace($k, $tokens[$k]) }
-        $files[$_.FullName.Substring($template.Length + 1)] = $text
+        $files[(ConvertTo-RelKey $_.FullName.Substring($template.Length + 1))] = $text
     }
     return $files
 }
@@ -106,7 +115,7 @@ function Get-TemplateSample([string]$template) { if ($template -eq "coop") { ret
 # The screen flow (title, menu, lobby, results) is the screens source module since 2026-11-15 (docs/DECISIONS.md
 # "Templates carry no game shape"), so no game code is shared: new_project.ps1 -Modules screens adds it
 $MealKitSharedFlowSource = @()
-$MealKitSharedFlowAssets = @("ui\settings.ui", "ui\subtitles.ui", "ui\theme.ui", "fonts")
+$MealKitSharedFlowAssets = @("ui/settings.ui", "ui/subtitles.ui", "ui/theme.ui", "fonts")
 
 # The template a project was made from (mealkit.project "templateName", arena for projects made before it was written)
 function Get-ProjectTemplate([string]$project) {
@@ -123,11 +132,11 @@ function Convert-GameSource([string]$text, [string]$name, [string]$from = "sandb
 # Game code of a template: project-relative path ("source\sim\World.h") → text. Template code is written in namespace sandbox like the sample
 function Get-SampleSource([string]$name, [string]$template = "arena") {
     $files = [ordered]@{}
-    $sample = Join-Path $MealKitEngine "samples\sandbox"
+    $sample = Join-Path $MealKitEngine "samples/sandbox"
     if (Test-FolderTemplate $template) {
-        $root = Join-Path $MealKitEngine "templates\$template\source"
+        $root = Join-Path $MealKitEngine "templates/$template/source"
         Get-ChildItem $root -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | Sort-Object FullName | ForEach-Object {
-            $files["source\" + $_.FullName.Substring($root.Length + 1)] = Convert-GameSource ([IO.File]::ReadAllText($_.FullName, $MealKitUtf8)) $name
+            $files["source\" + (ConvertTo-RelKey $_.FullName.Substring($root.Length + 1))] = Convert-GameSource ([IO.File]::ReadAllText($_.FullName, $MealKitUtf8)) $name
         }
         foreach ($rel in $MealKitSharedFlowSource) {
             $files["source\$rel"] = Convert-GameSource ([IO.File]::ReadAllText((Join-Path $sample $rel), $MealKitUtf8)) $name
@@ -135,11 +144,11 @@ function Get-SampleSource([string]$name, [string]$template = "arena") {
         return $files
     }
     $sampleName = Get-TemplateSample $template
-    $sample = Join-Path $MealKitEngine "samples\$sampleName"
+    $sample = Join-Path $MealKitEngine "samples/$sampleName"
     foreach ($dir in "sim", "view", "app") {
         $from = Join-Path $sample $dir
         Get-ChildItem $from -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | Sort-Object FullName | ForEach-Object {
-            $files["source\$dir\" + $_.FullName.Substring($from.Length + 1)] = Convert-GameSource ([IO.File]::ReadAllText($_.FullName, $MealKitUtf8)) $name $sampleName
+            $files["source\$dir\" + (ConvertTo-RelKey $_.FullName.Substring($from.Length + 1))] = Convert-GameSource ([IO.File]::ReadAllText($_.FullName, $MealKitUtf8)) $name $sampleName
         }
     }
     return $files
@@ -148,19 +157,19 @@ function Get-SampleSource([string]$name, [string]$template = "arena") {
 # Assets of a template: project-relative path ("assets\scenes\main.scene") → source file. Text files that are generated (strings) aren't here
 function Get-SampleAssets([string]$template = "arena") {
     $files = [ordered]@{}
-    $engineAssets = Join-Path $MealKitEngine "samples\sandbox\assets"
+    $engineAssets = Join-Path $MealKitEngine "samples/sandbox/assets"
     $add = {
         param($root, $item)
         Get-ChildItem $item -Recurse -File | Where-Object { $_.Extension -ne ".autosave" } | Sort-Object FullName | ForEach-Object {
-            $files["assets\" + $_.FullName.Substring($root.Length + 1)] = $_.FullName
+            $files["assets\" + (ConvertTo-RelKey $_.FullName.Substring($root.Length + 1))] = $_.FullName
         }
     }
     if (Test-FolderTemplate $template) {
-        $own = Join-Path $MealKitEngine "templates\$template\assets"
+        $own = Join-Path $MealKitEngine "templates/$template/assets"
         & $add $own $own
         foreach ($rel in $MealKitSharedFlowAssets) { & $add $engineAssets (Join-Path $engineAssets $rel) }
     } elseif ($template -eq "coop") {
-        $coopAssets = Join-Path $MealKitEngine "samples\coop\assets"
+        $coopAssets = Join-Path $MealKitEngine "samples/coop/assets"
         & $add $coopAssets $coopAssets
     } else {
         & $add $engineAssets $engineAssets
@@ -185,7 +194,7 @@ function Get-TemplateStrings([string]$name, [Collections.IDictionary]$source, [C
     $files = [ordered]@{}
     foreach ($lang in "en", "ko") {
         $out = [Collections.Generic.List[string]]::new()
-        foreach ($line in [IO.File]::ReadAllLines((Join-Path $MealKitEngine "samples\sandbox\assets\strings\$lang.txt"), $MealKitUtf8)) {
+        foreach ($line in [IO.File]::ReadAllLines((Join-Path $MealKitEngine "samples/sandbox/assets/strings/$lang.txt"), $MealKitUtf8)) {
             if ($line -match '^\s*([A-Za-z0-9_.]+)\s*=') {
                 $key = $Matches[1]
                 if ($key -eq "game.title") { $out.Add("game.title = $name"); continue }

@@ -3,6 +3,11 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Project scripts on Linux (2026-11-22)
+
+- Part A of ROADMAP "Linux editor finish and editor reinforcement". `new_project`, `upgrade_project`, `rename_project`, `move_project` and `project_common` run under pwsh on Linux: file names in the `.mealkit-template` manifest and in the template maps stay project-relative with `\` on every OS (format unchanged, so manifests move between Windows and Linux), `ConvertTo-RelKey` makes a key from a native path tail and `Join-Rel` joins a key onto a folder; plain path joins use `/`. `$MealKitPs` (the running PowerShell) replaces the `powershell` calls to `module.ps1`, `TrimEnd` takes both separators, and folder-inside-folder checks use the OS separator and case rule (`$MealKitSep`, `$MealKitPathCmp`). The printed build hint is `pwsh <project>/build.ps1` on Linux.
+- Checked on Ubuntu 26.04 (pwsh 7): `new_project` for empty, coop and arena templates (277 files, 22 engine modules, no stray names with a backslash), `upgrade_project -DryRun -Source` reports every file `same`, a real upgrade re-adds a deleted template file and keeps an edited one, `rename_project`, `move_project`, and `module.ps1 list|search|versions|update -All -DryRun|remove -DryRun` on the new project. Not checked: Windows PowerShell 5.1 (the changes keep the Windows paths and manifest keys the same, but none was run on Windows), the Manager calling them.
+
 ## mp_test on Linux (2026-11-22)
 
 - `tools/mp_test.ps1` runs under pwsh on Linux: default exe `build/<Config>/bin/sandbox` (no `.exe`), log paths with `/`, `desync_diff.ps1` called through the running PowerShell.

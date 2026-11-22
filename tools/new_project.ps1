@@ -25,7 +25,7 @@ if ($Name -notmatch '^[A-Za-z][A-Za-z0-9_]*$') {
 }
 $engine = $MealKitEngine
 $dest = Join-Path ([IO.Path]::GetFullPath($Path)) $Name
-if ($dest.StartsWith($engine + "\", [StringComparison]::OrdinalIgnoreCase)) {
+if ($dest.StartsWith($engine + $MealKitSep, $MealKitPathCmp)) {
     Write-Error "Create projects outside the engine folder ($engine)"
     exit 1
 }
@@ -40,32 +40,32 @@ foreach ($entry in (Get-RenderedTemplate $Name).GetEnumerator()) {
     $text = $entry.Value
     if ($entry.Key -eq "mealkit.project") { # the start scene and the template (tools\upgrade_project.ps1 -Source reads it)
         if (Test-FolderTemplate $Template) { $text = $text.Replace("scene scenes/arena.scene", "scene scenes/main.scene") }
-        if ($Template -eq "coop") { $text = $text.Replace("scene scenes/arena.scene", "scene " + (Read-ProjectFile (Join-Path $engine "samples\coop"))["scene"]) }
+        if ($Template -eq "coop") { $text = $text.Replace("scene scenes/arena.scene", "scene " + (Read-ProjectFile (Join-Path $engine "samples/coop"))["scene"]) }
         if ($Template -eq "empty2d") { $text = $text -replace '(\r?\n)created ', "`$1view2d true`$1lightingModel Unlit`$1created " }
         $text = $text -replace '(\r?\n)created ', "`$1templateName $Template`$1created "
     }
-    Write-TextFile (Join-Path $dest $entry.Key) $text
+    Write-TextFile (Join-Rel $dest $entry.Key) $text
     if ($entry.Key -ne "mealkit.project") { $manifest[$entry.Key] = Get-TextHash $text }
 }
 Write-TemplateManifest $dest $manifest
 
 # 2) Game code: the template's sim/ view/ app/ into source/ (namespace sandbox becomes the project name in lower case)
 $source = Get-SampleSource $Name $Template
-foreach ($entry in $source.GetEnumerator()) { Write-TextFile (Join-Path $dest $entry.Key) $entry.Value }
+foreach ($entry in $source.GetEnumerator()) { Write-TextFile (Join-Rel $dest $entry.Key) $entry.Value }
 
 # 3) Assets: scenes, models, tuning, screens (excluding autosave files)
 $assets = Get-SampleAssets $Template
 foreach ($entry in $assets.GetEnumerator()) {
-    $target = Join-Path $dest $entry.Key
+    $target = Join-Rel $dest $entry.Key
     New-Item -ItemType Directory -Force (Split-Path -Parent $target) | Out-Null
     Copy-Item $entry.Value $target
 }
 if (Test-FolderTemplate $Template) {
-    foreach ($entry in (Get-TemplateStrings $Name $source $assets).GetEnumerator()) { Write-TextFile (Join-Path $dest $entry.Key) $entry.Value }
+    foreach ($entry in (Get-TemplateStrings $Name $source $assets).GetEnumerator()) { Write-TextFile (Join-Rel $dest $entry.Key) $entry.Value }
 }
 
 # 4) Source modules: modules/<name>/ used by the sample game (including the module.files install record; update later with tools\module.ps1 update)
-$sampleModules = Join-Path $engine "samples\sandbox\modules"
+$sampleModules = Join-Path $engine "samples/sandbox/modules"
 if ($Template -eq "arena" -and (Test-Path $sampleModules)) {
     New-Item -ItemType Directory -Force (Join-Path $dest "modules") | Out-Null
     Get-ChildItem $sampleModules -Directory | ForEach-Object { Copy-Item $_.FullName (Join-Path $dest "modules") -Recurse -Force }
@@ -73,19 +73,20 @@ if ($Template -eq "arena" -and (Test-Path $sampleModules)) {
 
 # 5) Engine modules: every module of the standard preset into modules/<name>/ like source modules (docs/ENGINE_MODULES.md "Module selection").
 #    The game keeps the ones it uses: tools\module.ps1 remove audio, add/update for other versions
-& powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "module.ps1") add -Preset standard -Project $dest | Out-Null
+& $MealKitPs -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "module.ps1") add -Preset standard -Project $dest | Out-Null
 if ($LASTEXITCODE -ne 0) { Write-Error "could not add the engine modules (tools\module.ps1 add -Preset standard -Project $dest)"; exit 1 }
 
 # 6) Source modules picked with -Modules (docs/MODULES.md). The game code connects them (each module's docs/index.md "Adding")
 $addedModules = @()
 foreach ($m in ($Modules | ForEach-Object { $_ -split "," } | Where-Object { $_ })) {
-    & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "module.ps1") add -Project $dest $m | Out-Null
+    & $MealKitPs -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "module.ps1") add -Project $dest $m | Out-Null
     if ($LASTEXITCODE -ne 0) { Write-Warning "could not add the module '$m' (tools\module.ps1 add -Project $dest $m)" } else { $addedModules += $m }
 }
 
 Write-Host "Created $dest ($Template template, engine $(Get-MealKitVersion))" -ForegroundColor Green
 Write-Host "  engine : $engine"
 if ($addedModules) { Write-Host "  modules: $($addedModules -join ', ') (connect them as modules\<name>\docs\index.md says)" }
-Write-Host "  build  : $dest\build.bat        (first build compiles the engine too, a few minutes)"
-Write-Host "  editor : $dest\editor.bat"
-Write-Host "  export : $dest\build.bat Export  -> $dest\export\$Name"
+$launch = if ($MealKitSep -eq "\") { "$dest\build.bat" } else { "pwsh $dest/build.ps1" }
+Write-Host "  build  : $launch        (first build compiles the engine too, a few minutes)"
+if ($MealKitSep -eq "\") { Write-Host "  editor : $dest\editor.bat" }
+Write-Host "  export : $launch Export  -> $(Join-Path (Join-Path $dest "export") $Name)"

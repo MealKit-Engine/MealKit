@@ -17,7 +17,7 @@ if ($Name -notmatch '^[A-Za-z][A-Za-z0-9_]*$') {
     Write-Error "Name must start with a letter and use only letters, digits and '_' (it becomes the exe name)"
     exit 1
 }
-$Project = (Resolve-Path $Project).Path.TrimEnd("\")
+$Project = (Resolve-Path $Project).Path.TrimEnd('\', '/')
 if ($Project -ieq $MealKitEngine) {
     Write-Error "The engine's sample project cannot be renamed (samples/sandbox is the template)"
     exit 1
@@ -52,7 +52,7 @@ $oldRender = Get-RenderedTemplate $old
 $newRender = Get-RenderedTemplate $Name
 foreach ($key in $newRender.Keys) {
     if ($key -eq "mealkit.project") { continue }
-    $file = Join-Path $Project $key
+    $file = Join-Rel $Project $key
     if (-not (Test-Path $file)) { continue }
     $text = [IO.File]::ReadAllText($file, $MealKitUtf8)
     $hash = Get-TextHash $text
@@ -80,7 +80,7 @@ if (Test-Path $source) {
         $newText = Rename-GameNamespace $newText (Get-GameNamespace $old) (Get-GameNamespace $Name)
         if ($newText -ne $text) {
             Write-TextFile $_.FullName $newText
-            Write-Host ("  source\" + $_.FullName.Substring($source.Length + 1))
+            Write-Host ("  source\" + (ConvertTo-RelKey $_.FullName.Substring($source.Length + 1)))
         }
     }
 }
@@ -91,5 +91,5 @@ if (Test-Path $build) {
     Remove-Item -Recurse -Force $build
     Write-Host "Removed build\ (rebuilt on next open)"
 }
-if (Test-Path (Join-Path $Project "export\$old")) { Write-Host "export\$old was kept (old release build)" }
+if (Test-Path (Join-Path $Project "export/$old")) { Write-Host "export\$old was kept (old release build)" }
 Write-Host "Renamed $old -> $Name" -ForegroundColor Green

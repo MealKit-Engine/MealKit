@@ -21,7 +21,7 @@ param(
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\project_common.ps1"
 
-$Project = (Resolve-Path $Project).Path.TrimEnd("\")
+$Project = (Resolve-Path $Project).Path.TrimEnd('\', '/')
 if (-not (Test-Path (Join-Path $Project "mealkit.project"))) { Write-Error "$Project has no mealkit.project"; exit 1 }
 if ($Project -ieq $MealKitEngine) { Write-Error "This is the engine repository itself - nothing to upgrade"; exit 1 }
 
@@ -34,14 +34,14 @@ Write-Host "Upgrading '$name' ($Project): engine $fromVersion -> $version$(if ($
 
 $manifest = Read-TemplateManifest $Project
 $newManifest = @{}
-$backup = Join-Path $Project (".upgrade_backup\" + (Get-Date -Format "yyyyMMdd-HHmmss"))
+$backup = Join-Path $Project (".upgrade_backup/" + (Get-Date -Format "yyyyMMdd-HHmmss"))
 $changed = 0
 $kept = 0
 
 function Backup([string]$rel) {
-    $src = Join-Path $Project $rel
+    $src = Join-Rel $Project $rel
     if (-not (Test-Path $src)) { return }
-    $dst = Join-Path $backup $rel
+    $dst = Join-Rel $backup $rel
     New-Item -ItemType Directory -Force (Split-Path -Parent $dst) | Out-Null
     Copy-Item $src $dst -Force
 }
@@ -54,7 +54,7 @@ function Report([string]$status, [string]$rel, [ConsoleColor]$color = "Gray") {
 foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
     $rel = $entry.Key
     $new = $entry.Value
-    $target = Join-Path $Project $rel
+    $target = Join-Rel $Project $rel
 
     if ($rel -eq "mealkit.project") {
         # Keeps user values (name, scene, game.* etc.) and changes only the engine path and version.
@@ -96,14 +96,14 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
         if (-not $hasEngineCopies -and -not $DryRun) {
             $tool = Join-Path $PSScriptRoot "module.ps1"
             $preset = if ($oldPreset) { $oldPreset } else { "standard" }
-            & powershell -NoProfile -ExecutionPolicy Bypass -File $tool add -Preset $preset -Project $Project | Out-Null
+            & $MealKitPs -NoProfile -ExecutionPolicy Bypass -File $tool add -Preset $preset -Project $Project | Out-Null
             foreach ($w in $oldWithout) {
                 foreach ($d in @(Get-ChildItem (Join-Path $Project "modules") -Directory | Where-Object { $_.Name -eq $w -or $_.Name -like "$w-*" })) {
-                    & powershell -NoProfile -ExecutionPolicy Bypass -File $tool remove $d.Name -Project $Project -Force | Out-Null
+                    & $MealKitPs -NoProfile -ExecutionPolicy Bypass -File $tool remove $d.Name -Project $Project -Force | Out-Null
                 }
             }
             foreach ($pin in $oldPins) {
-                & powershell -NoProfile -ExecutionPolicy Bypass -File $tool update $pin[0] -To $pin[1] -Project $Project -Force | Out-Null
+                & $MealKitPs -NoProfile -ExecutionPolicy Bypass -File $tool update $pin[0] -To $pin[1] -Project $Project -Force | Out-Null
             }
             Report "added" "modules (engine modules$(if ($oldOther) { ', from the old enginePreset/engineWithout/engineModuleVersion lines' }))" Green
         }
@@ -151,8 +151,8 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
 # ---------------------------------------------------------------- Format migrations
 # 0.5.2: sound events assets/sounds.table (engine table) → assets/sounds.events (audio runtime mkaudio format, edited by MkAudio).
 # Key names are the same, so "row <name>" becomes "event <name>" and the header/format line change. The table is kept in the backup and deleted
-$oldSounds = Join-Path $Project "assets\sounds.table"
-$newSounds = Join-Path $Project "assets\sounds.events"
+$oldSounds = Join-Path $Project "assets/sounds.table"
+$newSounds = Join-Path $Project "assets/sounds.events"
 if ((Test-Path $oldSounds) -and -not (Test-Path $newSounds)) {
     $out = [Collections.Generic.List[string]]::new()
     $out.Add('# MealKit audio events. Edit them in MkAudio or by hand: "event <name>" or "bus <name>", then "key value" lines.')
@@ -176,11 +176,11 @@ if ($Source) {
     $template = Get-ProjectTemplate $Project
     $sample = Get-SampleSource $name $template
     foreach ($dir in "sim", "view", "app") {
-        $folder = Join-Path $Project "source\$dir"
+        $folder = Join-Path $Project "source/$dir"
         if (-not (Test-Path $folder)) { continue }
         $base = (Get-Item $folder).FullName # long form: TEMP paths may be 8.3 short paths, FullName below is always long
         Get-ChildItem $folder -Recurse -File | ForEach-Object {
-            $rel = "source\$dir\" + $_.FullName.Substring($base.Length + 1)
+            $rel = "source\$dir\" + (ConvertTo-RelKey $_.FullName.Substring($base.Length + 1))
             if (-not $sample.Contains($rel)) {
                 Report "removed" $rel Yellow
                 if (-not $DryRun) { Backup $rel; Remove-Item $_.FullName -Force }
@@ -189,7 +189,7 @@ if ($Source) {
         }
     }
     foreach ($entry in $sample.GetEnumerator()) {
-        $target = Join-Path $Project $entry.Key
+        $target = Join-Rel $Project $entry.Key
         if ((Test-Path $target) -and (Get-TextHash ([IO.File]::ReadAllText($target, $MealKitUtf8))) -eq (Get-TextHash $entry.Value)) {
             continue
         }
@@ -198,10 +198,10 @@ if ($Source) {
         $changed++
     }
     # Adds source modules used by the sample that the project lacks (existing modules are updated with tools\module.ps1 update)
-    $engineModules = Join-Path $MealKitEngine "samples\sandbox\modules"
+    $engineModules = Join-Path $MealKitEngine "samples/sandbox/modules"
     if ($template -eq "arena" -and (Test-Path $engineModules)) {
         foreach ($m in Get-ChildItem $engineModules -Directory) {
-            $target = Join-Path $Project "modules\$($m.Name)"
+            $target = Join-Path $Project "modules/$($m.Name)"
             if (Test-Path $target) { continue }
             Report "added" "modules\$($m.Name)" Green
             if (-not $DryRun) { New-Item -ItemType Directory -Force (Split-Path -Parent $target) | Out-Null; Copy-Item $m.FullName $target -Recurse }
@@ -211,7 +211,7 @@ if ($Source) {
     # Adds only template assets that the project lacks (e.g. assets/game.tuning)
     foreach ($entry in (Get-SampleAssets $template).GetEnumerator()) {
         $rel = $entry.Key
-        $target = Join-Path $Project $rel
+        $target = Join-Rel $Project $rel
         if (-not (Test-Path $target)) {
             Report "added" $rel Green
             if (-not $DryRun) {
@@ -225,5 +225,5 @@ if ($Source) {
 
 if (-not $DryRun) { Write-TemplateManifest $Project $newManifest }
 Write-Host "Done: $changed change(s), $kept locally modified file(s) kept$(if ((-not $DryRun) -and $changed -gt 0) { ". Backup: $backup" })"
-if ($changed -gt 0 -and -not $DryRun) { Write-Host "Rebuild the game code: $Project\build.bat Editor" }
+if ($changed -gt 0 -and -not $DryRun) { Write-Host "Rebuild the game code: $(if ($MealKitSep -eq "\") { "$Project\build.bat Editor" } else { "pwsh $Project/build.ps1 Editor" })" }
 exit 0

@@ -13,14 +13,14 @@ param(
 $ErrorActionPreference = "Stop"
 . "$PSScriptRoot\project_common.ps1"
 
-$Project = (Resolve-Path $Project).Path.TrimEnd("\")
-$To = [IO.Path]::GetFullPath($To).TrimEnd("\")
+$Project = (Resolve-Path $Project).Path.TrimEnd('\', '/')
+$To = [IO.Path]::GetFullPath($To).TrimEnd('\', '/')
 if (-not (Test-Path (Join-Path $Project "mealkit.project"))) {
     Write-Error "$Project has no mealkit.project"
     exit 1
 }
-$engineRoot = $MealKitEngine.TrimEnd("\") + "\"
-if (($Project + "\").StartsWith($engineRoot, [StringComparison]::OrdinalIgnoreCase)) {
+$engineRoot = $MealKitEngine.TrimEnd('\', '/') + $MealKitSep
+if (($Project + $MealKitSep).StartsWith($engineRoot, $MealKitPathCmp)) {
     Write-Error "The engine's sample projects cannot be moved"
     exit 1
 }
@@ -29,7 +29,7 @@ if ($To -ieq $Project) {
     Write-Output "moved`t$To"
     exit 0
 }
-if (($To + "\").StartsWith($Project + "\", [StringComparison]::OrdinalIgnoreCase)) {
+if (($To + $MealKitSep).StartsWith($Project + $MealKitSep, $MealKitPathCmp)) {
     Write-Error "$To is inside the project folder"
     exit 1
 }
