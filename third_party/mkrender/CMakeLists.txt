@@ -2,7 +2,7 @@
 #   mkrhi     thin graphics API layer (DX12 or Vulkan), takes a native window handle and size
 #   mkrender  forward renderer on mkrhi with plain inputs, its shaders compiled by DXC at build time (MKRENDER_DXC)
 # No engine headers; the host passes a log callback (mkrhi::setLog) and, optionally, Dear ImGui and Tracy targets.
-# Built standalone it includes tests and the MkRender scene editor (tool/, Windows); added by another project with add_subdirectory, only the libraries.
+# Built standalone it includes tests and the MkRender scene editor (tool/, Windows and Linux X11); added by another project with add_subdirectory, only the libraries.
 #   cmake -S . -B build && cmake --build build && ctest --test-dir build
 # Values the including side can set:
 #   MKRHI_BACKEND              DX12 (default) or Vulkan
@@ -21,7 +21,7 @@ set(MKRHI_BACKEND "DX12" CACHE STRING "mkrhi graphics backend (DX12 or Vulkan)")
 set_property(CACHE MKRHI_BACKEND PROPERTY STRINGS DX12 Vulkan)
 option(MKRENDER_OBJECT_LIBRARIES "Build OBJECT libraries instead of STATIC" OFF)
 option(MKRENDER_BUILD_TESTS "Build MkRender tests" ${PROJECT_IS_TOP_LEVEL})
-if(WIN32 AND PROJECT_IS_TOP_LEVEL)
+if((WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux") AND PROJECT_IS_TOP_LEVEL)
     set(mkrender_tool_default ON)
 else()
     set(mkrender_tool_default OFF)
@@ -277,9 +277,13 @@ if(MKRENDER_BUILD_TESTS)
     endif()
     add_test(NAME mkrender_tests COMMAND mkrender_tests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
     # Render goldens without the engine (tests/GoldenTest.cpp): a hidden window, fixed scenes, tests/golden/*.png. Skips without a GPU
-    if(WIN32 AND TARGET mkrender)
+    if((WIN32 OR CMAKE_SYSTEM_NAME STREQUAL "Linux") AND TARGET mkrender)
         add_executable(mkrender_golden tests/GoldenTest.cpp)
         target_link_libraries(mkrender_golden PRIVATE mkrender)
+        if(NOT WIN32)
+            find_package(X11 REQUIRED)
+            target_link_libraries(mkrender_golden PRIVATE X11::X11)
+        endif()
         target_include_directories(mkrender_golden SYSTEM PRIVATE ${MKTERRAIN_STB_DIR})
         target_compile_definitions(mkrender_golden PRIVATE MKRENDER_GOLDEN_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/golden" _CRT_SECURE_NO_WARNINGS)
         if(MSVC)
