@@ -2,7 +2,7 @@
 #   tools\release_index.ps1 -Index <index.json> -Zip <mealkit-engine-*.zip> -Url <where the zip is downloaded from>
 # The index is created if missing. Only the newest patch of each engine MINOR is kept: adding 0.9.5 drops 0.9.4.
 # Platforms: windows-x64 and linux-x64 packages share one index. Every engine and tool entry has a "platform" field; an entry without one (older indexes) is windows-x64.
-# One engine MINOR keeps one newest patch per platform, and one tool keeps one entry per platform. The Manager package is Windows only for now.
+# One engine MINOR keeps one newest patch per platform, and one tool keeps one entry per platform. The Manager package has one entry per platform too: "manager" is one entry (older indexes, one platform) or an array of them.
 # Format (format 1):
 # A MealKit Manager package (mealkit-manager-*.zip) sets the one "manager" entry instead; a tool package (mealkit-tool-<name>-*.zip,
 # tools\package_tool.ps1, needs -Engines) sets that tool's entry in "tools": { "name", "version", "url", "size", "sha256", "protocol", "engines": ["0.9"], "summary", "icon" } (the last two from its manifest, when it has them).
@@ -21,17 +21,17 @@ if ($name -match '-(windows-x64|linux-x64)\.zip$') { $platform = $Matches[1] }
 $namePlain = $name -replace '-(windows-x64|linux-x64)\.zip$', '-windows-x64.zip' # the package patterns below are written once, for the Windows name
 $engines = @()
 $tools = @()
-$manager = $null
+$managers = @()
 if (Test-Path $Index) {
     $old = Get-Content $Index -Raw -Encoding UTF8 | ConvertFrom-Json
     if ($old.format -ne 1) { Write-Host "[MealKit] $Index has format $($old.format), this script writes 1"; exit 1 }
     if ($old.engines) { $engines = @($old.engines) }
     if ($old.tools) { $tools = @($old.tools) }
-    if ($old.manager) { $manager = $old.manager }
+    if ($old.manager) { $managers = @($old.manager) }
 }
 function Save {
     $o = [ordered]@{ format = 1 }
-    if ($manager) { $o.manager = $manager }
+    if ($managers.Count -eq 1) { $o.manager = $managers[0] } elseif ($managers.Count) { $o.manager = $managers } # one entry stays an object, like format 1 before Linux
     $o.engines = $engines
     $o.tools = $tools
     $json = [pscustomobject]$o | ConvertTo-Json -Depth 6
@@ -42,14 +42,14 @@ function Entry([string]$v) {
     return [pscustomobject]@{ version = $v; platform = $platform; url = $Url; size = (Get-Item $Zip).Length; sha256 = (Get-FileHash $Zip -Algorithm SHA256).Hash.ToLower() }
 }
 
-# MealKit Manager package (its scripts\package.ps1): one entry, the newest; the Manager's update check reads it
+# MealKit Manager package (its scripts\package.ps1): one entry per platform, the newest; the Manager's update check reads it
 if ($namePlain -match '^mealkit-manager-(\d+\.\d+\.\d+)-windows-x64\.zip$') {
     $v = $Matches[1]
-    if ($platform -ne "windows-x64") { Write-Host "[MealKit] the Manager package is windows-x64 only for now: $name"; exit 1 }
-    if ($manager -and [version]$manager.version -gt [version]$v) { Write-Host "[MealKit] $Index already has Manager $($manager.version), newer than $v"; exit 1 }
-    $manager = Entry $v
+    $existing = $managers | Where-Object { (PlatformOf $_) -eq $platform } | Select-Object -First 1
+    if ($existing -and [version]$existing.version -gt [version]$v) { Write-Host "[MealKit] $Index already has Manager $($existing.version) for $platform, newer than $v"; exit 1 }
+    $managers = @($managers | Where-Object { (PlatformOf $_) -ne $platform }) + (Entry $v)
     Save
-    Write-Host "[MealKit] $Index`: manager $v"
+    Write-Host "[MealKit] $Index`: manager $v ($platform)"
     exit 0
 }
 # Tool package (tools\package_tool.ps1): one entry per tool, the newest, with its live protocol (from its mealkit-tool.txt) and
