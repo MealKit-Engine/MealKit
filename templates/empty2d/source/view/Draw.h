@@ -21,7 +21,7 @@ void applyLights(const mealkit::scene::Scene& scene, std::vector<mealkit::render
 void applyProbes(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models,
                  std::vector<mealkit::render::ReflectionProbe>& probes, mealkit::render::FrameParams& frame);
 // Static scene objects (spawn points and areas aren't drawn), sprites included
-void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, mealkit::render::SpriteTextures& sprites, const Vec3& eye, mealkit::f64 viewTime,
+void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, mealkit::render::SpriteTextures& sprites, const mealkit::render::SpriteClips& clips, const Vec3& eye, mealkit::f64 viewTime,
                mealkit::render::DrawList& out);
 // Characters interpolated by alpha between the previous and current tick
 void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, const ViewTuning& look,

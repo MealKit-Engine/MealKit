@@ -58,6 +58,7 @@ MEALKIT_STRUCT(SpriteFields) {
     MEALKIT_FIELD(i32, columns, 1, "Sheet columns");
     MEALKIT_FIELD(i32, rows, 1, "Sheet rows");
     MEALKIT_FIELD(i32, cell, 0, "Cell (from the top left, row by row)");
+    MEALKIT_FIELD(std::string, clip, {}, "Flipbook clip (row of tables/sprite_clips.table; replaces image, columns, rows and cell)");
     MEALKIT_FIELD(f32, pivotX, 0.5f, "Pivot x (0 left .. 1 right)");
     MEALKIT_FIELD(f32, pivotY, 0.5f, "Pivot y (0 bottom .. 1 top)");
     MEALKIT_FIELD(f32, pixelsPerUnit, 0.0f, "Pixels per meter (0: size from the scale)");

@@ -1714,6 +1714,32 @@ TEST_CASE(render, scene_sprites) {
     TEST_CHECK(s.contentHash() == empty.contentHash());
 }
 
+// Flipbook clips: frame from view time (looping wraps, non-looping holds the last frame, negative time shows the first), the cell
+// follows firstCell, and a sprite object names its clip in the `clip` field
+TEST_CASE(render, sprite_clips) {
+    const reflect::TypeInfo* type = scene::findType(scene::kTypeSprite, nullptr);
+    TEST_CHECK(type && type->field("clip"));
+    render::SpriteClip c;
+    c.firstCell = 4;
+    c.frames = 3;
+    c.fps = 10.0f;
+    TEST_CHECK(render::SpriteClips::frameAt(c, 0.0) == 0 && render::SpriteClips::frameAt(c, 0.05) == 0);
+    TEST_CHECK(render::SpriteClips::frameAt(c, 0.1) == 1 && render::SpriteClips::frameAt(c, 0.25) == 2);
+    TEST_CHECK(render::SpriteClips::frameAt(c, 0.3) == 0 && render::SpriteClips::frameAt(c, 1.15) == 2); // looped
+    TEST_CHECK(render::SpriteClips::frameAt(c, -1.0) == 0);
+    TEST_CHECK(render::SpriteClips::cellAt(c, 0.15) == 5);
+    c.loop = false;
+    TEST_CHECK(render::SpriteClips::frameAt(c, 0.3) == 2 && render::SpriteClips::frameAt(c, 100.0) == 2);
+    c.fps = 0.0f; // no rate: the first frame
+    TEST_CHECK(render::SpriteClips::frameAt(c, 5.0) == 0);
+    scene::Scene s;
+    scene::Entity& e = s.add(scene::kTypeSprite, "Coin");
+    e.fields = {{"clip", "coin.spin"}};
+    TEST_CHECK(scene::readObject<scene::SpriteFields>(e).clip == "coin.spin");
+    render::SpriteClips none; // no table: nothing found
+    TEST_CHECK(none.count() == 0 && !none.find("coin.spin"));
+}
+
 // Point lights: a built-in kind but with fields; scene object → render::PointLight (world position, linear color × intensity, disabled lights excluded)
 TEST_CASE(render, scene_point_lights) {
     const reflect::TypeInfo* type = scene::findType(scene::kTypePointLight, nullptr);

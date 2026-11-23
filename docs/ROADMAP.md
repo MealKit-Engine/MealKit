@@ -2,13 +2,13 @@
 
 **Only work that is left.** A finished item is removed from this document and its details go to `docs/CHANGELOG.md`; a name quoted elsewhere as ROADMAP "…" for a finished item is found there by the same name. Reasons for decisions and the "Deferred" table are in `docs/DECISIONS.md`. When the order changes, update this document.
 
-## Where it stands (v0.9.9, 2026-11-23)
+## Where it stands (v0.9.10, 2026-11-23)
 
 Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (v0.9.0, `docs/CONTRACTS.md`), the engine is a kernel plus 20 engine module repos (`docs/ENGINE_MODULES.md`), the game UI runtime and its Designer live in MkUI (UI 2a), the repos are public (first green public CI on Linux x64 and macOS ARM64 2026-11-03), and the editor builds and runs on Linux with Vulkan (2026-11-22). **The engine stays a 0.x beta with no planned 1.0** (`docs/DECISIONS.md` 2026-11-23 "MealKit stays 0.x beta"): work is not held back for a release, and contracts change only through the rules in "Versions".
 
 **Next, in order** (reordered 2026-11-23; the first item keeps the 2026-11-22 decision "Linux editor and editor reinforcement come first"; game work such as FuseTag M5/M6 waits until item 1 is done):
 1. **Linux editor finish and editor reinforcement** ("In progress").
-2. **2D on the 3D engine**: what is left of sprites (flipbook clips first, since MkRender's flipbook preview waits on them), then tilemaps.
+2. **2D on the 3D engine**: what is left of sprites (render golden test, pixel snapping, template art), then tilemaps.
 3. **First beta release**: what a first visitor needs to install and try MealKit without hitting build traps ("First beta release": publication checks, R2 publishing, R1 collaboration setup, A1/A2 build and copy traps, the template modules published by name).
 4. **Game-facing gaps that FuseTag hits when game work resumes**: designer independence D4 (with FuseTag M5), shipped sound size and streaming, gamepad rumble (E2).
 5. **Multiplayer modes** (Relay, Dedicated) together with the lobby browser and quick match (E3) and spectator slots (E4).
@@ -78,18 +78,17 @@ Order inside the item: A, then B; C and D one piece at a time.
 - **B. Left over from moving scene editing and sprite editing to MkRender** (CHANGELOG "MkRender step 10", "Scene editing in MkRender, leftovers"; MkRender's own list is its `docs/ROADMAP.md`). Left (the rest was checked on Linux 2026-11-22, CHANGELOG "MkRender golden test and editor-kept features on Linux"):
   - Dragging a `gizmo=radius` handle by hand (needs a person at a screen; MkRender's Vulkan build and golden are checked, CHANGELOG "MkRender golden test and editor-kept features on Linux").
   - MkRender's look next to the editor at the same DPI (TOOL_DESIGN section 6 item 7; needs a person looking at both windows), then the MkRender row of section 7.
-  - Flipbook clip preview on the selected sprite, once the engine has clips (item 2).
+  - Flipbook clip preview on the selected sprite (the engine has clips now: `render::SpriteClips`, CHANGELOG "Flipbook clips"; MkRender needs the new module-render and module-scene tags).
   - MkRender coverage and the editor's usability items now live in MkRender's own list (`../MkRender/docs/ROADMAP.md` 4 and 5: scene tree 19~23, inspector 10, viewport 29~31 re-homed there on 2026-11-22; what MkRender doesn't cover yet is listed there too).
 - **C. Editor reinforcement** (the editor is now the play view, assets, tables, project and build host): items picked from "Editor usability" below are all done (43, bulk edit by percentage: `docs/CHANGELOG.md` "Tables: Scale Selected"; build profiles per platform/backend are done: `docs/CHANGELOG.md` "Build profiles"; 38, status-bar hints, and 37, rebindable shortcuts, are done: `docs/CHANGELOG.md` "Status bar hints", "Rebindable editor shortcuts"; 27, the asset browser preview pane, is done: `docs/CHANGELOG.md` "Asset browser preview pane"; E5's references fit in it when picked).
 
 ### [ ] 2. 2D on the 3D engine: sprite rendering + editor sprite object (decided 2026-11-10, `docs/DECISIONS.md` "2D games run on the 3D engine")
-- **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template, and sprite editing in MkRender (image picker, sheet slicer, pivot presets, the `view2d` front view; `docs/CHANGELOG.md` "Scene editing in MkRender, leftovers").
+- **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine", "Flipbook clips"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template, sprite editing in MkRender (image picker, sheet slicer, pivot presets, the `view2d` front view; `docs/CHANGELOG.md` "Scene editing in MkRender, leftovers") and flipbook clips (`sprite_clips.table`, the sprite object's `clip` field).
 - **Left, in order**:
-  1. Flipbook animation: clips on sprite sheets (frames, frames per second, loop) named in a table so the view picks a clip from game state. Driven by view time, never by `sim/`. Unblocks MkRender's flipbook preview (item 1 B).
-  2. A render golden test (`--render-golden`) of a 2D scene loaded by the engine on both backends (the sprite pass itself, its ordering, blending and point sampling, is checked by MkRender's `mkrender_golden` sprites shot).
-  3. Optional pixel snapping with an orthographic camera (`pixelsPerUnit` from the project).
-  4. Template sample art: the 2D template draws its characters and platforms as sprites (images in `templates/empty2d/assets/sprites`, CC0 or made by us) instead of boxes, and its preview image is retaken.
-  5. **Tilemaps** (Godot TileMap, Unity Tilemap): a painted grid of sheet cells as one scene object, drawn in one or two draws, with merged collision boxes that enter the content hash like solid objects; painting in MkRender. Every 2D game needs it before anything else in "Later" below.
+  1. A render golden test (`--render-golden`) of a 2D scene loaded by the engine on both backends (the sprite pass itself, its ordering, blending and point sampling, is checked by MkRender's `mkrender_golden` sprites shot).
+  2. Optional pixel snapping with an orthographic camera (`pixelsPerUnit` from the project).
+  3. Template sample art: the 2D template draws its characters and platforms as sprites (images in `templates/empty2d/assets/textures`, since `assets/sprites` is not a kind folder, CC0 or made by us) instead of boxes, and its preview image is retaken.
+  4. **Tilemaps** (Godot TileMap, Unity Tilemap): a painted grid of sheet cells as one scene object, drawn in one or two draws, with merged collision boxes that enter the content hash like solid objects; painting in MkRender. Every 2D game needs it before anything else in "Later" below.
 - **Rules kept**: view only, nothing enters the simulation (collision stays solid objects, or a solid flag that makes a box of the sprite's size and then enters the content hash). Budget: a few hundred sprites in one or two draws. Lit sprites only as a later opt-in.
 - **Later, separate items**: 2D lights, a parallax layers helper.
 - **Checks**: render golden on DX12/Vulkan, an MkRender capture of a sprite scene in its 2D front view, the 2D template built from scratch.

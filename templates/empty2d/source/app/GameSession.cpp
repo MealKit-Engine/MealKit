@@ -105,7 +105,10 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     applyProbes(m_scene, ctx.models, m_probes, frame);
     applyLights(m_scene, m_lights, frame);
     if (!m_sprites) m_sprites = std::make_unique<render::SpriteTextures>(ctx.renderer);
-    drawScene(m_scene, ctx.models, *m_sprites, frame.cameraPos, m_viewTime, out);
+    if (!m_clipsLoaded) { m_clips.load(); m_clipsLoaded = true; }
+    else m_clips.poll(m_viewTime - m_clipsPolled);
+    m_clipsPolled = m_viewTime;
+    drawScene(m_scene, ctx.models, *m_sprites, m_clips, frame.cameraPos, m_viewTime, out);
     if (sim().started()) drawWorld(sim().previous(), sim().world().state, sim().alpha(), look, ctx.models, out);
 }
 

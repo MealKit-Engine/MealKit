@@ -33,7 +33,7 @@ void applyProbes(const scene::Scene& scene, asset::ModelCache& models, std::vect
     frame.probeCount = static_cast<u32>(probes.size());
 }
 
-void drawScene(const scene::Scene& scene, asset::ModelCache& models, render::SpriteTextures& sprites, const Vec3& eye, f64 viewTime, render::DrawList& out) {
+void drawScene(const scene::Scene& scene, asset::ModelCache& models, render::SpriteTextures& sprites, const render::SpriteClips& clips, const Vec3& eye, f64 viewTime, render::DrawList& out) {
     const render::MeshId box = models.boxMesh();
     for (const scene::Entity& e : scene.entities) {
         if (!scene::visibleInGame(e, &reflect::moduleObjectTypes())) continue; // spawn points/areas are invisible in the game
@@ -42,7 +42,8 @@ void drawScene(const scene::Scene& scene, asset::ModelCache& models, render::Spr
             continue;
         }
         if (e.is(scene::kTypeSprite)) { // images (2D art); e is already in world coordinates (flattened scene)
-            render::addSprite(out, sprites, e, {e.position, e.rotation, e.scale});
+            const render::SpriteAnim anim{&clips, viewTime, {}, 0.0}; // the object's `clip` field picks a flipbook clip; viewTime is the view clock
+            render::addSprite(out, sprites, e, {e.position, e.rotation, e.scale}, &anim);
             continue;
         }
         if (e.is(scene::kTypeTerrain)) {
