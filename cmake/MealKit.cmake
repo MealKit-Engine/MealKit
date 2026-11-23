@@ -107,6 +107,10 @@ elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
 endif()
 if(NOT MSVC AND NOT MEALKIT_DEBUG_UI AND NOT MEALKIT_HEADLESS_ONLY AND MEALKIT_BUILD_KIND STREQUAL "Game")
     add_link_options(-s) # shipping exe (build.ps1 Export): no symbol table
+    # No dev folder in the exe: the build RUNPATH (the Steam library folder) is dropped (the explicit $ORIGIN one stays) and
+    # __FILE__ paths under the engine and project folders are shortened
+    set(CMAKE_SKIP_BUILD_RPATH ON)
+    add_compile_options("-ffile-prefix-map=${CMAKE_CURRENT_LIST_DIR}/..=." "-ffile-prefix-map=${CMAKE_SOURCE_DIR}=.")
 endif()
 # Live connection (mealkit/live/Server.h, the contract between tools): dev build game exes open a 127.0.0.1 server. Excluded from shipping builds (Export).
 # The editor opens it regardless of this value. When on, the engine target passes MEALKIT_LIVE=1

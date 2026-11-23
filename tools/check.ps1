@@ -143,8 +143,8 @@ $results = @()
 $step = 0
 
 # One item: PASS if $body returns $true. Output goes to a log file.
-# Groups that still need Windows (editor/MkRender captures, project builds through build.bat, Windows folders): SKIP on Linux until they are ported (docs/ROADMAP.md)
-$windowsOnlyGroups = @("tools", "render", "editor", "project", "export")
+# Groups that still need Windows (editor/MkRender captures, Windows folders): SKIP on Linux until they are ported (docs/ROADMAP.md)
+$windowsOnlyGroups = @("tools", "render", "editor")
 # Checks of those groups that already run on Linux (MkRender builds there: ../MkRender/build/linux/bin)
 $linuxChecks = @("MkRender capture (scene editing)", "Graphics regression (golden images)")
 function Invoke-Check([string]$group, [string]$name, [scriptblock]$body) {
@@ -697,7 +697,7 @@ if (-not $Quick) {
     }
     Invoke-Check project "New project + upgrade" {
         param($log)
-        $projects = Join-Path $env:TEMP "mealkit-check-projects" # must be outside the engine folder
+        $projects = Join-Path ([IO.Path]::GetTempPath()) "mealkit-check-projects" # must be outside the engine folder
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
         $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/new_project.ps1" -Name CheckGame -Path $projects 2>&1
         $output += & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/upgrade_project.ps1" -Project "$projects/CheckGame" 2>&1
@@ -723,14 +723,14 @@ if (-not $Quick) {
         $mod = "$projects/CheckGame/modules/checkmod"
         New-Item -ItemType Directory -Force "$mod/sim" | Out-Null
         Set-Content "$mod/module.txt" "@format module 1`r`nname checkmod`r`nversion 0.1.0`r`nrequires`r`n" -Encoding UTF8
-        Set-Content "$mod/sim/Bad.cpp" "#include `"sim/World.h`"`r`n#include `"othermod/sim/X.h`"`r`n" -Encoding UTF8
+        Set-Content "$mod/sim/Bad.cpp" "#include `"source/World.h`"`r`n#include `"othermod/sim/X.h`"`r`n" -Encoding UTF8
         New-Item -ItemType Directory -Force "$projects/CheckGame/modules/othermod/sim" | Out-Null
         Set-Content "$projects/CheckGame/modules/othermod/module.txt" "@format module 1`r`nname othermod`r`nversion 0.1.0`r`n" -Encoding UTF8
         $msim = & "$root/build/Release/tools/mealkit_simcheck$exeExt" "$projects/stamp" --modules "$projects/CheckGame/modules" "$mod/sim/Bad.cpp" 2>&1
         $output += $msim
         $simOk = $simOk -and ($msim -match "SIM013").Count -gt 0 -and ($msim -match "SIM014").Count -gt 0
         $output | Out-File -Encoding utf8 $log
-        $ok = (Test-Path "$projects\CheckGame\.mealkit-template") -and (($output -match "^Done: 0 change").Count -gt 0) -and $layoutOk -and $simOk
+        $ok = (Test-Path "$projects/CheckGame/.mealkit-template") -and (($output -match "^Done: 0 change").Count -gt 0) -and $layoutOk -and $simOk
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
         return $ok
     }
@@ -739,7 +739,7 @@ if (-not $Quick) {
         # tools\new_project.ps1 -Template empty: its own sim/view/app (no menus or match flow since 2026-11-15). Builds the game DLL against
         # the engine's Editor build, plays 2 bot players in the editor (shadow simulation on), then checks upgrade and layout
         if (-not (Test-Path "$root/build/Editor/MealKitTargets.cmake")) { return "SKIP: no Editor build (build.bat Editor)" }
-        $projects = Join-Path $env:TEMP "mealkit-check-empty" # must be outside the engine folder
+        $projects = Join-Path ([IO.Path]::GetTempPath()) "mealkit-check-empty" # must be outside the engine folder
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
         $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/new_project.ps1" -Name EmptyCheck -Path $projects -Template empty 2>&1
         $output += & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/upgrade_project.ps1" -Project "$projects/EmptyCheck" -Source 2>&1
@@ -748,7 +748,7 @@ if (-not $Quick) {
         $created = ($output -match "empty template").Count -gt 0 -and ($output -match "^Done: 0 change").Count -gt 0 -and
                    ($output -match "^OK layout: .* \(0 warning").Count -gt 0
         $build = "$log.build.txt"
-        $code = Run $build "$projects/EmptyCheck/build.bat" "Editor"
+        $code = if ($onWindows) { Run $build "$projects/EmptyCheck/build.bat" "Editor" } else { Run $build $ps "-NoProfile -File `"$projects/EmptyCheck/build.ps1`" Editor" }
         $built = $code -eq 0 -and (Has $build "Build OK")
         $play = "$log.play.txt"
         if ($built) { Run $play $editor "--project `"$projects/EmptyCheck`" --play --players 2 --bot --frames 300" | Out-Null }
@@ -762,7 +762,7 @@ if (-not $Quick) {
         # tools\module.ps1 (docs/MODULES.md): add from a folder → the game edits one file → update to a new version (edited files become .new, vanished files are deleted)
         # → removal refused while source/ includes it → re-add from a git tag
         $ErrorActionPreference = "Continue" # refusals and git notices go to stderr. Results are checked via exit codes and files
-        $t = Join-Path $env:TEMP "mealkit-check-modules"
+        $t = Join-Path ([IO.Path]::GetTempPath()) "mealkit-check-modules"
         Remove-Item -Recurse -Force $t -ErrorAction SilentlyContinue
         $proj = "$t/Game"; $src = "$t/mod-cool"
         New-Item -ItemType Directory -Force "$proj/source/sim", "$src/sim", "$src/tests" | Out-Null
@@ -788,18 +788,18 @@ if (-not $Quick) {
         git init -q; git -c user.name=check -c user.email=check@localhost add -A 2>$null; git -c user.name=check -c user.email=check@localhost commit -qm v 2>$null; git tag v0.2.0
         Pop-Location
         $ok = $ok -and (Mod add "file:///$($src.Replace('\', '/'))#v0.2.0") -eq 0 -and
-            ((Get-Content "$proj\modules\cool\module.files") -match "^source git .* v0\.2\.0 [0-9a-f]{40}$").Count -eq 1
+            ((Get-Content "$proj/modules/cool/module.files") -match "^source git .* v0\.2\.0 [0-9a-f]{40}$").Count -eq 1
         # Registry names: find/add via a local index.json (shaped like MealKit-Modules tools/build_index.py), refused if the commit differs
         $commit = (git -C $src rev-parse HEAD).Trim()
         $repo = "file:///$($src.Replace('\', '/'))"
         $index = "$t/index.json"
         $writeIndex = { param($c) [IO.File]::WriteAllText($index, (@{ format = 1; modules = @(@{ name = "cool"; repo = $repo; author = "check"; title = "Cool";
             summary = "check module"; tags = @("timer"); latest = "0.2.0"; versions = @(@{ version = "0.2.0"; tag = "v0.2.0"; commit = $c;
-            engine = ((Get-Content "$root\VERSION") -replace '^(\d+\.\d+).*$', '$1'); requires = @() }) }) } | ConvertTo-Json -Depth 6)) }
+            engine = ((Get-Content "$root/VERSION") -replace '^(\d+\.\d+).*$', '$1'); requires = @() }) }) } | ConvertTo-Json -Depth 6)) }
         & $writeIndex $commit
         $ok = $ok -and (Mod remove cool -Force) -eq 0 -and (Mod search timer -Index $index) -eq 0 -and ($modOut -match "^cool 0\.2\.0").Count -ge 1
         $ok = $ok -and (Mod add cool -Index $index) -eq 0 -and
-            ((Get-Content "$proj\modules\cool\module.files") -match "^source registry cool 0\.2\.0 $commit ").Count -eq 1
+            ((Get-Content "$proj/modules/cool/module.files") -match "^source registry cool 0\.2\.0 $commit ").Count -eq 1
         & $writeIndex ("0" * 40)
         $ok = $ok -and (Mod remove cool -Force) -eq 0 -and (Mod add cool -Index $index) -ne 0 -and -not (Test-Path "$proj/modules/cool")
         $modOut | Out-File -Encoding utf8 $log
@@ -814,11 +814,13 @@ if (-not $Quick) {
             if (-not (Test-Path $exe)) { return "$exe missing" }
             # Shipping builds have no live connection server (MEALKIT_LIVE=0) and no dev project folder
             $text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))
-            if ($text.Contains("Live server (")) { return "$exe contains the live server (MEALKIT_LIVE should be 0)" }
+            # Linux/macOS: the linker keeps a merged string section whole, so the text stays even with the server code gone: the run log decides there
+            if ($onWindows -and $text.Contains("Live server (")) { return "$exe contains the live server (MEALKIT_LIVE should be 0)" }
             if ($text.Contains($root.Replace("\", "/"))) { return "$exe contains the dev project folder" }
             # The shipped pack plays: the cooked game runs a bot match from export\ (no source assets)
             $code = Run "$log.$name" $exe "--bot --mute --vsync 0 --exit-tick 120"
             if ($code -ne 0 -or -not (Has "$log.$name" "^FINAL")) { return "$name export did not run (see $log.$name)" }
+            if (Has "$log.$name" "Live server \(") { return "$name export opened the live server (MEALKIT_LIVE should be 0)" }
         }
         return $true
     }
