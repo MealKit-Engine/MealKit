@@ -71,11 +71,16 @@ private:
     void rebuildIndex();
     void drawDoc(Doc& doc, void* owner, bool editing);
     void drawImportPreview(Doc& doc);
+    // The CSV last imported or exported per table (<project>/build/editor/table_csv.txt, per user and out of git): inside the project as a relative path
+    std::string csvPathOf(const Doc& doc) const;
+    void rememberCsvPath(const Doc& doc, const std::string& path);
+    void loadCsvPaths();
     std::string uniqueId(const Doc& doc, const std::string& base) const;
 
     std::string m_projectDir;
     reflect::TableList m_engineTables;
     std::vector<Doc> m_docs;
+    std::vector<std::pair<std::string, std::string>> m_csvPaths; // table asset path -> file
     int m_current = 0;
     data::TableIndexList m_index;
     char m_idBuffer[128] = {};

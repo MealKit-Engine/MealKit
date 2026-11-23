@@ -26,8 +26,48 @@ std::string backslashes(std::string path) {
 
 } // namespace
 
+std::string TablesPanel::csvPathOf(const Doc& doc) const {
+    for (const auto& [table, file] : m_csvPaths)
+        if (table == doc.info.path) return isAbsolutePath(file) ? file : nativePath(m_projectDir + "/" + file);
+    return {};
+}
+
+void TablesPanel::rememberCsvPath(const Doc& doc, const std::string& path) {
+    std::string stored = path;
+    const std::string prefix = nativePath(m_projectDir + "/");
+    if (stored.compare(0, prefix.size(), prefix) == 0) stored = stored.substr(prefix.size());
+    for (auto& entry : m_csvPaths)
+        if (entry.first == doc.info.path) {
+            entry.second = stored;
+            stored.clear();
+            break;
+        }
+    if (!stored.empty()) m_csvPaths.emplace_back(doc.info.path, stored);
+    std::string text;
+    for (const auto& [table, file] : m_csvPaths) text += table + " " + file + "\n";
+    createDirectories(m_projectDir + "/build/editor");
+    writeTextFile(m_projectDir + "/build/editor/table_csv.txt", text);
+}
+
+void TablesPanel::loadCsvPaths() {
+    m_csvPaths.clear();
+    std::string text;
+    if (m_projectDir.empty() || !readTextFile(m_projectDir + "/build/editor/table_csv.txt", text)) return;
+    size_t start = 0;
+    while (start < text.size()) {
+        size_t end = text.find('\n', start);
+        if (end == std::string::npos) end = text.size();
+        std::string line = text.substr(start, end - start);
+        start = end + 1;
+        while (!line.empty() && line.back() == '\r') line.pop_back();
+        const size_t space = line.find(' ');
+        if (space != std::string::npos && space > 0 && space + 1 < line.size()) m_csvPaths.emplace_back(line.substr(0, space), line.substr(space + 1));
+    }
+}
+
 void TablesPanel::setProjectDirectory(const std::string& directory) {
     m_projectDir = directory;
+    loadCsvPaths();
     for (Doc& doc : m_docs) {
         doc.path = backslashes(m_projectDir + "/" + assetFilePath(doc.info.path));
         if (doc.data.rowType) load(doc);
@@ -237,7 +277,7 @@ void TablesPanel::drawImportPreview(Doc& doc) {
             if (std::find(seen.begin(), seen.end(), c.row) == seen.end()) seen.push_back(c.row);
         rowsChanged = std::to_string(seen.size());
     }
-    ImGui::TextUnformatted(fileName(doc.csvPath).c_str());
+    ImGui::TextUnformatted(doc.csvPath.c_str());
     ImGui::TextWrapped("%s", trf("%zu cells changed in %s rows, %zu rows added, %zu rows removed, %zu rows the same", p.changed.size(), rowsChanged.c_str(), p.added.size(), p.removed.size(), p.sameRows).c_str());
     if (p.changed.empty() && p.added.empty() && p.removed.empty()) ImGui::TextDisabled("%s", tr("The file has the same values as the table."));
     if (!p.removed.empty()) ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "%s", tr("Rows that are not in the file are removed."));
@@ -283,6 +323,7 @@ void TablesPanel::drawImportPreview(Doc& doc) {
             doc.dirty = true;
             if ((doc.info.flags & reflect::kTableView) != 0) doc.viewChanged = true;
             doc.undo.mark();
+            rememberCsvPath(doc, doc.csvPath);
         } else {
             doc.status = trf("Could not import: %s", error.c_str());
         }
@@ -366,26 +407,37 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
     ImGui::SameLine();
     ImGui::TextDisabled("|");
     ImGui::SameLine();
-    if (ImGui::Button(tr("Import CSV..."))) {
-        const std::string csv = openFileDialog(owner, "", m_projectDir, kCsvFilters, 2);
+    // Import replaces the whole table, so the changes are shown first and nothing happens until they are accepted
+    const auto startImport = [&](const std::string& csv) {
         std::string error;
-        if (!csv.empty()) {
-            // Import replaces the whole table, so the changes are shown first and nothing happens until they are accepted
-            if (data::previewTableCsv(t, csv, doc.csv, &error)) {
-                doc.csvPath = csv;
-                doc.csvOpen = true;
-            } else {
-                doc.status = trf("Could not import: %s", error.c_str());
-            }
+        if (data::previewTableCsv(t, csv, doc.csv, &error)) {
+            doc.csvPath = csv;
+            doc.csvOpen = true;
+        } else {
+            doc.status = trf("Could not import: %s", error.c_str());
         }
+    };
+    const std::string lastCsv = csvPathOf(doc);
+    if (ImGui::Button(tr("Import CSV..."))) {
+        const std::string csv = openFileDialog(owner, lastCsv.empty() ? "" : fileName(lastCsv), lastCsv.empty() ? m_projectDir : parentDirectory(lastCsv), kCsvFilters, 2);
+        if (!csv.empty()) startImport(csv);
     }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(lastCsv.empty() || !fileExists(lastCsv));
+    if (ImGui::Button(tr("Reimport"))) startImport(lastCsv);
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled | ImGuiHoveredFlags_DelayShort))
+        ImGui::SetTooltip("%s", lastCsv.empty() ? tr("Import or export a CSV first: the table remembers its file") : lastCsv.c_str());
     ImGui::SameLine();
     if (ImGui::Button(tr("Export CSV..."))) {
         const std::string base = fileName(doc.info.path);
         const std::string name = base.substr(0, base.rfind('.')) + ".csv";
-        const std::string csv = saveFileDialog(owner, name, m_projectDir, kCsvFilters, 2, "csv");
-        if (!csv.empty())
-            doc.status = data::exportTableCsv(t, csv) ? trf("Exported %s", csv.c_str()) : trf("Could not write %s", csv.c_str());
+        const std::string csv = saveFileDialog(owner, lastCsv.empty() ? name : fileName(lastCsv), lastCsv.empty() ? m_projectDir : parentDirectory(lastCsv), kCsvFilters, 2, "csv");
+        if (!csv.empty()) {
+            const bool written = data::exportTableCsv(t, csv);
+            doc.status = written ? trf("Exported %s", csv.c_str()) : trf("Could not write %s", csv.c_str());
+            if (written) rememberCsvPath(doc, csv);
+        }
     }
     // The note moved to a tooltip: on a short bottom strip the rows need the room
     ImGui::SameLine();
