@@ -1719,6 +1719,17 @@ TEST_CASE(render, scene_sprites) {
 TEST_CASE(render, sprite_clips) {
     const reflect::TypeInfo* type = scene::findType(scene::kTypeSprite, nullptr);
     TEST_CHECK(type && type->field("clip"));
+    { // pixel snapping (render::snapPixelView): whole-number zoom, center on the screen-pixel grid, off with pixelsPerUnit 0
+        const render::PixelView off = render::snapPixelView({1.3f, 2.7f}, 7.0f, 720.0f, 0.0f);
+        TEST_CHECK(off.zoom == 0 && off.halfHeight == 7.0f && off.center.x == 1.3f && off.center.y == 2.7f);
+        // 720 px high, 16 px per meter, 7 m half height asks 3.2 screen pixels per art pixel: zoom 3, half height 720 / (2 * 16 * 3) = 7.5
+        const render::PixelView v = render::snapPixelView({1.3f, 2.7f}, 7.0f, 720.0f, 16.0f);
+        TEST_CHECK(v.zoom == 3 && std::fabs(v.halfHeight - 7.5f) < 1e-5f);
+        const f32 step = 1.0f / 48.0f; // one screen pixel in meters
+        TEST_CHECK(std::fabs(v.center.x / step - std::round(v.center.x / step)) < 1e-3f && std::fabs(v.center.x - 1.3f) <= step * 0.5f + 1e-5f);
+        TEST_CHECK(std::fabs(v.center.y / step - std::round(v.center.y / step)) < 1e-3f && std::fabs(v.center.y - 2.7f) <= step * 0.5f + 1e-5f);
+        TEST_CHECK(render::snapPixelView({0, 0}, 100.0f, 720.0f, 16.0f).zoom == 1); // never below 1 (a tall view keeps whole pixels)
+    }
     render::SpriteClip c;
     c.firstCell = 4;
     c.frames = 3;
