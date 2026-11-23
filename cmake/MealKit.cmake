@@ -934,6 +934,11 @@ function(mealkit_add_game name)
             set(export_dir "${project_dir}/export/${name}-${export_version}")
         endif()
     endif()
+    # A build profile's "output" line (tools/build.ps1 profile:<name>) replaces the folder above, for a project built on its own
+    # (the engine repo builds one export per reference sample, which would all go to the same folder)
+    if(MEALKIT_EXPORT_DIR AND project_dir STREQUAL CMAKE_SOURCE_DIR)
+        set(export_dir "${MEALKIT_EXPORT_DIR}")
+    endif()
     # Cook step (game/Cook.h): the dev Release exe (build_project.bat Export builds it first, next to this build folder) packs the reached assets into one pack
     get_filename_component(build_root "${CMAKE_BINARY_DIR}" DIRECTORY)
     set(export_cooker "${build_root}/Release/bin/${name}${CMAKE_EXECUTABLE_SUFFIX}")

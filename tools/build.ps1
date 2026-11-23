@@ -9,6 +9,8 @@
 #     ClangCL   Windows: Release built with clang-cl in <project>/build/ClangCL/bin (determinism comparison with MSVC, not shipped)
 #     Vulkan    Release game with the Vulkan RHI backend in <project>/build/Vulkan/bin (backend comparison, not shipped on Windows)
 #     VulkanEditor  editor build with the Vulkan backend in <project>/build/VulkanEditor/bin (like Editor)
+#     VulkanExport  Export with the Vulkan backend in <project>/build/VulkanExport (Linux: the same as Export)
+#     profile:<name>  the configuration (and for an export the output folder) written in <project>/profiles/<name>.profile (docs/DECISIONS.md 2026-11-23 "Build profiles")
 #     Presets   Release plus every engine preset (engine repository: also <sample>_solo.exe without net and <sample>_noaudio.exe without audio, docs/ENGINE_MODULES.md "Presets")
 #     EOS       Release with the EOS online backend (build/EOS, needs third_party/eos)
 #     Headless  Linux/macOS: headless game + tests in <project>/build/Headless/bin
@@ -43,6 +45,25 @@ function Invoke-Self([string]$dir, [string]$config, [string]$failMessage) {
     if ($LASTEXITCODE -ne 0) { Fail $failMessage }
 }
 
+# A build profile (profiles/<name>.profile, "config" and "output" lines) names the configuration and the folder an export goes to
+$exportOut = ""
+if ($Config -like "profile:*") {
+    $profileName = $Config.Substring(8)
+    $profileFile = Join-Path (Join-Path $projectDir "profiles") "$profileName.profile"
+    if ($profileName -notmatch '^[A-Za-z0-9_.-]+$' -or -not (Test-Path $profileFile)) { Fail "build profile '$profileName' not found: $profileFile" }
+    $Config = ""
+    foreach ($line in Get-Content $profileFile -Encoding UTF8) {
+        if ($line -match '^\s*config\s*[= ]\s*(\S+)\s*$') { $Config = $Matches[1] }
+        elseif ($line -match '^\s*output\s*[= ]\s*(.+?)\s*$') { $exportOut = $Matches[1] }
+    }
+    if (-not $Config -or $Config -like "profile:*") { Fail "build profile '$profileName' has no valid config line" }
+    if ($exportOut -and $Config -notin @("Export", "VulkanExport")) { Fail "build profile '$profileName': output is only for Export and VulkanExport" }
+    if ($exportOut) {
+        if (-not [IO.Path]::IsPathRooted($exportOut)) { $exportOut = Join-Path $projectDir $exportOut }
+        $exportOut = $exportOut.Replace("\", "/")
+    }
+}
+
 $buildType = $Config
 $buildName = $Config
 $extra = @()
@@ -56,6 +77,11 @@ switch ($Config) {
         $extra = @("-DMEALKIT_DEBUG_UI=OFF", "-DMEALKIT_LIVE=OFF")
         if ($Target.Count -eq 0) { $Target = @("game_export") }
     }
+    "VulkanExport" {
+        $buildType = "Release"
+        $extra = @("-DMEALKIT_RHI=Vulkan", "-DMEALKIT_DEBUG_UI=OFF", "-DMEALKIT_LIVE=OFF")
+        if ($Target.Count -eq 0) { $Target = @("game_export") }
+    }
     "ClangCL" { $buildType = "Release" }
     "Vulkan" { $buildType = "Release"; $extra = @("-DMEALKIT_RHI=Vulkan") }
     "EOS" { $buildType = "Release"; $extra = @("-DMEALKIT_ONLINE=EOS") }
@@ -64,7 +90,7 @@ switch ($Config) {
     "HeadlessOnly" { $buildType = "Release"; $extra = @("-DMEALKIT_FORCE_HEADLESS_ONLY=ON") }
     "VulkanEditor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor", "-DMEALKIT_RHI=Vulkan"); $isEditor = $true }
     "Editor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor"); $isEditor = $true }
-    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, Editor, ClangCL, Vulkan, VulkanEditor, EOS, Presets, Headless, HeadlessOnly)" }
+    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, VulkanExport, profile:<name>, Editor, ClangCL, Vulkan, VulkanEditor, EOS, Presets, Headless, HeadlessOnly)" }
 }
 
 if ($onWindows) {
@@ -112,7 +138,7 @@ if ($isEditor -and $projectDir -ne $engineDir -and -not $installedEngine) {
     Invoke-Self $engineDir $Config "Engine editor build failed. If MealKitEditor is running and the engine changed, close it and build again."
 }
 # Export cooks the assets with the development Release exe (game/Cook.h), so bring that up to date first
-if ($Config -eq "Export") { Invoke-Self $projectDir "Release" "The Release build used for cooking failed." }
+if ($Config -in @("Export", "VulkanExport")) { Invoke-Self $projectDir "Release" "The Release build used for cooking failed." }
 
 $buildDir = Join-Path (Join-Path $projectDir "build") $buildName
 # A tree configured on Windows (MSVC, absolute C:/ paths) can't be reused here: keep it as <name>.windows, like build/Editor.windows
@@ -128,14 +154,16 @@ if ((-not $onWindows) -and (Test-Path (Join-Path $buildDir "CMakeCache.txt"))) {
 # Editor builds are rebuilt often (hot reload): configure only once, Ninja re-runs CMake when CMakeLists change.
 $configured = (Test-Path (Join-Path $buildDir "build.ninja")) -and (Test-Path (Join-Path $buildDir "CMakeCache.txt"))
 if (-not ($isEditor -and $configured)) {
+    # Always set for an export (empty clears the value a previous profile left in the CMake cache)
+    if ($Config -in @("Export", "VulkanExport")) { $extra += "-DMEALKIT_EXPORT_DIR=$exportOut" }
     Invoke-Native "cmake" (@("-S", $projectDir, "-B", $buildDir, "-G", "Ninja", "--no-warn-unused-cli", "-DCMAKE_BUILD_TYPE=$buildType",
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DMEALKIT_ROOT=$engineDir") + $extra)
 }
 $buildArgs = @("--build", $buildDir)
 if ($Target.Count) { $buildArgs += @("--target") + $Target }
 Invoke-Native "cmake" $buildArgs
-if ($Config -eq "Export") {
-    Write-Host "[MealKit] Export OK: $(Join-Path $projectDir 'export')"
+if ($Config -in @("Export", "VulkanExport")) {
+    Write-Host "[MealKit] Export OK: $(if ($exportOut) { $exportOut } else { Join-Path $projectDir 'export' })"
 } else {
     Write-Host "[MealKit] Build OK: $(Join-Path $buildDir 'bin')"
 }
