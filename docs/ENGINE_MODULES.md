@@ -22,7 +22,7 @@ The 2026-10-19 and 2026-10-26 rows kept the subsystems inside one library. Their
 | `GameContext` holds services by reference; optional services would need "when absent" handling | Absence is a **build error, not a runtime check**: a module's headers are on the include path only when the project enables it. `GameContext` keeps its reference members for the modules the `game` framework requires ("Services") |
 | Combinations to check | Engine CI checks the **presets** with the locked versions. Any other list or version is the game's own responsibility, like game libraries; configuring checks `requires` versions and missing requirements, and the simulation version keeps different builds apart |
 | Runtime plugins cost indirect calls, LTO, the dynamic CRT, determinism risk, ABI work | Not used. Static linking keeps all of that as today; the only virtual interfaces are the ones that already exist (RHI backends, online backends) plus the session interface for optional `net` |
-| Separate repos before interfaces settle cost cross-repo syncing (why UI 2 waited for v1.0) | Accepted as the price. Reduced by the lock file, local checkout mode and shared CI below |
+| Separate repos before interfaces settle cost cross-repo syncing (why UI 2 waited until the contracts were reviewed) | Accepted as the price. Reduced by the lock file, local checkout mode and shared CI below |
 
 ## The kernel (`core`)
 

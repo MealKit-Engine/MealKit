@@ -1,6 +1,6 @@
 # Contributing to MealKit
 
-Thanks for helping. MealKit is in beta (v0.x): the `GameInstance` API and the file formats may still change until v1.0. The full guide for working on the engine is in the documentation ("Engine developer guide"); this file holds the rules that change together with the code.
+Thanks for helping. MealKit is in beta (v0.x): the `GameInstance` API and the file formats may still change between versions (MealKit stays a 0.x beta; `docs/ROADMAP.md` "Versions"). The full guide for working on the engine is in the documentation ("Engine developer guide"); this file holds the rules that change together with the code.
 
 ## Before you write code
 

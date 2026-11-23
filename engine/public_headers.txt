@@ -1,5 +1,5 @@
 # Public engine headers: the ones game code may include (docs/DECISIONS.md 2026-11-03 "Contract freeze scope").
-# From v1.0 they keep source compatibility in every v1.x: a game that builds on v1.0 builds on later v1.x after a rebuild.
+# They keep source compatibility across PATCH versions (0.9.x -> 0.9.y); a breaking change needs a MINOR bump (docs/CONTRACTS.md).
 # Types and functions these headers declare are public too, also when they come from a header that isn't listed here
 # (sim/Movement.h exposes Jolt-free physics types, for example). Every other engine header is internal and may change.
 # Checked by tools\check_public_headers.ps1 (check.ps1 static group): game code in samples/, templates/ and source modules

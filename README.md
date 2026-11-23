@@ -2,7 +2,7 @@
 
 A lightweight 3D multiplayer game engine that runs fast even on office PCs with Intel integrated graphics.
 
-> **Beta (v0.x).** MealKit is under active development: APIs and file formats may change between versions until v1.0, and projects are moved forward with the upgrade tool. Feedback and bug reports are welcome.
+> **Beta (v0.x).** MealKit is under active development: APIs and file formats may change between versions, and projects are moved forward with the upgrade tool. Feedback and bug reports are welcome.
 
 ## Features
 

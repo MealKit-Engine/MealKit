@@ -1,22 +1,22 @@
 # MealKit contracts
 
-What a game made with MealKit can rely on from v1.0 through every v1.x. Decided in `docs/DECISIONS.md` 2026-11-03 ("v1.0 scope" and "Contract freeze scope"); the review is in `docs/CHANGELOG.md` "v0.9.0" and "Contract freeze review item 1"~"4".
-Until v1.0 (beta) everything here may still change. From v1.0, breaking any of it needs v2.0 and a migration in `tools\upgrade_project.ps1`.
+What a game made with MealKit can rely on when it updates the engine. Scope decided in `docs/DECISIONS.md` 2026-11-03 ("Contract freeze scope"); the review is in `docs/CHANGELOG.md` "v0.9.0" and "Contract freeze review item 1"~"4".
+MealKit stays a 0.x beta with no planned 1.0 (`docs/DECISIONS.md` 2026-11-23). These contracts hold across PATCH versions (0.9.x → 0.9.y). Breaking any of them needs a `docs/DECISIONS.md` row, a migration in `tools\upgrade_project.ps1` and a MINOR bump (0.9 → 0.10), per `docs/ROADMAP.md` "Versions".
 
 ## Game API: public headers, source compatible
 
-- The headers in `engine/public_headers.txt` (48 today) are the game API. A game that builds on v1.0 builds on every later v1.x after a rebuild.
+- The headers in `engine/public_headers.txt` (48 today) are the game API. A game that builds on one version builds on every later PATCH of the same MINOR after a rebuild.
 - Types and functions those headers declare are public, also when they come from a header that isn't listed.
 - Binary compatibility isn't promised: game libraries are rebuilt for each engine version (the editor refuses a game DLL with another `kApiVersion`).
 - Every other engine header is internal. `tools\check_public_headers.ps1` (check.ps1) fails when samples, templates or source modules include one; `-Path <folder>` checks a game project.
-- v1.x may add headers to the list, add functions and fields, and add virtual functions with a default body to `game::GameInstance`. It doesn't remove or rename, change signatures or change what an existing call means.
+- A PATCH may add headers to the list, add functions and fields, and add virtual functions with a default body to `game::GameInstance`. It doesn't remove or rename, change signatures or change what an existing call means.
 - The shape a game writes: `GameSession` derives from `game::SimulationGame<World>` (`game/SimulationGame.h`) and writes `start`, `stop`, `update`, `buildFrame` (optionally `lobby`, `menus`, `debugUi`); `app/main.cpp` is `MEALKIT_GAME_MAIN`, `app/Headless.cpp` is `MEALKIT_HEADLESS_GAME`, the editor library is `MEALKIT_GAME_MODULE`.
 
 ## Files
 
-Every text format starts with `@format <kind> <N>` after its comment header (no line = version 1, `core/TextFormat.h`). A reader skips unknown keys of a newer version with a warning and migrates older versions. In v1.x a format only gains keys, or a new `N` that still reads every older file.
+Every text format starts with `@format <kind> <N>` after its comment header (no line = version 1, `core/TextFormat.h`). A reader skips unknown keys of a newer version with a warning and migrates older versions. Within a MINOR a format only gains keys, or a new `N` that still reads every older file.
 
-| File | Format line | Version at the freeze |
+| File | Format line | Version at the review |
 |---|---|---|
 | `mealkit.project` | `project` | 1 |
 | `assets/game.tuning`, `assets/view.tuning` | `tuning` | 1 |
@@ -33,7 +33,7 @@ Every text format starts with `@format <kind> <N>` after its comment header (no 
 | `modules.lock` (engine) | `module-lock` | 1 |
 | `assets/sounds.events` | `audio-events` | owned by MkAudio, versioned by MealKit-Contract (`docs/CONTRACT.md` there) |
 
-**Player-side files** live on players' PCs and outlive game versions, so they are frozen the same way:
+**Player-side files** live on players' PCs and outlive game versions, so they are kept the same way, and a MINOR that changes one still reads the old version:
 
 | File (in the user folder) | Version |
 |---|---|
@@ -50,11 +50,11 @@ Every text format starts with `@format <kind> <N>` after its comment header (no 
 ## Simulation rules
 
 - The determinism rules in `docs/CODING_MODEL.md` "Determinism rules (simulation code)".
-- SimCheck errors `SIM001`~`SIM011` and `SIM013`~`SIM015` (`engine/tools/SimCheck.cpp`). Rules added in v1.x are warnings only, like `SIM012`; turning one into an error waits for v2.0, so an engine update never stops a game's build.
+- SimCheck errors `SIM001`~`SIM011` and `SIM013`~`SIM015` (`engine/tools/SimCheck.cpp`). Rules added later are warnings only, like `SIM012`; turning one into an error needs a MINOR bump with a `docs/DECISIONS.md` row, so a PATCH update never stops a game's build.
 - The simulation state rules: fields declared with `MEALKIT_FIELD` in `WorldState`, only `f32/i32/u32/bool/Vec3/Quat/Id<T>/physics::BodyId`/fixed arrays, no strings, pointers or `vector`.
 
 ## Not part of the contract
 
-- **Simulation results across engine versions.** A v1.x update (a Jolt version or a physics fix, for example) may change what the same inputs produce. Results are the same only within one simulation version (engine and game `sim/` sources, `mealkit_build_info.h`), which is also what replays and crossplay match on.
+- **Simulation results across engine versions.** An engine update (a Jolt version or a physics fix, for example) may change what the same inputs produce. Results are the same only within one simulation version (engine and game `sim/` sources, `mealkit_build_info.h`), which is also what replays and crossplay match on.
 - Replays (`.rec`, version 3) recorded by another simulation version, cooked pack files (`.pak`, rebuilt by Export), baked probes (`.mkprobe`), desync dumps, logs and `build/`.
 - Engine internals outside the public headers, the editor's own files (layouts, preferences), command line options of tools.
