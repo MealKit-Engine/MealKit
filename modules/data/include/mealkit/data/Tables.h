@@ -66,6 +66,14 @@ bool previewTableCsv(const TableData& table, const std::string& path, CsvPreview
 std::string cellText(const TableData& table, size_t row, const std::string& column);
 // Sets one cell from text. false (cell unchanged, reason in error) for a bad id, a duplicate id, a missing path or a value that doesn't parse.
 bool setCellText(TableData& table, size_t row, const std::string& column, const std::string& text, std::string* error = nullptr);
+// Ranges (ROADMAP item 42, docs/DECISIONS.md 2026-11-23 "Table field ranges"): the `range=min..max` of a top-level field's label
+// (MEALKIT_FIELD "name|description|range=0..20", the same attribute the editor uses for slider bounds) is also checked on load and marked in [Tables].
+// Warn only: values are never changed, so the content hash and replays stay as the file says. Numbers only (f32, integers, Ticks in seconds).
+bool fieldRange(const reflect::FieldInfo& field, double& min, double& max);
+// true (and the value in `shown`) if the number is outside min..max. false for other kinds, enums and NaN.
+bool valueOutOfRange(const reflect::ValueInfo& value, const void* data, double min, double max, double* shown = nullptr);
+// "<id>: field 12 is outside 0..10; ..." for one row (empty = all inside)
+std::string rowRangeWarnings(const reflect::TypeInfo& rowType, const void* row, const std::string& id);
 std::string formatTsv(const std::vector<std::vector<std::string>>& cells);
 std::vector<std::vector<std::string>> parseTsv(const std::string& text);
 
@@ -122,7 +130,11 @@ bool loadTable(sim::Table<Row>& out, const char* assetPath = nullptr) {
     }
     out.ids = std::move(text.ids);
     out.rows.resize(out.ids.size());
-    for (size_t i = 0; i < out.rows.size(); ++i) reflect::fromText(reflect::typeOf<Row>(), &out.rows[i], text.rows[i], &warnings);
+    for (size_t i = 0; i < out.rows.size(); ++i) {
+        reflect::fromText(reflect::typeOf<Row>(), &out.rows[i], text.rows[i], &warnings);
+        const std::string range = rowRangeWarnings(reflect::typeOf<Row>(), &out.rows[i], out.ids[i]);
+        if (!range.empty()) warnings += (warnings.empty() ? "" : "; ") + range;
+    }
     if (!warnings.empty()) MEALKIT_WARN("assets/%s: %s", asset, warnings.c_str());
     return true;
 }

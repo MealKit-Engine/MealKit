@@ -306,7 +306,67 @@ void tableFromText(const reflect::TypeInfo& rowType, const TableText& text, Tabl
         reflect::fromText(rowType, out.rows.back().data(), text.rows[i], &unknown);
         if (!unknown.empty() && warnings)
             *warnings += (warnings->empty() ? "" : "; ") + std::string("row ") + text.ids[i] + ": unknown fields " + unknown;
+        if (warnings) {
+            const std::string range = rowRangeWarnings(rowType, out.rows.back().data(), text.ids[i]);
+            if (!range.empty()) *warnings += (warnings->empty() ? "" : "; ") + range;
+        }
     }
+}
+
+bool fieldRange(const reflect::FieldInfo& field, double& min, double& max) {
+    const char* at = field.label ? std::strstr(field.label, "|range=") : nullptr;
+    if (!at) return false;
+    at += 7;
+    // "0..10": strtod would take "0." of "0..10" as the number, so split at ".." first
+    const char* dots = std::strstr(at, "..");
+    if (!dots || dots == at) return false;
+    const std::string first(at, dots);
+    char* end = nullptr;
+    const double lo = std::strtod(first.c_str(), &end);
+    if (!end || *end) return false;
+    char* end2 = nullptr;
+    const double hi = std::strtod(dots + 2, &end2);
+    if (end2 == dots + 2 || !(hi > lo)) return false;
+    min = lo;
+    max = hi;
+    return true;
+}
+
+bool valueOutOfRange(const reflect::ValueInfo& value, const void* data, double min, double max, double* shown) {
+    double v = 0.0;
+    switch (value.kind) {
+    case reflect::Kind::Float: v = *static_cast<const f32*>(data); break;
+    case reflect::Kind::Ticks: v = static_cast<const Ticks*>(data)->toSeconds(); break;
+    case reflect::Kind::Int:
+    case reflect::Kind::UInt: {
+        if (!value.enumNames.empty()) return false; // enums are names in the file
+        const bool isSigned = value.kind == reflect::Kind::Int;
+        switch (value.size) {
+        case 1: v = isSigned ? static_cast<double>(*static_cast<const i8*>(data)) : static_cast<double>(*static_cast<const u8*>(data)); break;
+        case 2: v = isSigned ? static_cast<double>(*static_cast<const i16*>(data)) : static_cast<double>(*static_cast<const u16*>(data)); break;
+        case 4: v = isSigned ? static_cast<double>(*static_cast<const i32*>(data)) : static_cast<double>(*static_cast<const u32*>(data)); break;
+        case 8: v = isSigned ? static_cast<double>(*static_cast<const i64*>(data)) : static_cast<double>(*static_cast<const u64*>(data)); break;
+        default: return false;
+        }
+        break;
+    }
+    default: return false;
+    }
+    if (shown) *shown = v;
+    return v < min || v > max; // NaN compares false: not marked
+}
+
+std::string rowRangeWarnings(const reflect::TypeInfo& rowType, const void* row, const std::string& id) {
+    std::string out;
+    for (const reflect::FieldInfo& f : rowType.fields) {
+        double lo = 0.0, hi = 0.0, v = 0.0;
+        if (!fieldRange(f, lo, hi)) continue;
+        if (!valueOutOfRange(*f.value, static_cast<const char*>(row) + f.offset, lo, hi, &v)) continue;
+        char text[160];
+        std::snprintf(text, sizeof(text), "%s: %s %.6g is outside %.6g..%.6g", id.c_str(), f.name, v, lo, hi);
+        out += (out.empty() ? "" : "; ") + std::string(text);
+    }
+    return out;
 }
 
 bool loadTableData(const reflect::TypeInfo& rowType, const std::string& path, TableData& out, std::string* warnings) {

@@ -2,6 +2,7 @@
 //   mealkit_tests.exe          all tests, PASS or FAILED at the end
 //   mealkit_tests.exe --only net,physics   only tests of those areas (engine folder names)
 //   The "detmath-bits <hash>" line in the output is a hash of deterministic math result bits. It must match across build configurations.
+#include <limits>
 #include <atomic>
 
 #include "mealkit/core/DetMath.h"
@@ -593,6 +594,36 @@ MEALKIT_STRUCT(TestItem) {
 };
 
 static_assert(reflect::hasStringField<TestItem>()); // RowRef contains an id string, so it isn't put in simulation state
+
+MEALKIT_STRUCT(TestRanged) {
+    MEALKIT_FIELD(f32, speed, 1.0f, "Speed|range=0..10");
+    MEALKIT_FIELD(i32, level, 1, "Level|The level|range=1..5");
+    MEALKIT_FIELD(Ticks, delay, Ticks::seconds(0.5f), "Delay|range=0..2");
+    MEALKIT_FIELD(f32, plain, 99.0f, "Plain");
+};
+
+// A field's range=min..max is checked on load and by the [Tables] panel's marks: warn only, the values stay as written
+TEST_CASE(data, table_ranges) {
+    const reflect::TypeInfo& type = reflect::typeOf<TestRanged>();
+    double lo = 0.0, hi = 0.0;
+    TEST_CHECK(data::fieldRange(*type.field("speed"), lo, hi) && lo == 0.0 && hi == 10.0);
+    TEST_CHECK(data::fieldRange(*type.field("level"), lo, hi) && lo == 1.0 && hi == 5.0); // after a description
+    TEST_CHECK(!data::fieldRange(*type.field("plain"), lo, hi));
+    TestRanged row;
+    TEST_CHECK(data::rowRangeWarnings(type, &row, "ok").empty());
+    row.speed = 12.5f;
+    row.level = 0;
+    row.delay = Ticks::seconds(3.0f);
+    row.plain = 1000.0f;
+    const std::string text = data::rowRangeWarnings(type, &row, "bad");
+    TEST_CHECK(text.find("bad: speed 12.5 is outside 0..10") != std::string::npos);
+    TEST_CHECK(text.find("level 0 is outside 1..5") != std::string::npos);
+    TEST_CHECK(text.find("delay 3 is outside 0..2") != std::string::npos);
+    TEST_CHECK(text.find("plain") == std::string::npos);
+    const f32 nan = std::numeric_limits<f32>::quiet_NaN();
+    TEST_CHECK(!data::valueOutOfRange(*type.field("speed")->value, &nan, 0.0, 10.0));
+    TEST_CHECK(row.speed == 12.5f); // nothing was clamped
+}
 
 // Asset path → project-relative file path. Source module assets are under that module's assets/ (docs/MODULES.md)
 TEST_CASE(data, asset_file_path) {

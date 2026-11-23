@@ -654,6 +654,15 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                         const ImVec2 lo = ImGui::GetItemRectMin(), hi = ImGui::GetItemRectMax();
                         ImGui::GetWindowDrawList()->AddRectFilled(ImVec2(lo.x, hi.y - 2.0f), ImVec2(lo.x + (hi.x - lo.x) * share, hi.y), ImGui::GetColorU32(ImGuiCol_PlotHistogram));
                     }
+                    // A value outside the field's range=min..max gets a red frame (warn only: the value is kept, data::rowRangeWarnings logs it on load)
+                    double shown = 0.0;
+                    if (attributes[c].hasRange && data::valueOutOfRange(*value, data, attributes[c].min, attributes[c].max, &shown)) {
+                        const ImVec2 lo = ImGui::GetItemRectMin(), hi = ImGui::GetItemRectMax();
+                        ImGui::GetWindowDrawList()->AddRect(lo, hi, IM_COL32(230, 70, 60, 255), 0.0f, 0, 2.0f);
+                        if (ImGui::IsItemHovered())
+                            ImGui::SetTooltip("%s", trf("%.6g is outside the range %.6g..%.6g", shown, static_cast<double>(attributes[c].min),
+                                                        static_cast<double>(attributes[c].max)).c_str());
+                    }
                     ImGui::PopID();
                 }
                 ImGui::PopID();

@@ -29,6 +29,7 @@ Build profile = 빌드 프로필
 Add Default Profiles = 기본 프로필 추가
 Writes profiles/*.profile: Windows DX12, Windows Vulkan, Linux Vulkan and Debug. Edit the files to change a configuration or output folder. = profiles/*.profile 파일을 만듭니다: Windows DX12, Windows Vulkan, Linux Vulkan, Debug. 파일을 고치면 구성이나 출력 폴더를 바꿀 수 있습니다.
 Pick a build profile first = 먼저 빌드 프로필을 고르세요
+%.6g is outside the range %.6g..%.6g = %.6g은(는) 범위 %.6g..%.6g 밖입니다
 Build profile %s failed - see the build log = 빌드 프로필 %s 실패 - 빌드 로그를 확인하세요
 Build profile done: %s = 빌드 프로필 완료: %s
 Profile build... %.0fs = 프로필 빌드 중... %.0f초

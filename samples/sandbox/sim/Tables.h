@@ -15,10 +15,10 @@ MEALKIT_STRUCT(PropKind) {
     MEALKIT_FIELD(mealkit::f32, sizeMax, 0.64f, "반 크기 최대 (m)");
     MEALKIT_FIELD(mealkit::f32, stretchMin, 0.8f, "축별 늘림 최소 (배)");
     MEALKIT_FIELD(mealkit::f32, stretchMax, 1.2f, "축별 늘림 최대 (배)");
-    MEALKIT_FIELD(mealkit::f32, density, 200.0f, "밀도 (kg/m³)");
+    MEALKIT_FIELD(mealkit::f32, density, 200.0f, "밀도 (kg/m³)|range=1..2000");
     MEALKIT_FIELD(mealkit::f32, minMass, 5.0f, "최소 질량 (kg)");
-    MEALKIT_FIELD(mealkit::f32, friction, 0.6f, "마찰");
-    MEALKIT_FIELD(mealkit::f32, restitution, 0.15f, "반발");
+    MEALKIT_FIELD(mealkit::f32, friction, 0.6f, "마찰|range=0..2");
+    MEALKIT_FIELD(mealkit::f32, restitution, 0.15f, "반발|range=0..1");
 };
 MEALKIT_TABLE(PropKind, "tables/props.table", 0); // simulation table: goes into the content hash
 
