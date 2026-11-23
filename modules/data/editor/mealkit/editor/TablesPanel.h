@@ -59,6 +59,9 @@ private:
         int selected = -1;
         int anchorRow = -1, anchorCol = 0, focusRow = -1, focusCol = 0; // cell range for copy and paste (col 0 = id, then doc.columns)
         std::string status;
+        std::string csvPath;        // file whose import preview is open
+        data::CsvPreview csv;
+        bool csvOpen = false;       // open the preview window this frame
         UndoStack<data::TableText> undo;
     };
 
@@ -67,6 +70,7 @@ private:
     bool save(Doc& doc);
     void rebuildIndex();
     void drawDoc(Doc& doc, void* owner, bool editing);
+    void drawImportPreview(Doc& doc);
     std::string uniqueId(const Doc& doc, const std::string& base) const;
 
     std::string m_projectDir;

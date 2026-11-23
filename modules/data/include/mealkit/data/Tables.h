@@ -48,6 +48,19 @@ bool saveTableData(const TableData& table, const std::string& path);
 bool exportTableCsv(const TableData& table, const std::string& path);
 bool importTableCsv(TableData& table, const std::string& path, std::string* error);
 
+// What an import would do, without doing it: rows are matched by id. Import replaces the table, so a field with no column in the CSV goes back to its default
+// (it shows up as changed cells). `notes` carries what to check before accepting: skipped or unknown columns and ids, and the traps of saving a table from
+// a spreadsheet (a value rounded to the cell's decimals, a date made of an id or value, a number reformatted).
+struct CsvChange {
+    std::string row, column, before, after;
+};
+struct CsvPreview {
+    std::vector<CsvChange> changed;
+    std::vector<std::string> added, removed, notes;
+    size_t sameRows = 0; // rows in both with no changed cell
+};
+bool previewTableCsv(const TableData& table, const std::string& path, CsvPreview& out, std::string* error);
+
 // Cells as spreadsheet text. A column is "id" or a field path (the CSV column names). Cells of tab-separated text (TSV) are what Excel and Google Sheets
 // copy and paste: cells with a tab, newline or quote are quoted, quotes are doubled, and rows end with a newline.
 std::string cellText(const TableData& table, size_t row, const std::string& column);

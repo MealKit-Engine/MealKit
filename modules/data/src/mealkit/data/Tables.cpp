@@ -109,6 +109,112 @@ std::vector<std::vector<std::string>> parseCsv(const std::string& text) {
     return lines;
 }
 
+bool validUtf8(const std::string& s) {
+    for (size_t i = 0; i < s.size();) {
+        const unsigned char c = static_cast<unsigned char>(s[i]);
+        const size_t extra = c < 0x80 ? 0 : (c >> 5) == 0x6 ? 1 : (c >> 4) == 0xE ? 2 : (c >> 3) == 0x1E ? 3 : 99;
+        if (extra == 99 || i + extra >= s.size()) return false;
+        for (size_t k = 1; k <= extra; ++k)
+            if ((static_cast<unsigned char>(s[i + k]) & 0xC0) != 0x80) return false;
+        i += extra + 1;
+    }
+    return true;
+}
+
+bool numberOf(const std::string& s, double& out) {
+    if (s.empty()) return false;
+    char* end = nullptr;
+    out = std::strtod(s.c_str(), &end);
+    return end && !*end;
+}
+
+// "1-Feb", "Feb-10", "2024-03-05", "3/4": what a spreadsheet makes of "1-2" or "3/4" when it converts a cell on its own
+bool looksLikeDate(const std::string& s) {
+    static const char* const months[] = {"Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"};
+    size_t digits = 0;
+    while (digits < s.size() && std::isdigit(static_cast<unsigned char>(s[digits]))) ++digits;
+    if (digits && digits <= 2 && s.size() > digits + 1 && s[digits] == '-')
+        for (const char* m : months)
+            if (s.compare(digits + 1, std::string::npos, m) == 0) return true;
+    for (const char* m : months)
+        if (s.compare(0, 3, m) == 0 && s.size() > 4 && s[3] == '-' && s.find_first_not_of("0123456789", 4) == std::string::npos) return true;
+    int parts = 0;
+    size_t i = 0;
+    char sep = 0;
+    while (i < s.size()) {
+        size_t n = 0;
+        while (i + n < s.size() && std::isdigit(static_cast<unsigned char>(s[i + n]))) ++n;
+        if (!n || n > 4) return false;
+        ++parts;
+        i += n;
+        if (i == s.size()) break;
+        if ((s[i] != '/' && s[i] != '-') || (sep && s[i] != sep)) return false;
+        sep = s[i];
+        ++i;
+        if (i == s.size()) return false;
+    }
+    return (sep == '/' && (parts == 2 || parts == 3)) || (sep == '-' && parts == 3 && s.size() == 10 && s[4] == '-');
+}
+
+// Why a changed value looks like the spreadsheet's doing rather than an edit. Empty when it doesn't.
+std::string spreadsheetTrap(const std::string& before, const std::string& after) {
+    if (before == after) return {};
+    if (looksLikeDate(after) && !looksLikeDate(before)) return "looks like a date made by the spreadsheet";
+    double b = 0, a = 0;
+    if (!numberOf(before, b) || !numberOf(after, a)) return {};
+    if (b == a) return "number written another way (leading zeros or trailing zeros dropped?)";
+    const size_t dot = after.find('.');
+    const size_t decimals = dot == std::string::npos ? 0 : after.size() - dot - 1;
+    const size_t beforeDot = before.find('.');
+    const size_t beforeDecimals = beforeDot == std::string::npos ? 0 : before.size() - beforeDot - 1;
+    if (beforeDecimals > decimals) {
+        char rounded[64];
+        std::snprintf(rounded, sizeof(rounded), "%.*f", static_cast<int>(decimals), b);
+        if (after == rounded) return "rounded to " + std::to_string(decimals) + " decimals (a spreadsheet saves what the cell shows)";
+    }
+    return {};
+}
+
+// Reads a CSV file into table text (rows by the header's column names). false with the reason for a file that can't be a table.
+bool readCsvText(const std::string& path, TableText& out, std::vector<std::string>& header, std::string& warnings, std::string* error) {
+    std::string text;
+    if (!readTextFile(path, text)) {
+        if (error) *error = "cannot open " + path + " (is it open in a spreadsheet?)";
+        return false;
+    }
+    if (!validUtf8(text)) {
+        if (error) *error = "the file is not UTF-8 (save it as \"CSV UTF-8\", not plain \"CSV\")";
+        return false;
+    }
+    const std::vector<std::vector<std::string>> lines = parseCsv(text);
+    if (lines.empty() || lines[0].empty() || lines[0][0] != "id") {
+        if (error) *error = "the first row must start with an \"id\" column";
+        return false;
+    }
+    header = lines[0];
+    TableText raw;
+    for (size_t l = 1; l < lines.size(); ++l) {
+        const std::vector<std::string>& cells = lines[l];
+        if (cells.empty() || cells[0].empty()) continue; // empty line
+        raw.ids.push_back(cells[0]);
+        raw.rows.emplace_back();
+        for (size_t c = 1; c < header.size() && c < cells.size(); ++c)
+            if (!header[c].empty()) raw.rows.back().emplace_back(header[c], cells[c]);
+    }
+    out = {};
+    for (size_t i = 0; i < raw.ids.size(); ++i) { // id checks use the same rules as file reading
+        bool duplicate = false;
+        for (const std::string& id : out.ids) duplicate = duplicate || id == raw.ids[i];
+        if (!validRowId(raw.ids[i]) || duplicate) {
+            warnings += (warnings.empty() ? "" : "; ") + std::string(duplicate ? "duplicate" : "invalid") + " id '" + raw.ids[i] + "' skipped";
+            continue;
+        }
+        out.ids.push_back(raw.ids[i]);
+        out.rows.push_back(raw.rows[i]);
+    }
+    return true;
+}
+
 } // namespace
 
 bool validRowId(const std::string& id) {
@@ -242,40 +348,72 @@ bool exportTableCsv(const TableData& table, const std::string& path) {
 }
 
 bool importTableCsv(TableData& table, const std::string& path, std::string* error) {
-    std::string text;
-    if (!readTextFile(path, text)) {
-        if (error) *error = "cannot open " + path;
-        return false;
-    }
-    const std::vector<std::vector<std::string>> lines = parseCsv(text);
-    if (lines.empty() || lines[0].empty() || lines[0][0] != "id") {
-        if (error) *error = "the first row must start with an \"id\" column";
-        return false;
-    }
-    const std::vector<std::string>& header = lines[0];
-    TableText out;
-    for (size_t l = 1; l < lines.size(); ++l) {
-        const std::vector<std::string>& cells = lines[l];
-        if (cells.empty() || cells[0].empty()) continue; // empty line
-        out.ids.push_back(cells[0]);
-        out.rows.emplace_back();
-        for (size_t c = 1; c < header.size() && c < cells.size(); ++c)
-            if (!header[c].empty()) out.rows.back().emplace_back(header[c], cells[c]);
-    }
+    TableText checked;
+    std::vector<std::string> header;
     std::string warnings;
-    TableText checked; // id checks use the same rules as file reading
-    for (size_t i = 0; i < out.ids.size(); ++i) {
-        bool duplicate = false;
-        for (const std::string& id : checked.ids) duplicate = duplicate || id == out.ids[i];
-        if (!validRowId(out.ids[i]) || duplicate) {
-            warnings += (warnings.empty() ? "" : "; ") + std::string(duplicate ? "duplicate" : "invalid") + " id '" + out.ids[i] + "' skipped";
-            continue;
-        }
-        checked.ids.push_back(out.ids[i]);
-        checked.rows.push_back(out.rows[i]);
-    }
+    if (!readCsvText(path, checked, header, warnings, error)) return false;
     tableFromText(*table.rowType, checked, table, &warnings);
     if (!warnings.empty()) MEALKIT_WARN("CSV import %s: %s", path.c_str(), warnings.c_str());
+    return true;
+}
+
+bool previewTableCsv(const TableData& table, const std::string& path, CsvPreview& out, std::string* error) {
+    out = {};
+    TableText checked;
+    std::vector<std::string> header;
+    std::string warnings;
+    if (!readCsvText(path, checked, header, warnings, error)) return false;
+    if (!warnings.empty()) out.notes.push_back(warnings);
+    TableData next;
+    std::string unknown;
+    tableFromText(*table.rowType, checked, next, &unknown);
+    if (!unknown.empty()) out.notes.push_back(unknown);
+
+    reflect::Instance defaults(*table.rowType);
+    reflect::TextFields columns;
+    reflect::toText(*table.rowType, defaults.data(), columns);
+    for (size_t c = 1; c < header.size(); ++c) {
+        bool known = false;
+        for (const auto& [key, value] : columns) known = known || key == header[c];
+        if (!known) out.notes.push_back("column '" + header[c] + "' is not a field of this table and is ignored");
+    }
+    for (const auto& [key, value] : columns) {
+        bool present = false;
+        for (const std::string& h : header) present = present || h == key;
+        if (!present) out.notes.push_back("column '" + key + "' is not in the file: its values go back to the default");
+    }
+
+    constexpr size_t kMaxTrapNotes = 20;
+    size_t traps = 0;
+    for (size_t r = 0; r < next.ids.size(); ++r) {
+        size_t old = table.ids.size();
+        for (size_t i = 0; i < table.ids.size(); ++i)
+            if (table.ids[i] == next.ids[r]) old = i;
+        if (old == table.ids.size()) {
+            out.added.push_back(next.ids[r]);
+            if (looksLikeDate(next.ids[r]) && traps++ < kMaxTrapNotes) out.notes.push_back("new id '" + next.ids[r] + "' looks like a date made by the spreadsheet");
+            continue;
+        }
+        reflect::TextFields before, after;
+        reflect::toText(*table.rowType, table.rows[old].data(), before);
+        reflect::toText(*table.rowType, next.rows[r].data(), after);
+        bool same = true;
+        for (size_t k = 0; k < before.size() && k < after.size(); ++k) {
+            if (before[k].second == after[k].second) continue;
+            same = false;
+            out.changed.push_back({next.ids[r], before[k].first, before[k].second, after[k].second});
+            const std::string trap = spreadsheetTrap(before[k].second, after[k].second);
+            if (!trap.empty() && traps++ < kMaxTrapNotes)
+                out.notes.push_back(next.ids[r] + " " + before[k].first + ": " + before[k].second + " -> " + after[k].second + " " + trap);
+        }
+        if (same) ++out.sameRows;
+    }
+    if (traps > kMaxTrapNotes) out.notes.push_back(std::to_string(traps - kMaxTrapNotes) + " more values look changed by the spreadsheet");
+    for (const std::string& id : table.ids) {
+        bool kept = false;
+        for (const std::string& n : next.ids) kept = kept || n == id;
+        if (!kept) out.removed.push_back(id);
+    }
     return true;
 }
 

@@ -649,6 +649,30 @@ TEST_CASE(data, tables) {
     TEST_CHECK(!data::setCellText(data, 1, "id", "plain", &error) && data.ids[1] == "heavy"); // duplicate id
     TEST_CHECK(!data::setCellText(data, 1, "id", "bad id", &error) && data::setCellText(data, 1, "id", "heavier", &error) && data.ids[1] == "heavier");
 
+    // CSV preview: changes by id, rows added and removed, and the traps of a spreadsheet save; nothing is changed by looking
+    {
+        const std::string before = data::cellText(data, 0, "weight");
+        TEST_CHECK(writeTextFile(dir + "/test_kinds3.csv", "id,weight,title\r\nplain," + before + ",\"Plain, \"\"basic\"\"\"\r\nnew,1.13,fresh\r\n2-Jan,3,date\r\n"));
+        data::CsvPreview preview;
+        TEST_CHECK(data::previewTableCsv(data, dir + "/test_kinds3.csv", preview, &error));
+        TEST_CHECK(preview.sameRows == 1 && preview.added.size() == 2 && preview.removed.size() == 1 && preview.removed[0] == "heavier");
+        bool dateNote = false;
+        for (const std::string& n : preview.notes) dateNote = dateNote || (n.find("2-Jan") != std::string::npos && n.find("date") != std::string::npos);
+        TEST_CHECK(dateNote);
+        TEST_CHECK(data.ids.size() == 2); // the preview left the table alone
+        // a value rounded by the spreadsheet, and a number written another way
+        TEST_CHECK(writeTextFile(dir + "/test_kinds4.csv", "id,weight,title\nplain,1.5,Plain\nheavier,6.00,Heavy\n"));
+        TEST_CHECK(data::setCellText(data, 0, "weight", "1.4999", &error));
+        TEST_CHECK(data::previewTableCsv(data, dir + "/test_kinds4.csv", preview, &error) && preview.changed.size() >= 1);
+        bool rounded = false;
+        for (const std::string& n : preview.notes) rounded = rounded || n.find("rounded") != std::string::npos;
+        TEST_CHECK(rounded);
+        // a file saved by a spreadsheet in the local code page is refused with the reason
+        TEST_CHECK(writeTextFile(dir + "/test_kinds5.csv", "id,title\nx,\xC7\xD1\xB1\xDB\n"));
+        TEST_CHECK(!data::previewTableCsv(data, dir + "/test_kinds5.csv", preview, &error) && error.find("UTF-8") != std::string::npos);
+        TEST_CHECK(!data::importTableCsv(data, dir + "/test_kinds5.csv", &error));
+    }
+
     // Row references: id → index, missing ids into the list
     sim::Table<TestKind> table;
     table.ids = {"plain", "heavy"};

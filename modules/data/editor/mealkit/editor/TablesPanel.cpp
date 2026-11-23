@@ -219,6 +219,81 @@ void TablesPanel::step(int which, bool back) {
     rebuildIndex();
 }
 
+// The window between choosing a CSV and replacing the table: counts, what to check, and the changed cells
+void TablesPanel::drawImportPreview(Doc& doc) {
+    if (doc.csvOpen) {
+        ImGui::OpenPopup(trl("Import CSV Preview###csvPreview"));
+        doc.csvOpen = false;
+    }
+    const f32 em = ImGui::GetFontSize();
+    ImGui::SetNextWindowSize(ImVec2(em * 52.0f, em * 30.0f), ImGuiCond_Appearing);
+    bool open = true;
+    if (!ImGui::BeginPopupModal(trl("Import CSV Preview###csvPreview"), &open)) return;
+    const data::CsvPreview& p = doc.csv;
+    std::string rowsChanged;
+    {
+        std::vector<std::string> seen;
+        for (const data::CsvChange& c : p.changed)
+            if (std::find(seen.begin(), seen.end(), c.row) == seen.end()) seen.push_back(c.row);
+        rowsChanged = std::to_string(seen.size());
+    }
+    ImGui::TextUnformatted(fileName(doc.csvPath).c_str());
+    ImGui::TextWrapped("%s", trf("%zu cells changed in %s rows, %zu rows added, %zu rows removed, %zu rows the same", p.changed.size(), rowsChanged.c_str(), p.added.size(), p.removed.size(), p.sameRows).c_str());
+    if (p.changed.empty() && p.added.empty() && p.removed.empty()) ImGui::TextDisabled("%s", tr("The file has the same values as the table."));
+    if (!p.removed.empty()) ImGui::TextColored(ImVec4(1.0f, 0.75f, 0.3f, 1.0f), "%s", tr("Rows that are not in the file are removed."));
+    constexpr size_t kShown = 500;
+    const f32 footer = ImGui::GetFrameHeightWithSpacing() + ImGui::GetStyle().ItemSpacing.y;
+    if (ImGui::BeginChild("##csvLists", ImVec2(0.0f, -footer))) {
+        if (!p.notes.empty() && ImGui::CollapsingHeader(trf("Check before importing (%zu)", p.notes.size()).c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+            for (const std::string& note : p.notes) ImGui::TextWrapped("- %s", note.c_str());
+        if (!p.changed.empty() && ImGui::CollapsingHeader(trf("Changed cells (%zu)", p.changed.size()).c_str(), ImGuiTreeNodeFlags_DefaultOpen) &&
+            ImGui::BeginTable("##csvChanged", 4, ImGuiTableFlags_RowBg | ImGuiTableFlags_BordersInnerV | ImGuiTableFlags_Resizable)) {
+            ImGui::TableSetupColumn(tr("Row"));
+            ImGui::TableSetupColumn(tr("Column"));
+            ImGui::TableSetupColumn(tr("Now"));
+            ImGui::TableSetupColumn(tr("In the file"));
+            ImGui::TableHeadersRow();
+            for (size_t i = 0; i < p.changed.size() && i < kShown; ++i) {
+                const data::CsvChange& c = p.changed[i];
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn(); ImGui::TextUnformatted(c.row.c_str());
+                ImGui::TableNextColumn(); ImGui::TextUnformatted(c.column.c_str());
+                ImGui::TableNextColumn(); ImGui::TextDisabled("%s", c.before.c_str());
+                ImGui::TableNextColumn(); ImGui::TextUnformatted(c.after.c_str());
+            }
+            ImGui::EndTable();
+            if (p.changed.size() > kShown) ImGui::TextDisabled("%s", trf("%zu more not listed", p.changed.size() - kShown).c_str());
+        }
+        const auto list = [&](const std::vector<std::string>& ids, const char* title) {
+            if (ids.empty() || !ImGui::CollapsingHeader(trf("%s (%zu)", title, ids.size()).c_str(), ImGuiTreeNodeFlags_DefaultOpen)) return;
+            for (size_t i = 0; i < ids.size() && i < kShown; ++i) ImGui::BulletText("%s", ids[i].c_str());
+            if (ids.size() > kShown) ImGui::TextDisabled("%s", trf("%zu more not listed", ids.size() - kShown).c_str());
+        };
+        list(p.added, tr("Added rows"));
+        list(p.removed, tr("Removed rows"));
+    }
+    ImGui::EndChild();
+    bool close = !open;
+    if (ImGui::Button(tr("Import"))) {
+        std::string error;
+        data::TableData& t = doc.data;
+        if (data::importTableCsv(t, doc.csvPath, &error)) {
+            doc.selected = -1;
+            doc.status = trf("Imported %s (%zu rows) - save to write the table", fileName(doc.csvPath).c_str(), t.rows.size());
+            doc.dirty = true;
+            if ((doc.info.flags & reflect::kTableView) != 0) doc.viewChanged = true;
+            doc.undo.mark();
+        } else {
+            doc.status = trf("Could not import: %s", error.c_str());
+        }
+        close = true;
+    }
+    ImGui::SameLine();
+    if (ImGui::Button(tr("Cancel"))) close = true;
+    if (close) ImGui::CloseCurrentPopup();
+    ImGui::EndPopup();
+}
+
 void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
     (void)editing;
     data::TableData& t = doc.data;
@@ -295,10 +370,10 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         const std::string csv = openFileDialog(owner, "", m_projectDir, kCsvFilters, 2);
         std::string error;
         if (!csv.empty()) {
-            if (data::importTableCsv(t, csv, &error)) {
-                doc.selected = -1;
-                doc.status = trf("Imported %s (%zu rows) - save to write the table", fileName(csv).c_str(), t.rows.size());
-                changed();
+            // Import replaces the whole table, so the changes are shown first and nothing happens until they are accepted
+            if (data::previewTableCsv(t, csv, doc.csv, &error)) {
+                doc.csvPath = csv;
+                doc.csvOpen = true;
             } else {
                 doc.status = trf("Could not import: %s", error.c_str());
             }
@@ -534,6 +609,7 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
         }
         ImGui::EndTable();
     }
+    drawImportPreview(doc);
     // Long values are easier to edit in the chosen row's own list
     if (rowSelected && doc.selected < static_cast<int>(t.rows.size())) {
         if (ImGui::BeginChild("##rowDetail", ImVec2(0.0f, 0.0f), ImGuiChildFlags_Borders)) {
