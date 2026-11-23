@@ -451,6 +451,19 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
     FieldContext context{&m_index};
     ImGui::SetNextItemWidth(ImGui::GetFontSize() * 14.0f);
     ImGui::InputTextWithHint("##rowFilter", tr("Filter rows"), m_rowFilter, sizeof(m_rowFilter));
+    // Bulk edit by percentage over the selected cells (a single value is set by pasting it over the range)
+    ImGui::SameLine();
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 5.0f);
+    ImGui::InputFloat("##scalePercent", &m_scalePercent, 0.0f, 0.0f, "%.4g%%");
+    m_scalePercent = std::clamp(m_scalePercent, -100.0f, 10000.0f);
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort))
+        ImGui::SetTooltip("%s", tr("Percent to change the selected number cells by: +10 is ten percent more, -20 is twenty percent less"));
+    ImGui::SameLine();
+    ImGui::BeginDisabled(doc.anchorRow < 0);
+    if (ImGui::Button(tr("Scale Selected"))) m_scaleRequested = true;
+    ImGui::EndDisabled();
+    if (ImGui::IsItemHovered(ImGuiHoveredFlags_DelayShort | ImGuiHoveredFlags_AllowWhenDisabled))
+        ImGui::SetTooltip("%s", tr("Multiplies the number cells of the selected range (click a cell, shift+click another) by the percent. Other cells are left alone"));
     const bool rowSelected = doc.selected >= 0 && doc.selected < static_cast<int>(t.rows.size());
     const f32 detailHeight = rowSelected ? ImGui::GetContentRegionAvail().y * 0.35f : 0.0f;
     const int columns = 2 + static_cast<int>(doc.columns.size());
@@ -529,6 +542,34 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
             colHi = std::min(std::max(doc.anchorCol, doc.focusCol), static_cast<int>(doc.columns.size()));
         }
         const auto columnName = [&](int col) -> std::string { return col == 0 ? std::string("id") : doc.columns[static_cast<size_t>(col - 1)]; };
+        if (m_scaleRequested) {
+            m_scaleRequested = false;
+            if (rowLo < 0) {
+                doc.status = tr("Select cells first: click a cell, shift+click another");
+            } else {
+                const double factor = 1.0 + static_cast<double>(m_scalePercent) / 100.0;
+                int scaled = 0, same = 0, failed = 0;
+                std::string firstError;
+                for (int s = rowLo; s <= rowHi; ++s) {
+                    for (int col = std::max(colLo, 1); col <= colHi; ++col) {
+                        std::string error;
+                        switch (data::scaleCell(t, static_cast<size_t>(order[static_cast<size_t>(s)]), columnName(col), factor, &error)) {
+                        case data::ScaleResult::Changed: ++scaled; break;
+                        case data::ScaleResult::Unchanged: ++same; break;
+                        case data::ScaleResult::Failed:
+                            if (!failed) firstError = error;
+                            ++failed;
+                            break;
+                        case data::ScaleResult::NotNumber: break;
+                        }
+                    }
+                }
+                if (scaled) changed();
+                doc.status = trf("Scaled %d cells by %+.4g%%", scaled, static_cast<double>(m_scalePercent));
+                if (same) doc.status += trf(" (%d did not change)", same);
+                if (failed) doc.status += trf(" (%d not accepted, first: %s)", failed, firstError.c_str());
+            }
+        }
         if (rowLo >= 0 && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::GetIO().WantTextInput && ImGui::GetIO().KeyCtrl) {
             if (ImGui::IsKeyPressed(ImGuiKey_C, false)) {
                 std::vector<std::vector<std::string>> cells;

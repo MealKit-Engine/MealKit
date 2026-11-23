@@ -3,7 +3,7 @@
 @format module-lock 1
 module asset https://github.com/MealKit-Engine/module-asset v0.3.0 855c14c5d591bf1999849a11066feb564b088e05 .
 module camera https://github.com/MealKit-Engine/module-camera v0.1.2 9e5f51463ce32806e2a985504d9b4cd7d62db2b8 .
-module data https://github.com/MealKit-Engine/module-data v0.1.7 a900474ba47a681b1a8bd9dc4f3a10f6cf5b34cc .
+module data https://github.com/MealKit-Engine/module-data v0.1.8 6caf5d34c94cbda66558ed1f57971628c8c3a361 .
 module debug https://github.com/MealKit-Engine/module-debug v0.1.4 aa77251f2132eca23a91e93f4536791037ee3689 .
 module editor https://github.com/MealKit-Engine/module-editor v0.2.20 3676ae7b394bfab58a17260408c9bc04113c8475 .
 module feedback https://github.com/MealKit-Engine/module-feedback v0.1.5 eb882826e9b8a791bf3215d7e37b8b62b71cba45 .

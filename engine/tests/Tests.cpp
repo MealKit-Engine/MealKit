@@ -602,6 +602,27 @@ MEALKIT_STRUCT(TestRanged) {
     MEALKIT_FIELD(f32, plain, 99.0f, "Plain");
 };
 
+// Bulk edit by percentage: numbers are multiplied, everything else is left alone
+TEST_CASE(data, table_scale) {
+    data::TableData table;
+    table.rowType = &reflect::typeOf<TestRanged>();
+    table.ids = {"a"};
+    table.rows.emplace_back(*table.rowType);
+    TestRanged& row = *static_cast<TestRanged*>(table.rows[0].data());
+    row.speed = 4.0f;
+    row.level = 3;
+    row.delay = Ticks::seconds(1.0f);
+    std::string error;
+    TEST_CHECK(data::scaleCell(table, 0, "speed", 1.25, &error) == data::ScaleResult::Changed && row.speed == 5.0f);
+    TEST_CHECK(data::scaleCell(table, 0, "level", 1.5, &error) == data::ScaleResult::Changed && row.level == 5); // 4.5 rounds away from zero
+    TEST_CHECK(data::scaleCell(table, 0, "delay", 0.5, &error) == data::ScaleResult::Changed && row.delay.toSeconds() == 0.5f);
+    TEST_CHECK(data::scaleCell(table, 0, "speed", 1.0, &error) == data::ScaleResult::Unchanged);
+    TEST_CHECK(data::scaleCell(table, 0, "level", 1.01, &error) == data::ScaleResult::Unchanged && row.level == 5); // 5.05 rounds back to 5
+    TEST_CHECK(data::scaleCell(table, 0, "id", 2.0, &error) == data::ScaleResult::NotNumber);
+    TEST_CHECK(data::scaleCell(table, 0, "nope", 2.0, &error) == data::ScaleResult::NotNumber);
+    TEST_CHECK(data::scaleCell(table, 7, "speed", 2.0, &error) == data::ScaleResult::NotNumber);
+}
+
 // A field's range=min..max is checked on load and by the [Tables] panel's marks: warn only, the values stay as written
 TEST_CASE(data, table_ranges) {
     const reflect::TypeInfo& type = reflect::typeOf<TestRanged>();

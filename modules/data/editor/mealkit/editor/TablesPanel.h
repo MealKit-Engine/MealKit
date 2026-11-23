@@ -87,6 +87,8 @@ private:
     int m_idRow = -1;
     int m_scrollToRow = -1;
     char m_rowFilter[64] = {};
+    f32 m_scalePercent = 10.0f;     // [Scale %]: change of the selected number cells in percent (+10 = 10% more, -20 = 20% less)
+    bool m_scaleRequested = false;  // applied while drawing the cells, where the selected range is known
     bool m_sorted = false;
 };
 

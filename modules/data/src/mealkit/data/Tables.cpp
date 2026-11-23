@@ -4,6 +4,7 @@
 #include "mealkit/platform/Paths.h"
 
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -311,6 +312,54 @@ void tableFromText(const reflect::TypeInfo& rowType, const TableText& text, Tabl
             if (!range.empty()) *warnings += (warnings->empty() ? "" : "; ") + range;
         }
     }
+}
+
+ScaleResult scaleCell(TableData& table, size_t row, const std::string& column, double factor, std::string* error) {
+    const reflect::ValueInfo* value = nullptr;
+    void* data = nullptr;
+    if (row >= table.rows.size() || column == "id" || !table.rowType ||
+        !reflect::resolvePath(*table.rowType, table.rows[row].data(), column, value, data) || !value)
+        return ScaleResult::NotNumber;
+    std::string text;
+    char buffer[32];
+    switch (value->kind) {
+    case reflect::Kind::Float: {
+        const f32 before = *static_cast<const f32*>(data);
+        const f32 after = static_cast<f32>(static_cast<double>(before) * factor);
+        if (after == before) return ScaleResult::Unchanged;
+        text::writeFloat(buffer, sizeof(buffer), after);
+        text = buffer;
+        break;
+    }
+    case reflect::Kind::Ticks: {
+        const f32 before = static_cast<const Ticks*>(data)->toSeconds();
+        const f32 after = static_cast<f32>(static_cast<double>(before) * factor);
+        if (after == before) return ScaleResult::Unchanged;
+        text::writeFloat(buffer, sizeof(buffer), after);
+        text = buffer;
+        break;
+    }
+    case reflect::Kind::Int:
+    case reflect::Kind::UInt: {
+        if (!value->enumNames.empty()) return ScaleResult::NotNumber;
+        const bool isSigned = value->kind == reflect::Kind::Int;
+        double before = 0.0;
+        switch (value->size) {
+        case 1: before = isSigned ? static_cast<double>(*static_cast<const i8*>(data)) : static_cast<double>(*static_cast<const u8*>(data)); break;
+        case 2: before = isSigned ? static_cast<double>(*static_cast<const i16*>(data)) : static_cast<double>(*static_cast<const u16*>(data)); break;
+        case 4: before = isSigned ? static_cast<double>(*static_cast<const i32*>(data)) : static_cast<double>(*static_cast<const u32*>(data)); break;
+        case 8: before = isSigned ? static_cast<double>(*static_cast<const i64*>(data)) : static_cast<double>(*static_cast<const u64*>(data)); break;
+        default: return ScaleResult::NotNumber;
+        }
+        const double after = std::round(before * factor);
+        if (after == before) return ScaleResult::Unchanged;
+        std::snprintf(buffer, sizeof(buffer), "%.0f", after);
+        text = buffer;
+        break;
+    }
+    default: return ScaleResult::NotNumber;
+    }
+    return setCellText(table, row, column, text, error) ? ScaleResult::Changed : ScaleResult::Failed;
 }
 
 bool fieldRange(const reflect::FieldInfo& field, double& min, double& max) {

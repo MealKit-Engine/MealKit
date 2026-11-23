@@ -74,6 +74,15 @@ bool fieldRange(const reflect::FieldInfo& field, double& min, double& max);
 bool valueOutOfRange(const reflect::ValueInfo& value, const void* data, double min, double max, double* shown = nullptr);
 // "<id>: field 12 is outside 0..10; ..." for one row (empty = all inside)
 std::string rowRangeWarnings(const reflect::TypeInfo& rowType, const void* row, const std::string& id);
+// Bulk edit by percentage (ROADMAP item 43; a single value is already set by pasting it over a cell range): multiplies one numeric cell by `factor`
+// (1.1 = +10%). Floats and Ticks keep the shortest text that reads back, integers round to the nearest whole number.
+enum class ScaleResult : u8 {
+    Changed,   // the cell now holds the scaled value
+    Unchanged, // the scaled value is the same (0, or a rounded integer that didn't move)
+    NotNumber, // id, text, bool, enum, colour, vector ...: left alone
+    Failed,    // the new value does not fit the field (reason in error)
+};
+ScaleResult scaleCell(TableData& table, size_t row, const std::string& column, double factor, std::string* error = nullptr);
 std::string formatTsv(const std::vector<std::vector<std::string>>& cells);
 std::vector<std::vector<std::string>> parseTsv(const std::string& text);
 
