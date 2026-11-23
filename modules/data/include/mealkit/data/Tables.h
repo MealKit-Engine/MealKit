@@ -48,6 +48,14 @@ bool saveTableData(const TableData& table, const std::string& path);
 bool exportTableCsv(const TableData& table, const std::string& path);
 bool importTableCsv(TableData& table, const std::string& path, std::string* error);
 
+// Cells as spreadsheet text. A column is "id" or a field path (the CSV column names). Cells of tab-separated text (TSV) are what Excel and Google Sheets
+// copy and paste: cells with a tab, newline or quote are quoted, quotes are doubled, and rows end with a newline.
+std::string cellText(const TableData& table, size_t row, const std::string& column);
+// Sets one cell from text. false (cell unchanged, reason in error) for a bad id, a duplicate id, a missing path or a value that doesn't parse.
+bool setCellText(TableData& table, size_t row, const std::string& column, const std::string& text, std::string* error = nullptr);
+std::string formatTsv(const std::vector<std::vector<std::string>>& cells);
+std::vector<std::vector<std::string>> parseTsv(const std::string& text);
+
 // Resolve row references (RowRef): for each RowRef in data, find the id in the referenced table (table with the same row type) and set the row index.
 // Missing ids add a line "<where><path> -> <id> (table name)" to missing. Empty id means no reference.
 struct TableIndex {

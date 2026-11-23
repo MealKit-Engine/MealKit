@@ -9,7 +9,8 @@
 #include <vector>
 
 // Table pages of the editor [Data] window: edits definition data tables registered by the game with MEALKIT_TABLE (assets/tables/*.table) like a spreadsheet.
-// Add/duplicate/delete/reorder rows, field widgets per cell (dropdowns for row references), missing id reference warnings, CSV import/export, save/reload.
+// Add/duplicate/delete/reorder rows, field widgets per cell (dropdowns for row references), missing id reference warnings, CSV import/export, save/reload,
+// a clicked cell range (shift+click extends) copied and pasted as tab-separated text with Excel and Google Sheets (Ctrl+C / Ctrl+V).
 // Table value instances are of the game DLL's types, so they're kept as text before unloading the DLL and rebuilt with the new type (same as tuning).
 namespace mealkit::editor {
 
@@ -56,6 +57,7 @@ private:
         bool dirty = false;
         bool viewChanged = false;
         int selected = -1;
+        int anchorRow = -1, anchorCol = 0, focusRow = -1, focusCol = 0; // cell range for copy and paste (col 0 = id, then doc.columns)
         std::string status;
         UndoStack<data::TableText> undo;
     };

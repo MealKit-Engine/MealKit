@@ -639,6 +639,16 @@ TEST_CASE(data, tables) {
     TEST_CHECK(static_cast<const TestKind*>(back.rows[0].data())->title == "multi\nline");
     TEST_CHECK(!data::importTableCsv(back, dir + "/test_kinds.table", &error)); // the first cell isn't id
 
+    // Spreadsheet cells: TSV round trip with tabs, quotes and newlines in a cell; one cell set from text
+    const std::vector<std::vector<std::string>> grid = {{"a\tb", "say \"hi\"", "line1\nline2"}, {"", "x", "y"}};
+    TEST_CHECK(data::parseTsv(data::formatTsv(grid)) == grid);
+    TEST_CHECK(data::parseTsv("1\t2\r\n3\t4").size() == 2 && data::parseTsv("1\t2\n").size() == 1); // Excel: CRLF, a last line without a newline
+    TEST_CHECK(data::cellText(data, 1, "id") == "heavy" && data::cellText(data, 1, "weight") == "4.5");
+    TEST_CHECK(data::setCellText(data, 1, "weight", "6", &error) && static_cast<const TestKind*>(data.rows[1].data())->weight == 6.0f);
+    TEST_CHECK(!data::setCellText(data, 1, "weight", "abc", &error) && static_cast<const TestKind*>(data.rows[1].data())->weight == 6.0f);
+    TEST_CHECK(!data::setCellText(data, 1, "id", "plain", &error) && data.ids[1] == "heavy"); // duplicate id
+    TEST_CHECK(!data::setCellText(data, 1, "id", "bad id", &error) && data::setCellText(data, 1, "id", "heavier", &error) && data.ids[1] == "heavier");
+
     // Row references: id → index, missing ids into the list
     sim::Table<TestKind> table;
     table.ids = {"plain", "heavy"};

@@ -390,6 +390,79 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                 return x < y;
             });
         }
+        // Cell range (anchor to focus, in the order shown). Ctrl+C copies it as tab-separated text, Ctrl+V pastes from its top-left cell
+        std::vector<int> position(t.rows.size(), -1);
+        for (size_t s = 0; s < order.size(); ++s) position[static_cast<size_t>(order[s])] = static_cast<int>(s);
+        const auto isShown = [&](int row) { return row >= 0 && row < static_cast<int>(position.size()) && position[static_cast<size_t>(row)] >= 0; };
+        int rowLo = -1, rowHi = -1, colLo = 0, colHi = 0;
+        if (isShown(doc.anchorRow) && isShown(doc.focusRow)) {
+            rowLo = std::min(position[static_cast<size_t>(doc.anchorRow)], position[static_cast<size_t>(doc.focusRow)]);
+            rowHi = std::max(position[static_cast<size_t>(doc.anchorRow)], position[static_cast<size_t>(doc.focusRow)]);
+            colLo = std::min(doc.anchorCol, doc.focusCol);
+            colHi = std::min(std::max(doc.anchorCol, doc.focusCol), static_cast<int>(doc.columns.size()));
+        }
+        const auto columnName = [&](int col) -> std::string { return col == 0 ? std::string("id") : doc.columns[static_cast<size_t>(col - 1)]; };
+        if (rowLo >= 0 && ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) && !ImGui::GetIO().WantTextInput && ImGui::GetIO().KeyCtrl) {
+            if (ImGui::IsKeyPressed(ImGuiKey_C, false)) {
+                std::vector<std::vector<std::string>> cells;
+                for (int s = rowLo; s <= rowHi; ++s) {
+                    cells.emplace_back();
+                    for (int col = colLo; col <= colHi; ++col) cells.back().push_back(data::cellText(t, static_cast<size_t>(order[static_cast<size_t>(s)]), columnName(col)));
+                }
+                ImGui::SetClipboardText(data::formatTsv(cells).c_str());
+                doc.status = trf("Copied %d cells", (rowHi - rowLo + 1) * (colHi - colLo + 1));
+            } else if (ImGui::IsKeyPressed(ImGuiKey_V, false)) {
+                const char* clip = ImGui::GetClipboardText();
+                const std::vector<std::vector<std::string>> cells = data::parseTsv(clip ? clip : "");
+                if (!cells.empty()) {
+                    const bool single = cells.size() == 1 && cells[0].size() == 1; // one value fills the whole range, like a spreadsheet
+                    size_t width = 0;
+                    for (const auto& line : cells) width = std::max(width, line.size());
+                    const int rowsToFill = single ? rowHi - rowLo + 1 : static_cast<int>(cells.size());
+                    const int colsToFill = single ? colHi - colLo + 1 : static_cast<int>(width);
+                    int done = 0, failed = 0, outside = 0;
+                    std::string firstError;
+                    for (int r = 0; r < rowsToFill; ++r) {
+                        for (int c = 0; c < colsToFill; ++c) {
+                            const int s = rowLo + r, col = colLo + c;
+                            const size_t line = single ? 0 : static_cast<size_t>(r);
+                            if (!single && static_cast<size_t>(c) >= cells[line].size()) continue; // a short line leaves the rest alone
+                            if (s >= static_cast<int>(order.size()) || col > static_cast<int>(doc.columns.size())) {
+                                ++outside;
+                                continue;
+                            }
+                            std::string error;
+                            if (data::setCellText(t, static_cast<size_t>(order[static_cast<size_t>(s)]), columnName(col), single ? cells[0][0] : cells[line][static_cast<size_t>(c)], &error)) {
+                                ++done;
+                            } else {
+                                if (!failed) firstError = error;
+                                ++failed;
+                            }
+                        }
+                    }
+                    if (done) changed();
+                    doc.status = trf("Pasted %d cells", done);
+                    if (outside) doc.status += trf(" (%d past the table's end skipped)", outside);
+                    if (failed) doc.status += trf(" (%d not accepted, first: %s)", failed, firstError.c_str());
+                    if (!single) { // the range becomes what was pasted
+                        doc.focusRow = order[static_cast<size_t>(std::min(rowLo + rowsToFill, static_cast<int>(order.size())) - 1)];
+                        doc.focusCol = std::min(colLo + colsToFill - 1, static_cast<int>(doc.columns.size()));
+                    }
+                }
+            }
+        }
+        const auto inRange = [&](int row, int col) {
+            return rowLo >= 0 && isShown(row) && position[static_cast<size_t>(row)] >= rowLo && position[static_cast<size_t>(row)] <= rowHi && col >= colLo && col <= colHi;
+        };
+        const auto clickCell = [&](int row, int col) { // click picks a cell, shift+click extends the range
+            if (ImGui::GetIO().KeyShift && doc.anchorRow >= 0) {
+                doc.focusRow = row;
+                doc.focusCol = col;
+            } else {
+                doc.anchorRow = doc.focusRow = row;
+                doc.anchorCol = doc.focusCol = col;
+            }
+        };
         std::vector<FieldLabel> attributes; // ranges, units and pickers of top-level fields also apply in cells
         for (const std::string& c : doc.columns) {
             const reflect::FieldInfo* field = t.rowType->field(c.c_str());
@@ -414,12 +487,14 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                 ImGui::TableNextColumn();
                 if (ImGui::Selectable(std::to_string(row).c_str(), doc.selected == row)) doc.selected = row;
                 ImGui::TableNextColumn();
+                if (inRange(row, 0)) ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::GetColorU32(ImGuiCol_TextSelectedBg));
                 // id: applied on Enter or clicking elsewhere (letters/digits/_/-/. , unique within the table)
                 char temp[128];
                 char* buffer = m_idRow == row ? m_idBuffer : temp;
                 if (m_idRow != row) std::snprintf(temp, sizeof(temp), "%s", t.ids[r].c_str());
                 ImGui::SetNextItemWidth(-FLT_MIN);
                 ImGui::InputText("##id", buffer, sizeof(m_idBuffer));
+                if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) clickCell(row, 0);
                 if (ImGui::IsItemActivated()) {
                     m_idRow = row;
                     std::snprintf(m_idBuffer, sizeof(m_idBuffer), "%s", t.ids[r].c_str());
@@ -439,12 +514,14 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                 for (size_t c = 0; c < doc.columns.size(); ++c) {
                     const std::string& path = doc.columns[c];
                     ImGui::TableNextColumn();
+                    if (inRange(row, static_cast<int>(c) + 1)) ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::GetColorU32(ImGuiCol_TextSelectedBg));
                     const reflect::ValueInfo* value = nullptr;
                     void* data = nullptr;
                     if (!reflect::resolvePath(*t.rowType, t.rows[r].data(), path, value, data)) continue;
                     ImGui::PushID(path.c_str());
                     ImGui::SetNextItemWidth(-FLT_MIN);
                     if (drawValueWidget("##v", path.c_str(), *value, data, &context, &attributes[c])) changed();
+                    if (ImGui::IsItemClicked(ImGuiMouseButton_Left)) clickCell(row, static_cast<int>(c) + 1);
                     if (value->kind == reflect::Kind::Float && attributes[c].hasRange) { // how far along its range, under the number
                         const f32 share = std::clamp((*static_cast<const f32*>(data) - attributes[c].min) / (attributes[c].max - attributes[c].min), 0.0f, 1.0f);
                         const ImVec2 lo = ImGui::GetItemRectMin(), hi = ImGui::GetItemRectMax();

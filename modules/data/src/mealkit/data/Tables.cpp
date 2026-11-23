@@ -279,6 +279,103 @@ bool importTableCsv(TableData& table, const std::string& path, std::string* erro
     return true;
 }
 
+std::string cellText(const TableData& table, size_t row, const std::string& column) {
+    if (row >= table.rows.size()) return {};
+    if (column == "id") return table.ids[row];
+    reflect::TextFields fields;
+    reflect::toText(*table.rowType, table.rows[row].data(), fields);
+    for (const auto& [key, value] : fields)
+        if (key == column) return value;
+    return {};
+}
+
+bool setCellText(TableData& table, size_t row, const std::string& column, const std::string& text, std::string* error) {
+    if (row >= table.rows.size()) {
+        if (error) *error = "no such row";
+        return false;
+    }
+    if (column == "id") {
+        if (text == table.ids[row]) return true;
+        bool duplicate = false;
+        for (size_t i = 0; i < table.ids.size(); ++i) duplicate = duplicate || (i != row && table.ids[i] == text);
+        if (!validRowId(text) || duplicate) {
+            if (error) *error = std::string(duplicate ? "duplicate id '" : "invalid id '") + text + "'";
+            return false;
+        }
+        table.ids[row] = text;
+        return true;
+    }
+    if (!reflect::setFromText(*table.rowType, table.rows[row].data(), column, text)) {
+        if (error) *error = "'" + text + "' is not a value for " + column;
+        return false;
+    }
+    return true;
+}
+
+std::string formatTsv(const std::vector<std::vector<std::string>>& cells) {
+    std::string out;
+    for (const std::vector<std::string>& line : cells) {
+        for (size_t c = 0; c < line.size(); ++c) {
+            if (c) out += '\t';
+            if (line[c].find_first_of("\t\"\r\n") == std::string::npos) {
+                out += line[c];
+                continue;
+            }
+            out += '"';
+            for (const char ch : line[c]) {
+                if (ch == '"') out += '"';
+                out += ch;
+            }
+            out += '"';
+        }
+        out += '\n';
+    }
+    return out;
+}
+
+std::vector<std::vector<std::string>> parseTsv(const std::string& text) {
+    std::vector<std::vector<std::string>> lines;
+    std::vector<std::string> cells;
+    std::string cell;
+    bool quoted = false, any = false;
+    for (size_t i = 0; i < text.size(); ++i) {
+        const char c = text[i];
+        if (quoted) {
+            if (c == '"' && i + 1 < text.size() && text[i + 1] == '"') {
+                cell += '"';
+                ++i;
+            } else if (c == '"') {
+                quoted = false;
+            } else {
+                cell += c;
+            }
+            continue;
+        }
+        if (c == '"' && cell.empty()) { // a quote only opens a cell at its start (a quote inside plain text is text)
+            quoted = any = true;
+        } else if (c == '\t') {
+            cells.push_back(cell);
+            cell.clear();
+            any = true;
+        } else if (c == '\n' || c == '\r') {
+            if (c == '\r' && i + 1 < text.size() && text[i + 1] == '\n') ++i;
+            cells.push_back(cell);
+            lines.push_back(cells);
+            cells.clear();
+            cell.clear();
+            any = false;
+        } else {
+            cell += c;
+            any = true;
+        }
+    }
+    if (any || !cell.empty()) { // no newline after the last line
+        cells.push_back(cell);
+        lines.push_back(cells);
+    }
+    return lines;
+}
+
 void resolveRows(const reflect::TypeInfo& type, void* data, const TableIndexList& tables,
                  std::vector<std::string>* missing, const std::string& where) {
     resolveStruct(type, data, tables, missing, where);
