@@ -270,6 +270,8 @@ struct Clip {
     ma_sound source; // pre-decoded source (copied to play, only when decoded)
 };
 
+constexpr const char* kAuditionEvent = "\x01" "audition"; // Mixer::playFile
+
 struct EventInfo {
     EventDef def;
     std::vector<uint32_t> clips; // m->clips indices (kMissing for missing clips)
@@ -453,6 +455,8 @@ struct Mixer::Impl {
                 }
             next.push_back(std::move(e));
         }
+        for (EventInfo& old : events) // the audition event (playFile) is not part of the definitions
+            if (old.def.name == kAuditionEvent) next.push_back(std::move(old));
         events = std::move(next);
         // Playing sounds find their new definitions by name (vanished events stop)
         for (uint32_t i = 0; i < kVoiceSlots; ++i) {
@@ -462,6 +466,26 @@ struct Mixer::Impl {
             if (e) v.event = static_cast<uint32_t>(e - events.data());
             else release(v);
         }
+    }
+
+    // Defines (or redefines) the hidden audition event for one file and stops what it was playing
+    void setAudition(const std::string& file, float volume) {
+        for (uint32_t i = 0; i < kVoiceSlots; ++i)
+            if (voices[i].used && voices[i].eventName == kAuditionEvent) release(voices[i]);
+        EventInfo e;
+        e.def.name = kAuditionEvent;
+        e.def.clips.push_back({file, file});
+        e.def.spatial = false;
+        e.def.bus = "ui";
+        e.def.volume = volume;
+        e.clips.push_back(clip(file, false));
+        e.bus = bus("ui");
+        for (EventInfo& old : events)
+            if (old.def.name == kAuditionEvent) {
+                old = std::move(e);
+                return;
+            }
+        events.push_back(std::move(e));
     }
 
     const EventInfo* find(std::string_view name) const {
@@ -1269,9 +1293,47 @@ uint64_t Mixer::render(float* out, uint64_t frames) {
     return read;
 }
 
+Handle Mixer::playFile(const std::string& file, float volume) {
+    if (!m->ready || file.empty()) return {};
+    m->setAudition(file, std::max(volume, 0.0f));
+    return m->request(kAuditionEvent, false, {}, {});
+}
+
+bool Mixer::peaks(const std::string& file, uint32_t bins, std::vector<float>& out, double& seconds) const {
+    out.clear();
+    seconds = 0.0;
+    if (bins == 0 || file.empty()) return false;
+    ma_decoder_config config = ma_decoder_config_init(ma_format_f32, 1, 0);
+    ma_decoder decoder;
+    const ma_result opened = m->desc.readFile ? ma_decoder_init_vfs(const_cast<ReaderVfs*>(&m->vfs), file.c_str(), &config, &decoder)
+                                              : ma_decoder_init_file(file.c_str(), &config, &decoder);
+    if (opened != MA_SUCCESS) return false;
+    ma_uint64 total = 0;
+    if (ma_decoder_get_length_in_pcm_frames(&decoder, &total) != MA_SUCCESS || total == 0) {
+        ma_decoder_uninit(&decoder);
+        return false;
+    }
+    out.assign(bins, 0.0f);
+    float buffer[2048];
+    for (ma_uint64 at = 0; at < total;) {
+        ma_uint64 got = 0;
+        ma_decoder_read_pcm_frames(&decoder, buffer, std::min<ma_uint64>(2048, total - at), &got);
+        if (got == 0) break;
+        for (ma_uint64 i = 0; i < got; ++i) {
+            float& bin = out[static_cast<size_t>((at + i) * bins / total)];
+            bin = std::max(bin, std::min(std::fabs(buffer[i]), 1.0f));
+        }
+        at += got;
+    }
+    seconds = static_cast<double>(total) / decoder.outputSampleRate;
+    ma_decoder_uninit(&decoder);
+    return true;
+}
+
 std::vector<std::string> Mixer::eventNames() const {
     std::vector<std::string> names;
-    for (const EventInfo& e : m->events) names.push_back(e.def.name);
+    for (const EventInfo& e : m->events)
+        if (e.def.name != kAuditionEvent) names.push_back(e.def.name);
     return names;
 }
 

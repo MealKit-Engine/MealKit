@@ -7,9 +7,9 @@
 #include <string_view>
 #include <vector>
 
-// Event file (assets/sounds.events in MealKit projects). Edited by the authoring tool MealKit Audio and read by the game as is (no export).
+// Event file (assets/sounds.events in MealKit projects). Edited by the authoring tool MkAudio and read by the game as is (no export).
 // It's text that merges in git:
-//   # MealKit audio events. Edit them in MealKit Audio or by hand.
+//   # MealKit audio events. Edit them in MkAudio or by hand.
 //   @format audio-events 1
 //
 //   mixbus music

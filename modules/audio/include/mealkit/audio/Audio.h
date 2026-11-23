@@ -133,6 +133,9 @@ public:
 
     // Editor [Sound] panel
     std::vector<std::string> eventNames() const;
+    // Editor [Assets] preview: plays one clip file (full path) 2D on the ui bus, replacing the previous one, and reads its waveform (see mkaudio::Mixer)
+    Handle playFile(const std::string& file, f32 volume = 1.0f);
+    bool peaks(const std::string& file, u32 bins, std::vector<f32>& out, f64& seconds) const;
     const EventDef* event(std::string_view name) const;
     void voices(std::vector<VoiceInfo>& out) const;
     const std::deque<CullInfo>& culls() const;

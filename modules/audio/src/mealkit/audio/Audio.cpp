@@ -288,6 +288,10 @@ const std::string& Engine::eventsPath() const { return m->path; }
 
 std::vector<std::string> Engine::eventNames() const { return m->mixer.eventNames(); }
 
+Handle Engine::playFile(const std::string& file, f32 volume) { return m->mixer.playFile(file, volume); }
+
+bool Engine::peaks(const std::string& file, u32 bins, std::vector<f32>& out, f64& seconds) const { return m->mixer.peaks(file, bins, out, seconds); }
+
 const EventDef* Engine::event(std::string_view name) const { return m->mixer.event(name); }
 
 void Engine::voices(std::vector<VoiceInfo>& out) const { m->mixer.voices(out); }

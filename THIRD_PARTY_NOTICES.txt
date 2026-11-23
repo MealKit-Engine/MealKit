@@ -274,7 +274,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ==============================================================================
-mkaudio (MkAudio runtime) v0.3.1 (4c85837)
+mkaudio (MkAudio runtime) v0.4.0+59d5759 (59d5759)
 ==============================================================================
 MIT License
 

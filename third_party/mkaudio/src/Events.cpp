@@ -330,7 +330,7 @@ bool parseEvents(std::string_view text, EventFile& out, std::vector<ParseMessage
 }
 
 std::string writeEvents(const EventFile& file) {
-    std::string out = "# MealKit audio events. Edit them in MealKit Audio or by hand: \"event|mixbus|snapshot|music <name>\", then \"key value\" lines.\n";
+    std::string out = "# MealKit audio events. Edit them in MkAudio or by hand: \"event|mixbus|snapshot|music <name>\", then \"key value\" lines.\n";
     out += std::string("@format ") + kEventsFormatKind + " " + std::to_string(kEventsFormatVersion) + "\n";
     static const BusDef defaultBus;
     for (const BusDef& b : file.buses) {
