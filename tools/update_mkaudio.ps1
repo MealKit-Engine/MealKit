@@ -30,7 +30,7 @@ try {
     $tar = Join-Path $tmp "src.tar"
     & git -C $From archive --format=tar -o $tar $commit CMakeLists.txt include src LICENSE
     if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
-    & (Join-Path $env:SystemRoot "System32\tar.exe") -xf $tar -C $tmp # Windows tar (Git's tar reads C: paths as hosts)
+    & $(if ($IsLinux -or $IsMacOS) { "tar" } else { Join-Path $env:SystemRoot "System32\tar.exe" }) -xf $tar -C $tmp # Windows tar (Git's tar reads C: paths as hosts)
     if ($LASTEXITCODE -ne 0) { throw "tar failed" }
     Remove-Item $tar
     New-Item -ItemType Directory -Force $target | Out-Null

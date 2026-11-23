@@ -17,7 +17,7 @@ $utf8 = New-Object System.Text.UTF8Encoding $false
 
 $commit = (& git -C $From rev-parse --short "$Ref^{commit}").Trim()
 if ($LASTEXITCODE -ne 0) { throw "not a git commit in ${From}: $Ref" }
-$tag = (& cmd /c "git -C `"$From`" describe --tags --exact-match $commit 2>nul") # no tag is not an error (cmd keeps git's stderr out of PowerShell)
+$tag = if ($IsLinux -or $IsMacOS) { (& git -C $From describe --tags --exact-match $commit 2>$null) } else { (& cmd /c "git -C `"$From`" describe --tags --exact-match $commit 2>nul") } # Windows: cmd keeps the stderr of an untagged commit out of PowerShell
 if ($LASTEXITCODE -ne 0) { $tag = "" }
 $cmake = (& git -C $From show "${commit}:CMakeLists.txt") -join "`n"
 if ($cmake -notmatch 'project\(mkcontract VERSION ([0-9.]+)') { throw "CMakeLists.txt has no project(mkcontract VERSION ...)" }
@@ -30,7 +30,7 @@ try {
     $tar = Join-Path $tmp "src.tar"
     & git -C $From archive --format=tar -o $tar $commit CMakeLists.txt include src LICENSE
     if ($LASTEXITCODE -ne 0) { throw "git archive failed" }
-    & (Join-Path $env:SystemRoot "System32\tar.exe") -xf $tar -C $tmp # Windows tar (Git's tar reads C: paths as hosts)
+    & $(if ($IsLinux -or $IsMacOS) { "tar" } else { Join-Path $env:SystemRoot "System32\tar.exe" }) -xf $tar -C $tmp # Windows tar (Git's tar reads C: paths as hosts)
     if ($LASTEXITCODE -ne 0) { throw "tar failed" }
     Remove-Item $tar
     New-Item -ItemType Directory -Force $target | Out-Null
