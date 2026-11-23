@@ -1,0 +1,117 @@
+# MealKit scene
+@format scene 2
+
+sun 0.4 0.8 0.3
+sunColor 1 1 1
+sky 0.18 0.36 0.85
+groundColor 0.2 0.17 0.14
+fog 0.55 0.7 0.95 0
+
+entity
+id 1
+name Cell 0
+kind sprite
+position -3 1.5 0
+rotation 0 0 0 1
+scale 3 3 1
+color FFFFFFFF
+field image textures/sprite_sheet.png
+field columns 4
+field rows 2
+field cell 0
+field pixelsPerUnit 16
+end
+
+entity
+id 2
+name Cell 1 flipX
+kind sprite
+position 0 1.5 0
+rotation 0 0 0 1
+scale 3 3 1
+color FFFFFFFF
+field image textures/sprite_sheet.png
+field columns 4
+field rows 2
+field cell 1
+field pixelsPerUnit 16
+field flipX true
+end
+
+entity
+id 3
+name Cell 2 flipY
+kind sprite
+position 3 1.5 0
+rotation 0 0 0 1
+scale 3 3 1
+color FFFFFFFF
+field image textures/sprite_sheet.png
+field columns 4
+field rows 2
+field cell 2
+field pixelsPerUnit 16
+field flipY true
+end
+
+entity
+id 4
+name Cell 7 half alpha
+kind sprite
+position -3 -1.8 0
+rotation 0 0 0 1
+scale 3 3 1
+color 80FFFFFF
+field image textures/sprite_sheet.png
+field columns 4
+field rows 2
+field cell 7
+field pixelsPerUnit 16
+end
+
+entity
+id 5
+name Cell 4
+kind sprite
+position 0 -1.8 0
+rotation 0 0 0 1
+scale 3 3 1
+color FFFFFFFF
+field image textures/sprite_sheet.png
+field columns 4
+field rows 2
+field cell 4
+field pixelsPerUnit 16
+end
+
+entity
+id 6
+name Cell 5 overlap back
+kind sprite
+position 2.6 -1.8 0.1
+rotation 0 0 0 1
+scale 3 3 1
+color FFFFFFFF
+field image textures/sprite_sheet.png
+field columns 4
+field rows 2
+field cell 5
+field pixelsPerUnit 16
+field layer 0
+end
+
+entity
+id 7
+name Cell 3 overlap front
+kind sprite
+position 3.4 -1.4 0
+rotation 0 0 0 1
+scale 3 3 1
+color FFFFFFFF
+field image textures/sprite_sheet.png
+field columns 4
+field rows 2
+field cell 3
+field pixelsPerUnit 16
+field layer 1
+end

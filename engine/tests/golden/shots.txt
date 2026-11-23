@@ -28,3 +28,5 @@ anim_side       scenes/anim.scene   5 1.4 0.5  -90 -6
 post_graded     scenes/post.scene      0.3 2.2 -4.6   0 -16
 post_off        scenes/post_off.scene  0.3 2.2 -4.6   0 -16
 terrain_hills   scenes/terrain.scene  -30 18 -40   35 -18
+# sprites: the sprite object as the engine reads it (sheet cells, flips, tint alpha, layers), seen from the front like a 2D project
+sprites_front   scenes/sprites.scene   0 0 -12   0 0  unlit
