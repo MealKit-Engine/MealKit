@@ -1,20 +1,20 @@
 # MealKit engine roadmap
 
-**Only work that is left.** A finished item is removed from this document and its details go to `docs/CHANGELOG.md`; a name quoted elsewhere as ROADMAP "…" for a finished item is found there by the same name. Reasons for decisions and the "Deferred" table are in `docs/DECISIONS.md`. When the order changes, update this document.
+**Only work that is left** (what needs a person, a device or an account is in `docs/ROADMAP_HUMAN.md`). A finished item is removed from this document and its details go to `docs/CHANGELOG.md`; a name quoted elsewhere as ROADMAP "…" for a finished item is found there by the same name. Reasons for decisions and the "Deferred" table are in `docs/DECISIONS.md`. When the order changes, update this document.
 
-## Where it stands (v0.9.10, 2026-11-23)
+## Where it stands (v0.9.11, 2026-11-23)
 
 Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (v0.9.0, `docs/CONTRACTS.md`), the engine is a kernel plus 20 engine module repos (`docs/ENGINE_MODULES.md`), the game UI runtime and its Designer live in MkUI (UI 2a), the repos are public (first green public CI on Linux x64 and macOS ARM64 2026-11-03), and the editor builds and runs on Linux with Vulkan (2026-11-22). **The engine stays a 0.x beta with no planned 1.0** (`docs/DECISIONS.md` 2026-11-23 "MealKit stays 0.x beta"): work is not held back for a release, and contracts change only through the rules in "Versions".
 
 **Next, in order** (reordered 2026-11-23; the first item keeps the 2026-11-22 decision "Linux editor and editor reinforcement come first"; game work such as FuseTag M5/M6 waits until item 1 is done):
 1. **Linux editor finish and editor reinforcement** ("In progress").
-2. **2D on the 3D engine**: what is left of sprites (render golden test, pixel snapping, template art), then tilemaps.
+2. **2D on the 3D engine**: what is left is tilemaps.
 3. **First beta release**: what a first visitor needs to install and try MealKit without hitting build traps ("First beta release": publication checks, R2 publishing, R1 collaboration setup, A1/A2 build and copy traps, the template modules published by name).
 4. **Game-facing gaps that FuseTag hits when game work resumes**: designer independence D4 (with FuseTag M5), shipped sound size and streaming, gamepad rumble (E2).
 5. **Multiplayer modes** (Relay, Dedicated) together with the lobby browser and quick match (E3) and spectator slots (E4).
 6. **UI 2**: MkUI's XAML-like layer, one piece at a time.
 7. **Proposals from other engines** E1, E5~E8 in their suggested order, interleaved with the picked pool items below.
-8. **When devices and accounts are available**: minimum spec measurements, EOS measurements, cross-platform determinism and crossplay on real devices → stage 5.
+8. **When devices and accounts are available**: everything in `docs/ROADMAP_HUMAN.md` (minimum spec measurements, EOS, real-device determinism and crossplay) → stage 5.
 
 **Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T1, T2, T4 → AI agents A3~A7 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) with T6~T8 → Modules ⑨ (`health` first) → roles R3, R4 → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
 
@@ -71,27 +71,22 @@ The engine version is `VERSION` at the repo root. **MealKit is a beta and stays 
 ### [ ] 1. Linux editor finish and editor reinforcement (decided 2026-11-22, `docs/DECISIONS.md` "Linux editor and editor reinforcement come first"; Linux done part in `docs/CHANGELOG.md` "Linux editor")
 Order inside the item: A, then B; C and D one piece at a time.
 - **A. Linux editor** (moved here from "Editors on other OSes"; macOS stays in stage 5):
-  - MkRender on Linux: builds and runs (CHANGELOG "MkRender on Linux"). `--render-golden` on Linux and the editor finding and launching it are done (CHANGELOG "MkRender golden and Open in MkRender on Linux"). Left: hand editing checks, the Manager installing it.
-  - Linux paths in the Manager's engine scripts: the project scripts are done (CHANGELOG "Project scripts on Linux"). Packaging scripts: done (CHANGELOG "Packaging scripts on Linux"). The release index takes `linux-x64` packages (a `platform` field per entry, CHANGELOG "Linux editor: release index platform"). The Manager runs on Linux and reads `platform` (CHANGELOG "Manager on Linux"). The Manager's Linux package, `self`/`update`/`uninstall` and `vendor.ps1` on Linux are done (CHANGELOG "Manager Linux package"). The `.desktop` entry's icon is done (CHANGELOG "Manager .desktop icon, project and export checks on Linux"). Left: a run on a clean machine with a real engine package, publishing a Linux Manager zip.
-  - Linux game exe and Export: done (CHANGELOG "Linux game exe and Export"). `mp_test` between Linux peers passes (CHANGELOG "mp_test on Linux"). Debug, Profile and Presets builds on Linux: done (CHANGELOG "Debug, Profile and Presets builds on Linux"). Left: Steam login on Linux, a clean machine's libraries. Game project editor builds on Linux: done (CHANGELOG "Game project editor on Linux"). Left: an existing game project (FuseTag) is on engine 0.9.5 and needs its engine modules updated before it builds.
-  - `check.ps1` on Linux: static, unit and det groups run (CHANGELOG "check.ps1 and CI on Linux"). The project and export groups run too (CHANGELOG "Manager .desktop icon, project and export checks on Linux"). Left: the tools, render and editor groups (SKIP on Linux now, except the MkRender capture and the golden images, which run); the first run of the new CI job `linux-frontend` on GitHub.
+  - MkRender on Linux: builds and runs (CHANGELOG "MkRender on Linux"). `--render-golden` on Linux and the editor finding and launching it are done (CHANGELOG "MkRender golden and Open in MkRender on Linux"). Left: nothing that code can do (hand checks: `docs/ROADMAP_HUMAN.md`).
+  - Linux paths in the Manager's engine scripts: the project scripts are done (CHANGELOG "Project scripts on Linux"). Packaging scripts: done (CHANGELOG "Packaging scripts on Linux"). The release index takes `linux-x64` packages (a `platform` field per entry, CHANGELOG "Linux editor: release index platform"). The Manager runs on Linux and reads `platform` (CHANGELOG "Manager on Linux"). The Manager's Linux package, `self`/`update`/`uninstall` and `vendor.ps1` on Linux are done (CHANGELOG "Manager Linux package"). The `.desktop` entry's icon is done (CHANGELOG "Manager .desktop icon, project and export checks on Linux"). Left: nothing that code can do (clean machine run, publishing: `docs/ROADMAP_HUMAN.md`).
+  - Linux game exe and Export: done (CHANGELOG "Linux game exe and Export"). `mp_test` between Linux peers passes (CHANGELOG "mp_test on Linux"). Debug, Profile and Presets builds on Linux: done (CHANGELOG "Debug, Profile and Presets builds on Linux"). Left: Steam login and clean machine libraries (`docs/ROADMAP_HUMAN.md`). Game project editor builds on Linux: done (CHANGELOG "Game project editor on Linux"). Left: an existing game project (FuseTag) is on engine 0.9.5 and needs its engine modules updated before it builds.
+  - `check.ps1` on Linux: static, unit and det groups run (CHANGELOG "check.ps1 and CI on Linux"). The project and export groups run too (CHANGELOG "Manager .desktop icon, project and export checks on Linux"). Left: the tools, render and editor groups (SKIP on Linux now, except the MkRender capture and the golden images, which run); the first run of the new CI job `linux-frontend` needs a push (`docs/ROADMAP_HUMAN.md`).
 - **B. Left over from moving scene editing and sprite editing to MkRender** (CHANGELOG "MkRender step 10", "Scene editing in MkRender, leftovers"; MkRender's own list is its `docs/ROADMAP.md`). Left (the rest was checked on Linux 2026-11-22, CHANGELOG "MkRender golden test and editor-kept features on Linux"):
-  - Dragging a `gizmo=radius` handle by hand (needs a person at a screen; MkRender's Vulkan build and golden are checked, CHANGELOG "MkRender golden test and editor-kept features on Linux").
-  - MkRender's look next to the editor at the same DPI (TOOL_DESIGN section 6 item 7; needs a person looking at both windows), then the MkRender row of section 7.
-  - Flipbook clip preview on the selected sprite (the engine has clips now: `render::SpriteClips`, CHANGELOG "Flipbook clips"; MkRender needs the new module-render and module-scene tags).
+  - Hand checks (dragging a `gizmo=radius` handle, MkRender's look next to the editor at the same DPI) are in `docs/ROADMAP_HUMAN.md`.
   - MkRender coverage and the editor's usability items now live in MkRender's own list (`../MkRender/docs/ROADMAP.md` 4 and 5: scene tree 19~23, inspector 10, viewport 29~31 re-homed there on 2026-11-22; what MkRender doesn't cover yet is listed there too).
 - **C. Editor reinforcement** (the editor is now the play view, assets, tables, project and build host): items picked from "Editor usability" below are all done (43, bulk edit by percentage: `docs/CHANGELOG.md` "Tables: Scale Selected"; build profiles per platform/backend are done: `docs/CHANGELOG.md` "Build profiles"; 38, status-bar hints, and 37, rebindable shortcuts, are done: `docs/CHANGELOG.md` "Status bar hints", "Rebindable editor shortcuts"; 27, the asset browser preview pane, is done: `docs/CHANGELOG.md` "Asset browser preview pane"; E5's references fit in it when picked).
 
 ### [ ] 2. 2D on the 3D engine: sprite rendering + editor sprite object (decided 2026-11-10, `docs/DECISIONS.md` "2D games run on the 3D engine")
-- **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine", "Flipbook clips"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template, sprite editing in MkRender (image picker, sheet slicer, pivot presets, the `view2d` front view; `docs/CHANGELOG.md` "Scene editing in MkRender, leftovers") and flipbook clips (`sprite_clips.table`, the sprite object's `clip` field).
+- **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine", "Flipbook clips"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template, sprite editing in MkRender (image picker, sheet slicer, pivot presets, the `view2d` front view; `docs/CHANGELOG.md` "Scene editing in MkRender, leftovers") and flipbook clips (`sprite_clips.table`, the sprite object's `clip` field) with their MkRender preview, and the `sprites_front` golden shot.
 - **Left, in order**:
-  1. A render golden test (`--render-golden`) of a 2D scene loaded by the engine on both backends (the sprite pass itself, its ordering, blending and point sampling, is checked by MkRender's `mkrender_golden` sprites shot).
-  2. Optional pixel snapping with an orthographic camera (`pixelsPerUnit` from the project).
-  3. Template sample art: the 2D template draws its characters and platforms as sprites (images in `templates/empty2d/assets/textures`, since `assets/sprites` is not a kind folder, CC0 or made by us) instead of boxes, and its preview image is retaken.
-  4. **Tilemaps** (Godot TileMap, Unity Tilemap): a painted grid of sheet cells as one scene object, drawn in one or two draws, with merged collision boxes that enter the content hash like solid objects; painting in MkRender. Every 2D game needs it before anything else in "Later" below.
+  1. **Tilemaps** (Godot TileMap, Unity Tilemap): a painted grid of sheet cells as one scene object, drawn in one or two draws, with merged collision boxes that enter the content hash like solid objects; painting in MkRender. Every 2D game needs it before anything else in "Later" below.
 - **Rules kept**: view only, nothing enters the simulation (collision stays solid objects, or a solid flag that makes a box of the sprite's size and then enters the content hash). Budget: a few hundred sprites in one or two draws. Lit sprites only as a later opt-in.
 - **Later, separate items**: 2D lights, a parallax layers helper.
-- **Checks**: render golden on DX12/Vulkan, an MkRender capture of a sprite scene in its 2D front view, the 2D template built from scratch.
+- **Checks**: render golden on DX12/Vulkan (`sprites_front` exists), an MkRender capture of a sprite scene in its 2D front view, the 2D template built from scratch.
 
 ### [ ] 6. UI 2 = MkUI repo (decided 2026-11-11, `docs/ENGINE_MODULES.md` "Middleware")
 - **Done**: repo move, draw backend and `ValueModel` (MkUI pinned in `third_party/mkui`), and UI 2a (MkUI Designer as its own app; the editor's [UI] workspace and Penpot import server moved there). Details in `docs/CHANGELOG.md` "UI 2" and "UI 2a".
@@ -107,19 +102,11 @@ The repos are public. What is missing is mostly what a first visitor sees, insta
 - [ ] **A2. ★ Vendored copies marked as copies** (S, from "AI agents"). An engine module's files exist in its repo `module-<name>`, in the engine's `modules/<name>` and in each game's `modules/<name>` (`Tables.cpp` has four copies today), so an agent or a person easily edits the wrong one. A one-line header at the top of each copied file ("vendored copy of module-<name> vX; change it in that repo"), added by `module.ps1 add/update` and `engine bump`, and a `check_layout` warning when a copy differs from `module.files` without being recorded as a local change. Open: does the header change the files `update` compares (`module.files` hashes)?
 - [ ] **R1. ★ Collaboration setup** (S, from "Roles"). `templates/project` has `.gitignore` but no `.gitattributes`, and nothing documents Git LFS or scene merge conflicts. Add a `.gitattributes` to the template (bumps `VERSION`) and a manual page in English and Korean. New projects copy the template, so this goes before the release. Open: is Git LFS the default or a recommendation (hosting quotas)? Do `.scene` files merge cleanly as text?
 - [ ] **Template modules by name** (from "Templates without game shape", decided 2026-11-15, `docs/DECISIONS.md` "Templates carry no game shape"; done part in `docs/CHANGELOG.md`):
-  - Publish `matchflow`, `screens`, `camrig` (GitHub `KingProtea99/module-<name>`, tag `v0.1.0`, entries in MealKit-Modules) so `-Modules screens` works by name; until then pass the folders.
+  - Publishing `matchflow`, `screens`, `camrig` so `-Modules screens` works by name needs the user (`docs/ROADMAP_HUMAN.md`); until then pass the folders.
   - Registry CI requires headless `tests/`: `screens` and `camrig` are view/app only and have none. Decide: a view-side test build in the shared workflow, or no tests for view-only modules.
   - The editor's new project window: a module picker that passes `-Modules` (or leave it to the Manager, which replaces it).
   - FuseTag keeps its vendored `sim` 0.1.x with `MatchFlow` until it moves to `matchflow` (`module.ps1 add matchflow`, include and namespace change).
-- [ ] Check that the GitHub settings are really on: DCO app, branch protection on `main` (CI must pass), Discussions in `MealKit`, private vulnerability reporting, secret scanning, Dependabot alerts, topics, Pages source Actions for `MealKit-Modules`; the org `.github` repo pushed.
-- [ ] A screenshot or play GIF in the engine README (`MealKitEditor --capture`).
-- [ ] Full `tools\check.ps1`, then push the remaining local commits.
-- [ ] First-run check on a clean Windows PC and a clean Linux PC: build from source, new project, run, export.
-- [ ] **R2. ★ Installing without a build: publishing** (`docs/DECISIONS.md` "Users download only MealKit Manager" and "How the Manager installs"; packages, index writer and Manager installs are done, CHANGELOG "R2 ..." parts 1 to 7). Upload the engine, Manager and tool zips (Windows and Linux) to their repos' GitHub Releases and publish `index.json`, then make that address the Manager's default (today only `MEALKIT_RELEASE_INDEX`). Which repo holds the index (a new `MealKit-Releases` or `MealKit-Modules`) is picked then. This is the beta release itself.
-- [ ] A short demo video: 4 players and 8,000 physics boxes on integrated graphics.
-- [ ] Get outside feedback on the contracts (`docs/CONTRACTS.md`) and the first-run experience.
-- [ ] Read the Docs for `MealKit-Docs` and the Windows on ARM CI runner (both waited on publication).
-- [ ] Sponsorship (the user is looking into it): `FUNDING.yml` in the org `.github` repo once decided. GitHub Sponsors pays out to South Korea (Stripe, W-8BEN); Open Source Collective needs about 100 stars; taxes to check first.
+- **Moved to `docs/ROADMAP_HUMAN.md`** (need a person, a device or an account): R2 publishing (the beta release itself), GitHub settings check, push, first-run checks on clean PCs, README screenshot, demo video, outside feedback, Read the Docs, Windows on ARM runner, sponsorship, publishing the template modules.
 
 ---
 
@@ -128,7 +115,7 @@ The repos are public. What is missing is mostly what a first visitor sees, insta
 ### [ ] Designer independence D4 (decided 2026-11-04)
 Aimed at the moments a designer still needs a programmer. D1~D9 are done except D4; they only add keys and new object kinds to existing formats.
 - [ ] **D4. Squash and spring as data.** Together with FuseTag's character work (M5). `ViewTuning` exposes the numbers, but which event triggers which motion is fixed in FuseTag `view/Juice.cpp`. Move the generic parts into the engine and add feedback columns such as `squash` and `wobble`.
-- **Left over from done items**: D1 wasn't checked on a real PC without Visual Studio or on a network share, and the engine and editor binaries are still copied by hand (R2). D2's columns aren't used by a reference sample or a FuseTag row yet. D5 doesn't cover replays, and its Accept button hasn't been clicked in a check.
+- **Left over from done items**: D2's columns aren't used by a reference sample or a FuseTag row yet. D5 doesn't cover replays. D1's real PC check and D5's Accept click are in `docs/ROADMAP_HUMAN.md`.
 
 ### [ ] Shipped sound size and streaming (MkAudio + engine cook, the FMOD bank equivalent without a bank format; 2026-11-15)
 Today cook copies `.wav`/`.ogg` into the pack as they are (`game/Cook.cpp` `binary()`), and a clip read through `readFile` from a pack is loaded whole, so `stream` music isn't streamed in Export builds (`mkaudio/Mixer.h`). FuseTag ships 2.3 MB of wav, three music stems about 640 KB each.
@@ -171,11 +158,7 @@ Features common in Unity, Unreal, Godot or Defold that MealKit lacks, filtered b
 
 ## 8. Waiting on hardware or accounts
 
-Done when the user has the devices or accounts; stage 5 platforms wait on them.
-
-- [ ] **Minimum spec hardware** (11th gen Xe): re-measure the performance budget table, shadows and GPU budgets on that PC. Intel↔AMD determinism wasn't run (assumed passed, 2026-10-18).
-- [ ] **Real devices for input and online**: a real gamepad (XInput is untested with a pad; E2 needs it too), real Steam connection tests (assumed passed, 2026-10-18), PIX capture (code only).
-- [ ] **EOS backend, the rest** (part 1 done: device ID login, lobby codes, P2P, packet limit 1170 bytes): joining from two PCs and measuring relay RTT/4-player bandwidth (budget 10 KB/s), lobby owner on host migration, Steam login and invites through the portal's Steam provider, an `mp_test` EOS scenario. Needs two PCs and Epic portal setup (two processes on one PC share a device ID). Several online backends enabled together comes with it.
+Moved to `docs/ROADMAP_HUMAN.md` together with every other item that needs a person (devices, accounts, clean PCs, someone looking at a screen, the user's decisions).
 
 ---
 
@@ -200,13 +183,12 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 
 ### [ ] Cross-platform determinism between real devices
 - **Done on Windows** (2026-11-02): no floating-point contraction in any compiler (`/fp:precise`, `-ffp-contract=off`, no `-ffast-math`, Jolt `CROSS_PLATFORM_DETERMINISTIC=ON`), SimCheck SIM015 (no platform macros in `sim/`), `detmath-bits` matching across CI builds, `mp_test.ps1 -Peer host|join -Remote <address>` (one peer per device, per-tick hash log; two processes on one PC: 900 ticks, `desync=0`). Until passing, the determinism group is in the content hash and peers of other groups are refused.
-- **Left**: running it between real devices (Windows ↔ Linux/Steam Deck, Windows ↔ macOS ARM64), recording the results here, then merging the passing groups. Windows ↔ Linux can start now that the Linux game exe exists. Later mobile, wasm and console CPUs/compilers.
-- **If it fails**: revisit "Fixed-point gameplay math" in the `docs/DECISIONS.md` deferred table.
+- **Left**: running it between real devices: `docs/ROADMAP_HUMAN.md`. Later mobile, wasm and console CPUs/compilers.
 
 ### [ ] Crossplay
 - **Conditions for the same match**: the determinism group matches; the simulation version matches (game version + hash of `sim/` and engine simulation sources); the content hash is only platform-common data (collision, physics hulls, tuning, tables).
 - **Done on Windows** (2026-11-02): content hash from physics hull points only, lobby members carry `net::InputKind`, project setting `mixInputKinds`, player setting `gameplay.crossplay` (`RejectReason::Input`, `RejectReason::Crossplay`). Crossplay matches always go through EOS lobbies/P2P.
-- **Left**: verifying a Windows ↔ Linux/macOS match over EOS on real devices. The lobby attribute filter comes with E3.
+- **Left**: a Windows ↔ Linux/macOS match over EOS on real devices (`docs/ROADMAP_HUMAN.md`). The lobby attribute filter comes with E3.
 
 ### [ ] Editors on other OSes (macOS)
 - **Done on Windows** (2026-11-02, v0.8.1): build logic in `tools/build.ps1` (PowerShell 5.1 and 7), `build.ps1` for Linux/macOS, `check_layout` catches asset references with differing case, default symbol visibility and PIC on Linux/macOS Editor builds, `dlopen` loading, game library `<name>_game.dll/.so/.dylib`, editor project paths with `/`.
@@ -214,7 +196,7 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 - **Left**: macOS window/input/process layers and signed library rules for hot reload. Exporting for platforms the editor's OS can't build (macOS/iOS only on macOS): remote builds or CI, decided then.
 
 ### [ ] Consoles (Xbox, PlayStation, Switch)
-- **Start conditions**: registration in each platform's developer program and dev kits.
+- **Start conditions**: registration and dev kits (`docs/ROADMAP_HUMAN.md`).
 - **Code location**: console SDKs and code on top of them are under NDA and aren't put in this repo. Platform layer implementations, RHI backends and online service backends live in a private repo, and CMake includes them if `MEALKIT_PRIVATE_PLATFORMS` exists (the Steam SDK stub approach).
 - **Certification requirements in the design ahead of time**: suspend/resume is a disconnect + reconnect in lockstep matches; user sign-in/switching and controller disconnect notices; saves only through the platform layer's save functions; achievements, friends and invites through the online service layer (crossplay lobbies are EOS).
 - **Minimum spec**: Switch gets a separate table.
@@ -231,7 +213,7 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 - Docs repo: `--dump-reference` reference generation and Weblate (with A3).
 
 ### [ ] Game code build time: what is left (done part in `docs/CHANGELOG.md` "Game code build time")
-- Windows only, not measured yet: time `vcvars64.bat` and the CMake configure per open on the Windows editor, and if they are seconds, cache the vcvars64 environment between builds instead of running it each time. Also measure the MSVC compile with and without the new precompiled header (`-DMEALKIT_GAME_PCH=OFF`) and check `/Zi` PDB sharing with it.
+- Windows only, not measured yet (`docs/ROADMAP_HUMAN.md`): time `vcvars64.bat` and the CMake configure per open on the Windows editor, and if they are seconds, cache the vcvars64 environment between builds instead of running it each time. Also measure the MSVC compile with and without the new precompiled header (`-DMEALKIT_GAME_PCH=OFF`) and check `/Zi` PDB sharing with it.
 - Dropped by the Linux numbers: fewer engine headers in `app/` files (`GameSession.cpp`: 5.8 s of which header parsing is about 0.6 s, the rest is code generation). Reopen only if the MSVC numbers differ.
 
 ### [ ] External library review follow-ups (reviewed 2026-10-29)
@@ -244,7 +226,7 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 - One peer provides several player slots (tick input stays 8 bytes per player); it can mix with online. Shared camera or split screen (several viewports, `buildFrame` per player), per-player UI focus, input actions assign devices to local players.
 - **Determinism**: only the slot count changes. A "two players on one peer" scenario in `mp_test`. **Cost**: medium to large.
 
-### [ ] Game screen UI part 3: Penpot sources for the default screens — when a designer who works in Penpot appears
+### [ ] Game screen UI part 3: Penpot sources for the default screens — needs a designer who works in Penpot (`docs/ROADMAP_HUMAN.md`)
 - Redraw the hand-written default screens (title, menu, join, lobby, loading, pause, results, message, settings, HUD) in Penpot and export them to `art/ui/`. Penpot sources are saved by hand (`docs/DECISIONS.md` 2026-10-20). Check state variants and per-token-set themes in real Penpot at the same time. Screens are otherwise edited in MkUI Designer.
 
 ### [ ] Optimization candidates (proposed 2026-10-29) — wait for a measured bottleneck
@@ -295,7 +277,6 @@ Items, in suggested order:
 - [ ] **UI features** (one at a time as games need them, each checked against the 11th gen Xe budget): virtualized long lists, UI cost numbers (quads, layout ms) in the benchmark budget, keyframe timeline animation (deferred table), per-player focus for local multiplayer, right-to-left and complex-script shaping.
 - [ ] **Audio features** (in MkAudio, runtime + tool together, one at a time): master limiter + loudness meter (LUFS), bus effect chains (EQ, compressor/limiter, delay) and sidechain compression in place of volume-only ducking, clip sets loaded/unloaded per scene with a memory budget warning, a voice/profiler timeline over the live `audio/` state, dialogue lines (queue, priority, tied to subtitles), Steam Audio HRTF (deferred table).
 - [ ] **Achievements, leaderboards, stats** (`docs/DECISIONS.md` 2026-11-02): reviewed again once the platform SDK work (Steam, EOS, console trophies) is confirmed. Plan as it stood: the game defines achievement conditions as simulation events, the view side records them through the online service layer, the achievement list is one piece of data exported for each service, and without a service stats are kept in the user data folder. No effect on determinism.
-- [ ] **MkRender leftovers** (`docs/DECISIONS.md` 2026-11-12; `mkrhi`, `mkrender` and its render goldens without the engine are done, CHANGELOG "MkRender leftovers: render goldens without the engine"): whether to publish it as a product of its own.
 
 ---
 
