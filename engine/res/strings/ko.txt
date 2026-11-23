@@ -877,3 +877,7 @@ Bones = 본
 Texture size = 텍스처 크기
 %u LODs, %zu clips, %u textures = LOD %u개, 클립 %zu개, 텍스처 %u개
 The sound could not be read = 사운드를 읽지 못했습니다
+Click a shortcut, then press the new keys. Backspace removes it, Esc cancels. = 단축키를 누른 뒤 새 키를 입력하세요. Backspace는 지우기, Esc는 취소입니다.
+Press a key... = 키를 누르세요...
+Reset to the default shortcut = 기본 단축키로 되돌리기
+%s is used by %s. Use it for %s instead? = %s은(는) %s에서 쓰는 키입니다. %s에 대신 쓸까요?
