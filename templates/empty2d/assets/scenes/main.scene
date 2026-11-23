@@ -94,3 +94,55 @@ scale 1 1 1
 color FF5ADCFF
 flags 0
 end
+
+entity
+id 9
+name Ground art
+kind sprite
+position 0 -0.5 -1.01
+rotation 0 0 0 1
+scale 1 1 1
+color FFFFFFFF
+field image textures/ground.png
+field pixelsPerUnit 16
+field pixelArt true
+end
+
+entity
+id 10
+name Platform 1 art
+kind sprite
+position -6 2.5 -1.01
+rotation 0 0 0 1
+scale 1 1 1
+color FFFFFFFF
+field image textures/platform_4.png
+field pixelsPerUnit 16
+field pixelArt true
+end
+
+entity
+id 11
+name Platform 2 art
+kind sprite
+position 2 4.5 -1.01
+rotation 0 0 0 1
+scale 1 1 1
+color FFFFFFFF
+field image textures/platform_4.png
+field pixelsPerUnit 16
+field pixelArt true
+end
+
+entity
+id 12
+name Platform 3 art
+kind sprite
+position 9 3 -1.01
+rotation 0 0 0 1
+scale 1 1 1
+color FFFFFFFF
+field image textures/platform_3.png
+field pixelsPerUnit 16
+field pixelArt true
+end

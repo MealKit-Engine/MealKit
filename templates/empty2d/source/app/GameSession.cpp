@@ -109,7 +109,7 @@ void GameSession::buildFrame(game::GameContext& ctx, f64 now, render::FrameParam
     else m_clips.poll(m_viewTime - m_clipsPolled);
     m_clipsPolled = m_viewTime;
     drawScene(m_scene, ctx.models, *m_sprites, m_clips, frame.cameraPos, m_viewTime, out);
-    if (sim().started()) drawWorld(sim().previous(), sim().world().state, sim().alpha(), look, ctx.models, out);
+    if (sim().started()) drawWorld(sim().previous(), sim().world().state, sim().alpha(), look, ctx.models, *m_sprites, m_clips, m_viewTime, m_facing, out);
 }
 
 } // namespace sandbox

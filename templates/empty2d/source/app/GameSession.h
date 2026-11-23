@@ -55,6 +55,7 @@ private:
     mealkit::f64 m_menuTime = 0.0;                          // last buildFrame time (camera dt before the match)
     std::unique_ptr<mealkit::render::SpriteTextures> m_sprites; // sprite images (render/Sprites.h), made on the first draw
     mealkit::render::SpriteClips m_clips;                   // flipbook clips (assets/tables/sprite_clips.table), loaded on the first draw
+    PawnFacing m_facing;                                    // which way each character faces (view/Draw.h)
     bool m_clipsLoaded = false;
     mealkit::f64 m_clipsPolled = 0.0;                       // m_viewTime of the last table file check
     mealkit::f64 m_viewTime = 0.0;                          // clock for view animation (sum of update dt)

@@ -39,7 +39,6 @@ using PlayerColors = std::array<Color, mealkit::session::kMaxPlayers>;
 
 MEALKIT_STRUCT(ViewTuning) {
     MEALKIT_FIELD(CameraTuning, camera, {}, "카메라");
-    MEALKIT_FIELD(Vec3, pawnSize, (Vec3{0.8f, 1.8f, 0.8f}), "캐릭터 크기 (m, 상자로 그린다)");
     MEALKIT_FIELD(PlayerColors, playerColors,
                   (PlayerColors{Color::rgb(66, 135, 245), Color::rgb(235, 64, 52), Color::rgb(52, 199, 89),
                                 Color::rgb(250, 204, 21), Color::rgb(168, 85, 247), Color::rgb(236, 72, 153),

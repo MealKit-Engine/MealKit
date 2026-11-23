@@ -1,0 +1,19 @@
+# MealKit table (SpriteClip). Edit it in the editor's [Tables] panel. Row id = clip name; frames are cells of the sheet counted from the top left.
+# hero_idle and hero_run are played by view/Draw.cpp drawWorld for the characters (textures/hero.png, made by tools/make_empty2d_art.py).
+@format table 1
+
+row hero_idle
+image textures/hero.png
+columns 4
+rows 2
+firstCell 0
+frames 4
+fps 3
+
+row hero_run
+image textures/hero.png
+columns 4
+rows 2
+firstCell 4
+frames 4
+fps 10

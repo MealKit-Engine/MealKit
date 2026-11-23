@@ -2,6 +2,8 @@
 
 #include "mealkit/render/SceneLights.h"
 
+#include <cmath>
+
 using namespace mealkit;
 
 namespace sandbox {
@@ -59,12 +61,25 @@ void drawScene(const scene::Scene& scene, asset::ModelCache& models, render::Spr
 }
 
 void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, const ViewTuning& look, asset::ModelCache& models,
-               render::DrawList& out) {
-    const render::MeshId box = models.boxMesh();
+               render::SpriteTextures& sprites, const render::SpriteClips& clips, f64 viewTime, PawnFacing& facing, render::DrawList& out) {
+    (void)models;
     for (auto [id, pawn] : current.pawns) {
         const Pawn* before = previous.pawns.get(id); // nullptr when it appeared this tick
         const Vec3 at = lerp(before ? before->position : pawn.position, pawn.position, alpha);
-        out.add(box, {at, look.playerColors[pawn.player % look.playerColors.size()].value, Quat{}, look.pawnSize, 0});
+        const u32 slot = pawn.player % static_cast<u32>(facing.left.size());
+        if (pawn.velocity.x < -0.1f) facing.left[slot] = true; // keeps the last direction while standing
+        else if (pawn.velocity.x > 0.1f) facing.left[slot] = false;
+        const bool running = std::fabs(pawn.velocity.x) > 0.1f;
+        // The character is a sprite object made on the fly: the hero sheet's clips (sprite_clips.table), mirrored to face left,
+        // tinted with the player color. It sits in front of the platforms (z = -1.5) and is drawn at the pawn's center
+        scene::Entity e;
+        e.type = scene::kTypeSprite;
+        e.position = {at.x, at.y, -1.5f};
+        e.color = look.playerColors[pawn.player % look.playerColors.size()].value;
+        e.fields = {{"pixelsPerUnit", "16"}, {"pixelArt", "true"}, {"layer", "1"}};
+        if (facing.left[slot]) e.fields.emplace_back("flipX", "true");
+        render::SpriteAnim anim{&clips, viewTime, running ? "hero_run" : "hero_idle", 0.0};
+        render::addSprite(out, sprites, e, {e.position, Quat{}, Vec3{1.0f, 1.0f, 1.0f}}, &anim);
     }
 }
 

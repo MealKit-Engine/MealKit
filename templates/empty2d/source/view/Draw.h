@@ -9,6 +9,7 @@
 #include "mealkit/render/Sprites.h"
 #include "mealkit/scene/Scene.h"
 
+#include <array>
 #include <vector>
 
 // Scene drawing. Simulation state is only read.
@@ -23,8 +24,13 @@ void applyProbes(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache&
 // Static scene objects (spawn points and areas aren't drawn), sprites included
 void drawScene(const mealkit::scene::Scene& scene, mealkit::asset::ModelCache& models, mealkit::render::SpriteTextures& sprites, const mealkit::render::SpriteClips& clips, const Vec3& eye, mealkit::f64 viewTime,
                mealkit::render::DrawList& out);
-// Characters interpolated by alpha between the previous and current tick
-void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, const ViewTuning& look,
-               mealkit::asset::ModelCache& models, mealkit::render::DrawList& out);
+// Which way each player's character faces (kept by the view between frames: the simulation has no facing)
+struct PawnFacing {
+    std::array<bool, mealkit::session::kMaxPlayers> left{};
+};
+// Characters interpolated by alpha between the previous and current tick, drawn as sprites (hero_idle / hero_run clips)
+void drawWorld(const WorldState& previous, const WorldState& current, f32 alpha, const ViewTuning& look, mealkit::asset::ModelCache& models,
+               mealkit::render::SpriteTextures& sprites, const mealkit::render::SpriteClips& clips, mealkit::f64 viewTime, PawnFacing& facing,
+               mealkit::render::DrawList& out);
 
 } // namespace sandbox
