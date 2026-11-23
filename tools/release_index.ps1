@@ -1,10 +1,12 @@
 ﻿# Adds an engine package (tools\package_engine.ps1) to the suite release index MealKit Manager reads (ROADMAP R2, docs/DECISIONS.md "How the Manager installs"):
 #   tools\release_index.ps1 -Index <index.json> -Zip <mealkit-engine-*.zip> -Url <where the zip is downloaded from>
 # The index is created if missing. Only the newest patch of each engine MINOR is kept: adding 0.9.5 drops 0.9.4.
+# Platforms: windows-x64 and linux-x64 packages share one index. Every engine and tool entry has a "platform" field; an entry without one (older indexes) is windows-x64.
+# One engine MINOR keeps one newest patch per platform, and one tool keeps one entry per platform. The Manager package is Windows only for now.
 # Format (format 1):
 # A MealKit Manager package (mealkit-manager-*.zip) sets the one "manager" entry instead; a tool package (mealkit-tool-<name>-*.zip,
 # tools\package_tool.ps1, needs -Engines) sets that tool's entry in "tools": { "name", "version", "url", "size", "sha256", "protocol", "engines": ["0.9"], "summary", "icon" } (the last two from its manifest, when it has them).
-#   { "format": 1, "manager": { "version": ..., "url": ..., "size": ..., "sha256": ... }, "engines": [ { "version": "0.9.4", "url": "...", "size": 39366595, "sha256": "..." } ], "tools": [] }
+#   { "format": 1, "manager": { "version": ..., "url": ..., "size": ..., "sha256": ... }, "engines": [ { "version": "0.9.4", "platform": "windows-x64", "url": "...", "size": 39366595, "sha256": "..." } ], "tools": [] }
 param(
     [Parameter(Mandatory = $true)][string]$Index,
     [Parameter(Mandatory = $true)][string]$Zip,
@@ -14,6 +16,9 @@ param(
 $ErrorActionPreference = "Stop"
 if (-not (Test-Path $Zip)) { Write-Host "[MealKit] $Zip not found"; exit 1 }
 $name = Split-Path $Zip -Leaf
+$platform = "windows-x64"
+if ($name -match '-(windows-x64|linux-x64)\.zip$') { $platform = $Matches[1] }
+$namePlain = $name -replace '-(windows-x64|linux-x64)\.zip$', '-windows-x64.zip' # the package patterns below are written once, for the Windows name
 $engines = @()
 $tools = @()
 $manager = $null
@@ -32,13 +37,15 @@ function Save {
     $json = [pscustomobject]$o | ConvertTo-Json -Depth 6
     [IO.File]::WriteAllText([IO.Path]::GetFullPath($Index), $json + "`n", (New-Object Text.UTF8Encoding $false))
 }
+function PlatformOf($e) { if ($e.platform) { return [string]$e.platform } return "windows-x64" }
 function Entry([string]$v) {
-    return [pscustomobject]@{ version = $v; url = $Url; size = (Get-Item $Zip).Length; sha256 = (Get-FileHash $Zip -Algorithm SHA256).Hash.ToLower() }
+    return [pscustomobject]@{ version = $v; platform = $platform; url = $Url; size = (Get-Item $Zip).Length; sha256 = (Get-FileHash $Zip -Algorithm SHA256).Hash.ToLower() }
 }
 
 # MealKit Manager package (its scripts\package.ps1): one entry, the newest; the Manager's update check reads it
-if ($name -match '^mealkit-manager-(\d+\.\d+\.\d+)-windows-x64\.zip$') {
+if ($namePlain -match '^mealkit-manager-(\d+\.\d+\.\d+)-windows-x64\.zip$') {
     $v = $Matches[1]
+    if ($platform -ne "windows-x64") { Write-Host "[MealKit] the Manager package is windows-x64 only for now: $name"; exit 1 }
     if ($manager -and [version]$manager.version -gt [version]$v) { Write-Host "[MealKit] $Index already has Manager $($manager.version), newer than $v"; exit 1 }
     $manager = Entry $v
     Save
@@ -47,7 +54,7 @@ if ($name -match '^mealkit-manager-(\d+\.\d+\.\d+)-windows-x64\.zip$') {
 }
 # Tool package (tools\package_tool.ps1): one entry per tool, the newest, with its live protocol (from its mealkit-tool.txt) and
 # the engine MINORs it works with (-Engines "0.9,0.10"): the Manager offers it only next to a matching engine
-if ($name -match '^mealkit-tool-([A-Za-z][A-Za-z0-9_-]*)-(\d+\.\d+\.\d+)-windows-x64\.zip$') {
+if ($namePlain -match '^mealkit-tool-([A-Za-z][A-Za-z0-9_-]*)-(\d+\.\d+\.\d+)-windows-x64\.zip$') {
     $toolName = $Matches[1]
     $v = $Matches[2]
     $minors = @($ForEngines -split '[,\s]+' | Where-Object { $_ })
@@ -63,7 +70,7 @@ if ($name -match '^mealkit-tool-([A-Za-z][A-Za-z0-9_-]*)-(\d+\.\d+\.\d+)-windows
     } finally { $archive.Dispose() }
     if ($text -notmatch '(?m)^\s*protocol\s+(\d+)') { Write-Host "[MealKit] its mealkit-tool.txt has no protocol line"; exit 1 }
     $protocol = [int]$Matches[1]
-    $existing = $tools | Where-Object { $_.name -eq $toolName } | Select-Object -First 1
+    $existing = $tools | Where-Object { $_.name -eq $toolName -and (PlatformOf $_) -eq $platform } | Select-Object -First 1
     if ($existing -and [version]$existing.version -gt [version]$v) { Write-Host "[MealKit] $Index already has $toolName $($existing.version), newer than $v"; exit 1 }
     $entry = Entry $v
     $entry | Add-Member -NotePropertyName name -NotePropertyValue $toolName
@@ -73,23 +80,23 @@ if ($name -match '^mealkit-tool-([A-Za-z][A-Za-z0-9_-]*)-(\d+\.\d+\.\d+)-windows
     foreach ($key in @("summary", "icon")) {
         if ($text -match "(?m)^\s*$key\s+(.+?)\s*$") { $entry | Add-Member -NotePropertyName $key -NotePropertyValue $Matches[1] }
     }
-    $tools = @($tools | Where-Object { $_.name -ne $toolName }) + $entry
-    $tools = @($tools | Sort-Object name)
+    $tools = @($tools | Where-Object { -not ($_.name -eq $toolName -and (PlatformOf $_) -eq $platform) }) + $entry
+    $tools = @($tools | Sort-Object name, { PlatformOf $_ })
     Save
-    Write-Host "[MealKit] $Index`: tool $toolName $v (protocol $protocol, engines $($minors -join ', '))"
+    Write-Host "[MealKit] $Index`: tool $toolName $v ($platform, protocol $protocol, engines $($minors -join ', '))"
     exit 0
 }
-if ($name -notmatch '^mealkit-engine-(\d+)\.(\d+)\.(\d+)-windows-x64\.zip$') { Write-Host "[MealKit] not an engine, tool or Manager package name: $name"; exit 1 }
+if ($namePlain -notmatch '^mealkit-engine-(\d+)\.(\d+)\.(\d+)-windows-x64\.zip$') { Write-Host "[MealKit] not an engine, tool or Manager package name: $name"; exit 1 }
 $version = "$($Matches[1]).$($Matches[2]).$($Matches[3])"
 $minor = "$($Matches[1]).$($Matches[2])"
 foreach ($e in $engines) {
-    if ($e.version.StartsWith("$minor.") -and [version]$e.version -gt [version]$version) {
+    if ((PlatformOf $e) -eq $platform -and $e.version.StartsWith("$minor.") -and [version]$e.version -gt [version]$version) {
         Write-Host "[MealKit] $Index already has $($e.version), newer than $version"; exit 1
     }
 }
-$engines = @($engines | Where-Object { -not $_.version.StartsWith("$minor.") })
+$engines = @($engines | Where-Object { -not ((PlatformOf $_) -eq $platform -and $_.version.StartsWith("$minor.")) })
 $engines += Entry $version
-$engines = @($engines | Sort-Object { [version]$_.version } -Descending)
+$engines = @($engines | Sort-Object @{ Expression = { [version]$_.version }; Descending = $true }, { PlatformOf $_ })
 Save
-Write-Host "[MealKit] $Index`: engine $version ($($engines.Count) engine versions listed)"
+Write-Host "[MealKit] $Index`: engine $version $platform ($($engines.Count) engine versions listed)"
 exit 0
