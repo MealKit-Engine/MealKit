@@ -457,6 +457,7 @@ if(NOT MEALKIT_HEADLESS_ONLY)
     set(MKRHI_TRACY_TARGET mealkit_tracy)
     set(MKRENDER_OBJECT_LIBRARIES ON)
     set(MKRENDER_BUILD_TESTS OFF)
+    set(MKRENDER_DEBUG_VIEWS ${MEALKIT_DEBUG_UI}) # the editor-only view modes (DebugView::BaseColor and later) stay out of shipping builds
     set(MKRENDER_DXC ${MEALKIT_SHADER_DXC})
     set(MKRENDER_USER_CONFIG "mealkit/render/MkRenderConfig.h")
     set(MKRENDER_USER_CONFIG_INCLUDE_DIRS ${MEALKIT_MODULE_INCLUDES})

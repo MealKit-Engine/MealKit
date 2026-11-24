@@ -15,7 +15,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 
 Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
 
-**Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T1, T2, T4 → AI agents A7, A3, A5 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) → Modules ⑨ (`health` first) → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
+**Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T2, T4 → AI agents A7, A3, A5 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) → Modules ⑨ (`health` first) → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
 
 ## Decision criteria
 
@@ -172,10 +172,9 @@ Aimed at a technical artist (TA) who owns a game's look: writing shaders, checki
 
 **Principle**: shaders are text edited in an external editor, and looks are checked and tuned in the MealKit editor. A node graph is reviewed only if surface functions have been used and TAs who don't write code are blocked by them.
 
-**Suggested order**: T1, T2, T4 (small, useful with the current presets) → T5, T3 when a TA is comparing looks (T10 if an engine upgrade breaks a game's look). All are editor or tool work or debug-only shader paths, view-side. T6~T9 and T11~T14 build on project surface shaders, whose API shape is the user's decision: they are in `docs/ROADMAP_HUMAN.md` "Blocked on a decision".
+**Suggested order**: T2, T4 (small, useful with the current presets) → T5, T3 when a TA is comparing looks (T10 if an engine upgrade breaks a game's look). All are editor or tool work or debug-only shader paths, view-side. T6~T9 and T11~T14 build on project surface shaders, whose API shape is the user's decision: they are in `docs/ROADMAP_HUMAN.md` "Blocked on a decision".
 
 ### Checking a look (no project shaders needed)
-- [ ] T1. ★ **More view modes** (S). Add base color, roughness, metallic, emissive, sun only, ambient only, reflections only, shadow cascades, mip level and texel density to `render::DebugView`. They extend the `debugView` branches in `PSMain` (`Forward.hlsl`), which are compiled into the shipping shader today, so the new modes sit behind a define that builds only with the debug UI. DX12 and Vulkan.
 - [ ] T2. ★ **Pixel inspector** (S). Click the scene view or [Look Dev] to see that pixel's linear HDR value, luminance, value after exposure and final sRGB. Needs a readback of the HDR target (`Renderer::captureTarget` reads 8-bit targets today).
 - [ ] T4. ★ **[Materials] page in [Look Dev]** (S). Read-only list of the selected model's materials: factors, textures with size and format, features and their values, the features ignored on load, and which meshes use each one; clicking a row highlights those triangles. Values stay in Blender.
 - [ ] T5. ★ **Cost comparison** (M). A page like [Debug] > [Balance] that runs `--benchmark` on a scene twice (before and after a change, or with a project setting flipped) and shows the difference per `render::GpuPass`, saying which GPU the numbers came from.
