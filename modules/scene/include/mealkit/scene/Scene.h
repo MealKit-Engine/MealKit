@@ -28,6 +28,8 @@ inline constexpr const char* kTypeReverbZone = "reverb_zone"; // reverb area (vi
 inline constexpr const char* kTypeTerrain = "terrain"; // heightmap terrain (colliding, fields are TerrainFields, asset/Terrain.h). size = the box the heights fill
 inline constexpr const char* kTypeSprite = "sprite"; // image in the world (view only, fields are SpriteFields, render/Sprites.h). color = tint
 
+inline constexpr const char* kTypeTilemap = "tilemap"; // painted grid of sheet cells (fields are TilemapFields); solid tiles collide as merged boxes (tilemapBoxes)
+
 // Fields of point light objects (a built-in kind, but edited with inspector/field lines like game kinds). Read with readObject<PointLightFields>(e)
 MEALKIT_STRUCT(PointLightFields) {
     MEALKIT_FIELD(Color, color, (Color::rgb(255, 214, 160)), "Light color");
@@ -66,6 +68,25 @@ MEALKIT_STRUCT(SpriteFields) {
     MEALKIT_FIELD(bool, flipX, false, "Flip horizontally");
     MEALKIT_FIELD(bool, flipY, false, "Flip vertically");
     MEALKIT_FIELD(bool, pixelArt, false, "Pixel art (nearest texel, no filtering)");
+};
+
+// Fields of tilemap objects (docs/DECISIONS.md 2026-11-24 "Tilemaps are one scene object"): one grid of cells of one sheet image on the
+// object's x/y plane, facing -z. The object's position is the grid's bottom left corner (z = the middle of its collision boxes), its scale z
+// the thickness of the collision boxes; rotation and scale x/y are ignored (cellSize sets the size). Look fields are view only; the grid, the
+// cell size and `solid` enter the content hash because solid cells collide.
+// cells: one token per cell, row by row from the top row, left to right, separated by spaces: a sheet cell number (from the top left of
+// the sheet, row by row) or "." for an empty cell. Missing tokens are empty. solid: sheet cell numbers that collide, "3 5 8-11".
+MEALKIT_STRUCT(TilemapFields) {
+    MEALKIT_VIEW_FIELD(std::string, image, {}, "Tile sheet (PNG relative to assets)");
+    MEALKIT_VIEW_FIELD(i32, columns, 1, "Sheet columns");
+    MEALKIT_VIEW_FIELD(i32, rows, 1, "Sheet rows");
+    MEALKIT_FIELD(i32, width, 16, "Grid width (cells)");
+    MEALKIT_FIELD(i32, height, 9, "Grid height (cells)");
+    MEALKIT_FIELD(f32, cellSize, 1.0f, "Cell size (m)");
+    MEALKIT_FIELD(std::string, solid, {}, "Solid tiles (sheet cell numbers, e.g. 3 5 8-11)");
+    MEALKIT_FIELD(std::string, cells, {}, "Cells (tile numbers row by row from the top, . = empty)");
+    MEALKIT_VIEW_FIELD(i32, layer, 0, "Layer (higher draws over lower)");
+    MEALKIT_VIEW_FIELD(bool, pixelArt, true, "Pixel art (nearest texel, no filtering)");
 };
 
 // Fields of scatter layers: one model painted many times. Instances are in file (written by the editor), not in the scene
@@ -226,6 +247,23 @@ std::string animField(const Entity& e);
 std::string terrainFile(const Entity& terrain);
 std::string scatterFileFor(const std::string& sceneName, const Entity& scatter); // terrain/<scene name>_<object id>.scatter
 std::string terrainFileFor(const std::string& sceneName, const Entity& terrain);
+
+// ---------------------------------------------------------------- Tilemaps
+inline constexpr i32 kMaxTilemapCells = 1 << 20; // width * height beyond this is cut (4 MB of tile numbers)
+inline constexpr i32 kNoTile = -1;
+// Tile numbers of a cells text, width * height entries row by row from the top (kNoTile for "." and missing or invalid tokens)
+std::vector<i32> parseTileCells(const std::string& text, i32 width, i32 height);
+std::string formatTileCells(const std::vector<i32>& tiles, i32 width, i32 height);
+// Whether a tile number is listed in a solid text ("3 5 8-11")
+bool tileIsSolid(const std::string& solidText, i32 tile);
+// Collision boxes of a tilemap object (only the object's position and scale z are used: pass objects of a flattened scene). Solid cells
+// are merged: runs of a row first, then equal runs of consecutive rows, in row order. Integer merging and one multiply per value, so
+// every platform gets the same boxes; deterministic, they enter the simulation like solid objects
+struct TileBox {
+    Vec3 center;
+    Vec3 size;
+};
+std::vector<TileBox> tilemapBoxes(const Entity& e);
 
 // Reads the fields of a game kind. Fields not in the scene get the declaration's defaults.
 template <class T>

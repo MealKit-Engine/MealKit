@@ -34,6 +34,14 @@ void loadScene(World& world, const scene::Scene& scene, mealkit::asset::ModelCac
             } else {
                 world.physics.createBox(e.scale * 0.5f, d);
             }
+        } else if (e.is(scene::kTypeTilemap)) { // solid tiles collide as merged boxes (scene::tilemapBoxes), like solid objects
+            for (const scene::TileBox& box : scene::tilemapBoxes(e)) {
+                BodyDesc d;
+                d.motion = Motion::Static;
+                d.position = box.center;
+                d.friction = world.tuning.solidFriction;
+                world.physics.createBox(box.size * 0.5f, d);
+            }
         } else if (e.is(scene::kTypeTerrain)) { // heightmap (rotation ignored: terrain is axis-aligned)
             const mealkit::asset::Terrain* terrain = models.terrain(scene::terrainFile(e));
             if (!terrain) continue;

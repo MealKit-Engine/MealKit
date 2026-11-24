@@ -48,6 +48,10 @@ void drawScene(const scene::Scene& scene, asset::ModelCache& models, render::Spr
             render::addSprite(out, sprites, e, {e.position, e.rotation, e.scale}, &anim);
             continue;
         }
+        if (e.is(scene::kTypeTilemap)) { // painted grid of sheet cells; the whole grid (up to kMaxSpritesPerFrame) when no view rect is known
+            render::addTilemap(out, sprites, e, {e.position, e.rotation, e.scale});
+            continue;
+        }
         if (e.is(scene::kTypeTerrain)) {
             if (asset::Terrain* terrain = models.terrain(scene::terrainFile(e)))
                 render::addTerrain(out, models, *terrain, e.position, e.scale, e.color, e.flags, eye);

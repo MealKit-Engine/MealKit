@@ -108,6 +108,14 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         t.flags = b.flags;
         return t;
     }();
+    static const reflect::TypeInfo tilemap = [] {
+        reflect::TypeInfo t = reflect::typeOf<TilemapFields>();
+        const reflect::TypeInfo b = makeBuiltin(kTypeTilemap, "Tilemap", 0);
+        t.name = b.name;
+        t.label = b.label;
+        t.flags = b.flags;
+        return t;
+    }();
     static const reflect::TypeInfo scatter = [] {
         reflect::TypeInfo t = reflect::typeOf<ScatterFields>();
         const reflect::TypeInfo b = makeBuiltin(kTypeScatter, "Scatter layer", reflect::kObjectCosmetic);
@@ -125,7 +133,7 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         return t;
     }();
     static const std::vector<const reflect::TypeInfo*> list{&solid,      &decoration,    &spawn,   &probe,   &pointLight,
-                                                            &reverbZone, &virtualCamera, &terrain, &scatter, &sprite};
+                                                            &reverbZone, &virtualCamera, &terrain, &scatter, &sprite, &tilemap};
     return list;
 }
 
@@ -145,6 +153,100 @@ std::string terrainFile(const Entity& terrain) {
     for (const auto& [key, value] : terrain.fields)
         if (key == "heightmap") return value;
     return {};
+}
+
+std::vector<i32> parseTileCells(const std::string& text, i32 width, i32 height) {
+    width = std::max(width, 0);
+    height = std::max(height, 0);
+    if (width && height > kMaxTilemapCells / width) height = kMaxTilemapCells / width;
+    std::vector<i32> tiles(static_cast<size_t>(width) * static_cast<size_t>(height), kNoTile);
+    size_t at = 0;
+    const char* p = text.c_str();
+    while (*p && at < tiles.size()) {
+        while (*p == ' ' || *p == '\t' || *p == '\n' || *p == '\r') ++p;
+        if (!*p) break;
+        i64 value = kNoTile;
+        if (*p >= '0' && *p <= '9') {
+            value = 0;
+            while (*p >= '0' && *p <= '9') value = std::min<i64>(value * 10 + (*p++ - '0'), 1 << 24);
+        }
+        while (*p && *p != ' ' && *p != '\t' && *p != '\n' && *p != '\r') ++p; // "." and anything invalid is an empty cell
+        tiles[at++] = static_cast<i32>(value);
+    }
+    return tiles;
+}
+
+std::string formatTileCells(const std::vector<i32>& tiles, i32 width, i32 height) {
+    std::string out;
+    const size_t count = std::min(tiles.size(), static_cast<size_t>(std::max(width, 0)) * static_cast<size_t>(std::max(height, 0)));
+    for (size_t i = 0; i < count; ++i) {
+        if (i) out += ' ';
+        out += tiles[i] < 0 ? std::string(".") : std::to_string(tiles[i]);
+    }
+    return out;
+}
+
+bool tileIsSolid(const std::string& solidText, i32 tile) {
+    if (tile < 0) return false;
+    const char* p = solidText.c_str();
+    while (*p) {
+        while (*p && (*p < '0' || *p > '9')) ++p;
+        if (!*p) break;
+        i64 a = 0;
+        while (*p >= '0' && *p <= '9') a = std::min<i64>(a * 10 + (*p++ - '0'), 1 << 24);
+        i64 b = a;
+        if (*p == '-' && p[1] >= '0' && p[1] <= '9') {
+            ++p;
+            b = 0;
+            while (*p >= '0' && *p <= '9') b = std::min<i64>(b * 10 + (*p++ - '0'), 1 << 24);
+        }
+        if (tile >= a && tile <= b) return true;
+    }
+    return false;
+}
+
+std::vector<TileBox> tilemapBoxes(const Entity& e) {
+    const TilemapFields f = readObject<TilemapFields>(e);
+    std::vector<TileBox> boxes;
+    const std::vector<i32> tiles = parseTileCells(f.cells, f.width, f.height);
+    const i32 width = f.width, height = static_cast<i32>(width > 0 ? tiles.size() / static_cast<size_t>(width) : 0);
+    if (width <= 0 || height <= 0 || !(f.cellSize > 0.0f)) return boxes;
+    std::vector<u8> solid(tiles.size(), 0);
+    for (size_t i = 0; i < tiles.size(); ++i) solid[i] = tileIsSolid(f.solid, tiles[i]) ? 1 : 0;
+    struct Run {
+        i32 x0, x1, row0, row1; // cells [x0, x1) over rows [row0, row1)
+        bool open;
+    };
+    std::vector<Run> runs; // rows are walked from the top; an open run grows downward while the next row has the same span
+    for (i32 row = 0; row < height; ++row) {
+        std::vector<std::pair<i32, i32>> spans;
+        for (i32 x = 0; x < width;) {
+            if (!solid[static_cast<size_t>(row) * static_cast<size_t>(width) + static_cast<size_t>(x)]) { ++x; continue; }
+            const i32 start = x;
+            while (x < width && solid[static_cast<size_t>(row) * static_cast<size_t>(width) + static_cast<size_t>(x)]) ++x;
+            spans.emplace_back(start, x);
+        }
+        for (Run& r : runs) {
+            if (!r.open) continue;
+            bool continued = false;
+            for (auto it = spans.begin(); it != spans.end(); ++it)
+                if (it->first == r.x0 && it->second == r.x1) {
+                    r.row1 = row + 1;
+                    spans.erase(it);
+                    continued = true;
+                    break;
+                }
+            if (!continued) r.open = false;
+        }
+        for (const auto& [a, b] : spans) runs.push_back({a, b, row, row + 1, true});
+    }
+    const f32 depth = std::max(e.scale.z, 0.0001f);
+    for (const Run& r : runs) {
+        const f32 w = static_cast<f32>(r.x1 - r.x0) * f.cellSize, h = static_cast<f32>(r.row1 - r.row0) * f.cellSize;
+        const f32 left = static_cast<f32>(r.x0) * f.cellSize, top = static_cast<f32>(height - r.row0) * f.cellSize;
+        boxes.push_back({{e.position.x + left + w * 0.5f, e.position.y + top - h * 0.5f, e.position.z}, {w, h, depth}});
+    }
+    return boxes;
 }
 
 std::string terrainFileFor(const std::string& sceneName, const Entity& terrain) {

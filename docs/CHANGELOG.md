@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Tilemaps (2026-11-24, ROADMAP "2D on the 3D engine" item 1; `docs/DECISIONS.md` 2026-11-24 "Tilemaps are one scene object")
+- **Object**: built-in kind `tilemap` (`scene::TilemapFields`, scene 0.3.2): `image`, `columns`, `rows` (sheet), `width`, `height`, `cellSize`, `solid`, `cells`, plus view fields `layer`, `pixelArt`. `cells` is text, one token per cell row by row from the top (`.` empty). Position = the grid's bottom left corner; rotation and x/y scale are ignored.
+- **Collision**: `scene::tilemapBoxes(entity)` merges solid cells into boxes (runs of a row, then equal runs of the next rows; integer merge, one multiply per value). `templates/empty2d/source/sim/World.cpp` creates them as static boxes like solid objects. The kind is not cosmetic, so grid, `cellSize` and `solid` are in the content hash; view fields are not.
+- **Drawing**: `render::addTilemap` (render 0.6.2) adds one sprite per painted cell (same texture, so the sprite pass batches them) and skips cells outside an optional `TileView`; the editor (0.2.21) and the empty2d template draw it. DX12 and Vulkan need nothing new (sprite pass).
+- **MkRender**: draws the cells, tilemap inspector (image, grid size with resize that keeps cells, cell size, layer, palette with right click = solid tile in red), paint tool (`B` or the Paint checkbox: left paints, shift or right erases, alt = camera; one stroke = one undo step).
+- **Checked**: `mealkit_tests --only render` (`scene_tilemaps`: cells text, solid list, merged boxes, hash); a project from `new_project.ps1 -Template empty2d` builds and its capture shows a tilemap; MkRender capture shows the cells and the inspector. Not checked: mouse painting in MkRender, DX12, collision in a live match, the docs repo (not updated).
+- **Left**: the manual pages in English and Korean; a tilemap in the empty2d template scene.
+
 ## 2D template art (2026-11-23, ROADMAP "2D on the 3D engine" item 1)
 - **Art**: made by us (CC0), drawn by `tools/make_empty2d_art.py` with the standard library only, for 16 pixels per meter: `textures/hero.png` (4 x 2 cells of 14 x 30 px: idle and run, light grey so the player color tints it), `ground.png`, `platform_4.png`, `platform_3.png`. `assets/tables/sprite_clips.table` has `hero_idle` (3 fps) and `hero_run` (10 fps).
 - **Scene**: `main.scene` keeps its solid boxes (they are the collision) and adds four sprite objects 0.01 m in front of their front faces (z = -1.01), which cover the boxes completely with `pixelArt` on.

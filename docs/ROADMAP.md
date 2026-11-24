@@ -2,13 +2,13 @@
 
 **Only work that is left** (what needs a person, a device or an account is in `docs/ROADMAP_HUMAN.md`). A finished item is removed from this document and its details go to `docs/CHANGELOG.md`; a name quoted elsewhere as ROADMAP "…" for a finished item is found there by the same name. Reasons for decisions and the "Deferred" table are in `docs/DECISIONS.md`. When the order changes, update this document.
 
-## Where it stands (v0.9.11, 2026-11-23)
+## Where it stands (v0.9.12, 2026-11-24)
 
 Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (v0.9.0, `docs/CONTRACTS.md`), the engine is a kernel plus 20 engine module repos (`docs/ENGINE_MODULES.md`), the game UI runtime and its Designer live in MkUI (UI 2a), the repos are public (first green public CI on Linux x64 and macOS ARM64 2026-11-03), and the editor builds and runs on Linux with Vulkan (2026-11-22). **The engine stays a 0.x beta with no planned 1.0** (`docs/DECISIONS.md` 2026-11-23 "MealKit stays 0.x beta"): work is not held back for a release, and contracts change only through the rules in "Versions".
 
 **Next, in order** (reordered 2026-11-23; the first item keeps the 2026-11-22 decision "Linux editor and editor reinforcement come first"; game work such as FuseTag M5/M6 waits until item 1 is done):
 1. **Linux editor finish and editor reinforcement** ("In progress").
-2. **2D on the 3D engine**: what is left is tilemaps.
+2. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
 3. **First beta release**: what a first visitor needs to install and try MealKit without hitting build traps ("First beta release": publication checks, R2 publishing, R1 collaboration setup, A1/A2 build and copy traps, the template modules published by name).
 4. **Game-facing gaps that FuseTag hits when game work resumes**: designer independence D4 (with FuseTag M5), shipped sound size and streaming, gamepad rumble (E2).
 5. **Multiplayer modes** (Relay, Dedicated) together with the lobby browser and quick match (E3) and spectator slots (E4).
@@ -83,7 +83,7 @@ Order inside the item: A, then B; C and D one piece at a time.
 ### [ ] 2. 2D on the 3D engine: sprite rendering + editor sprite object (decided 2026-11-10, `docs/DECISIONS.md` "2D games run on the 3D engine")
 - **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine", "Flipbook clips"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template, sprite editing in MkRender (image picker, sheet slicer, pivot presets, the `view2d` front view; `docs/CHANGELOG.md` "Scene editing in MkRender, leftovers") and flipbook clips (`sprite_clips.table`, the sprite object's `clip` field) with their MkRender preview, and the `sprites_front` golden shot.
 - **Left, in order**:
-  1. **Tilemaps** (Godot TileMap, Unity Tilemap): a painted grid of sheet cells as one scene object, drawn in one or two draws, with merged collision boxes that enter the content hash like solid objects; painting in MkRender. Every 2D game needs it before anything else in "Later" below.
+  (nothing left in the ordered list: tilemaps are done, `docs/CHANGELOG.md` "Tilemaps")
 - **Rules kept**: view only, nothing enters the simulation (collision stays solid objects, or a solid flag that makes a box of the sprite's size and then enters the content hash). Budget: a few hundred sprites in one or two draws. Lit sprites only as a later opt-in.
 - **Later, separate items**: 2D lights, a parallax layers helper.
 - **Checks**: render golden on DX12/Vulkan (`sprites_front` exists), an MkRender capture of a sprite scene in its 2D front view, the 2D template built from scratch.

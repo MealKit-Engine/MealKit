@@ -1751,6 +1751,44 @@ TEST_CASE(render, sprite_clips) {
     TEST_CHECK(none.count() == 0 && !none.find("coin.spin"));
 }
 
+// Tilemaps: cells text round trip, solid tile lists, merged collision boxes (runs, then equal rows), content hash covers the grid
+// and `solid` but not the look fields, and the draw skips empty cells and cells outside the view
+TEST_CASE(render, scene_tilemaps) {
+    const reflect::TypeInfo* type = scene::findType(scene::kTypeTilemap, nullptr);
+    TEST_CHECK(type && type->field("cells") && type->field("solid") && !(type->flags & reflect::kObjectCosmetic));
+    const std::vector<i32> tiles = scene::parseTileCells("1 . 2 x 3 4", 3, 2);
+    TEST_CHECK(tiles.size() == 6 && tiles[0] == 1 && tiles[1] == scene::kNoTile && tiles[2] == 2 && tiles[3] == scene::kNoTile && tiles[5] == 4);
+    TEST_CHECK(scene::formatTileCells(tiles, 3, 2) == "1 . 2 . 3 4");
+    TEST_CHECK(scene::parseTileCells("1", 2, 2).size() == 4 && scene::parseTileCells("", 0, 5).empty());
+    TEST_CHECK(scene::tileIsSolid("3 5 8-11", 3) && scene::tileIsSolid("3 5 8-11", 10) && !scene::tileIsSolid("3 5 8-11", 7) && !scene::tileIsSolid("3", -1));
+    scene::Scene s;
+    scene::Entity& e = s.add(scene::kTypeTilemap, "Ground");
+    e.position = {10.0f, 20.0f, 0.5f};
+    e.scale = {1.0f, 1.0f, 2.0f};
+    // 4 x 3 grid, solid tile 1:   1 1 . .     row 0 (top)
+    //                             1 1 . 1     row 1
+    //                             1 1 1 1     row 2 (bottom)
+    e.fields = {{"width", "4"}, {"height", "3"}, {"cellSize", "2"}, {"solid", "1"}, {"cells", "1 1 . . 1 1 . 1 1 1 1 1"}, {"columns", "2"}, {"rows", "1"}};
+    const std::vector<scene::TileBox> boxes = scene::tilemapBoxes(e);
+    TEST_CHECK(boxes.size() == 3);
+    if (boxes.size() == 3) { // the left two columns merge over rows 0 and 1; the single cell and the bottom row stay apart
+        TEST_CHECK(boxes[0].size.x == 4.0f && boxes[0].size.y == 4.0f && boxes[0].size.z == 2.0f);
+        TEST_CHECK(boxes[0].center.x == 12.0f && boxes[0].center.y == 24.0f && boxes[0].center.z == 0.5f);
+        TEST_CHECK(boxes[1].size.x == 2.0f && boxes[1].size.y == 2.0f && boxes[1].center.x == 17.0f && boxes[1].center.y == 23.0f);
+        TEST_CHECK(boxes[2].size.x == 8.0f && boxes[2].size.y == 2.0f && boxes[2].center.x == 14.0f && boxes[2].center.y == 21.0f);
+    }
+    const u64 base = s.contentHash();
+    e.fields.emplace_back("layer", "3");
+    e.fields.emplace_back("pixelArt", "false");
+    e.fields.emplace_back("image", "tiles/ground.png");
+    TEST_CHECK(s.contentHash() == base); // look fields are view only
+    for (auto& [key, value] : e.fields)
+        if (key == "solid") value = "0";
+    TEST_CHECK(s.contentHash() != base && scene::tilemapBoxes(e).empty());
+    scene::Scene empty;
+    TEST_CHECK(empty.contentHash() != base);
+}
+
 // Point lights: a built-in kind but with fields; scene object → render::PointLight (world position, linear color × intensity, disabled lights excluded)
 TEST_CASE(render, scene_point_lights) {
     const reflect::TypeInfo* type = scene::findType(scene::kTypePointLight, nullptr);
