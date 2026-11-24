@@ -150,18 +150,9 @@ $results = @()
 $step = 0
 
 # One item: PASS if $body returns $true. Output goes to a log file.
-# Groups that still need Windows (editor/MkRender captures, Windows folders): SKIP on Linux until they are ported (docs/ROADMAP.md)
-$windowsOnlyGroups = @("tools", "render", "editor")
-# Checks of those groups that already run on Linux (MkRender builds there: ../MkRender/build/linux/bin)
-$linuxChecks = @("MkRender capture (scene editing)", "Graphics regression (golden images)")
+# Every group runs on Windows and Linux. Items that need DX12 return "SKIP: ..." on Linux, where the Editor build is Vulkan (build.ps1)
 function Invoke-Check([string]$group, [string]$name, [scriptblock]$body) {
     if (-not (Selected $group)) { return }
-    if ((-not $onWindows) -and ($windowsOnlyGroups -contains $group) -and $name -notlike "*build*" -and $linuxChecks -notcontains $name) {
-        $script:step++
-        Write-Host ("{0,-4} {1,-34} {2,7:N1}s  {3}" -f "SKIP", $name, 0, "SKIP: group '$group' is Windows only for now") -ForegroundColor Yellow
-        $script:results += [pscustomobject]@{ Group = $group; Name = $name; Ok = $true; Skipped = $true; Warned = $false; Seconds = 0; Log = "" }
-        return
-    }
     $script:step++
     $log = Join-Path $out ("{0:D2}-{1}.log" -f $script:step, ($name -replace '[^A-Za-z0-9]+', '-'))
     $watch = [Diagnostics.Stopwatch]::StartNew()
@@ -528,14 +519,16 @@ if (-not $Quick) {
         [IO.File]::WriteAllText("$dir/good/mealkit-tool.txt", "# MealKit tool manifest`n@format tool 1`nname Check Tool`nexe $game`nversion 1.0`nprotocol 1`nopens .table`n")
         [IO.File]::WriteAllText("$dir/old/mealkit-tool.txt", "@format tool 1`nname Old Tool`nexe old$exeExt`nprotocol 999`n")
         $code = Run $log $editor "--list-tools --tool-path `"$dir`""
-        return $code -eq 0 -and (Has $log "^tool: Check Tool 1\.0 protocol 1 .*sandbox\.exe$") -and (Has $log "^tool: Old Tool .*\(protocol differs\)")
+        return $code -eq 0 -and (Has $log "^tool: Check Tool 1\.0 protocol 1 .*sandbox$([regex]::Escape($exeExt))$") -and (Has $log "^tool: Old Tool .*\(protocol differs\)")
     }
     # Blender add-on (ROADMAP "Blender export add-on"): runs Blender LTS without a window for check/export tests (SKIP if absent).
     # Whether the supported range schema matches the engine is checked by the asset_schema unit test
     Invoke-Check tools "Blender add-on export" {
         param($log)
         $blender = $env:MEALKIT_BLENDER
-        if (-not $blender) { $blender = "$env:ProgramFiles/Blender Foundation/Blender 5.2/blender$exeExt" }
+        if (-not $blender -and $onWindows) { $blender = "$env:ProgramFiles/Blender Foundation/Blender 5.2/blender$exeExt" }
+        if (-not $blender) { $blender = (Get-Command blender -ErrorAction SilentlyContinue).Source } # Linux: blender on PATH (snap, distro package)
+        if (-not $blender) { $blender = "blender" }
         if (-not (Test-Path $blender)) { return "SKIP: no Blender 5.2 (set MEALKIT_BLENDER)" }
         $dir = Join-Path $out "blender-addon"
         if (Test-Path $dir) { Remove-Item $dir -Recurse -Force }
@@ -589,11 +582,12 @@ if (-not $Quick) {
         return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]")
     }
     # Lookdev window (ROADMAP "Textures and materials part 3"): drawn to an offscreen target and shown in the window. No debug layer messages
-    Invoke-Check render "Editor look dev (offscreen, DX12 debug layer)" {
+    # (DX12 on Windows, the Vulkan validation layer on Linux when installed)
+    Invoke-Check render "Editor look dev (offscreen, debug layer)" {
         param($log)
         $png = Join-Path $out "editor-lookdev.png"
         $code = Run $log $editor "--project `"$sandbox`" `"$sandbox/assets/scenes/styles.scene`" --frames 60 --lookdev --lookdev-model models/props/style_figure.glb --debug --capture `"$png`""
-        return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]") -and -not (Has $log "\[D3D12\]")
+        return $code -eq 0 -and (Test-Path $png) -and -not (Has $log "\[ERROR\]") -and -not (Has $log "\[D3D12\]") -and -not (Has $log "\[Vulkan\]")
     }
     # Graphics regression test (ROADMAP "Graphics regression tests"): draws fixed scenes (engine\tests\golden\shots.txt) without UI and compares with reference images.
     # On differences, build\check\golden\<name>-diff.png (red = differing pixels). Different GPUs/drivers may differ slightly, so there's a threshold
@@ -634,11 +628,15 @@ if (-not $Quick) {
     }
     # RHI backends (ROADMAP stage 2 "RHI layer"): does the Vulkan editor draw the same scene the same as DX12, with no validation layer errors.
     # The editor edit screen is the same every run (the game screen changes over time). The status bar (fps) is excluded.
-    $vkEditorBin = Join-Path (Get-NewBuildDir $root "VulkanEditor") "bin"
+    # Linux has no DX12: the Editor build is already Vulkan, so the validation items run on it and the DX12 comparisons SKIP
+    $noDx12 = "SKIP: no DX12 on Linux (the Editor build is Vulkan)"
+    $vkEditorBin = if ($onWindows) { Join-Path (Get-NewBuildDir $root "VulkanEditor") "bin" } else { $editorBin }
     $vkEditor = Join-Path $vkEditorBin "MealKitEditor$exeExt"
-    Invoke-Check render "Vulkan editor build" { param($log) Build $log "VulkanEditor" }
+    $noValidation = if ($onWindows) { "SKIP: Vulkan SDK not installed (validation layer)" } else { "SKIP: Vulkan validation layer not installed (apt install vulkan-validationlayers)" }
+    Invoke-Check render "Vulkan editor build" { param($log) if (-not $onWindows) { return $noDx12 }; Build $log "VulkanEditor" }
     Invoke-Check render "Vulkan = DX12 (editor capture)" {
         param($log)
+        if (-not $onWindows) { return $noDx12 }
         # The window layout must match: uses the DX12 editor's layout file
         $ini = Join-Path $editorBin "mealkit_editor.ini"
         if (Test-Path $ini) { Copy-Item $ini $vkEditorBin -Force }
@@ -653,12 +651,16 @@ if (-not $Quick) {
         if ($LASTEXITCODE -ne 0) { return ($output | Select-Object -First 1) }
         return $true
     }
-    Invoke-Check render "Graphics regression (Vulkan)" { param($log) Compare-Golden $log (Join-Path $mkRenderRoot "build-vulkan/bin/MkRender$exeExt") "-vulkan" }
+    Invoke-Check render "Graphics regression (Vulkan)" {
+        param($log)
+        if (-not $onWindows) { return "SKIP: MkRender on Linux is Vulkan, compared in 'Graphics regression (golden images)'" }
+        Compare-Golden $log (Join-Path $mkRenderRoot "build-vulkan/bin/MkRender$exeExt") "-vulkan"
+    }
     Invoke-Check render "Vulkan validation layer (play)" {
         param($log)
         $png = Join-Path $out "vulkan-play.png"
         $code = Run $log $vkEditor "--project `"$sandbox`" --frames 180 --play --bot --debug --capture `"$png`""
-        if (Has $log "validation layer unavailable") { return "SKIP: Vulkan SDK not installed (validation layer)" }
+        if (Has $log "validation layer unavailable") { return $noValidation }
         if ($code -ne 0 -or -not (Has $log "Play mode")) { return "play failed" }
         $issues = @(Select-String -Path $log -Pattern "\[Vulkan\]")
         if ($issues.Count -gt 0) { return "$($issues.Count) validation message(s)" }
@@ -666,9 +668,10 @@ if (-not $Quick) {
     }
     Invoke-Check render "Vulkan validation layer (look dev)" {
         param($log)
+        if (-not $onWindows) { return "SKIP: on Linux this is 'Editor look dev (offscreen, debug layer)'" }
         $png = Join-Path $out "vulkan-lookdev.png"
         $code = Run $log $vkEditor "--project `"$sandbox`" `"$sandbox/assets/scenes/styles.scene`" --frames 60 --lookdev --lookdev-model models/props/style_figure.glb --debug --capture `"$png`""
-        if (Has $log "validation layer unavailable") { return "SKIP: Vulkan SDK not installed (validation layer)" }
+        if (Has $log "validation layer unavailable") { return $noValidation }
         if ($code -ne 0 -or -not (Test-Path $png)) { return "capture failed" }
         $issues = @(Select-String -Path $log -Pattern "\[Vulkan\]")
         if ($issues.Count -gt 0) { return "$($issues.Count) validation message(s)" }

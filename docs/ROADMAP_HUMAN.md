@@ -33,6 +33,7 @@ Each line says **what is needed** (device, account, eyes, clean PC, decision) an
 - [ ] **Drag a `gizmo=radius` handle by hand** in MkRender (ROADMAP item 1 B).
 - [ ] **MkRender next to the editor at the same DPI** (TOOL_DESIGN section 6 item 7): compare the look of both windows, then the MkRender row of section 7.
 - [ ] **MkRender hand editing checks and the Manager installing it** on Linux (ROADMAP item 1 A).
+- [ ] **Vulkan validation layer on the Linux machine** (needs `sudo apt install vulkan-validationlayers`): then `check.ps1 -Only render` runs "Vulkan validation layer (play)" and the look dev debug layer check with the layer on instead of SKIPping (CHANGELOG "check.ps1 on Linux").
 - [ ] **D5's Accept button** hasn't been clicked in a check.
 - [ ] **A screenshot or play GIF for the README** (`MealKitEditor --capture`): the user picks the shot. A **short demo video**: 4 players and 8,000 physics boxes on integrated graphics.
 

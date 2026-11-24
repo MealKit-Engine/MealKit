@@ -6,12 +6,11 @@
 
 Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (v0.9.0, `docs/CONTRACTS.md`), the engine is a kernel plus 20 engine module repos (`docs/ENGINE_MODULES.md`), the game UI runtime and its Designer live in MkUI (UI 2a), the repos are public (first green public CI on Linux x64 and macOS ARM64 2026-11-03), and the editor builds and runs on Linux with Vulkan (2026-11-22). **The engine stays a 0.x beta with no planned 1.0** (`docs/DECISIONS.md` 2026-11-23 "MealKit stays 0.x beta"): work is not held back for a release, and contracts change only through the rules in "Versions".
 
-**Next, in order** (reordered 2026-11-23; the first item keeps the 2026-11-22 decision "Linux editor and editor reinforcement come first"; game work such as FuseTag M5/M6 waits until item 1 is done):
-1. **Linux editor finish and editor reinforcement** ("In progress").
-2. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
-3. **Game-facing gaps that FuseTag hits when game work resumes**: designer independence D4 (with FuseTag M5).
-4. **UI 2**: MkUI's XAML-like layer, one piece at a time.
-5. **Proposals from other engines** E1, E5, E7, E8 in their suggested order, interleaved with the picked pool items below.
+**Next, in order** (reordered 2026-11-23; the Linux editor and editor reinforcement, the 2026-11-22 decision that came first, is done: `docs/CHANGELOG.md` "check.ps1 on Linux" and "Linux editor", so game work such as FuseTag M5/M6 can resume):
+1. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
+2. **Game-facing gaps that FuseTag hits when game work resumes**: designer independence D4 (with FuseTag M5).
+3. **UI 2**: MkUI's XAML-like layer, one piece at a time.
+4. **Proposals from other engines** E1, E5, E7, E8 in their suggested order, interleaved with the picked pool items below.
 
 Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
 
@@ -66,10 +65,6 @@ The engine version is `VERSION` at the repo root. **MealKit is a beta and stays 
 ---
 
 ## In progress
-
-### [ ] 1. Linux editor finish and editor reinforcement (decided 2026-11-22, `docs/DECISIONS.md` "Linux editor and editor reinforcement come first"; Linux done part in `docs/CHANGELOG.md` "Linux editor")
-Done parts: `docs/CHANGELOG.md` "Linux editor" and the entries it names (MkRender on Linux and its golden, the Manager and packaging on Linux, the Linux game exe, Export, `mp_test`, Debug/Profile/Presets and game project editor builds, the `.desktop` icon); C, editor reinforcement, is done too (CHANGELOG "Tables: Scale Selected", "Build profiles", "Status bar hints", "Rebindable editor shortcuts", "Asset browser preview pane"). Hand checks, clean machine runs, Steam login, the CI push and publishing are in `docs/ROADMAP_HUMAN.md`; MkRender's own items are in `../MkRender/docs/ROADMAP.md`. Left:
-- `check.ps1` on Linux: the tools, render and editor groups still SKIP (except the MkRender capture and the golden images, which run).
 
 ### [ ] 2. 2D on the 3D engine: sprite rendering + editor sprite object (decided 2026-11-10, `docs/DECISIONS.md` "2D games run on the 3D engine")
 - **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine", "Flipbook clips"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template, sprite editing in MkRender (image picker, sheet slicer, pivot presets, the `view2d` front view; `docs/CHANGELOG.md` "Scene editing in MkRender, leftovers") and flipbook clips (`sprite_clips.table`, the sprite object's `clip` field) with their MkRender preview, and the `sprites_front` golden shot.
