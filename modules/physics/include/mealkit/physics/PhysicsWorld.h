@@ -1,3 +1,4 @@
+// Vendored copy of module-physics v0.1.3; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Hash.h"

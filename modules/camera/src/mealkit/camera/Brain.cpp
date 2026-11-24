@@ -1,3 +1,4 @@
+// Vendored copy of module-camera v0.1.2; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/camera/Brain.h"
 
 #include <algorithm>

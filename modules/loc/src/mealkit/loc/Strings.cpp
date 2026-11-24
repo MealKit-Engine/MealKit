@@ -1,3 +1,4 @@
+// Vendored copy of module-loc v0.2.0; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/loc/Strings.h"
 
 #include "mealkit/core/Log.h"

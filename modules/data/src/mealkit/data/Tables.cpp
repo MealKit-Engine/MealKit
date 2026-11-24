@@ -1,3 +1,4 @@
+// Vendored copy of module-data v0.1.8; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/data/Tables.h"
 
 #include "mealkit/core/TextFormat.h"

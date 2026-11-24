@@ -1,3 +1,4 @@
+// Vendored copy of module-session v0.1.2; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/session/Session.h"
 
 #include "mealkit/core/Hash.h"

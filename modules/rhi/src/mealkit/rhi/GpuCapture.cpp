@@ -1,3 +1,4 @@
+// Vendored copy of module-rhi v0.2.0; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/rhi/GpuCapture.h"
 
 #if MEALKIT_DEBUG_UI

@@ -1,3 +1,4 @@
+// Vendored copy of module-live v0.1.2; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/live/Server.h"
 
 #include "mealkit/core/Log.h"

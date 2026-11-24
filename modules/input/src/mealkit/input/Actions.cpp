@@ -1,3 +1,4 @@
+// Vendored copy of module-input v0.1.2; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/input/Actions.h"
 
 #include "mealkit/asset/AnimStates.h"

@@ -1,3 +1,4 @@
+// Vendored copy of module-game v0.2.6; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/game/MatchService.h"
 
 #include "mealkit/core/Log.h"

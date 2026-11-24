@@ -1,3 +1,4 @@
+// Vendored copy of module-ui v0.1.14; change it in that repo (tools\module.ps1 update), not here.
 // stb_image implementation (UI image PNG, model textures, sky HDRI). External code, so warnings are off (engine/CMakeLists.txt).
 // stb_truetype (UI font SDF) is compiled in the mkui runtime (engine/libs/mkui).
 #define STB_IMAGE_IMPLEMENTATION

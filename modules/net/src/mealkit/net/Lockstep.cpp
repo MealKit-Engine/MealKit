@@ -1,3 +1,4 @@
+// Vendored copy of module-net v0.1.2; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/net/Lockstep.h"
 
 #include "mealkit/core/Compress.h"

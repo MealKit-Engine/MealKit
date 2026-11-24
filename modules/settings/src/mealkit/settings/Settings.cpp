@@ -1,3 +1,4 @@
+// Vendored copy of module-settings v0.1.5; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/settings/Settings.h"
 
 #if MEALKIT_HAS_AUDIO

@@ -1,3 +1,4 @@
+// Vendored copy of module-physics v0.1.3; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/physics/PhysicsWorld.h"
 
 #include "mealkit/core/Log.h"

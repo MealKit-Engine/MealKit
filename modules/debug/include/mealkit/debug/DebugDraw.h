@@ -1,3 +1,4 @@
+// Vendored copy of module-debug v0.1.4; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Math.h"

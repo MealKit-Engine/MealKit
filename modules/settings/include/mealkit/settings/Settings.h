@@ -1,3 +1,4 @@
+// Vendored copy of module-settings v0.1.5; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Reflect.h"

@@ -1,3 +1,4 @@
+// Vendored copy of module-asset v0.3.0; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/asset/MeshData.h"
 
 #include <cstring>

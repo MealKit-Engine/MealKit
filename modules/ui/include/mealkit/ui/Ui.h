@@ -1,3 +1,4 @@
+// Vendored copy of module-ui v0.1.14; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/render/Fwd.h"

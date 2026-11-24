@@ -1,3 +1,4 @@
+// Vendored copy of module-feedback v0.1.5; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/FeedbackPanel.h"
 
 #include "mealkit/editor/FieldEditor.h"

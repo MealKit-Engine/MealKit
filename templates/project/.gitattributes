@@ -1,0 +1,38 @@
+# Line endings and binary files for a MealKit project (manual: "Working in a team with Git").
+* text=auto
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.sh text eol=lf
+
+# MealKit text formats: one key per line, so Git merges them like source code
+*.scene text
+*.prefab text
+*.table text
+*.tuning text
+*.bindings text
+*.events text
+*.ui text
+*.project text
+
+# Binary assets (never converted, never merged)
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.hdr binary
+*.dds binary
+*.ktx2 binary
+*.glb binary
+*.bin binary
+*.wav binary
+*.ogg binary
+*.ttf binary
+*.otf binary
+*.pak binary
+
+# Git LFS is optional (needs git-lfs on every machine; many hosts limit LFS storage). To turn it on, uncomment, then run `git lfs install` once:
+#*.png filter=lfs diff=lfs merge=lfs -text
+#*.jpg filter=lfs diff=lfs merge=lfs -text
+#*.hdr filter=lfs diff=lfs merge=lfs -text
+#*.glb filter=lfs diff=lfs merge=lfs -text
+#*.wav filter=lfs diff=lfs merge=lfs -text
+#*.ogg filter=lfs diff=lfs merge=lfs -text

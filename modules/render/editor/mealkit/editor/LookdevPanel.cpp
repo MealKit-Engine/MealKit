@@ -1,3 +1,4 @@
+// Vendored copy of module-render v0.6.2; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/LookdevPanel.h"
 #include "mealkit/editor/FieldEditor.h"
 

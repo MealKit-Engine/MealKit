@@ -1,3 +1,4 @@
+// Vendored copy of module-editor v0.2.22; change it in that repo (tools\module.ps1 update), not here.
 // MealKitEditor: the general-purpose editor. Opens a project folder, loads that project's game DLL, and plays it.
 //
 //   MealKitEditor.exe                         project manager (recent projects, open, new project)

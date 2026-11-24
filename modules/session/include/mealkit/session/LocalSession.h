@@ -1,3 +1,4 @@
+// Vendored copy of module-session v0.1.2; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/session/Session.h"

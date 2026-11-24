@@ -1,3 +1,4 @@
+// Vendored copy of module-rhi v0.2.0; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include <string>

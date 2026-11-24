@@ -30,15 +30,17 @@ $onWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
 $projectDir = (Resolve-Path $Project).Path.TrimEnd("\", "/")
 $engineDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path.TrimEnd("\", "/")
 . (Join-Path $PSScriptRoot "build_dirs.ps1")
+. (Join-Path $PSScriptRoot "build_deps.ps1") # code page and header-dependency safety, so every caller of this script is protected (docs/CHANGELOG.md "Build traps")
 
 function Fail([string]$message) {
     Write-Host "[MealKit] $message"
+    Restore-BuildCodePage
     exit 1
 }
 # Runs a native command and stops on failure (PowerShell 5.1 doesn't stop on native exit codes)
 function Invoke-Native([string]$exe, [string[]]$arguments) {
     & $exe @arguments
-    if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+    if ($LASTEXITCODE -ne 0) { Restore-BuildCodePage; exit $LASTEXITCODE }
 }
 # Runs this script again for another configuration (engine editor build, Release for cooking)
 function Invoke-Self([string]$dir, [string]$config, [string]$failMessage) {
@@ -132,6 +134,9 @@ if ($onWindows) {
     if (-not $env:CXX) { $extra += "-DCMAKE_CXX_COMPILER=clang++" }
 }
 
+# The console's code page must be the one CMake detects msvc_deps_prefix in (Windows only; a UTF-8 console loses every header dependency)
+Set-BuildCodePage
+
 # The engine repository builds its reference samples: fetch the ones samples.lock pins and samples/ lacks (tools\sample.ps1 sync), so a
 # first build after cloning never meets a missing folder. A sample that is there is left alone (tools\sample.ps1 status compares it).
 $sampleLock = Join-Path $engineDir "samples.lock"
@@ -170,9 +175,25 @@ if (-not ($isEditor -and $configured)) {
     Invoke-Native "cmake" (@("-S", $projectDir, "-B", $buildDir, "-G", "Ninja", "--no-warn-unused-cli", "-DCMAKE_BUILD_TYPE=$buildType",
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DMEALKIT_ROOT=$engineDir") + $extra)
 }
+if (-not (Test-DepsPrefix $buildDir)) {
+    Fail "the compiler output doesn't match msvc_deps_prefix in ${buildDir}: a build now would lose header dependencies. Delete CMakeFiles\rules.ninja and CMakeCache.txt there to reconfigure."
+}
 $buildArgs = @("--build", $buildDir)
 if ($Target.Count) { $buildArgs += @("--target") + $Target }
 Invoke-Native "cmake" $buildArgs
+# Objects that lost their header dependencies (stale after a header or class layout change) are deleted and rebuilt once
+$zeroDeps = @(Get-ZeroDepObjects $buildDir)
+if ($zeroDeps.Count) {
+    Write-Host "[MealKit] $($zeroDeps.Count) object(s) have no recorded header dependencies; deleting them and rebuilding:"
+    foreach ($obj in $zeroDeps) {
+        Write-Host "  $obj"
+        Remove-Item -Force (Join-Path $buildDir $obj) -ErrorAction SilentlyContinue
+    }
+    Invoke-Native "cmake" $buildArgs
+    $zeroDeps = @(Get-ZeroDepObjects $buildDir)
+    if ($zeroDeps.Count) { Fail "still no header dependencies after rebuilding: $($zeroDeps -join ', ')" }
+}
+Restore-BuildCodePage
 # clangd and VS Code read build/compile_commands.json (.clangd, .vscode/settings.json): the Editor tree of this OS, which has every source
 if ($Config -eq "Editor") {
     $commands = Join-Path $buildDir "compile_commands.json"

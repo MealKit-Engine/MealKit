@@ -1,3 +1,4 @@
+// Vendored copy of module-asset v0.3.0; change it in that repo (tools\module.ps1 update), not here.
 // glTF import (asset/Cooked.h importModel): only in builds with MEALKIT_ASSET_IMPORT (dev builds, editor, headless). The shipping exe reads
 // cooked models only, so cgltf and meshoptimizer aren't linked into it.
 #include "mealkit/asset/Cooked.h"

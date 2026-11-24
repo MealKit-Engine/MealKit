@@ -17,6 +17,8 @@ $Project = (Resolve-Path $Project).Path.TrimEnd("\")
 # The engine repo's reference samples (samples\<name>): code is in sim/ view/ app/ next to assets/, libraries are the engine's
 $isEngine = (Split-Path -Parent $Project) -ieq (Join-Path $engine "samples")
 $utf8 = New-Object System.Text.UTF8Encoding $false
+. (Join-Path $PSScriptRoot "project_common.ps1")
+. (Join-Path $PSScriptRoot "vendor_header.ps1")
 
 # Kind folder → extensions (CODING_MODEL "Project folder layout")
 $kinds = [ordered]@{
@@ -111,6 +113,18 @@ if (Test-Path $modulesDir) {
             }
         }
         Check-Assets (Join-Path $m.FullName "assets") $false
+        # Vendored copy edited here: the module's repo is where it should change (tools\module.ps1 update keeps a changed file and writes <file>.new)
+        $recordFile = Join-Path $m.FullName "module.files"
+        if (Test-Path $recordFile) {
+            foreach ($line in [IO.File]::ReadAllLines($recordFile, $utf8)) {
+                if ($line -notmatch '^([0-9a-f]{64})\s+(.+)$') { continue }
+                $copy = Join-Path $m.FullName $Matches[2]
+                if (-not (Test-VendorHeaderFile $copy) -or -not (Test-Path $copy)) { continue }
+                if ((Get-TextHash (Remove-VendorHeaderText ([IO.File]::ReadAllText($copy, $utf8)))) -ne $Matches[1]) {
+                    Warn $copy "vendored copy of module-$($m.Name) differs from module.files: change it in that repo, or keep it as a local change on purpose"
+                }
+            }
+        }
     }
 }
 

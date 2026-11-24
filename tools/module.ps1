@@ -59,6 +59,7 @@ trap {
     exit 1
 }
 . "$PSScriptRoot\project_common.ps1"
+. "$PSScriptRoot\vendor_header.ps1"
 
 $modulesDir = ""
 if (($Command -ne "search" -and $Command -ne "versions") -or $Project) { # search works without a project too (shows installed state if given)
@@ -97,7 +98,7 @@ function Read-ModuleInfo([string]$dir) {
 # Hash independent of line endings (text), byte hash (everything else)
 function Get-ModuleFileHash([string]$file) {
     if ($textExtensions -contains [IO.Path]::GetExtension($file).ToLowerInvariant()) {
-        return Get-TextHash ([IO.File]::ReadAllText($file, $MealKitUtf8))
+        return Get-TextHash (Remove-VendorHeaderText ([IO.File]::ReadAllText($file, $MealKitUtf8))) # the vendored-copy header line is not part of the hash
     }
     $sha = [Security.Cryptography.SHA256]::Create()
     return ([BitConverter]::ToString($sha.ComputeHash([IO.File]::ReadAllBytes($file)))).Replace("-", "").ToLowerInvariant()
@@ -453,6 +454,7 @@ switch ($Command) {
                 $to = Join-Path $dest $entry.Key.Replace("/", "\")
                 New-Item -ItemType Directory -Force (Split-Path -Parent $to) | Out-Null
                 Copy-Item -LiteralPath $entry.Value -Destination $to -Force
+                Set-VendorHeader $to $info.name $info.version
                 $hashes[$entry.Key] = Get-ModuleFileHash $to
             }
             Write-FilesRecord $dest $src.source $hashes
@@ -519,7 +521,7 @@ switch ($Command) {
                 $newHash = Get-ModuleFileHash $entry.Value
                 if (-not (Test-Path $dst)) {
                     Write-Host "  added     $rel" -ForegroundColor Green
-                    if (-not $DryRun) { New-Item -ItemType Directory -Force (Split-Path -Parent $dst) | Out-Null; Copy-Item -LiteralPath $entry.Value $dst -Force }
+                    if (-not $DryRun) { New-Item -ItemType Directory -Force (Split-Path -Parent $dst) | Out-Null; Copy-Item -LiteralPath $entry.Value $dst -Force; Set-VendorHeader $dst $Target $info.version }
                     $hashes[$rel] = $newHash; $changed++
                     continue
                 }
@@ -527,9 +529,10 @@ switch ($Command) {
                 $recorded = $record.hashes[$rel]
                 if ($currentHash -eq $newHash) {
                     $hashes[$rel] = $newHash
+                    if (-not $DryRun) { Set-VendorHeader $dst $Target $info.version } # same content: only the header's version can differ
                 } elseif ($Force -or $currentHash -eq $recorded) {
                     Write-Host "  updated   $rel" -ForegroundColor Green
-                    if (-not $DryRun) { Copy-Item -LiteralPath $entry.Value $dst -Force }
+                    if (-not $DryRun) { Copy-Item -LiteralPath $entry.Value $dst -Force; Set-VendorHeader $dst $Target $info.version }
                     $hashes[$rel] = $newHash; $changed++
                 } elseif ($recorded -eq $newHash) {
                     $hashes[$rel] = $recorded # the module is unchanged and only the game modified it

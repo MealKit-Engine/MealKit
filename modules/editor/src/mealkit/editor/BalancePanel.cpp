@@ -1,3 +1,4 @@
+// Vendored copy of module-editor v0.2.22; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/BalancePanel.h"
 
 #include "mealkit/editor/FieldEditor.h"

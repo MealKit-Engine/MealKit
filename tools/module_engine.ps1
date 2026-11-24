@@ -19,6 +19,7 @@ $engine = Split-Path -Parent $PSScriptRoot
 $lockPath = Join-Path $engine "modules.lock"
 $workspace = Split-Path -Parent $engine
 . "$PSScriptRoot\lock_repo.ps1"
+. "$PSScriptRoot\vendor_header.ps1"
 $moduleSkip = { param($rel) $rel -eq "README.md" -or $rel.StartsWith(".github/") -or $rel.StartsWith("backends/") }
 
 # ---- modules.lock: "module <name> <url> <tag> <commit> <path in repo>"
@@ -44,11 +45,15 @@ function Vendored-Differences($e, $dir) {
     foreach ($rel in $locked.Keys) {
         $full = Join-Path $target $rel
         if (-not (Test-Path $full)) { $diff += "missing $rel"; continue }
-        $blob = (& git hash-object --no-filters $full).Trim()
+        $stripped = New-VendorStrippedCopy $full # compare without the vendored-copy header line
+        $hashFile = if ($stripped) { $stripped } else { $full }
+        try {
+        $blob = (& git hash-object --no-filters $hashFile).Trim()
         if ($blob -ne $locked[$rel]) {
-            $normalized = (& git -C $engine hash-object --path ("modules/$($e.Name)/" + $rel) $full).Trim() # line ending conversion
+            $normalized = (& git -C $engine hash-object --path ("modules/$($e.Name)/" + $rel) $hashFile).Trim() # line ending conversion
             if ($normalized -ne $locked[$rel]) { $diff += "changed $rel" }
         }
+        } finally { if ($hashFile -ne $full) { Remove-Item -LiteralPath $hashFile -Force -ErrorAction SilentlyContinue } }
     }
     if (Test-Path $target) {
         foreach ($f in Get-ChildItem -Path $target -Recurse -File) {
@@ -74,6 +79,7 @@ function Sync-Entry($e, [string]$into = "") {
         $full = Join-Path $target $rel
         New-Item -ItemType Directory -Force (Split-Path -Parent $full) | Out-Null
         Copy-GitBlob $dir $locked[$rel] $full
+        Set-VendorHeader $full $e.Name $e.Tag # "vendored copy of module-<name>" first line of C/C++ files (tools\vendor_header.ps1)
     }
     # Empty folders left by removed files
     Remove-EmptyDirectories $target
