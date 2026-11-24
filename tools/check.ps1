@@ -24,6 +24,8 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "build_dirs.ps1")
+. (Join-Path $PSScriptRoot "assert_samples.ps1")
+Assert-Samples # samples/ must be what samples.lock pins (tools\sample.ps1 sync)
 $out = Join-Path $root "build\check"
 # Reference samples are projects in samples\<name> (their own mealkit.project and assets\); sandbox is the one most checks run
 $sandbox = Join-Path $root "samples\sandbox"
@@ -58,11 +60,12 @@ $pathRules = @(
     @('^samples/[^/]+/assets/(game\.tuning|scenes/|models/|tables/)', 'det game editor render'),
     @('^samples/[^/]+/mealkit\.project$', 'det game editor'),
     @('^samples/[^/]+/(view|app|modules)/', 'static game editor'), @('^samples/', 'game editor'),
+    @('^samples\.lock$', 'det! static game tools render editor project folder:audio folder:ui folder:loc'), # a new sample version: what a change under samples/ runs together
     @('^templates/', 'static project'),
     @('^(VERSION$|tools/(new|upgrade|rename)_project|tools/project_common|tools/module\.ps1$)', 'project'),
     @('^tools/blender-addon/', 'tools'),
     @('^tools/(mp_test|record_replay|ci_|desync_diff)', 'det!'), @('^tools/(live_probe|compare_images)', 'game render tools'),
-    @('^tools/(check_|gen_notices)', 'static'), @('^tools/check\.ps1$', ''), @('^tools/update_mkaudio', 'folder:audio'), @('^tools/update_mkrender', 'folder:render'),
+    @('^tools/(check_|gen_notices|assert_samples|sample\.ps1|lock_repo)', 'static'), @('^tools/check\.ps1$', ''), @('^tools/update_mkaudio', 'folder:audio'), @('^tools/update_mkrender', 'folder:render'),
     @('^(cmake/|CMakeLists\.txt$|engine/CMakeLists\.txt$|build\.bat$|editor\.bat$|tools/build_project)', 'full')
 )
 

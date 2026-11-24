@@ -12,7 +12,11 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $engine = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
-if ($Project -eq "") { $Project = Join-Path $engine "samples\sandbox" }
+if ($Project -eq "") {
+    . (Join-Path $PSScriptRoot "assert_samples.ps1")
+    Assert-Samples # the default project is a sample: it must be what samples.lock pins (tools\sample.ps1 sync)
+    $Project = Join-Path $engine "samples\sandbox"
+}
 $Project = (Resolve-Path $Project).Path.TrimEnd("\")
 $dir = Join-Path $Project "build\live"
 

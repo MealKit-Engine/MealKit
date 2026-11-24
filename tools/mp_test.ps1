@@ -39,6 +39,8 @@ param(
 )
 
 . (Join-Path $PSScriptRoot "build_dirs.ps1")
+. (Join-Path $PSScriptRoot "assert_samples.ps1")
+Assert-Samples # samples/ must be what samples.lock pins (tools\sample.ps1 sync)
 if ($Exe -eq "") {
     $root = Split-Path -Parent $PSScriptRoot
     $Exe = Join-Path (Get-BuildBin $root $Config) "sandbox$(if ($IsWindows -or $PSVersionTable.PSVersion.Major -lt 6) { '.exe' })"

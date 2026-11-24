@@ -13,6 +13,8 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "build_dirs.ps1")
+. (Join-Path $PSScriptRoot "assert_samples.ps1")
+Assert-Samples # samples/ must be what samples.lock pins (tools\sample.ps1 sync)
 if ($Exe -eq "") { $Exe = Join-Path (Get-BuildBin $root "Release") "sandbox_headless$(if ($MealKitBuildOs -eq 'windows') { '.exe' })" }
 if ($Out -eq "") { $Out = Join-Path $root "samples\sandbox\replays\arena_4p_seed7.rec" }
 if (-not (Test-Path $Exe)) { Write-Error "Build first: $Exe not found"; exit 1 }

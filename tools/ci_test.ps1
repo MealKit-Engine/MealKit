@@ -15,6 +15,8 @@ param(
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot "build_dirs.ps1")
+. (Join-Path $PSScriptRoot "assert_samples.ps1")
+Assert-Samples # samples/ must be what samples.lock pins (tools\sample.ps1 sync)
 if (-not $Bin) {
     if (-not $Config) { Write-Error "Give -Bin or -Config"; exit 1 }
     $Bin = Get-BuildBin $root $Config

@@ -3,6 +3,14 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Build and checks fetch the locked samples (2026-11-24; `docs/DECISIONS.md` 2026-11-24 "The reference samples leave the engine repo", step 4)
+- **CMake**: the root `CMakeLists.txt` adds `samples/sandbox` and `samples/coop` only when their `CMakeLists.txt` exists; otherwise a status message names `tools/sample.ps1 sync`.
+- **Build script**: building the engine repo itself (not a game project) runs `sample.ps1 sync` for the samples in `samples.lock` whose folder is missing. A folder that exists is left alone.
+- **Early failure**: `tools/assert_samples.ps1` (`Assert-Samples`, runs `sample.ps1 status`) stops `check.ps1`, `ci_test.ps1`, `mp_test.ps1` and `record_replay.ps1` when a sample is missing or differs from the lock; `live_probe.ps1` does it when it falls back to the default `samples/sandbox`. The golden and perf paths run inside `check.ps1`.
+- **`check.ps1`**: a change of `samples.lock` runs every group a change under `samples/` can (det!, static, game, tools, render, editor, project, audio/ui/loc folders); `assert_samples`, `sample.ps1` and `lock_repo` changes run static. Sample files no longer show in the git working tree, so `-Changed` does not see edits inside `samples/`; give `-Only` or `-Base` after changing a sample (the sample repo holds that change).
+- **CI**: every job of `ci.yml` runs `tools/sample.ps1 sync` after checkout.
+- **Checked** (Linux): Editor build with both sample folders moved away fetched them from the sibling checkouts and built; the build then passes; a stray file in `samples/coop` stops `mp_test`, `record_replay` and `ci_test` with the sync hint; `check.ps1 -DryRun -Changed` runs. Not run: the CI workflow itself, `engine-module.yml` (its builds sync through the build script), Windows, the empty-`samples/` CMake message path, and the full `check.ps1`.
+
 ## The sample repos (2026-11-24; `docs/DECISIONS.md` 2026-11-24 "The reference samples leave the engine repo", step 3)
 - **Repos**: `MealKit-Engine/sample-sandbox` (84 commits) and `MealKit-Engine/sample-coop` (16 commits), public, made with `git subtree split --prefix samples/<name>` so the history of each sample came along (commits by KingProtea99). Tag `v0.1.0` on both; checkouts beside the engine as `sample-sandbox` and `sample-coop`.
 - **Lock**: `samples.lock` pins `v0.1.0` (sandbox `e1114f8`, coop `7d63fbc`). The 283 sample files left engine git (`git rm --cached`; the old history keeps them) and `.gitignore` now ignores `/samples/*/`; the working folders were not touched, and `sample.ps1 status` is ok for both.

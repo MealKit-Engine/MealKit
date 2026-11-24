@@ -207,9 +207,6 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 
 Steps in order; each one leaves the engine building and `check.ps1` passing.
 
-### [ ] 4. Build and checks fetch the locked samples
-The root `CMakeLists.txt` adds `samples/<name>` only when present (a message names `tools\sample.ps1 sync` otherwise); the engine build script syncs missing samples on the engine repo's first build so a beta visitor never hits a missing folder. `check.ps1`, `ci_test.ps1`, `mp_test.ps1`, `record_replay.ps1`, `live_probe.ps1` and the golden/perf paths fail early when `sample.ps1 status` differs from the lock (as with modules). CI adds a sync step before the build. `check.ps1` `$pathRules` routes changes of `samples.lock` to the groups that `samples/` changes route to today.
-
 ### [ ] 5. Templates come from the lock
 `new_project.ps1 -Template arena|coop` and `upgrade_project.ps1 -Source` read the sample through `sample.ps1` (sync when missing) instead of assuming `samples/sandbox`; `-Template` also takes a git URL or folder of a sample repo, and the project's `.mealkit-template` records the sample's tag and commit so `upgrade_project` diffs against the right version.
 

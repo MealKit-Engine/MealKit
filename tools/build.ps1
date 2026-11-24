@@ -132,6 +132,20 @@ if ($onWindows) {
     if (-not $env:CXX) { $extra += "-DCMAKE_CXX_COMPILER=clang++" }
 }
 
+# The engine repository builds its reference samples: fetch the ones samples.lock pins and samples/ lacks (tools\sample.ps1 sync), so a
+# first build after cloning never meets a missing folder. A sample that is there is left alone (tools\sample.ps1 status compares it).
+$sampleLock = Join-Path $engineDir "samples.lock"
+if ($projectDir -eq $engineDir -and (Test-Path $sampleLock)) {
+    $missingSamples = @(Get-Content $sampleLock | Where-Object { $_ -match '^sample\s+(\S+)' } | ForEach-Object { $Matches[1] } |
+        Where-Object { -not (Test-Path (Join-Path (Join-Path $engineDir "samples") $_)) })
+    if ($missingSamples.Count -gt 0) {
+        Write-Host "[MealKit] Fetching the locked samples: $($missingSamples -join ', ')"
+        $shell = (Get-Process -Id $PID).Path
+        & $shell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "sample.ps1") sync @missingSamples
+        if ($LASTEXITCODE -ne 0) { Fail "could not fetch the samples (tools\sample.ps1 sync)" }
+    }
+}
+
 # A game project's editor build links against the engine editor build (mealkit.dll). Bring it up to date first.
 # An installed engine (MealKit Manager, tools\package_engine.ps1 writes INSTALLED) ships that build ready-made and isn't rebuilt.
 $installedEngine = Test-Path (Join-Path $engineDir "INSTALLED")
