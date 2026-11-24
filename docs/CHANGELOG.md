@@ -3,6 +3,10 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## FuseTag engine modules updated (2026-11-24; ROADMAP "Linux editor finish", part)
+- `tools\module.ps1 update -All` in `games/FuseTag` moved its engine modules to the engine's pins: data 0.1.2 → 0.1.8, debug 0.1.4, feedback 0.1.5, game 0.2.6, loc 0.2.0, render 0.6.2, scene 0.3.2, settings 0.1.5 (0 modified files, 0 `.new`). Committed in the FuseTag repo (`modules/` only; its uncommitted `mealkit.project`, `.mealkit-template` and docs edits were left alone).
+- Verified: `mk-build.ps1 -Config Editor -Repo games/FuseTag` builds `FuseTag_game.so` on Linux, dependencies recorded. Not verified: running FuseTag in the editor or headless tests, and the Release build.
+
 ## Shorter project agent notes (2026-11-24; ROADMAP "AI agents" A4; VERSION 0.9.15)
 - `templates/project/CLAUDE.md` went from 59 lines to 41: the commands, ten core rules (engine is elsewhere, determinism, sim/view/app split, no numbers in code, tables, text/input/UI/sound as data, use what the engine has, build and upgrade, folder layout, content hash) and a "when doing X, read Y" table.
 - The 27 detailed rules moved unchanged into `templates/project/docs/AGENT_NOTES.md`, in seven topics (code layout and engine parts; determinism and tests; numbers and data tables; screens and UI; match values, movement and saves; text and input; feedback and sound). The table points to a topic by name.

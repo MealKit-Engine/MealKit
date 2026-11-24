@@ -1,6 +1,6 @@
 # MealKit engine roadmap
 
-**Only work that is left** (what needs a person, a device or an account is in `docs/ROADMAP_HUMAN.md`). A finished item is removed from this document and its details go to `docs/CHANGELOG.md`; a name quoted elsewhere as ROADMAP "…" for a finished item is found there by the same name. Reasons for decisions and the "Deferred" table are in `docs/DECISIONS.md`. When the order changes, update this document.
+**Only work that is left and that an agent can build and check without a person** (anything that needs a person, a device, an account, publishing or a decision only the user can make, including work blocked by one, is in `docs/ROADMAP_HUMAN.md`; when that is resolved, the unblocked work comes back here). A finished item is removed from this document and its details go to `docs/CHANGELOG.md`; a name quoted elsewhere as ROADMAP "…" for a finished item is found there by the same name. Reasons for decisions and the "Deferred" table are in `docs/DECISIONS.md`. When the order changes, update this document.
 
 ## Where it stands (v0.9.12, 2026-11-24)
 
@@ -9,14 +9,13 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 **Next, in order** (reordered 2026-11-23; the first item keeps the 2026-11-22 decision "Linux editor and editor reinforcement come first"; game work such as FuseTag M5/M6 waits until item 1 is done):
 1. **Linux editor finish and editor reinforcement** ("In progress").
 2. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
-3. **First beta release**: the code side is done (`docs/CHANGELOG.md` "First beta release": A1 build traps, A2 vendored copies, R1 collaboration setup). Left: everything that needs a person (the template modules published by name, R2 publishing, publication checks: `docs/ROADMAP_HUMAN.md`).
-4. **Game-facing gaps that FuseTag hits when game work resumes**: designer independence D4 (with FuseTag M5), shipped sound size and streaming, gamepad rumble (E2).
-5. **Multiplayer modes** (Relay, Dedicated) together with the lobby browser and quick match (E3) and spectator slots (E4).
-6. **UI 2**: MkUI's XAML-like layer, one piece at a time.
-7. **Proposals from other engines** E1, E5~E8 in their suggested order, interleaved with the picked pool items below.
-8. **When devices and accounts are available**: everything in `docs/ROADMAP_HUMAN.md` (minimum spec measurements, EOS, real-device determinism and crossplay) → stage 5.
+3. **Game-facing gaps that FuseTag hits when game work resumes**: designer independence D4 (with FuseTag M5).
+4. **UI 2**: MkUI's XAML-like layer, one piece at a time.
+5. **Proposals from other engines** E1, E5, E7, E8 in their suggested order, interleaved with the picked pool items below.
 
-**Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T1, T2, T4 → AI agents A3~A7 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) with T6~T8 → Modules ⑨ (`health` first) → roles R3, R4 → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
+Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
+
+**Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T1, T2, T4 → AI agents A7, A3, A5 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) → Modules ⑨ (`health` first) → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
 
 ## Decision criteria
 
@@ -69,16 +68,8 @@ The engine version is `VERSION` at the repo root. **MealKit is a beta and stays 
 ## In progress
 
 ### [ ] 1. Linux editor finish and editor reinforcement (decided 2026-11-22, `docs/DECISIONS.md` "Linux editor and editor reinforcement come first"; Linux done part in `docs/CHANGELOG.md` "Linux editor")
-Order inside the item: A, then B; C and D one piece at a time.
-- **A. Linux editor** (moved here from "Editors on other OSes"; macOS stays in stage 5):
-  - MkRender on Linux: builds and runs (CHANGELOG "MkRender on Linux"). `--render-golden` on Linux and the editor finding and launching it are done (CHANGELOG "MkRender golden and Open in MkRender on Linux"). Left: nothing that code can do (hand checks: `docs/ROADMAP_HUMAN.md`).
-  - Linux paths in the Manager's engine scripts: the project scripts are done (CHANGELOG "Project scripts on Linux"). Packaging scripts: done (CHANGELOG "Packaging scripts on Linux"). The release index takes `linux-x64` packages (a `platform` field per entry, CHANGELOG "Linux editor: release index platform"). The Manager runs on Linux and reads `platform` (CHANGELOG "Manager on Linux"). The Manager's Linux package, `self`/`update`/`uninstall` and `vendor.ps1` on Linux are done (CHANGELOG "Manager Linux package"). The `.desktop` entry's icon is done (CHANGELOG "Manager .desktop icon, project and export checks on Linux"). Left: nothing that code can do (clean machine run, publishing: `docs/ROADMAP_HUMAN.md`).
-  - Linux game exe and Export: done (CHANGELOG "Linux game exe and Export"). `mp_test` between Linux peers passes (CHANGELOG "mp_test on Linux"). Debug, Profile and Presets builds on Linux: done (CHANGELOG "Debug, Profile and Presets builds on Linux"). Left: Steam login and clean machine libraries (`docs/ROADMAP_HUMAN.md`). Game project editor builds on Linux: done (CHANGELOG "Game project editor on Linux"). Left: an existing game project (FuseTag) is on engine 0.9.5 and needs its engine modules updated before it builds.
-  - `check.ps1` on Linux: static, unit and det groups run (CHANGELOG "check.ps1 and CI on Linux"). The project and export groups run too (CHANGELOG "Manager .desktop icon, project and export checks on Linux"). Left: the tools, render and editor groups (SKIP on Linux now, except the MkRender capture and the golden images, which run); the first run of the new CI job `linux-frontend` needs a push (`docs/ROADMAP_HUMAN.md`).
-- **B. Left over from moving scene editing and sprite editing to MkRender** (CHANGELOG "MkRender step 10", "Scene editing in MkRender, leftovers"; MkRender's own list is its `docs/ROADMAP.md`). Left (the rest was checked on Linux 2026-11-22, CHANGELOG "MkRender golden test and editor-kept features on Linux"):
-  - Hand checks (dragging a `gizmo=radius` handle, MkRender's look next to the editor at the same DPI) are in `docs/ROADMAP_HUMAN.md`.
-  - MkRender coverage and the editor's usability items now live in MkRender's own list (`../MkRender/docs/ROADMAP.md` 4 and 5: scene tree 19~23, inspector 10, viewport 29~31 re-homed there on 2026-11-22; what MkRender doesn't cover yet is listed there too).
-- **C. Editor reinforcement** (the editor is now the play view, assets, tables, project and build host): items picked from "Editor usability" below are all done (43, bulk edit by percentage: `docs/CHANGELOG.md` "Tables: Scale Selected"; build profiles per platform/backend are done: `docs/CHANGELOG.md` "Build profiles"; 38, status-bar hints, and 37, rebindable shortcuts, are done: `docs/CHANGELOG.md` "Status bar hints", "Rebindable editor shortcuts"; 27, the asset browser preview pane, is done: `docs/CHANGELOG.md` "Asset browser preview pane"; E5's references fit in it when picked).
+Done parts: `docs/CHANGELOG.md` "Linux editor" and the entries it names (MkRender on Linux and its golden, the Manager and packaging on Linux, the Linux game exe, Export, `mp_test`, Debug/Profile/Presets and game project editor builds, the `.desktop` icon); C, editor reinforcement, is done too (CHANGELOG "Tables: Scale Selected", "Build profiles", "Status bar hints", "Rebindable editor shortcuts", "Asset browser preview pane"). Hand checks, clean machine runs, Steam login, the CI push and publishing are in `docs/ROADMAP_HUMAN.md`; MkRender's own items are in `../MkRender/docs/ROADMAP.md`. Left:
+- `check.ps1` on Linux: the tools, render and editor groups still SKIP (except the MkRender capture and the golden images, which run).
 
 ### [ ] 2. 2D on the 3D engine: sprite rendering + editor sprite object (decided 2026-11-10, `docs/DECISIONS.md` "2D games run on the 3D engine")
 - **Done** (`docs/CHANGELOG.md` "2D projects and template cards", "Sprites on the 3D engine", "Flipbook clips"): 2D empty template (`templates/empty2d`), `view2d` front view, `PhysicsWorld::setPlane2D`, the sprite pass on DX12 and Vulkan, the `sprite` scene object (sheet cells, pivot, layer, flip, point sampling) drawn in the editor and the 2D template, sprite editing in MkRender (image picker, sheet slicer, pivot presets, the `view2d` front view; `docs/CHANGELOG.md` "Scene editing in MkRender, leftovers") and flipbook clips (`sprite_clips.table`, the sprite object's `clip` field) with their MkRender preview, and the `sprites_front` golden shot.
@@ -95,14 +86,9 @@ Left: run MealKit-Docs `tools/build.py check --engine ..\MealKit` once on a mach
 
 ### [ ] Small leftovers
 - Shipping exe size breakdown: FuseTag's Release exe is 4.63 MB of the 5 MB budget (LTCG and `/OPT:REF` already drop unused code). Measure what each library and module takes before the next runtime library is added (E8 keeps it in CI afterwards).
-- With a debugger attached, the PDB gets locked and hot reload builds can fail (consider renaming the PDB per build). No editor configuration for the debug CRT (EditorDebug).
 - Kernel memory: miniaudio allocation hooks and per-tag budgets.
 - `audio` stays in the engine until its glue moves into MkAudio.
 - Docs repo: `--dump-reference` reference generation and Weblate (with A3).
-
-### [ ] Game code build time: what is left (done part in `docs/CHANGELOG.md` "Game code build time")
-- Windows only, not measured yet (`docs/ROADMAP_HUMAN.md`): time `vcvars64.bat` and the CMake configure per open on the Windows editor, and if they are seconds, cache the vcvars64 environment between builds instead of running it each time. Also measure the MSVC compile with and without the new precompiled header (`-DMEALKIT_GAME_PCH=OFF`) and check `/Zi` PDB sharing with it.
-- Dropped by the Linux numbers: fewer engine headers in `app/` files (`GameSession.cpp`: 5.8 s of which header parsing is about 0.6 s, the rest is code generation). Reopen only if the MSVC numbers differ.
 
 ### [ ] External library review follow-ups (reviewed 2026-10-29)
 - **Tool repo library rules**: MkAudio, MkUI and Manager have only a README table. Align them with the engine's `mealkit.txt` + generated notices. The full SDL3 source (33 MB) lives in two repos: see whether only what the build needs can be kept.
@@ -113,9 +99,6 @@ Left: run MealKit-Docs `tools/build.py check --engine ..\MealKit` once on a mach
 ### [ ] Local multiplayer on one PC (shared screen/split screen) — when the first game genre fits
 - One peer provides several player slots (tick input stays 8 bytes per player); it can mix with online. Shared camera or split screen (several viewports, `buildFrame` per player), per-player UI focus, input actions assign devices to local players.
 - **Determinism**: only the slot count changes. A "two players on one peer" scenario in `mp_test`. **Cost**: medium to large.
-
-### [ ] Game screen UI part 3: Penpot sources for the default screens — needs a designer who works in Penpot (`docs/ROADMAP_HUMAN.md`)
-- Redraw the hand-written default screens (title, menu, join, lobby, loading, pause, results, message, settings, HUD) in Penpot and export them to `art/ui/`. Penpot sources are saved by hand (`docs/DECISIONS.md` 2026-10-20). Check state variants and per-token-set themes in real Penpot at the same time. Screens are otherwise edited in MkUI Designer.
 
 ### [ ] Optimization candidates (proposed 2026-10-29) — wait for a measured bottleneck
 #1~#4 and #9 are done, #8 (PGO) was measured with no gain and moved to the deferred table. The rest is done only when a measurement shows the cost it removes (`--benchmark` before and after); one that saves nothing is dropped and moved to the deferred table. On `coop --benchmark 15` (2026-11-02) the frame was 2.29 ms, GPU-bound at 2.26 of 8 ms, shadow pass 0.53 of 1.50 ms, so #5 and #7 keep waiting.
@@ -154,7 +137,7 @@ MealKit is a suite with the engine + general-purpose editor at the center, where
 | Code work | Programmers | VS Code, Visual Studio | An own IDE is deferred. External IDE integration first |
 
 Items, in suggested order:
-- [ ] **Opt-in rendering features** (`docs/DECISIONS.md` 2026-11-04, one at a time, each with its cost measured on minimum spec hardware and shown to the developer; view-side; additions only). Shared first piece: project settings for each feature, player quality presets (Low, Medium, High) with a per-game lock, and an editor warning when the enabled features exceed the project GPU budgets. Order: (1) project surface shaders (API and pipeline variant handling designed first), glTF occlusion texture applied to ambient light only, point light shadows on chosen lights (shadow atlas), UI blur, screen-space outlines, mesh particles → (2) post passes that don't run when off: SMAA, EASU upscaling, depth of field, motion blur, SSR → (3) RHI compute on DX12 and Vulkan, then Forward+, SSAO and GPU particles → (4) real-time GI, technique chosen when started. Deferred rendering only when a game shows a need Forward+ can't meet. What a technical artist needs around surface shaders is T6~T9 and T11 below.
+- [ ] **Opt-in rendering features** (`docs/DECISIONS.md` 2026-11-04, one at a time, each with its cost measured with `--benchmark` here and shown to the developer (minimum spec numbers: `docs/ROADMAP_HUMAN.md`); view-side; additions only). Shared first piece: project settings for each feature, player quality presets (Low, Medium, High) with a per-game lock, and an editor warning when the enabled features exceed the project GPU budgets. Order: (1) glTF occlusion texture applied to ambient light only, point light shadows on chosen lights (shadow atlas), UI blur, screen-space outlines, mesh particles → (2) post passes that don't run when off: SMAA, EASU upscaling, depth of field, motion blur, SSR → (3) RHI compute on DX12 and Vulkan, then Forward+, SSAO and GPU particles → (4) real-time GI, technique chosen when started. Deferred rendering only when a game shows a need Forward+ can't meet. Project surface shaders wait on the surface API decision (`docs/ROADMAP_HUMAN.md` "Blocked on a decision").
 - [ ] **Design refresh for the rest of the suite** (planned 2026-11-05, approach settled by `docs/DECISIONS.md` 2026-11-12: each tool copies `applyStyle`, no shared style library). State per app is `docs/TOOL_DESIGN.md` section 7; each tool is done when the checklist in section 6 holds. App icons and the theme, icon font, icon buttons and title bar of every tool are done (CHANGELOG). Left:
   - **Tools**: a right-click item for each icon action (TOOL_DESIGN section 1; MkRender done), QA's one window on the gutter and panel layout (section 6 item 3), the Fluent icon font in place of Segoe (`docs/DECISIONS.md` 2026-11-22).
   - **Editor**: tree and table arrows, still ImGui's triangles.
@@ -164,7 +147,6 @@ Items, in suggested order:
 - [ ] **UI 3 leftovers**: the old preview-tool proposal is covered by MkUI Designer; check whether it still lacks a gamepad focus walk and `--ui-check` box differences, and add them to MkUI if so.
 - [ ] **UI features** (one at a time as games need them, each checked against the 11th gen Xe budget): virtualized long lists, UI cost numbers (quads, layout ms) in the benchmark budget, keyframe timeline animation (deferred table), per-player focus for local multiplayer, right-to-left and complex-script shaping.
 - [ ] **Audio features** (in MkAudio, runtime + tool together, one at a time): master limiter + loudness meter (LUFS), bus effect chains (EQ, compressor/limiter, delay) and sidechain compression in place of volume-only ducking, clip sets loaded/unloaded per scene with a memory budget warning, a voice/profiler timeline over the live `audio/` state, dialogue lines (queue, priority, tied to subtitles), Steam Audio HRTF (deferred table).
-- [ ] **Achievements, leaderboards, stats** (`docs/DECISIONS.md` 2026-11-02): reviewed again once the platform SDK work (Steam, EOS, console trophies) is confirmed. Plan as it stood: the game defines achievement conditions as simulation events, the view side records them through the online service layer, the achievement list is one piece of data exported for each service, and without a service stats are kept in the user data folder. No effect on determinism.
 
 ---
 
@@ -186,11 +168,11 @@ Every ★ item of the 2026-11-04 review is done; what is left isn't decided. Pic
 
 Aimed at a technical artist (TA) who owns a game's look: writing shaders, checking their cost and keeping the look from breaking. **Nothing here is decided yet**: pick items before work starts, and put open design questions in `docs/DECISIONS.md` first. Sizes are estimates. ★ marks the highest-value items.
 
-**What a TA has today**: style presets, Blender material features, [Look Dev], view modes, GPU capture, `--benchmark` and post values with LUT grading. A TA can't write a shader for a game: `render::ShaderReloader` watches only MkRender's `shaders/`, and "project surface shaders" is the first item of "Opt-in rendering features".
+**What a TA has today**: style presets, Blender material features, [Look Dev], view modes, GPU capture, `--benchmark` and post values with LUT grading. A TA can't write a shader for a game: `render::ShaderReloader` watches only MkRender's `shaders/`.
 
 **Principle**: shaders are text edited in an external editor, and looks are checked and tuned in the MealKit editor. A node graph is reviewed only if surface functions have been used and TAs who don't write code are blocked by them.
 
-**Suggested order**: T1, T2, T4 (small, useful with the current presets) → T5, T3 when a TA is comparing looks (T10 if an engine upgrade breaks a game's look) → T6, T7, T8 in the surface shader design, then T9, T11. T1~T5 and T10 are editor or tool work or debug-only shader paths; T6~T9 and T11 build on surface shaders. All are view-side.
+**Suggested order**: T1, T2, T4 (small, useful with the current presets) → T5, T3 when a TA is comparing looks (T10 if an engine upgrade breaks a game's look). All are editor or tool work or debug-only shader paths, view-side. T6~T9 and T11~T14 build on project surface shaders, whose API shape is the user's decision: they are in `docs/ROADMAP_HUMAN.md` "Blocked on a decision".
 
 ### Checking a look (no project shaders needed)
 - [ ] T1. ★ **More view modes** (S). Add base color, roughness, metallic, emissive, sun only, ambient only, reflections only, shadow cascades, mip level and texel density to `render::DebugView`. They extend the `debugView` branches in `PSMain` (`Forward.hlsl`), which are compiled into the shipping shader today, so the new modes sit behind a define that builds only with the debug UI. DX12 and Vulkan.
@@ -199,27 +181,8 @@ Aimed at a technical artist (TA) who owns a game's look: writing shaders, checki
 - [ ] T5. ★ **Cost comparison** (M). A page like [Debug] > [Balance] that runs `--benchmark` on a scene twice (before and after a change, or with a project setting flipped) and shows the difference per `render::GpuPass`, saying which GPU the numbers came from.
 - [ ] T3. **[Look Dev] references and comparison** (M). A grey ball, a chrome ball and a color chart beside the model; a split view of two states (lighting model, HDRI, LUT or a saved image).
 
-### Writing project shaders (with "project surface shaders")
-- [ ] T6. ★ **Project shader files and hot reload** (M). `assets/shaders/*.surface.hlsl`, chosen per material from the Blender MealKit panel (a glTF `extras` key in the engine schema). `ShaderReloader` also watches the project folder, and the cook compiles them, so the shipping exe needs no compiler. Used by water and lava in a reference sample before it counts as done.
-- [ ] T7. ★ **Parameters declared in the shader** (M). A block at the top of the file (name, type, range, default, texture) read at compile time and shown as Blender panel fields and [Look Dev] sliders; saving goes to the glTF source through Blender.
-- [ ] T8. ★ **Compile errors where the TA looks** (S). Failed reloads go to [Debug] > [Problems] and a notification, opening `file:line` in the code editor, with lines mapped back to the surface file. A broken shader keeps the previous one.
-
 ### Keeping a look under control
-- [ ] T9. ★ **Shader budgets** (M). Project limits on texture samples and estimated instructions per surface shader from DXC's output, reported as warnings in [Debug] > [Problems] and the Blender add-on. A list shows every project shader with its pipeline count, numbers and users.
 - [ ] T10. **Project look tests** (M). `--render-golden` for a game project's own shots (`tests/golden/`, `shots.txt`, an update button in [Debug] > [Tests]) on both backends. Works with style presets alone.
-- [ ] T11. **Shared library and external editor setup** (S). An engine include with noise, UV and color helpers as part of the surface API, generated VS Code HLSL settings (include paths, defines), and a cookbook page with water and lava.
-
-### Later, when a game asks
-- T12. Project post effects: one full-screen function in the same form as surface functions, an opt-in pass with no cost when off.
-- T13. Shaders in source modules, so a look can be shared between projects. Needs the surface API settled first.
-- T14. Project shaders for particles (`.fx`) and `.ui` nodes.
-
-### Open design questions
-- Surface API shape: one `Surface surf(Input)`, or also a vertex function for waves and wind? The vertex function is hard to take back, as is every public `Input` field.
-- TAs without a build toolchain: hot reload and cooking compile with DXC, which arrives with the first engine build, so a PC on the D1 shared folder may have neither. Does the editor bundle or download DXC, and where do the engine includes come from?
-- Pipeline count: each surface shader multiplied by lighting model, skinned, shadow and outline pipelines, all built on load. How many are acceptable, and what does loading cost?
-- Parameter storage: the material record is a fixed 128 bytes. Do custom parameters get a separate table in the upload ring?
-- Later backends: surface files must go through the same stage 5 shader conversion as engine shaders.
 
 ## AI agents and game developer ease (proposed 2026-11-18, not scheduled)
 
@@ -227,12 +190,11 @@ A review of how well an AI agent (and a developer new to MealKit) can read the e
 
 **Already strong**: one answer per problem (`docs/CODING_MODEL.md`, the template CLAUDE.md and the cookbook teach the same patterns); mistakes caught by tools at build time with what to use instead (SimCheck `SIMnnn`, STR001, `check_layout`); every piece of game data is text (`.table`, `.tuning`, `.ui`, `.events`), so an agent edits data as well as code; self-checks without a person (`--bot`, `--capture`, `tests/*.scenario`, `mp_test`, replays); one `MEALKIT_FIELD` declaration reaches the hash, snapshots and editor panels.
 
-**Suggested order**: A7 (ongoing, cheap) → A3 → A5 → A6.
+**Suggested order**: A7 (ongoing, cheap) → A3 → A5. A6 waits on its open questions (`docs/ROADMAP_HUMAN.md`).
 
 - [ ] A7. **Load warnings that say what to do** (S, ongoing). Like SimCheck: each warning when a table, tuning file, scene or UI file is read names the file and line and the fix ("unknown field `speeed` in tables/props.table:12; did you mean `speed`?"). Done: the unknown field / bad value sentences with the "did you mean" hint (`docs/CHANGELOG.md` "Load warnings that say what to do"). Left: line numbers (`TableText`), scene objects (`readObject` drops its warnings), `.ui` files; bump module-data to v0.1.9 once pushed.
 - [ ] A3. **API index for agents** (M, together with "Docs repo: `--dump-reference`" in "Small leftovers"). One short text file per module and per kernel folder: each public type and function on one line with its header and a few words. Generated, never written by hand, shipped with the engine and with each module copy. Today an agent greps headers, and LSP needs an Editor build first.
 - [ ] A5. **More cookbook recipes** (S each). Jobs a game repeats: add a weapon (table row + RowRef + feedback row), add an enemy kind, add a game mode, add a map gimmick with `objects`. Each one is also the pattern an agent copies. English and Korean together.
-- [ ] A6. **Asking the running game and editor** (M; DECISIONS row first). Today an agent sees only screenshots and logs. A read-only query that answers in JSON: `WorldState` fields at a tick, table rows, missing RowRefs, load warnings, the content hash parts. First as a command line option on the headless exe (`--query`), then maybe an MCP server inside the editor. Open: command line only or a live server; what the editor may let an agent change (play, step, select) and what stays read-only; whether it shares E6's command table.
 - Higher-level building blocks (Modules ⑨: `health`, `inventory`, `minimap`, `ai`) help game developers and agents the most, and stay in that section.
 
 ## Visual feedback proposals (drafted 2026-10-29, not scheduled)
@@ -289,7 +251,5 @@ A pass over every game development role, applying criterion ④ role by role. **
 
 Gameplay, engine and network programming, concept art, modeling and rigging, cinematics (no sequencer, decided), QA and production need nothing from us.
 
-- [ ] R3. **Free camera in replays** (M). Input replays and a spectator camera mode (`Free` in `scene/Scene.h`) exist, so this may be mostly connecting them, plus hiding the UI and stepping time. For trailers, screenshots and QA; E4's spectators can reuse the camera. Open: shipping exe, editor or both; photo mode for players or dev-only?
-- [ ] R4. **Where dialogue state lives** (decision first, S): simulation or view state decides how it syncs in multiplayer. Record it in `docs/DECISIONS.md` before any module is written.
 - Later, when a game asks: R5 translation exchange (string files to and from a translation tool's format, missing keys, overflowing text); R6 store upload script around `steamcmd` after Export; R7 analytics module (needs a server, stays outside the engine).
 - **Not to build**: scheduling, issue tracking and document tools; modeling, texture painting and composing tools; visual scripting and a sequencer.
