@@ -414,11 +414,26 @@ void Editor::drawPlayControls() {
         if (ImGui::SliderInt("##timeline", &view, static_cast<int>(t.first), static_cast<int>(t.live),
                              t.viewingPast ? tr("Past tick %d") : tr("Tick %d")))
             m_simDebug->seek(static_cast<u32>(view));
+        // Shadow simulation divergence: a red mark at the first diverged tick (when it is still in the recorded range)
+        const game::ShadowStatus& diverged = m_simDebug->shadow();
+        if (diverged.enabled && diverged.desynced && diverged.tick >= t.first && diverged.tick <= t.live && t.live > t.first) {
+            const ImVec2 lo = ImGui::GetItemRectMin();
+            const ImVec2 hi = ImGui::GetItemRectMax();
+            const f32 pad = style.FramePadding.x;
+            const f32 frac = static_cast<f32>(diverged.tick - t.first) / static_cast<f32>(t.live - t.first);
+            const f32 x = std::floor(lo.x + pad + frac * (hi.x - lo.x - pad * 2.0f)) + 0.5f;
+            ImGui::GetWindowDrawList()->AddLine(ImVec2(x, lo.y + 2.0f), ImVec2(x, hi.y - 2.0f),
+                                                ImGui::GetColorU32(ImVec4(1.0f, 0.4f, 0.35f, 1.0f)), 2.0f);
+        }
         ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-            ImGui::SetTooltip(
-                tr("Drag while paused to rewind to that tick (ticks %u-%u, record %.1f MB).\nResume returns to the present."),
-                t.first, t.live, static_cast<f64>(t.memoryBytes) / (1024.0 * 1024.0));
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
+            std::string tip = trf("Drag while paused to rewind to that tick (ticks %u-%u, record %.1f MB).\nResume returns to the present.",
+                                  t.first, t.live, static_cast<f64>(t.memoryBytes) / (1024.0 * 1024.0));
+            const game::ShadowStatus& sh = m_simDebug->shadow();
+            if (sh.enabled && sh.desynced)
+                tip += "\n" + trf("Red mark: the shadow simulation first diverged at tick %u.", sh.tick);
+            ImGui::SetTooltip("%s", tip.c_str());
+        }
     }
     // Solo play writes the input recording as it goes (user folder replays/current.rec): it becomes a scenario test
     const bool canSaveScenario = !t.viewingPast && m_stateView.type && m_stateView.data && t.live > 0 &&

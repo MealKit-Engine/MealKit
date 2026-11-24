@@ -71,6 +71,7 @@ Could not save the scenario: %s = 시나리오를 저장하지 못했습니다: 
 Scenario saved: tests/%s.scenario = 시나리오 저장됨: tests/%s.scenario
 Tick %d = 틱 %d
 Drag while paused to rewind to that tick (ticks %u-%u, record %.1f MB).\nResume returns to the present. = 일시정지 중에 끌면 그 틱으로 되감습니다 (틱 %u~%u, 기록 %.1f MB).\n계속을 누르면 현재로 돌아갑니다.
+Red mark: the shadow simulation first diverged at tick %u. = 빨간 표시: 그림자 시뮬레이션이 처음 갈라진 틱은 %u입니다.
 Shadow: diverged at tick %u = 그림자: 틱 %u에서 갈라짐
 Shadow: in sync = 그림자: 일치
 The shadow simulation diverged at tick %u. Same inputs gave different results (uninitialized values, global state, pointer order, reading real time, ...). = 그림자 시뮬레이션이 틱 %u에서 갈라졌습니다. 같은 입력인데 결과가 다릅니다 (초기화 안 된 값, 전역 상태, 포인터 순서, 실제 시간 읽기 등).
