@@ -8,6 +8,7 @@ if(NOT MEALKIT_ROOT)
     if(_mk_engine)
         string(REGEX REPLACE "^[ \t]*engine[ \t=]+[ \t]*" "" _mk_engine "${_mk_engine}")
         string(STRIP "${_mk_engine}" _mk_engine)
+        get_filename_component(_mk_engine "${_mk_engine}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_SOURCE_DIR}") # relative = to this folder
         set(MEALKIT_ROOT "${_mk_engine}" CACHE PATH "MealKit engine folder")
     endif()
 endif()

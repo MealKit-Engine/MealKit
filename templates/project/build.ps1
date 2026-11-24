@@ -5,6 +5,7 @@ $engine = ""
 foreach ($line in Get-Content (Join-Path $PSScriptRoot "mealkit.project")) {
     if ($line -match "^\s*engine\s*[= ]\s*(.+?)\s*$") { $engine = $Matches[1] }
 }
+if ($engine -and -not [IO.Path]::IsPathRooted($engine) -and $engine -notmatch '^[A-Za-z]:') { $engine = [IO.Path]::GetFullPath((Join-Path $PSScriptRoot $engine)) } # relative = to this folder
 # The engine line may be a Windows path (D:\...). Elsewhere: MEALKIT_ROOT, then a MealKit folder beside the project or two levels up (games/<name>).
 if (-not $engine -or -not (Test-Path (Join-Path $engine "tools/build.ps1"))) {
     foreach ($candidate in @($env:MEALKIT_ROOT, (Join-Path $PSScriptRoot "../MealKit"), (Join-Path $PSScriptRoot "../../MealKit"))) {

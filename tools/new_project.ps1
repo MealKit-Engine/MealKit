@@ -4,14 +4,14 @@
 #   empty: templates/empty (one character per player on a floor, the scene's cameras, no menus: the match starts at once)
 #   empty2d: templates/empty2d (2D side view on the XY plane, fixed orthographic camera, mealkit.project view2d)
 #   coop: a copy of the co-op sample (samples/coop)
-#   powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame [-Path D:\GameEngine\MealKit] [-Template arena|empty|empty2d|coop] [-Modules screens,matchflow,camrig]
+#   powershell -ExecutionPolicy Bypass -File tools\new_project.ps1 -Name MyGame [-Path <folder, default: games\ beside the engine>] [-Template arena|empty|empty2d|coop] [-Modules screens,matchflow,camrig]
 #   -Modules: source modules to add (registry names, module folders or git addresses; tools\module.ps1 add). The screen flow (screens),
 #   rounds and countdown (matchflow) and camera controls (camrig) are modules since 2026-11-15; each module's docs/index.md "Adding" says how to connect it.
 # Result: <Path>\<Name>\ (build.bat, editor.bat, source\sim|view|app\, assets\). The engine points to this folder (the script's parent folder).
 # Hashes of template files are kept in .mealkit-template (later tools\upgrade_project.ps1 replaces only unmodified files with the new template).
 param(
     [Parameter(Mandatory = $true)][string]$Name,
-    [string]$Path = "D:\GameEngine\MealKit",
+    [string]$Path = "",
     [ValidateSet("arena", "empty", "empty2d", "coop")][string]$Template = "arena",
     [string[]]$Modules = @()
 )
@@ -24,6 +24,7 @@ if ($Name -notmatch '^[A-Za-z][A-Za-z0-9_]*$') {
     exit 1
 }
 $engine = $MealKitEngine
+if (-not $Path) { $Path = Join-Path (Split-Path -Parent $engine) "games" }
 $dest = Join-Path ([IO.Path]::GetFullPath($Path)) $Name
 if ($dest.StartsWith($engine + $MealKitSep, $MealKitPathCmp)) {
     Write-Error "Create projects outside the engine folder ($engine)"

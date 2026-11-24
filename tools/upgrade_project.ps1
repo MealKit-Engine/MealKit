@@ -67,7 +67,11 @@ foreach ($entry in (Get-RenderedTemplate $name).GetEnumerator()) {
             if ($line -match '^\s*(engine|engineVersion)(\s*=\s*|\s+|$)') {
                 $sep = if ($Matches[2] -match '=') { "=" } else { " " }
                 $separator = $sep
-                if ($Matches[1] -eq "engine") { $lines.Add("engine$sep$MealKitEngine"); $seenEngine = $true }
+                if ($Matches[1] -eq "engine") {
+                    $old = ($line -replace '^\s*engine(\s*=\s*|\s+)', '').Trim() # a relative value stays relative
+                    $keep = if ($old -match '^(?![A-Za-z]:|[\\/])\S') { $old } else { $MealKitEngine }
+                    $lines.Add("engine$sep$keep"); $seenEngine = $true
+                }
                 else { $lines.Add("engineVersion$sep$version"); $seenVersion = $true }
             }
             elseif ($line -match '^\s*(enginePreset|engineModules|engineWithout|engineModuleVersion)(?:\s*=\s*|\s+)(.*)$') {

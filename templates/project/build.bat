@@ -8,6 +8,8 @@ rem   build.bat Export     release game in export\@NAME@ (same as the editor's C
 setlocal
 set MEALKIT_ROOT=
 for /f "usebackq eol=# tokens=1,* delims== " %%a in ("%~dp0mealkit.project") do if /I "%%a"=="engine" set "MEALKIT_ROOT=%%b"
+rem A relative engine line is relative to this folder
+if defined MEALKIT_ROOT if not "%MEALKIT_ROOT:~1,1%"==":" if not "%MEALKIT_ROOT:~0,1%"=="\" if not "%MEALKIT_ROOT:~0,1%"=="/" for %%i in ("%~dp0%MEALKIT_ROOT%") do set "MEALKIT_ROOT=%%~fi"
 if not exist "%MEALKIT_ROOT%\tools\build_project.bat" (
     echo [MealKit] Engine not found at "%MEALKIT_ROOT%" - set the engine line in mealkit.project
     exit /b 1

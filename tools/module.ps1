@@ -493,8 +493,12 @@ switch ($Command) {
         if (-not (Test-Path (Join-Path $dest "module.txt"))) { Write-Error "modules/$Target is not installed"; exit 1 }
         $record = Read-FilesRecord $dest
         $spec = $From
+        $keepSource = $null
         if (-not $spec) {
-            if ($record.source -match '^folder\s+(.+)$') { $spec = $Matches[1] }
+            if ($record.source -match '^folder\s+(.+)$') {
+                $spec = $Matches[1]
+                if ($spec -match '^(?![A-Za-z]:|[\\/])') { $keepSource = $record.source; $spec = [IO.Path]::GetFullPath((Join-Path (Resolve-Path $Project).Path $spec)) } # relative = to the project
+            }
             elseif ($record.source -match '^(registry|engine)\s+(\S+)') { $spec = if ($To) { "$($Matches[2])@$To" } else { $Matches[2] } }
             elseif ($record.source -match '^git\s+(\S+)\s+(\S+)') { $spec = if ($Matches[2] -eq "-") { $Matches[1] } else { "$($Matches[1])#$($Matches[2])" } }
             else { Write-Error "modules/$Target has no recorded source - give one with -From"; exit 1 }
@@ -549,7 +553,7 @@ switch ($Command) {
                     $kept++
                 }
             }
-            if (-not $DryRun) { Write-FilesRecord $dest $src.source $hashes }
+            if (-not $DryRun) { Write-FilesRecord $dest $(if ($keepSource) { $keepSource } else { $src.source }) $hashes }
             Write-Host "Done: $changed change(s), $kept kept"
             Test-ModuleWarnings $info
         } finally { Remove-Cache $src }
