@@ -10,7 +10,7 @@
 # - A project from before 0.9.2 with no engine modules in modules/ gets the standard ones copied in (tools\module.ps1 add -Preset standard), like a new
 #   project. From 0.9.2 on, none in modules/ means only the kernel, so it is left alone.
 # - Files from before the change are kept in .upgrade_backup\<time>\.
-# - -Source: replaces source/ game code with the code of the template the project was made from (mealkit.project "templateName": arena = samples/sandbox,
+# - -Source: replaces source/ game code with the code of the template the project was made from (mealkit.project "templateName": arena = samples/sandbox (fetched by tools\sample.ps1), sample = the repo recorded in .mealkit-template,
 #   empty = templates/empty). Used to move projects that didn't edit the template code to a new engine structure. source/sim/view/app files not in the sample are deleted (backed up). Only missing files are added to assets/ (no overwriting).
 param(
     [Parameter(Mandatory = $true)][string]$Project,
@@ -178,6 +178,17 @@ if ((Test-Path $oldSounds) -and -not (Test-Path $newSounds)) {
 # ---------------------------------------------------------------- Game code (-Source)
 if ($Source) {
     $template = Get-ProjectTemplate $Project
+    # The sample version the project came from (.mealkit-template) and the one it moves to: the engine's locked sample, or the newest tag of its repo
+    $from = Read-TemplateSample $Project
+    if ($template -eq "sample") {
+        if (-not $from) { Write-Error "This project was made from another sample repo, but .mealkit-template does not say which"; exit 1 }
+        $sampleInfo = Resolve-TemplateSample "sample" $from.Url
+    } elseif ($template -eq "arena" -or $template -eq "coop") { $sampleInfo = Resolve-TemplateSample $template }
+    else { $sampleInfo = $null }
+    if ($sampleInfo) {
+        $was = if ($from) { "$($from.Tag) ($($from.Commit.Substring(0, [Math]::Min(9, $from.Commit.Length))))" } else { "(not recorded)" }
+        Write-Host "Sample $($sampleInfo.Name): $was -> $($sampleInfo.Tag) ($($sampleInfo.Commit.Substring(0, [Math]::Min(9, $sampleInfo.Commit.Length))))"
+    }
     $sample = Get-SampleSource $name $template
     foreach ($dir in "sim", "view", "app") {
         $folder = Join-Path $Project "source/$dir"
@@ -202,8 +213,8 @@ if ($Source) {
         $changed++
     }
     # Adds source modules used by the sample that the project lacks (existing modules are updated with tools\module.ps1 update)
-    $engineModules = Join-Path $MealKitEngine "samples/sandbox/modules"
-    if ($template -eq "arena" -and (Test-Path $engineModules)) {
+    $engineModules = if ($template -eq "arena" -or $template -eq "sample") { Join-Path (Get-TemplateSampleDir $template) "modules" } else { "" }
+    if ($engineModules -and (Test-Path $engineModules)) {
         foreach ($m in Get-ChildItem $engineModules -Directory) {
             $target = Join-Path $Project "modules/$($m.Name)"
             if (Test-Path $target) { continue }
@@ -227,7 +238,7 @@ if ($Source) {
     }
 }
 
-if (-not $DryRun) { Write-TemplateManifest $Project $newManifest }
+if (-not $DryRun) { Write-TemplateManifest $Project $newManifest $(if ($Source -and $sampleInfo) { $sampleInfo } else { Read-TemplateSample $Project }) }
 Write-Host "Done: $changed change(s), $kept locally modified file(s) kept$(if ((-not $DryRun) -and $changed -gt 0) { ". Backup: $backup" })"
 if ($changed -gt 0 -and -not $DryRun) { Write-Host "Rebuild the game code: $(if ($MealKitSep -eq "\") { "$Project\build.bat Editor" } else { "pwsh $Project/build.ps1 Editor" })" }
 exit 0

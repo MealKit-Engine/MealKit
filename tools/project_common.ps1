@@ -3,6 +3,7 @@
 # Upgrades replace with the new template if it matches this value (the user didn't edit it), and don't overwrite otherwise.
 
 $MealKitEngine = (Resolve-Path (Split-Path -Parent $PSScriptRoot)).Path
+. "$PSScriptRoot\lock_repo.ps1"
 $MealKitUtf8 = New-Object System.Text.UTF8Encoding $false
 $MealKitManifestName = ".mealkit-template"
 # The PowerShell running this script (5.1 `powershell` on Windows, `pwsh` on Linux/macOS), for calling the other tools
@@ -65,8 +66,19 @@ function Read-TemplateManifest([string]$project) {
     return $map
 }
 
-function Write-TemplateManifest([string]$project, [hashtable]$map) {
+# The sample a project was made from: "@sample <name> <url> <tag> <commit>" in .mealkit-template (null for the empty templates)
+function Read-TemplateSample([string]$project) {
+    $file = Join-Path $project $MealKitManifestName
+    if (-not (Test-Path $file)) { return $null }
+    foreach ($line in [IO.File]::ReadAllLines($file, $MealKitUtf8)) {
+        if ($line -match '^@sample\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*$') { return [pscustomobject]@{ Name = $Matches[1]; Url = $Matches[2]; Tag = $Matches[3]; Commit = $Matches[4] } }
+    }
+    return $null
+}
+
+function Write-TemplateManifest([string]$project, [hashtable]$map, $sample = $null) {
     $lines = @("# MealKit template files (sha256  path). tools\upgrade_project.ps1 replaces a file only while its hash matches.")
+    if ($sample) { $lines += "@sample $($sample.Name) $($sample.Url) $($sample.Tag) $($sample.Commit)" }
     foreach ($k in ($map.Keys | Sort-Object)) { $lines += "$($map[$k])  $k" }
     Write-TextFile (Join-Path $project $MealKitManifestName) (($lines -join "`r`n") + "`r`n")
 }
@@ -104,6 +116,70 @@ function Rename-GameNamespace([string]$text, [string]$from, [string]$to) {
     return [regex]::Replace($text, '(?<![A-Za-z0-9_:])' + $f + '(?=::)', $to)
 }
 
+# ---- Samples (docs/DECISIONS.md 2026-11-24 "The reference samples leave the engine repo"): arena = samples/sandbox and coop = samples/coop come from
+# samples.lock through tools\sample.ps1 (synced when the folder is missing). -Template can also name another sample repo (a git address or a folder):
+# template "sample", described by $MealKitSample (Name = its project name, Dir, Url, Tag, Commit). The tag and commit go to .mealkit-template.
+$MealKitSample = $null
+$MealKitLockPath = Join-Path $MealKitEngine "samples.lock"
+
+# samples/<name> of the engine, fetched first when missing; returns the folder
+function Get-EngineSampleDir([string]$name) {
+    $dir = Join-Path $MealKitEngine "samples/$name"
+    if (-not (Test-Path (Join-Path $dir "mealkit.project"))) {
+        & $MealKitPs -NoProfile -ExecutionPolicy Bypass -File (Join-Path $PSScriptRoot "sample.ps1") sync $name | Out-Host
+        if ($LASTEXITCODE -ne 0 -or -not (Test-Path (Join-Path $dir "mealkit.project"))) { throw "sample '$name' is not available (tools\sample.ps1 sync $name)" }
+    }
+    return $dir
+}
+
+function Get-LockedSample([string]$sampleName) {
+    $locked = @(Read-LockFile $MealKitLockPath "sample" 5 | Where-Object { $_.Name -eq $sampleName })
+    if ($locked.Count -eq 0) { throw "no sample '$sampleName' in samples.lock" }
+    return $locked[0]
+}
+
+# Describes the sample behind a template and keeps it in $MealKitSample. $reference: a folder or git address of a sample repo (template "sample")
+function Resolve-TemplateSample([string]$template, [string]$reference = "") {
+    if ($template -eq "sample") {
+        $url = $reference
+        if (Test-Path $reference) {
+            $dir = (Resolve-Path $reference).Path
+            $url = $dir # a folder is recorded by its full path
+            $tag = "-"
+            if (Test-Path (Join-Path $dir ".git")) {
+                $t = (& git -C $dir describe --tags --exact-match 2>$null)
+                if ($t) { $tag = @($t)[0] }
+                $commit = (& git -C $dir rev-parse HEAD).Trim()
+            } else { $commit = "-" }
+        } elseif ($reference -match '^(https?|ssh|git)://|^git@') {
+            $dir = Get-RepoDir ([pscustomobject]@{ Url = $reference }) (Split-Path -Parent $MealKitEngine) "samples"
+            $tag = Newest-Tag $dir
+            $target = if ($tag) { $tag } else { "origin/HEAD" }
+            & git -C $dir checkout --quiet --detach $target
+            if ($LASTEXITCODE -ne 0) { throw "could not check out $target in $dir" }
+            if (-not $tag) { $tag = "-" }
+            $commit = (& git -C $dir rev-parse HEAD).Trim()
+        } else { throw "-Template '$reference' is neither a template name nor a sample folder or git address" }
+    } else {
+        $sampleName = if ($template -eq "coop") { "coop" } else { "sandbox" }
+        $dir = Get-EngineSampleDir $sampleName
+        $lock = Get-LockedSample $sampleName
+        $url = $lock.Url; $tag = $lock.Tag; $commit = $lock.Commit
+    }
+    if (-not (Test-Path (Join-Path $dir "mealkit.project"))) { throw "$dir has no mealkit.project: not a sample" }
+    $script:MealKitSample = [pscustomobject]@{ Name = (Read-ProjectFile $dir)["name"]; Dir = $dir; Url = $url; Tag = $tag; Commit = $commit }
+    return $script:MealKitSample
+}
+
+# The sample folder a template copies from (the sample of "sample" must have been resolved)
+function Get-TemplateSampleDir([string]$template) {
+    if ($template -eq "sample") {
+        if (-not $script:MealKitSample) { throw "no sample resolved for template 'sample'" }
+        return $script:MealKitSample.Dir
+    }
+    return Get-EngineSampleDir $(if ($template -eq "coop") { "coop" } else { "sandbox" })
+}
+
 # Project templates (tools\new_project.ps1 -Template): arena = the sample game (samples/sandbox + the engine's assets/),
 # empty = templates/empty (source/ + assets/) plus the screens engine modules open ($MealKitSharedFlowAssets: settings, subtitles, theme, fonts),
 # empty2d = templates/empty2d the same way (side view on the XY plane, mealkit.project view2d), coop = a copy of samples/coop.
@@ -111,7 +187,11 @@ $MealKitTemplates = @("arena", "empty", "empty2d", "coop")
 # Templates made from a folder under templates\ (own source/ + assets/, the shared engine screens, generated strings)
 function Test-FolderTemplate([string]$template) { return $template -eq "empty" -or $template -eq "empty2d" }
 # The sample a copied template comes from, and its C++ namespace
-function Get-TemplateSample([string]$template) { if ($template -eq "coop") { return "coop" } return "sandbox" }
+function Get-TemplateSample([string]$template) {
+    if ($template -eq "sample") { return $script:MealKitSample.Name }
+    if ($template -eq "coop") { return "coop" }
+    return "sandbox"
+}
 # The screen flow (title, menu, lobby, results) is the screens source module since 2026-11-15 (docs/DECISIONS.md
 # "Templates carry no game shape"), so no game code is shared: new_project.ps1 -Modules screens adds it
 $MealKitSharedFlowSource = @()
@@ -120,7 +200,7 @@ $MealKitSharedFlowAssets = @("ui/settings.ui", "ui/subtitles.ui", "ui/theme.ui",
 # The template a project was made from (mealkit.project "templateName", arena for projects made before it was written)
 function Get-ProjectTemplate([string]$project) {
     $info = Read-ProjectFile $project
-    if ($info.Contains("templateName") -and $MealKitTemplates -contains $info["templateName"]) { return $info["templateName"] }
+    if ($info.Contains("templateName") -and ($MealKitTemplates -contains $info["templateName"] -or $info["templateName"] -eq "sample")) { return $info["templateName"] }
     return "arena"
 }
 
@@ -132,8 +212,8 @@ function Convert-GameSource([string]$text, [string]$name, [string]$from = "sandb
 # Game code of a template: project-relative path ("source\sim\World.h") → text. Template code is written in namespace sandbox like the sample
 function Get-SampleSource([string]$name, [string]$template = "arena") {
     $files = [ordered]@{}
-    $sample = Join-Path $MealKitEngine "samples/sandbox"
     if (Test-FolderTemplate $template) {
+        $sample = Get-EngineSampleDir "sandbox"
         $root = Join-Path $MealKitEngine "templates/$template/source"
         Get-ChildItem $root -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | Sort-Object FullName | ForEach-Object {
             $files["source\" + (ConvertTo-RelKey $_.FullName.Substring($root.Length + 1))] = Convert-GameSource ([IO.File]::ReadAllText($_.FullName, $MealKitUtf8)) $name
@@ -144,7 +224,7 @@ function Get-SampleSource([string]$name, [string]$template = "arena") {
         return $files
     }
     $sampleName = Get-TemplateSample $template
-    $sample = Join-Path $MealKitEngine "samples/$sampleName"
+    $sample = Get-TemplateSampleDir $template
     foreach ($dir in "sim", "view", "app") {
         $from = Join-Path $sample $dir
         Get-ChildItem $from -Recurse -File | Where-Object { $_.Extension -in ".h", ".cpp" } | Sort-Object FullName | ForEach-Object {
@@ -157,7 +237,6 @@ function Get-SampleSource([string]$name, [string]$template = "arena") {
 # Assets of a template: project-relative path ("assets\scenes\main.scene") → source file. Text files that are generated (strings) aren't here
 function Get-SampleAssets([string]$template = "arena") {
     $files = [ordered]@{}
-    $engineAssets = Join-Path $MealKitEngine "samples/sandbox/assets"
     $add = {
         param($root, $item)
         Get-ChildItem $item -Recurse -File | Where-Object { $_.Extension -ne ".autosave" } | Sort-Object FullName | ForEach-Object {
@@ -165,14 +244,13 @@ function Get-SampleAssets([string]$template = "arena") {
         }
     }
     if (Test-FolderTemplate $template) {
+        $engineAssets = Join-Path (Get-EngineSampleDir "sandbox") "assets" # the shared engine screens, fonts and theme
         $own = Join-Path $MealKitEngine "templates/$template/assets"
         & $add $own $own
         foreach ($rel in $MealKitSharedFlowAssets) { & $add $engineAssets (Join-Path $engineAssets $rel) }
-    } elseif ($template -eq "coop") {
-        $coopAssets = Join-Path $MealKitEngine "samples/coop/assets"
-        & $add $coopAssets $coopAssets
     } else {
-        & $add $engineAssets $engineAssets
+        $sampleAssets = Join-Path (Get-TemplateSampleDir $template) "assets"
+        & $add $sampleAssets $sampleAssets
     }
     return $files
 }
@@ -194,7 +272,7 @@ function Get-TemplateStrings([string]$name, [Collections.IDictionary]$source, [C
     $files = [ordered]@{}
     foreach ($lang in "en", "ko") {
         $out = [Collections.Generic.List[string]]::new()
-        foreach ($line in [IO.File]::ReadAllLines((Join-Path $MealKitEngine "samples/sandbox/assets/strings/$lang.txt"), $MealKitUtf8)) {
+        foreach ($line in [IO.File]::ReadAllLines((Join-Path (Get-EngineSampleDir "sandbox") "assets/strings/$lang.txt"), $MealKitUtf8)) {
             if ($line -match '^\s*([A-Za-z0-9_.]+)\s*=') {
                 $key = $Matches[1]
                 if ($key -eq "game.title") { $out.Add("game.title = $name"); continue }
