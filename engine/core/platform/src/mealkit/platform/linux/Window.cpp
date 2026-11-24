@@ -1,6 +1,7 @@
 // Linux window: X11 (Xlib), also on Wayland desktops through XWayland (docs/DECISIONS.md 2026-11-22).
 // Raw mouse movement comes from XInput2 raw motion, text from the X input method (XIM: ibus/fcitx Korean input).
 #include <algorithm>
+#include <cctype>
 #include <clocale>
 #include <cstdlib>
 #include <cstring>
@@ -11,6 +12,8 @@
 
 #include "mealkit/core/Log.h"
 #include "X11Keys.h"
+
+#include <unistd.h>
 
 #include <X11/Xatom.h>
 #include <X11/Xutil.h>
@@ -127,10 +130,20 @@ bool Window::create(const WindowDesc& desc) {
     x->utf8String = XInternAtom(display, "UTF8_STRING", False);
     XSetWMProtocols(display, x->window, &x->wmDelete, 1);
 
+    // WM_CLASS is the executable name (MealKitEditor, a game's exe): GNOME matches it to the StartupWMClass of the program's
+    // .desktop entry for the dock icon and grouping. res_name is the same in lower case
+    std::string resClass = "MealKit";
+    char exe[4096];
+    if (const ssize_t n = readlink("/proc/self/exe", exe, sizeof(exe) - 1); n > 0) {
+        exe[n] = 0;
+        const char* base = std::strrchr(exe, '/');
+        resClass = base ? base + 1 : exe;
+    }
+    std::string resName = resClass;
+    std::transform(resName.begin(), resName.end(), resName.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     XClassHint hint{};
-    char resName[] = "mealkit", resClass[] = "MealKit";
-    hint.res_name = resName;
-    hint.res_class = resClass;
+    hint.res_name = resName.data();
+    hint.res_class = resClass.data();
     XSetClassHint(display, x->window, &hint);
     if (desc.captionColor != kDefaultCaptionColor) {
         // Dark title bar on GTK window managers (GNOME/mutter); the exact color isn't settable on X11
