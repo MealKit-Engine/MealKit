@@ -1,4 +1,4 @@
-// Vendored copy of module-render v0.6.2; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-render v0.7.0; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/render/Renderer.h"
 
 #include "mealkit/core/Log.h"

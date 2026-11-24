@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.22; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.24; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/PlaySession.h"
 
 #include "mealkit/debug/DebugDrawRender.h"

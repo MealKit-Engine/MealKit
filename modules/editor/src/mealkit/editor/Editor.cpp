@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.22; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.24; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/Editor.h"
 #include "mealkit/editor/SharedBuild.h"
 #include "mealkit/editor/EditorColors.h"
@@ -45,6 +45,7 @@ constexpr const char* kSceneWindow = "Viewport###SceneView";
 constexpr const char* kUiWindow = "UI###UiWorkspace";
 // Windows docked as tabs in the bottom row (default layout)
 const ImVec4 kPlayColor(0.42f, 0.24f, 0.08f, 1.0f); // menu bar during play
+const char* const kBottomWindows[] = {"Assets###Assets", "Debug###Debug"};
 
 // Case-insensitive substring (scene tree search)
 bool containsNoCase(const std::string& text, const char* needle) {
@@ -413,26 +414,11 @@ void Editor::drawPlayControls() {
         if (ImGui::SliderInt("##timeline", &view, static_cast<int>(t.first), static_cast<int>(t.live),
                              t.viewingPast ? tr("Past tick %d") : tr("Tick %d")))
             m_simDebug->seek(static_cast<u32>(view));
-        // Shadow simulation divergence: a red mark at the first diverged tick (when it is still in the recorded range)
-        const game::ShadowStatus& diverged = m_simDebug->shadow();
-        if (diverged.enabled && diverged.desynced && diverged.tick >= t.first && diverged.tick <= t.live && t.live > t.first) {
-            const ImVec2 lo = ImGui::GetItemRectMin();
-            const ImVec2 hi = ImGui::GetItemRectMax();
-            const f32 pad = style.FramePadding.x;
-            const f32 frac = static_cast<f32>(diverged.tick - t.first) / static_cast<f32>(t.live - t.first);
-            const f32 x = std::floor(lo.x + pad + frac * (hi.x - lo.x - pad * 2.0f)) + 0.5f;
-            ImGui::GetWindowDrawList()->AddLine(ImVec2(x, lo.y + 2.0f), ImVec2(x, hi.y - 2.0f),
-                                                ImGui::GetColorU32(ImVec4(1.0f, 0.4f, 0.35f, 1.0f)), 2.0f);
-        }
         ImGui::EndDisabled();
-        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled)) {
-            std::string tip = trf("Drag while paused to rewind to that tick (ticks %u-%u, record %.1f MB).\nResume returns to the present.",
-                                  t.first, t.live, static_cast<f64>(t.memoryBytes) / (1024.0 * 1024.0));
-            const game::ShadowStatus& sh = m_simDebug->shadow();
-            if (sh.enabled && sh.desynced)
-                tip += "\n" + trf("Red mark: the shadow simulation first diverged at tick %u.", sh.tick);
-            ImGui::SetTooltip("%s", tip.c_str());
-        }
+        if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip(
+                tr("Drag while paused to rewind to that tick (ticks %u-%u, record %.1f MB).\nResume returns to the present."),
+                t.first, t.live, static_cast<f64>(t.memoryBytes) / (1024.0 * 1024.0));
     }
     // Solo play writes the input recording as it goes (user folder replays/current.rec): it becomes a scenario test
     const bool canSaveScenario = !t.viewingPast && m_stateView.type && m_stateView.data && t.live > 0 &&
@@ -915,9 +901,8 @@ bool Editor::gameMouseAllowed() const { return m_mode == Mode::Play && !sceneMou
 
 // ---------------------------------------------------------------- UI
 
-// Predefined layouts: the scene view; a column on the right with [Data] (tall field lists) and [Previews] as the tab behind it;
-// a bottom row split into [Assets] (wide: folders | files | preview) on the left and [Debug] on the right, so the log stays in sight while browsing.
-// Play shrinks the bottom row and brings [State] to front; lookdev puts a large [Lookdev] window at the top right with [Data] under it.
+// Predefined layouts: the scene view, one column on the right ([Previews]), bottom row (build log, tables).
+// Play shrinks the bottom row and brings [State] to front; lookdev puts a large [Lookdev] window at the top right.
 void Editor::setupDefaultLayout(u32 dockId, LayoutPreset preset) {
     m_sceneOpen = true;
     ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -929,8 +914,7 @@ void Editor::setupDefaultLayout(u32 dockId, LayoutPreset preset) {
     const f32 rightShare = preset == LayoutPreset::LookDev ? 0.42f : 0.27f;
     ImGuiID right = ImGui::DockBuilderSplitNode(center, ImGuiDir_Right, rightShare, nullptr, &center);
     const f32 bottomShare = preset == LayoutPreset::Play ? 0.18f : 0.26f;
-    ImGuiID bottom = ImGui::DockBuilderSplitNode(center, ImGuiDir_Down, bottomShare, nullptr, &center);
-    const ImGuiID bottomRight = ImGui::DockBuilderSplitNode(bottom, ImGuiDir_Right, 0.4f, nullptr, &bottom);
+    const ImGuiID bottom = ImGui::DockBuilderSplitNode(center, ImGuiDir_Down, bottomShare, nullptr, &center);
     ImGui::DockBuilderDockWindow(kUiWindow, center); // a tab behind the viewport
     ImGui::DockBuilderDockWindow(kSceneWindow, center);
     m_sceneFrontFrames = 2;
@@ -942,9 +926,8 @@ void Editor::setupDefaultLayout(u32 dockId, LayoutPreset preset) {
     } else {
         ImGui::DockBuilderDockWindow("Previews###Previews", right);
     }
-    ImGui::DockBuilderDockWindow("Data###Data", right); // docked last: the front tab of the right column
-    ImGui::DockBuilderDockWindow("Assets###Assets", bottom);
-    ImGui::DockBuilderDockWindow("Debug###Debug", bottomRight);
+    for (const char* w : kBottomWindows) ImGui::DockBuilderDockWindow(w, bottom);
+    ImGui::DockBuilderDockWindow("Data###Data", bottom);
     ImGui::DockBuilderFinish(dockId);
     if (preset == LayoutPreset::Play) openDebugPage(DebugPage::State);
 }
@@ -1147,10 +1130,6 @@ void Editor::drawStatusBar() {
     if (ImGui::BeginViewportSideBar("##StatusBar", ImGui::GetMainViewport(), ImGuiDir_Down, ImGui::GetFrameHeight(),
                                     flags)) {
         if (ImGui::BeginMenuBar()) {
-            // Everything left of the fps counter is clipped before it: a long build status or hint in a narrow window ran under the number
-            const char* fps = "0000 fps";
-            const f32 fpsX = ImGui::GetWindowWidth() - ImGui::CalcTextSize(fps).x - 16.0f;
-            ImGui::PushClipRect(ImGui::GetWindowPos(), ImVec2(ImGui::GetWindowPos().x + fpsX - ImGui::GetFontSize() * 0.5f, ImGui::GetWindowPos().y + ImGui::GetWindowHeight()), true);
             // Space between groups instead of divider characters
             const auto gap = [] { ImGui::Dummy(ImVec2(ImGui::GetFontSize() * 0.75f, 0.0f)); };
             // The open scene; clicking it while editing lists the project's scenes to switch to
@@ -1187,8 +1166,8 @@ void Editor::drawStatusBar() {
             else if (m_sceneHovered) // only when it applies; messages show as notices over the viewport (drawNotices)
                 ImGui::TextDisabled(
                     "%s", tr("Camera: right drag + WASD/QE, wheel for speed | Select: click | Hold Ctrl on gizmo: snap"));
-            ImGui::PopClipRect();
-            ImGui::SetCursorPosX(fpsX);
+            const char* fps = "0000 fps";
+            ImGui::SetCursorPosX(ImGui::GetWindowWidth() - ImGui::CalcTextSize(fps).x - 16.0f);
             // Red when over budget; clicking opens the [Performance] window
             const ImVec4 fpsColor = m_perfPanel.overBudget() ? color::kDanger
                                                              : ImGui::GetStyleColorVec4(ImGuiCol_TextDisabled);

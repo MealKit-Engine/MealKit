@@ -38,6 +38,7 @@ inline constexpr u32 kInstanceLodShift = 8;    // editor view mode Lod: bits 8~9
 // Per-instance style values (upper 16 bits of flags, the instance stays 48 bytes): changed by view/ from tick events
 inline constexpr u32 kInstanceFlashShift = 16;    // bits 16~23: flash 0..1 (blended toward white, all materials)
 inline constexpr u32 kInstanceDissolveShift = 24; // bits 24~31: dissolve progress 0..1 (kMaterialDissolve materials only)
+inline constexpr u32 kNoHighlight = 0xFFFFFFFFu;   // FrameParams::highlightMaterial: no material tinted
 inline u32 instanceUnit8(f32 amount) { return static_cast<u32>((amount < 0.0f ? 0.0f : amount > 1.0f ? 1.0f : amount) * 255.0f + 0.5f); }
 // Puts a flash into flags: out.add(mesh, {..., instanceFlash(flags, 0.8f)})
 inline u32 instanceFlash(u32 flags, f32 amount) { return (flags & ~(0xFFu << kInstanceFlashShift)) | (instanceUnit8(amount) << kInstanceFlashShift); }
@@ -195,6 +196,8 @@ struct FrameParams {
     Vec3 tintColor{1.0f, 1.0f, 1.0f};
     f32 tintAmount = 0.0f;
     DebugView debugView = DebugView::None; // editor view mode
+    // Tints the pixels of one material (Renderer::createMaterial index) so a tool can show where it is used (Look Dev [Materials]). kNoHighlight = none
+    u32 highlightMaterial = kNoHighlight;
     // View time (seconds, wind sway). Graphics regression tests keep it at 0
     f32 time = 0.0f;
     Vec3 windDirection{1.0f, 0.0f, 0.3f}; // horizontal direction (the renderer normalizes it)
@@ -293,6 +296,19 @@ inline constexpr u32 kUiAtlasSize = 2048;
 
 // Forward renderer (on top of the RHI, doesn't call graphics APIs directly). Processes 2 frames concurrently, and per-frame data
 // is written to the RHI upload ring. On integrated graphics (UMA) the upload memory is the memory the GPU reads, so there's no copy at all.
+// The pixel the inspector read (Renderer::inspectPixel). linear is the HDR scene color before post (linear, not clamped: bright lights go
+// over 1); exposure is the scale post multiplies it by (2^EV x brightness); srgb is the final output pixel (what the screen shows,
+// including anything drawn over the scene on the main view). valid is false until a read succeeds
+struct PixelInspect {
+    bool valid = false;
+    u32 x = 0, y = 0; // the pixel asked for
+    f32 linear[3] = {};
+    f32 exposure = 1.0f;
+    u8 srgb[3] = {};
+};
+// R11G11B10F (the HDR targets' format, red in the low bits) to floats. Negative values don't exist in it
+void unpackR11G11B10F(u32 packed, f32 out[3]);
+
 class Renderer {
 public:
     Renderer() = default;
@@ -390,6 +406,12 @@ public:
     // At this frame's endFrame, reads the offscreen target (drawn with drawToTarget) into out (sRGB 8-bit, waits for the GPU).
     // Reflection probe baking. out must live until endFrame. requestCapture in the same frame is deferred to the next frame
     void captureTarget(mkrhi::RenderTarget target, Image* out);
+
+    // Pixel inspector: at this frame's endFrame, reads one pixel and fills pixelInspect() (waits for the GPU, so ask only while the user
+    // is picking). target none = the main view and (x, y) is a back buffer pixel; else an offscreen target drawn with drawToTarget this
+    // frame and (x, y) is a pixel of its image. A frame with captureTarget/requestCapture reads nothing (valid stays false)
+    void inspectPixel(u32 x, u32 y, mkrhi::RenderTarget target = {});
+    const PixelInspect& pixelInspect() const;
 
     const char* adapterName() const;
     const GpuInfo& gpu() const;

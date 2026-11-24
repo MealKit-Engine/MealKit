@@ -1,8 +1,9 @@
-// Vendored copy of module-asset v0.3.0; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-asset v0.4.0; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Math.h"
 
+#include <string>
 #include <vector>
 
 // CPU mesh, material and texture data: what model import, cooking and terrain produce and the renderer uploads.
@@ -82,6 +83,13 @@ struct MaterialData {
     f32 rimColor[3] = {1, 1, 1};
     f32 dissolveEdge = 0.05f; // glowing width of the disappearing edge (in progress units 0..1)
     f32 dissolveColor[3] = {4.0f, 1.6f, 0.4f}; // edge emission (linear, brighter above 1)
+};
+
+// What the importer knows about a material besides what is drawn (cooked with the model, shown on the [Materials] page of [Look Dev])
+struct MaterialNotes {
+    std::string name;                 // glTF material name ("" = none)
+    std::vector<std::string> meshes;  // glTF mesh names using it, in file order, each once
+    std::vector<std::string> ignored; // what loading ignored, in English ("clearcoat is not supported (ignored)")
 };
 
 // Model textures (render/TextureCache.h compresses them): what a glTF slot is used for

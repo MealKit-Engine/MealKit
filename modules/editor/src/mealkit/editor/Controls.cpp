@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.22; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.24; change it in that repo (tools\module.ps1 update), not here.
 // Checkbox and radio button of the suite (docs/TOOL_DESIGN.md 3.2): an outlined empty box, an accent fill with a light mark when on.
 // Same drawing as MkRender, MkAudio, MkUI, QA and the Manager (each copies it, DECISIONS 2026-11-12).
 #include "mealkit/editor/ImGuiLayer.h"

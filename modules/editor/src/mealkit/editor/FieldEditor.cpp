@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.22; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.24; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/FieldEditor.h"
 #include "mealkit/editor/EditorColors.h"
 
@@ -9,7 +9,6 @@
 #include "mealkit/platform/Paths.h"
 
 #include <algorithm>
-#include <cfloat>
 #include <cmath>
 #include <cctype>
 #include <cstdlib>
@@ -936,23 +935,10 @@ bool colorEdit(const char* label, f32* color, bool alpha, int flags) {
 }
 
 bool beginListPane(const char* id, f32 width) {
-    // Applied every frame: a list dragged wide (the width is kept in imgui.ini) or a window made narrow can't push the right pane out
-    const f32 maxWidth = std::max(ImGui::GetContentRegionAvail().x * 0.4f, ImGui::GetFontSize() * 3.0f);
-    ImGui::SetNextWindowSizeConstraints(ImVec2(ImGui::GetFontSize() * 3.0f, 0.0f), ImVec2(maxWidth, FLT_MAX));
     ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(ImGui::GetFontSize() * 0.4f, 0.0f));
-    const bool open = ImGui::BeginChild(id, ImVec2(std::min(width, maxWidth), 0.0f), ImGuiChildFlags_ResizeX | ImGuiChildFlags_AlwaysUseWindowPadding);
+    const bool open = ImGui::BeginChild(id, ImVec2(width, 0.0f), ImGuiChildFlags_ResizeX | ImGuiChildFlags_AlwaysUseWindowPadding);
     ImGui::PopStyleVar();
     return open;
-}
-
-void sameLineOrWrap(f32 width) {
-    ImGui::SameLine();
-    if (ImGui::GetContentRegionAvail().x < width) ImGui::NewLine();
-}
-
-void sameLineAt(f32 x) {
-    ImGui::SameLine();
-    if (ImGui::GetCursorPosX() < x) ImGui::SameLine(x);
 }
 
 std::string iconTitle(const char* glyph, const char* label) { return std::string(glyph) + "  " + trl(label); }

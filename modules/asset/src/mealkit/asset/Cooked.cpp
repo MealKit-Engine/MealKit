@@ -1,4 +1,4 @@
-// Vendored copy of module-asset v0.3.0; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-asset v0.4.0; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/asset/Cooked.h"
 
 #include <cstring>
@@ -10,7 +10,7 @@ namespace {
 constexpr u32 kModelMagic = 0x444D4B4Du;  // "MKMD"
 constexpr u32 kCameraMagic = 0x434D4B4Du; // "MKMC"
 // Bumped when a layout below or a written struct changes (sizes are checked too, so a struct change without a bump still fails safely)
-constexpr u32 kModelVersion = 1;
+constexpr u32 kModelVersion = 2; // 2: material notes
 constexpr u32 kCameraVersion = 1;
 
 struct Writer {
@@ -111,6 +111,14 @@ std::string writeCookedModel(const CookedModel& m) {
         w.array(c.poses);
     }
     w.array(m.materials);
+    w.pod(static_cast<u32>(m.notes.size()));
+    for (const MaterialNotes& note : m.notes) {
+        w.text(note.name);
+        for (const std::vector<std::string>* list : {&note.meshes, &note.ignored}) {
+            w.pod(static_cast<u32>(list->size()));
+            for (const std::string& s : *list) w.text(s);
+        }
+    }
     w.pod(static_cast<u32>(m.textures.size()));
     for (const CompressedTexture& t : m.textures) {
         w.pod(t.width);
@@ -158,6 +166,21 @@ bool readCookedModel(std::string_view bytes, CookedModel& m, std::string& error)
         m.clips.push_back(std::move(c));
     }
     r.array(m.materials);
+    r.pod(n);
+    for (u32 i = 0; i < n && r.ok; ++i) {
+        MaterialNotes note;
+        r.text(note.name);
+        for (std::vector<std::string>* list : {&note.meshes, &note.ignored}) {
+            u32 count = 0;
+            r.pod(count);
+            for (u32 k = 0; k < count && r.ok; ++k) {
+                std::string s;
+                r.text(s);
+                list->push_back(std::move(s));
+            }
+        }
+        m.notes.push_back(std::move(note));
+    }
     r.pod(n);
     for (u32 i = 0; i < n && r.ok; ++i) {
         CompressedTexture t;

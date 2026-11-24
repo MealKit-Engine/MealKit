@@ -950,6 +950,11 @@ TEST_CASE(asset, cooked_assets) {
                back.clips[0].poses.size() == cooked.clips[0].poses.size() && back.lods.size() == cooked.lods.size() &&
                back.lods[0].indices == cooked.lods[0].indices && back.lods[0].skin.size() == back.lods[0].vertices.size() &&
                back.materials.size() == cooked.materials.size());
+    // Material notes (names, glTF meshes using each material) survive cooking: the [Materials] page of [Look Dev] reads them
+    TEST_CHECK(!cooked.notes.empty() && back.notes.size() == cooked.materials.size());
+    for (size_t i = 0; i < back.notes.size(); ++i)
+        TEST_CHECK(back.notes[i].name == cooked.notes[i].name && back.notes[i].meshes == cooked.notes[i].meshes &&
+                   back.notes[i].ignored == cooked.notes[i].ignored && !back.notes[i].meshes.empty());
     TEST_CHECK(!asset::readCookedModel(bytes.substr(0, bytes.size() - 1), back, error));
     TEST_CHECK(!asset::readCookedModel("junk", back, error));
 
