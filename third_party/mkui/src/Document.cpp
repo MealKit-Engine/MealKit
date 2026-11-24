@@ -4,8 +4,10 @@
 
 #include "mkcontract/Text.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 namespace mkui {
 namespace {
@@ -229,6 +231,45 @@ bool loadTheme(Theme& out, Host& host, std::vector<std::string>* errors) {
     return true;
 }
 
+// Property keywords applyProperty reads (for the "did you mean" hint of an unknown one; a keyword missing here only loses its hint)
+constexpr const char* kPropertyNames[] = {
+    "absolute", "align", "alignContent", "alignSelf", "brightness", "brightnessField", "button", "cell", "clip", "color", "colorField", "columns",
+    "constraints", "content", "disabled", "fill", "flip", "focusDown", "focusLeft", "focusRight", "focusUp", "font", "fontSize", "fontSizeField",
+    "gap", "gradientField", "hidden", "id", "justify", "justifyItems", "justifySelf", "key", "layout", "letterSpacing", "lineHeight", "list",
+    "margin", "max", "maxLength", "maxLines", "min", "offsetField", "on", "opacity", "opacityField", "outline", "outlineColorField", "outlineField",
+    "overflow", "padding", "placeholder", "pos", "radius", "rotation", "rows", "scaleField", "scroll", "select", "shadow", "size", "skew",
+    "skewField", "slice", "slider", "span", "squeeze", "squeezeField", "src", "strike", "stroke", "textAlign", "textInput", "tint", "toggle",
+    "transform", "transition", "underline", "verticalAlign", "visible", "widthRatio", "wrap"};
+
+size_t editDistance(const std::string& a, const std::string& b) {
+    std::vector<size_t> row(b.size() + 1);
+    for (size_t j = 0; j <= b.size(); ++j) row[j] = j;
+    for (size_t i = 1; i <= a.size(); ++i) {
+        size_t diagonal = row[0];
+        row[0] = i;
+        for (size_t j = 1; j <= b.size(); ++j) {
+            const size_t above = row[j];
+            row[j] = std::min({row[j] + 1, row[j - 1] + 1, diagonal + (a[i - 1] == b[j - 1] ? 0 : 1)});
+            diagonal = above;
+        }
+    }
+    return row[b.size()];
+}
+
+// The closest property keyword within 1 to 3 edits (at most a third of the word); empty when none is close
+std::string closestProperty(const std::string& word) {
+    std::string best;
+    size_t bestDistance = std::max<size_t>(1, std::min<size_t>(3, word.size() / 3)) + 1;
+    for (const char* name : kPropertyNames) {
+        const size_t d = editDistance(word, name);
+        if (d < bestDistance) {
+            bestDistance = d;
+            best = name;
+        }
+    }
+    return best;
+}
+
 bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::string* error) {
     const std::vector<std::string> t = split(line);
     if (t.empty()) return true;
@@ -236,7 +277,7 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
     const size_t args = t.size() - 1;
     auto num = [&](size_t i, f32& out) { return i < t.size() && parseNumber(t[i], theme, out); };
     auto fail = [&](const char* what) {
-        if (error) *error = std::string("bad '") + k + "': " + what;
+        if (error) *error = std::string("bad '") + k + "': " + what + " (got \"" + line + "\")";
         return false;
     };
     Visual& v = n.visual;
@@ -552,7 +593,11 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
         n.states.push_back(std::move(o));
         return true;
     }
-    if (error) *error = "unknown property '" + k + "'";
+    if (error) {
+        *error = "unknown property '" + k + "'";
+        const std::string close = closestProperty(k);
+        if (!close.empty()) *error += "; did you mean '" + close + "'?";
+    }
     return false;
 }
 

@@ -15,7 +15,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 
 Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
 
-**Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T2, T4 → AI agents A7, A3, A5 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) → Modules ⑨ (`health` first) → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
+**Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T2, T4 → AI agents A3, A5 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) → Modules ⑨ (`health` first) → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
 
 ## Decision criteria
 
@@ -189,9 +189,8 @@ A review of how well an AI agent (and a developer new to MealKit) can read the e
 
 **Already strong**: one answer per problem (`docs/CODING_MODEL.md`, the template CLAUDE.md and the cookbook teach the same patterns); mistakes caught by tools at build time with what to use instead (SimCheck `SIMnnn`, STR001, `check_layout`); every piece of game data is text (`.table`, `.tuning`, `.ui`, `.events`), so an agent edits data as well as code; self-checks without a person (`--bot`, `--capture`, `tests/*.scenario`, `mp_test`, replays); one `MEALKIT_FIELD` declaration reaches the hash, snapshots and editor panels.
 
-**Suggested order**: A7 (ongoing, cheap) → A3 → A5. A6 waits on its open questions (`docs/ROADMAP_HUMAN.md`).
+**Suggested order**: A3 → A5. A6 waits on its open questions (`docs/ROADMAP_HUMAN.md`).
 
-- [ ] A7. **Load warnings that say what to do** (S, ongoing). Like SimCheck: each warning when a table, tuning file, scene or UI file is read names the file and line and the fix ("unknown field `speeed` in tables/props.table:12; did you mean `speed`?"). Done: the unknown field / bad value sentences with the "did you mean" hint, table rows, scene objects and tuning-style text files naming their line (`docs/CHANGELOG.md` "Load warnings that say what to do", "Table warnings name the line", "Scene object and tuning warnings"). Left: `.ui` files (in MkUI, `third_party/mkui`); push module-data (v0.1.9, v0.1.10) and module-scene (v0.3.3), whose tags are local.
 - [ ] A3. **API index for agents** (M, together with "Docs repo: `--dump-reference`" in "Small leftovers"). One short text file per module and per kernel folder: each public type and function on one line with its header and a few words. Generated, never written by hand, shipped with the engine and with each module copy. Today an agent greps headers, and LSP needs an Editor build first.
 - [ ] A5. **More cookbook recipes** (S each). Jobs a game repeats: add a weapon (table row + RowRef + feedback row), add an enemy kind, add a game mode, add a map gimmick with `objects`. Each one is also the pattern an agent copies. English and Korean together.
 - Higher-level building blocks (Modules ⑨: `health`, `inventory`, `minimap`, `ai`) help game developers and agents the most, and stay in that section.
