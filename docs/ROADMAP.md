@@ -14,7 +14,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 
 Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
 
-**Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T2 → AI agents A3, A5 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) → Modules ⑨ (`health` first) → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
+**Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T2 → AI agents A5 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) → Modules ⑨ (`health` first) → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
 
 ## Decision criteria
 
@@ -83,7 +83,7 @@ Left: run MealKit-Docs `tools/build.py check --engine ..\MealKit` once on a mach
 - Shipping exe size breakdown: FuseTag's Release exe is 4.63 MB of the 5 MB budget (LTCG and `/OPT:REF` already drop unused code). Measure what each library and module takes before the next runtime library is added (E8 keeps it in CI afterwards).
 - Kernel memory: miniaudio allocation hooks and per-tag budgets.
 - `audio` stays in the engine until its glue moves into MkAudio.
-- Docs repo: `--dump-reference` reference generation and Weblate (with A3).
+- Docs repo: `--dump-reference` reference generation and Weblate (agents already have `API.txt`, CHANGELOG "API index for agents").
 
 ### [ ] External library review follow-ups (reviewed 2026-10-29)
 - **Tool repo library rules**: MkAudio, MkUI and Manager have only a README table. Align them with the engine's `mealkit.txt` + generated notices. The full SDL3 source (33 MB) lives in two repos: see whether only what the build needs can be kept.
@@ -183,9 +183,8 @@ A review of how well an AI agent (and a developer new to MealKit) can read the e
 
 **Already strong**: one answer per problem (`docs/CODING_MODEL.md`, the template CLAUDE.md and the cookbook teach the same patterns); mistakes caught by tools at build time with what to use instead (SimCheck `SIMnnn`, STR001, `check_layout`); every piece of game data is text (`.table`, `.tuning`, `.ui`, `.events`), so an agent edits data as well as code; self-checks without a person (`--bot`, `--capture`, `tests/*.scenario`, `mp_test`, replays); one `MEALKIT_FIELD` declaration reaches the hash, snapshots and editor panels.
 
-**Suggested order**: A3 → A5. A6 waits on its open questions (`docs/ROADMAP_HUMAN.md`).
+**Suggested order**: A5. A6 waits on its open questions (`docs/ROADMAP_HUMAN.md`).
 
-- [ ] A3. **API index for agents** (M, together with "Docs repo: `--dump-reference`" in "Small leftovers"). One short text file per module and per kernel folder: each public type and function on one line with its header and a few words. Generated, never written by hand, shipped with the engine and with each module copy. Today an agent greps headers, and LSP needs an Editor build first.
 - [ ] A5. **More cookbook recipes** (S each). Jobs a game repeats: add a weapon (table row + RowRef + feedback row), add an enemy kind, add a game mode, add a map gimmick with `objects`. Each one is also the pattern an agent copies. English and Korean together.
 - Higher-level building blocks (Modules ⑨: `health`, `inventory`, `minimap`, `ai`) help game developers and agents the most, and stay in that section.
 

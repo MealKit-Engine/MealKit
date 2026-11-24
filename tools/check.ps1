@@ -251,6 +251,15 @@ Invoke-Check static "Project layout + notices" {
     $output | Out-File -Encoding utf8 $log
     return $code -eq 0 -and $LASTEXITCODE -eq 0
 }
+# API.txt (agent API index, tools/gen_api_index.py) matches the headers of the kernel folders and vendored modules
+Invoke-Check static "API index (API.txt)" {
+    param($log)
+    $py = if ($onWindows) { "python" } else { "python3" }
+    if (-not (Get-Command $py -ErrorAction SilentlyContinue)) { return "SKIP: $py not on PATH" }
+    $output = & $py "$PSScriptRoot/gen_api_index.py" --check 2>&1
+    $output | Out-File -Encoding utf8 $log
+    return $LASTEXITCODE -eq 0
+}
 Invoke-Check static "Platform layer (OS APIs)" {
     param($log)
     $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/check_platform.ps1" 2>&1
