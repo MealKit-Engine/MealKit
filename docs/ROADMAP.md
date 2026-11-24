@@ -207,9 +207,6 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 
 Steps in order; each one leaves the engine building and `check.ps1` passing.
 
-### [ ] 3. Create the sample repos (needs the user's go-ahead: new public GitHub repos)
-`sample-sandbox` and `sample-coop` from `git subtree split --prefix samples/<name>` so their history comes along, tag `v0.1.0`, commit as KingProtea99, write `samples.lock`, remove the folders from engine git, and add `/samples/*/` to `.gitignore` (left out of step 2: while the folders are tracked it would hide new sample files from `git status`). Fill `samples.lock` (empty so far) with both samples.
-
 ### [ ] 4. Build and checks fetch the locked samples
 The root `CMakeLists.txt` adds `samples/<name>` only when present (a message names `tools\sample.ps1 sync` otherwise); the engine build script syncs missing samples on the engine repo's first build so a beta visitor never hits a missing folder. `check.ps1`, `ci_test.ps1`, `mp_test.ps1`, `record_replay.ps1`, `live_probe.ps1` and the golden/perf paths fail early when `sample.ps1 status` differs from the lock (as with modules). CI adds a sync step before the build. `check.ps1` `$pathRules` routes changes of `samples.lock` to the groups that `samples/` changes route to today.
 

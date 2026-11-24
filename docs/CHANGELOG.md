@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## The sample repos (2026-11-24; `docs/DECISIONS.md` 2026-11-24 "The reference samples leave the engine repo", step 3)
+- **Repos**: `MealKit-Engine/sample-sandbox` (84 commits) and `MealKit-Engine/sample-coop` (16 commits), public, made with `git subtree split --prefix samples/<name>` so the history of each sample came along (commits by KingProtea99). Tag `v0.1.0` on both; checkouts beside the engine as `sample-sandbox` and `sample-coop`.
+- **Lock**: `samples.lock` pins `v0.1.0` (sandbox `e1114f8`, coop `7d63fbc`). The 283 sample files left engine git (`git rm --cached`; the old history keeps them) and `.gitignore` now ignores `/samples/*/`; the working folders were not touched, and `sample.ps1 status` is ok for both.
+- **`sample.ps1`**: `*.autosave` files count as local, like `build/` and `export/`.
+- **Left**: the engine build and the check scripts still assume the folders exist (step 4).
+
 ## `samples.lock` and `tools\sample.ps1` (2026-11-24; `docs/DECISIONS.md` 2026-11-24 "The reference samples leave the engine repo", step 2)
 - **Lock**: `samples.lock` (`@format sample-lock 1`, `sample <name> <url> <tag> <commit>`), empty until the sample repos exist (step 3).
 - **Commands**: `tools\sample.ps1 status|sync|bump|local`. `status` reports MISSING, DIFF (changed, missing or extra files against the locked commit), LOCAL or ok, and exits 1 for MISSING and DIFF. `sync [name ...]` rewrites `samples/<name>` from the locked commit (`.github/` left out; `build/`, `export/` and `CLAUDE.md` kept). `bump <name> [tag]` locks the checkout's newest `v*` tag or the given one and syncs. `local on` links `samples/<name>` to the sibling `sample-<name>` checkout (skipped when the folder has changes not in the lock), `local off` removes the link and syncs.

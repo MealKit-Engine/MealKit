@@ -19,8 +19,8 @@ $workspace = Split-Path -Parent $engine
 . "$PSScriptRoot\lock_repo.ps1"
 
 $skip = { param($rel) $rel.StartsWith(".github/") }
-# Output and notes that are not part of the sample repo
-function Is-Local-File([string]$rel) { return $rel -eq "CLAUDE.md" -or $rel.StartsWith("build/") -or $rel.StartsWith("export/") }
+# Output, autosaves and notes that are not part of the sample repo
+function Is-Local-File([string]$rel) { return $rel -eq "CLAUDE.md" -or $rel.EndsWith(".autosave") -or $rel.StartsWith("build/") -or $rel.StartsWith("export/") }
 
 function Read-Lock { return Read-LockFile $lockPath "sample" 5 }
 function Write-Lock($entries) {

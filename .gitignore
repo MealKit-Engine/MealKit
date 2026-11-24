@@ -2,9 +2,8 @@
 /build/
 /out/
 /export/
-# Reference sample projects (samples/<name>): editor/play/cache output and Export folders
-/samples/*/build/
-/samples/*/export/
+# Reference samples are fetched by tools/sample.ps1 (samples.lock); only samples/README.md is tracked
+/samples/*/
 .vs/
 # Only screenshots/captures (textures and icons are committed)
 /screenshot*.png

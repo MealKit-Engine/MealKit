@@ -1,7 +1,0 @@
-# MealKit module files (sha256  path). tools\module.ps1 update replaces a file only while its hash matches.
-source folder D:\Personal\module-matchflow
-c3725239e0f110e49df7386de0bf91c646b82a37584802e4ea6d54c7320e00e6  docs/index.md
-f6f4c6eac2951520252a60a045ac4a2b0f6b6c65b345021dd2870212027187eb  LICENSE
-9431ccb8d4712d9b5fe41412549661ba2cc0e99380a2d8d859b34783ccab8b78  module.txt
-35369c44f2c1919d089b49627e2bb93f0c832cc568aa30eb58ee3c9615c544ce  README.md
-93aa6d1b28053bb0e04bc02eac1981794553068822dd35bfd0aa586beba944c5  sim/MatchFlow.h
