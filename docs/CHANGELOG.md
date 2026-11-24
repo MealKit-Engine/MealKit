@@ -20,9 +20,14 @@ When a roadmap item is done, its details move here and it is removed from ROADMA
 - Template files are picked up by `Get-RenderedTemplate` as they are, so new projects get both new files and `upgrade_project.ps1` adds them (an existing project's edited `CLAUDE.md` gets a `.new`). Manual: `getting_started/first_project` (English and Korean `.po`) lists the new files.
 - Verified: a new `empty` project has the three files with names filled in, `check_layout.ps1` OK (0 warnings), `upgrade_project.ps1 -DryRun` 0 changes. Not verified: MealKit-Docs `build.py check` (this machine lacks `myst_parser`; run it where Sphinx is installed), and no agent was tried on the new layout.
 
+## Table warnings name the line (2026-11-24; ROADMAP "AI agents" A7, part)
+- module-data `v0.1.10` (local commit and tag in `../module-data`, not pushed; `modules.lock` bumped to it here, so push that repo before the engine): `TableText::lines` holds the file line of each `row` line (set by `readTableText`; empty for text built in memory), and `rowLabel(id, lines, index)` makes `second (line 6)`. Row warnings and range warnings use it: `row second (line 6): unknown field 'weigth'; did you mean 'weight'?`. This also brings v0.1.9 (the reflect sentences in row warnings), which was held back before.
+- Left (A7 stays open): scene objects (`readObject`), `.ui` and tuning files name no line.
+- Verified: Release build on Linux, `mealkit_tests --only data,core` PASS (the `tables` test checks the line text and the in-memory case). Full `check.ps1` not run.
+
 ## Load warnings that say what to do (2026-11-24; ROADMAP "AI agents" A7, part)
 - `reflect::fromText` (`Reflect.cpp`) now words each failed line: `unknown field 'smal'; did you mean 'small'?` (closest declared path by edit distance, at most a third of the name and 3 edits, else no hint) or `bad value 'abc' for field 'small'`. Joined with `; `. It was a bare comma list of paths. Every caller that logs the string (tuning, project settings, saves, tables) gets it; the test `reflect` checks both sentences.
-- module-data `v0.1.9` (local commit and tag in `../module-data`, not pushed): table rows log `row <id>: <those sentences>` instead of `row <id>: unknown fields ...`. **Not bumped here yet**: `modules.lock` stays at v0.1.8 until that repo is pushed (`tools\module.ps1 engine bump data`). Until then table warnings read `row crate: unknown fields unknown field 'speeed'; ...`.
+- module-data `v0.1.9` (local tag in `../module-data`, bumped here with v0.1.10): table rows log `row <id>: <those sentences>` instead of `row <id>: unknown fields ...`. **Not bumped here yet**: `modules.lock` stays at v0.1.8 until that repo is pushed (`tools\module.ps1 engine bump data`). Until then table warnings read `row crate: unknown fields unknown field 'speeed'; ...`.
 - Left (A7 stays open): the file and line. Table rows are located by row id only (`TableText` has no line numbers); scene (`readObject` drops its warnings silently), `.ui` and tuning files name no line.
 - Verified: Release build, `mealkit_tests --only core,data` PASS. Full `check.ps1` not run.
 

@@ -1,4 +1,4 @@
-// Vendored copy of module-data v0.1.8; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-data v0.1.10; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Hash.h"
@@ -24,7 +24,10 @@ namespace mealkit::data {
 struct TableText {
     std::vector<std::string> ids;
     std::vector<reflect::TextFields> rows;
+    std::vector<int> lines; // file line of each `row` line, set by readTableText (empty or shorter for text built elsewhere: no line then)
 };
+// "crate" or "crate (line 12)": how a warning names a row.
+std::string rowLabel(const std::string& id, const std::vector<int>& lines, size_t index);
 bool readTableText(const std::string& path, TableText& out, std::string* warnings = nullptr);
 bool writeTableText(const std::string& path, const TableText& table, const char* rowTypeName);
 bool validRowId(const std::string& id);
@@ -38,7 +41,7 @@ struct TableData {
     std::vector<reflect::Instance> rows;
 };
 void tableToText(const TableData& table, TableText& out);
-// Reads each line with the row type. Unknown fields go to warnings.
+// Reads each line with the row type. Unknown fields and bad values go to warnings as "row <id>: unknown field 'speeed'; did you mean 'speed'?".
 void tableFromText(const reflect::TypeInfo& rowType, const TableText& text, TableData& out,
                    std::string* warnings = nullptr);
 bool loadTableData(const reflect::TypeInfo& rowType, const std::string& path, TableData& out,
@@ -141,8 +144,11 @@ bool loadTable(sim::Table<Row>& out, const char* assetPath = nullptr) {
     out.ids = std::move(text.ids);
     out.rows.resize(out.ids.size());
     for (size_t i = 0; i < out.rows.size(); ++i) {
-        reflect::fromText(reflect::typeOf<Row>(), &out.rows[i], text.rows[i], &warnings);
-        const std::string range = rowRangeWarnings(reflect::typeOf<Row>(), &out.rows[i], out.ids[i]);
+        std::string unknown;
+        reflect::fromText(reflect::typeOf<Row>(), &out.rows[i], text.rows[i], &unknown);
+        const std::string label = rowLabel(out.ids[i], text.lines, i);
+        if (!unknown.empty()) warnings += (warnings.empty() ? "" : "; ") + std::string("row ") + label + ": " + unknown;
+        const std::string range = rowRangeWarnings(reflect::typeOf<Row>(), &out.rows[i], label);
         if (!range.empty()) warnings += (warnings.empty() ? "" : "; ") + range;
     }
     if (!warnings.empty()) MEALKIT_WARN("assets/%s: %s", asset, warnings.c_str());

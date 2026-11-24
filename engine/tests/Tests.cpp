@@ -684,6 +684,19 @@ TEST_CASE(data, tables) {
     TEST_CHECK(static_cast<const TestKind*>(data.rows[1].data())->weight == 4.5f);
     TEST_CHECK(static_cast<const TestKind*>(data.rows[0].data())->title == "Plain, \"basic\"");
 
+    // A warning for a row names the line of its `row` line in the file
+    {
+        const std::string typoPath = dir + "/test_kinds_typo.table";
+        TEST_CHECK(writeTextFile(typoPath, "# test\n\nrow first\nweight 1\n\nrow second\nweigth 2\n"));
+        data::TableData typoData;
+        std::string typoWarnings;
+        TEST_CHECK(data::loadTableData(reflect::typeOf<TestKind>(), typoPath, typoData, &typoWarnings));
+        TEST_CHECK(typoWarnings.find("row second (line 6): unknown field 'weigth'") != std::string::npos);
+        data::TableText fromScratch; // built in memory: no line to name
+        data::tableToText(typoData, fromScratch);
+        TEST_CHECK(data::rowLabel("second", fromScratch.lines, 1) == "second");
+    }
+
     // CSV: exporting and importing gives the same (cells with commas/quotes)
     TEST_CHECK(data::exportTableCsv(data, dir + "/test_kinds.csv"));
     data::TableData back;
