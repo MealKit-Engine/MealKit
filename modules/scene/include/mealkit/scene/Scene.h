@@ -1,4 +1,4 @@
-// Vendored copy of module-scene v0.3.2; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-scene v0.3.3; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Math.h"
@@ -150,6 +150,7 @@ struct Entity {
     std::string folder;         // scene tree folder ("Props/Trees", empty = none). Editor only: not in the content hash, games don't read it
     std::string model;          // glTF path (relative to the assets folder, e.g. models/tree.glb). A box if empty
     reflect::TextFields fields; // fields of game kinds (path, value text)
+    std::string source;         // "<file>:<line>" of the `entity` line when read from a file (load warnings only; not saved, not in the hash)
 
     bool is(const char* typeName) const { return type == typeName; }
     template <class T>
@@ -266,12 +267,16 @@ struct TileBox {
 };
 std::vector<TileBox> tilemapBoxes(const Entity& e);
 
+// Logs "<file>:<line>: object 'name' (id, kind): <warnings>" once per object and text (readObject may run every frame)
+void warnObject(const Entity& e, const std::string& warnings);
+
 // Reads the fields of a game kind. Fields not in the scene get the declaration's defaults.
 template <class T>
 T readObject(const Entity& e) {
     T value{};
     std::string warnings;
     reflect::fromText(reflect::typeOf<T>(), &value, e.fields, &warnings);
+    if (!warnings.empty()) warnObject(e, warnings);
     return value;
 }
 

@@ -563,8 +563,11 @@ bool loadTextFile(const TypeInfo& type, void* data, const std::string& path, con
         const std::string key = line.substr(0, space);
         const std::string value =
             space == std::string::npos ? std::string() : line.substr(line.find_first_not_of(' ', space));
-        if (!setFromText(type, data, key, value))
-            MEALKIT_WARN("%s:%d: unknown key or invalid value '%s' ignored", path.c_str(), lineNo, key.c_str());
+        if (!setFromText(type, data, key, value)) {
+            std::string problem;
+            fromText(type, data, {{key, value}}, &problem); // the same sentences as every other loader
+            MEALKIT_WARN("%s:%d: %s (line ignored)", path.c_str(), lineNo, problem.c_str());
+        }
     }
     return true;
 }

@@ -20,6 +20,12 @@ When a roadmap item is done, its details move here and it is removed from ROADMA
 - Template files are picked up by `Get-RenderedTemplate` as they are, so new projects get both new files and `upgrade_project.ps1` adds them (an existing project's edited `CLAUDE.md` gets a `.new`). Manual: `getting_started/first_project` (English and Korean `.po`) lists the new files.
 - Verified: a new `empty` project has the three files with names filled in, `check_layout.ps1` OK (0 warnings), `upgrade_project.ps1 -DryRun` 0 changes. Not verified: MealKit-Docs `build.py check` (this machine lacks `myst_parser`; run it where Sphinx is installed), and no agent was tried on the new layout.
 
+## Scene object and tuning warnings (2026-11-24; ROADMAP "AI agents" A7, part)
+- module-scene `v0.3.3` (local commit and tag in `../module-scene`, not pushed; `modules.lock` bumped here, so push that repo before the engine): `Entity::source` is `<file>:<line>` of the `entity` line, set when a scene or prefab is read (not saved, not in the hash). `readObject<T>` no longer drops its warnings: `scene::warnObject` logs `<file>:9: object 'B' (id 2, kind crate): unknown field 'weigth'; did you mean 'weight'?` once per object and text (readObject can run every frame).
+- `reflect::loadTextFile` (tuning, view tuning, player settings) words a bad line like every other loader: `<file>:<line>: unknown field 'speeed'; did you mean 'speed'? (line ignored)` instead of "unknown key or invalid value".
+- Left (A7 stays open): `.ui` files (MkUI).
+- Verified: Release build on Linux, `mealkit_tests --only scene,core,data` PASS (new `scene_source_line`; the log line above was seen in its output). The tuning wording was not given its own test. Full `check.ps1` not run.
+
 ## Table warnings name the line (2026-11-24; ROADMAP "AI agents" A7, part)
 - module-data `v0.1.10` (local commit and tag in `../module-data`, not pushed; `modules.lock` bumped to it here, so push that repo before the engine): `TableText::lines` holds the file line of each `row` line (set by `readTableText`; empty for text built in memory), and `rowLabel(id, lines, index)` makes `second (line 6)`. Row warnings and range warnings use it: `row second (line 6): unknown field 'weigth'; did you mean 'weight'?`. This also brings v0.1.9 (the reflect sentences in row warnings), which was held back before.
 - Left (A7 stays open): scene objects (`readObject`), `.ui` and tuning files name no line.

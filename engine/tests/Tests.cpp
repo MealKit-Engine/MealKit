@@ -3233,6 +3233,20 @@ TEST_CASE(scene, scene_folder_outside_hash) {
     TEST_CHECK(b.entities.size() == 1 && b.entities[0].folder == "Props/Boxes");
 }
 
+TEST_CASE(scene, scene_source_line) {
+    // A loaded object remembers the line of its `entity` line, so readObject's warning can name file and line
+    const std::string path = executableDirectory() + "/test_source.scene";
+    TEST_CHECK(writeTextFile(path, "# test\n\nentity\nid 1\nname A\nkind solid\nend\n\nentity\nid 2\nname B\nkind testkind\nfield weigth 3\nend\n"));
+    scene::Scene loaded;
+    TEST_CHECK(scene::load(loaded, path));
+    TEST_CHECK(loaded.entities.size() == 2);
+    TEST_CHECK(loaded.entities[1].source == path + ":9");
+    const TestKind kind = scene::readObject<TestKind>(loaded.entities[1]); // logs "<path>:9: object 'B' ... did you mean 'weight'?" once
+    TEST_CHECK(kind.weight == 1.0f);
+    scene::Scene copy;
+    TEST_CHECK(copy.add(scene::kTypeSolid, "C").source.empty()); // created in memory: no source
+}
+
 TEST_CASE(editor, fuzzy_match) {
     using editor::fuzzyScore;
     TEST_CHECK(fuzzyScore("Save Scene", "") == 0);
