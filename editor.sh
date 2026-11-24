@@ -111,6 +111,27 @@ if stale; then
     [ -x "$exe" ] || fail "The editor build finished without $exe"
 fi
 
+# The editor starts the installed Manager (<user folder>/manager), a copy that a Manager build doesn't touch. In a workspace
+# with the MealKit-Manager repo beside the engine, build it when its sources are newer and copy a newer build over the
+# installed one, so the shortcut never opens an old Manager either. Files are swapped by rename (a running Manager keeps its copy).
+refresh_manager() {
+    local repo="$workspace/MealKit-Manager" built="$workspace/MealKit-Manager/build/linux/bin/MealKitManager"
+    [ -d "$repo/src" ] && [ -x "$manager" ] && [ -z "${MEALKIT_NO_REBUILD:-}" ] || return 0
+    if [ ! -x "$built" ] || [ -n "$(cd "$repo" && find src res scripts third_party/mkcontract CMakeLists.txt -type f -newer "$built" -print -quit 2>/dev/null)" ]; then
+        pwsh -NoProfile -File "$workspace/.claude/scripts/mk-build.ps1" -Repo MealKit-Manager >"$userdir/manager_build.log" 2>&1 || return 0
+    fi
+    [ "$built" -nt "$manager" ] || return 0
+    local stage="$userdir/manager.staging"
+    rm -rf "$stage"
+    cmake --install "$repo/build/linux" --prefix "$stage" >/dev/null 2>&1 || { rm -rf "$stage"; return 0; }
+    local f
+    for f in "$stage"/*; do mv -f "$f" "$(dirname "$manager")/"; done
+    rm -rf "$stage"
+    pwsh -NoProfile -File "$(dirname "$manager")/install.ps1" shortcuts -To "$(dirname "$manager")" >/dev/null 2>&1 || true
+    echo "MealKit Manager updated from $built"
+}
+refresh_manager
+
 if [ "${1:-}" = "sample" ]; then
     shift
     exec "$exe" --project "$here/samples/sandbox" "$@"
