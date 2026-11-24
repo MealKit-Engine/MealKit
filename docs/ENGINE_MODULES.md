@@ -7,7 +7,7 @@ This reversed `docs/DECISIONS.md` 2026-10-19 ("no toggleable build modules, a fo
 
 - The engine becomes a **kernel** (`core`): memory, types and math, determinism tools, reflection, text formats, logging and profiling, the platform basics (files, time, threads), jobs, and the module mechanism itself. It knows no graphics, physics, network or sound.
 - Everything else is an **engine module**: `rhi`, `render`, `physics`, `net`, `sim`, `audio`, `ui`, `input`, `game`, `editor`, ... Each module has a manifest that declares what it requires; the folder layer order becomes a dependency graph read from those manifests.
-- **One module = one repo** (`module-<name>`), from the first public release. The `MealKit` repo keeps the kernel, the build system, project tools, templates, reference samples, and the **lock file** that pins which module versions make up an engine version.
+- **One module = one repo** (`module-<name>`), from the first public release. The `MealKit` repo keeps the kernel, the build system, project tools, templates, `samples.lock` (which version of each reference sample repo the engine uses, `docs/SAMPLES.md`), and the **lock file** `modules.lock` that pins which module versions make up an engine version.
 - Modules are **linked statically, chosen at build time**: a project picks **any combination** (presets are named starting points) and may pin **each module's version** on its own, like source modules (decided 2026-11-08, second row; "Module selection and versions" below). Not runtime plugins: the shipping exe stays a single static file, calls stay inlinable, and peers can't mix different module builds.
 - **Multiplayer is a module too.** `net` is in the default preset, so new games are multiplayer-capable as now, but a game may leave it out. The determinism rules stay for every game (replays, rewind, scenario tests, and adding `net` later all depend on them).
 
@@ -219,7 +219,7 @@ The docs say **engine module** (`type engine`: built into the engine libraries, 
 
 | Repo | Contents |
 |---|---|
-| `MealKit` | kernel (`engine/core/`), `cmake/` (`mealkit_add_game`, `mealkit_add_engine_module`), `tools/` (build, check, project and module tools), `templates/`, `samples/`, `modules.lock`, vendored modules in `modules/`, the integration CI, and the shared module workflow |
+| `MealKit` | kernel (`engine/core/`), `cmake/` (`mealkit_add_game`, `mealkit_add_engine_module`), `tools/` (build, check, project and module tools), `templates/`, `samples.lock` (the samples are fetched from `sample-<name>` repos into `samples/`), `modules.lock`, vendored modules in `modules/`, the integration CI, and the shared module workflow |
 | `module-<name>` | one engine module each, from the table above (`module-render`, `module-physics`, `module-net`, ...) |
 | `module-rhi` | `rhi` with its backends `rhi-dx12` and `rhi-vulkan` (one folder each under `backends/`, each still its own module and manifest), so a graphics change on both backends stays one commit |
 | `module-online` | `online` with `online-steam` and `online-eos` the same way (SDKs stay outside the repo, stub approach) |

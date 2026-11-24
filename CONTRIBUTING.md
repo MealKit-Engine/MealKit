@@ -6,7 +6,7 @@ Thanks for helping. MealKit is in beta (v0.x): the `GameInstance` API and the fi
 
 - Read the plan in [`docs/ROADMAP.md`](docs/ROADMAP.md), the decisions and the "Deferred / not included" table in [`docs/DECISIONS.md`](docs/DECISIONS.md), and the implementation answers in [`docs/CODING_MODEL.md`](docs/CODING_MODEL.md) ("one answer per problem").
 - A design question that isn't answered there starts as an issue. It gets a row in the decision log, agreed on before code is written.
-- A feature is done when it is used in a reference sample (`samples/sandbox`, `samples/coop`). When it is done, it is removed from `docs/ROADMAP.md` (which lists only work that is left) and the details go to `docs/CHANGELOG.md`.
+- A feature is done when it is used in a reference sample (`samples/sandbox`, `samples/coop`; they are fetched from their own repos, see `docs/SAMPLES.md` for changing one together with the engine: `tools\sample.ps1 local on <name>`, commit and tag the sample, `local off`, `bump`). When it is done, it is removed from `docs/ROADMAP.md` (which lists only work that is left) and the details go to `docs/CHANGELOG.md`.
 
 ## Developer Certificate of Origin
 
@@ -50,7 +50,7 @@ Run the checks that match what you changed:
 | One area | `tools\check.ps1 -Only render,editor` or `build\windows\Release\bin\mealkit_tests.exe --only net,physics` |
 
 - Run `check.ps1` on its own (not while building or editing) and with the editor closed; logs are in `build\check\`.
-- If you change simulation results on purpose, re-record `samples/*/replays/*.rec` with `tools\record_replay.ps1`, update scenarios with `<sample>_headless --test <file> --update-expected`, and commit them together.
+- If you change simulation results on purpose, re-record `samples/*/replays/*.rec` with `tools\record_replay.ps1`, update scenarios with `<sample>_headless --test <file> --update-expected`, commit them in the sample repo, tag it, and `tools\sample.ps1 bump <name>` in the engine, in the same change.
 - Multiplayer: `tools\mp_test.ps1 -Clients 3 -Ticks 900` (`-Headless`, distant peers `-Lag 120 -Jitter 30 -Loss 3`).
 - CI (`.github/workflows/ci.yml`) builds Windows MSVC/Editor/clang-cl and Linux/macOS headless, and compares per-tick hashes across them.
 

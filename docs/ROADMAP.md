@@ -88,8 +88,8 @@ Order inside the item: A, then B; C and D one piece at a time.
 - **Later, separate items**: 2D lights, a parallax layers helper.
 - **Checks**: render golden on DX12/Vulkan (`sprites_front` exists), an MkRender capture of a sprite scene in its 2D front view, the 2D template built from scratch.
 
-### [ ] 7. Docs
-`docs/ENGINE_MODULES.md` (or a new `docs/SAMPLES.md`), the engine CLAUDE.md "Engine folder and game projects", `CONTRIBUTING.md` (changing a sample with the engine: `sample.ps1 local on`, commit and tag the sample, `bump`, `local off`), and MealKit-Docs (English + Korean) for new projects from the Manager.
+### [ ] 7. Docs (the engine side is done: `docs/SAMPLES.md`, `ENGINE_MODULES.md`, `CONTRIBUTING.md`, CLAUDE.md)
+Left: MealKit-Docs. The English pages are edited in its working tree (`getting_started/first_project.md`, `manual/projects.md`, `reference/command_line.md`) but not committed. Run `tools/build.py update`, translate the new and fuzzy sentences in the three `.po` files, run `tools/build.py check --engine ..\MealKit`, then commit. Delete this section and the "Samples out of the engine repo" heading with it.
 
 ## Smaller engine items
 
