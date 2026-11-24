@@ -7,7 +7,8 @@ set MEALKIT_ROOT=
 for /f "usebackq eol=# tokens=1,* delims== " %%a in ("%~dp0mealkit.project") do if /I "%%a"=="engine" set "MEALKIT_ROOT=%%b"
 rem A relative engine line is relative to this folder
 if defined MEALKIT_ROOT if not "%MEALKIT_ROOT:~1,1%"==":" if not "%MEALKIT_ROOT:~0,1%"=="\" if not "%MEALKIT_ROOT:~0,1%"=="/" for %%i in ("%~dp0%MEALKIT_ROOT%") do set "MEALKIT_ROOT=%%~fi"
-set EXE=%MEALKIT_ROOT%\build\Editor\bin\MealKitEditor.exe
+set EXE=%MEALKIT_ROOT%\build\windows\Editor\bin\MealKitEditor.exe
+if not exist "%EXE%" if exist "%MEALKIT_ROOT%\build\Editor\bin\MealKitEditor.exe" set EXE=%MEALKIT_ROOT%\build\Editor\bin\MealKitEditor.exe
 if not exist "%EXE%" (
     call "%~dp0build.bat" Editor || (pause & exit /b 1)
 )

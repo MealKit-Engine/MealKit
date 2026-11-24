@@ -28,6 +28,7 @@ if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
 }
 
-$editor = Join-Path $engine "build\Editor\bin\MealKitEditor.exe"
+. (Join-Path $PSScriptRoot "build_dirs.ps1")
+$editor = Join-Path (Get-NewBuildDir $engine "Editor") "bin\MealKitEditor.exe"
 Write-Host "[MealKit] Opening $Project"
 Start-Process -FilePath $editor -ArgumentList @("--project", "`"$Project`"") -WorkingDirectory $Project

@@ -1,6 +1,6 @@
 {
     // Code completion/navigation: uses compile_commands.json generated at build time (build once with build.bat Editor first; it includes the editor code too)
-    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/Editor/compile_commands.json",
+    "C_Cpp.default.compileCommands": "${workspaceFolder}/build/compile_commands.json",
     "C_Cpp.default.cppStandard": "c++20",
     "files.encoding": "utf8",
     // Formats with the .clang-format rules on save (clang-format bundled in the C/C++ extension)

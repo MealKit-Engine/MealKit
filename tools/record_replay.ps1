@@ -12,7 +12,8 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
-if ($Exe -eq "") { $Exe = Join-Path $root "build\Release\bin\sandbox_headless.exe" }
+. (Join-Path $PSScriptRoot "build_dirs.ps1")
+if ($Exe -eq "") { $Exe = Join-Path (Get-BuildBin $root "Release") "sandbox_headless$(if ($MealKitBuildOs -eq 'windows') { '.exe' })" }
 if ($Out -eq "") { $Out = Join-Path $root "samples\sandbox\replays\arena_4p_seed7.rec" }
 if (-not (Test-Path $Exe)) { Write-Error "Build first: $Exe not found"; exit 1 }
 $Exe = (Resolve-Path $Exe).Path

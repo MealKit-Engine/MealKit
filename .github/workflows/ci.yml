@@ -27,14 +27,11 @@ jobs:
         include:
           - name: windows-msvc
             config: Release
-            bin: build/Release/bin
             checks: true
           - name: windows-clang-cl
             config: ClangCL
-            bin: build/ClangCL/bin
           - name: windows-msvc-editor
             config: Editor
-            bin: build/Editor/bin
             no_headless: true
     steps:
       - uses: actions/checkout@v7
@@ -44,7 +41,7 @@ jobs:
       - name: Test
         shell: powershell
         run: >
-          tools\ci_test.ps1 -Bin ${{ matrix.bin }} -Name ${{ matrix.name }} -Out ci-out/${{ matrix.name }}
+          tools\ci_test.ps1 -Config ${{ matrix.config }} -Name ${{ matrix.name }} -Out ci-out/${{ matrix.name }}
           ${{ matrix.no_headless && '-NoHeadless' || '' }}
       - name: Editor strings (check_strings)
         if: matrix.checks
@@ -96,7 +93,7 @@ jobs:
         run: ./build.ps1 Headless -Target sandbox_headless, coop_headless, mealkit_tests # the same build script as Windows (tools/build.ps1, clang)
       - name: Test
         shell: pwsh
-        run: tools/ci_test.ps1 -Bin build/Headless/bin -Name ${{ matrix.name }} -Out ci-out/${{ matrix.name }}
+        run: tools/ci_test.ps1 -Config Headless -Name ${{ matrix.name }} -Out ci-out/${{ matrix.name }}
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
@@ -119,7 +116,7 @@ jobs:
         run: ./build.ps1 Editor
       - name: Test (the same replays and hashes as the headless job)
         shell: pwsh
-        run: tools/ci_test.ps1 -Bin build/Release/bin -Name linux-x64-frontend -Out ci-out/linux-x64-frontend
+        run: tools/ci_test.ps1 -Config Release -Name linux-x64-frontend -Out ci-out/linux-x64-frontend
       - name: Multiplayer between Linux peers (mp_test)
         shell: pwsh
         run: tools/mp_test.ps1 -Headless -Clients 3 -Ticks 900

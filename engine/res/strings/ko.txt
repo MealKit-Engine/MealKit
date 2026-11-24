@@ -88,7 +88,7 @@ Could not open port %u (is another play session using it?) = 포트 %u을 열지
 Could not start the player windows = 참가 창을 띄우지 못했습니다
 Could not create the game instance = 게임 인스턴스를 만들지 못했습니다
 The session ended: %s = 세션이 끝났습니다: %s
-The player windows did not connect within %d seconds (see build\\Editor\\play\\player*.log) = 참가 창이 %d초 안에 접속하지 않았습니다 (build\\Editor\\play\\player*.log 확인)
+The player windows did not connect within %d seconds (see %s) = 참가 창이 %d초 안에 접속하지 않았습니다 (%s 확인)
 Could not start playing: %s = 플레이를 시작하지 못했습니다: %s
 
 # ---- 상태 막대·창 제목

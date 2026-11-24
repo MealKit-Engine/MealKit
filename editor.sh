@@ -8,7 +8,7 @@
 #        ./editor.sh --remove-shortcut  removes both
 set -e
 here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-exe="$here/build/Editor/bin/MealKitEditor"
+exe="$here/build/linux/Editor/bin/MealKitEditor" # build/<os>/<Config> (tools/build_dirs.ps1)
 workspace="$(dirname "$here")"
 userdir="${XDG_DATA_HOME:-$HOME/.local/share}/MealKit"
 manager="$userdir/manager/MealKitManager"

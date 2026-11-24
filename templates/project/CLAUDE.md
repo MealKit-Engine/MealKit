@@ -5,11 +5,11 @@ Talk with the user in Korean. Code comments, log messages, and scene file keys a
 
 ## Commands
 
-- Build game code (DLL for the editor, hot reload): `build.bat Editor` → `build\Editor\bin\@NAME@_game.dll`
-- Shipping builds: `build.bat` (Release) / `build.bat Debug` / `build.bat Profile` / `build.bat Export` (→ `export\@NAME@\`)
-- Run: `build\Release\bin\@NAME@.exe --help` (game), `editor.bat` (editor)
-- Determinism test: `powershell -ExecutionPolicy Bypass -File @MEALKIT_ROOT@\tools\mp_test.ps1 -Clients 3 -Ticks 900 -Exe build\Release\bin\@NAME@.exe` → must PASS
-- Check the game screen: `build\Release\bin\@NAME@.exe --bot --exit-tick 300 --capture out.png 240`
+- Build game code (DLL for the editor, hot reload): `build.bat Editor` → `build\<os>\Editor\bin\@NAME@_game.dll`
+- Shipping builds: `build.bat` (Release) / `build.bat Debug` / `build.bat Profile` / `build.bat Export` (→ `export\<os>\@NAME@\`)
+- Run: `build\<os>\Release\bin\@NAME@.exe --help` (game), `editor.bat` (editor)
+- Determinism test: `powershell -ExecutionPolicy Bypass -File @MEALKIT_ROOT@\tools\mp_test.ps1 -Clients 3 -Ticks 900 -Exe build\<os>\Release\bin\@NAME@.exe` → must PASS
+- Check the game screen: `build\<os>\Release\bin\@NAME@.exe --bot --exit-tick 300 --capture out.png 240`
 - Check the editor screen: `@MEALKIT_ROOT@\build\Editor\bin\MealKitEditor.exe --project . --frames 60 --select 5 --capture out.png` (add `--play --bot` for play mode)
 
 ## Rules
@@ -19,7 +19,7 @@ Talk with the user in Korean. Code comments, log messages, and scene file keys a
   State that persists across ticks is declared with `MEALKIT_FIELD` inside `WorldState`. Once declared, it automatically goes into the hash, snapshots, and the editor [State] panel.
   SimCheck checks at build time, and violations stop the build with `error SIMnnn` (it tells you what to use instead). The reasoning behind the rules is in the engine's `docs/CODING_MODEL.md`.
   After changing simulation code, confirm there are no desyncs with the determinism test.
-- Rule tests: `tests/*.scenario` (seed or input recording + `tick 300 slots[1].falls == 1` checks on `WorldState` fields) run with `build\Release\bin\@NAME@_headless.exe --test tests\x.scenario` (`--update-expected` after changing results on purpose). Editor play bar [Save Scenario] makes one from solo play.
+- Rule tests: `tests/*.scenario` (seed or input recording + `tick 300 slots[1].falls == 1` checks on `WorldState` fields) run with `build\<os>\Release\bin\@NAME@_headless.exe --test tests\x.scenario` (`--update-expected` after changing results on purpose). Editor play bar [Save Scenario] makes one from solo play.
 - Game code is in a namespace named after the project in lower case (`tools\rename_project.ps1` renames it with the project).
 - Game code folders: `source/sim/` (rules: one file per system; system functions take only `World&` and `World::step()` calls them in order),
   `source/view/` (camera, local input, drawing; only reads sim state), `source/app/` (`GameSession` = the `mealkit::game::GameInstance` implementation, `MEALKIT_GAME_MAIN` in `main.cpp` (shipping exe; main, window, and session are in the engine's `mealkit/game/GameMain.h`), `MEALKIT_GAME_MODULE` in `GameModule.cpp`).

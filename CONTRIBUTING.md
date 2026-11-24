@@ -32,12 +32,12 @@ Contributions are accepted under the [Developer Certificate of Origin](https://d
 Windows with Visual Studio 2022 (or Build Tools) with C++:
 
 ```bat
-build.bat            :: Release: build\Release\bin (sandbox.exe, coop.exe, headless, tests)
-build.bat Editor     :: build\Editor\bin\MealKitEditor.exe
+build.bat            :: Release: build\windows\Release\bin (sandbox.exe, coop.exe, headless, tests)
+build.bat Editor     :: build\windows\Editor\bin\MealKitEditor.exe
 build.bat Export     :: shipping folders in samples\<name>\export
 ```
 
-Other configurations: `Debug`, `Profile` (Tracy), `ClangCL`, `Vulkan`, `VulkanEditor`. Linux/macOS currently build the headless targets: `pwsh build.ps1 Headless`. To check that build on Windows before pushing (core only, clang-cl, as CI builds it on Linux/macOS): `build.bat HeadlessOnly`, then `tools\ci_test.ps1 -Bin build\HeadlessOnly\bin -Name local -Out build\ci-local`.
+Other configurations: `Debug`, `Profile` (Tracy), `ClangCL`, `Vulkan`, `VulkanEditor`. Linux/macOS currently build the headless targets: `pwsh build.ps1 Headless`. To check that build on Windows before pushing (core only, clang-cl, as CI builds it on Linux/macOS): `build.bat HeadlessOnly`, then `tools\ci_test.ps1 -Bin build\windows\HeadlessOnly\bin -Name local -Out build\ci-local`.
 
 ## Checks
 
@@ -47,7 +47,7 @@ Run the checks that match what you changed:
 |---|---|
 | Docs, `*.md`, comments only | nothing |
 | Engine, sample or tool code | `powershell -ExecutionPolicy Bypass -File tools\check.ps1 -Changed` (preview with `-DryRun`) |
-| One area | `tools\check.ps1 -Only render,editor` or `build\Release\bin\mealkit_tests.exe --only net,physics` |
+| One area | `tools\check.ps1 -Only render,editor` or `build\windows\Release\bin\mealkit_tests.exe --only net,physics` |
 
 - Run `check.ps1` on its own (not while building or editing) and with the editor closed; logs are in `build\check\`.
 - If you change simulation results on purpose, re-record `samples/*/replays/*.rec` with `tools\record_replay.ps1`, update scenarios with `<sample>_headless --test <file> --update-expected`, and commit them together.

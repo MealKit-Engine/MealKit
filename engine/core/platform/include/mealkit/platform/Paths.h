@@ -36,7 +36,7 @@ inline bool isAbsolutePath(const std::string& path) {
 std::string executableDirectory();
 
 // Searches for relative in the executable folder and its parents, and the current folder.
-// During development the repo's assets folder is found even when running from build\Release\bin. Empty string if not found.
+// During development the repo's assets folder is found even when running from build/<os>/Release/bin. Empty string if not found.
 std::string findAsset(const std::string& relative);
 
 // Asset path (relative to assets, "ui/hud.ui") → project-relative path ("assets/ui/hud.ui"). Everything that turns asset paths into files uses this.

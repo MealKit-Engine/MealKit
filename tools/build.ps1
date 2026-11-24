@@ -1,21 +1,22 @@
 # Shared MealKit build script for the engine repository and game projects, on every OS (Windows PowerShell 5.1 and PowerShell 7).
 # Windows calls it through build.bat -> tools\build_project.bat; Linux/macOS run it with pwsh (build.ps1 in the project folder).
 #   build.ps1 -Project <project folder> [-Config Release|Debug|Profile|Export|Editor|...]
-#     Release   shipping game in <project>/build/Release/bin (engine linked statically)
+#   Build trees are <project>/build/<os>/<Config> (os = windows, linux, macos; tools/build_dirs.ps1), exports <project>/export/<os>/<name>.
+#     Release   shipping game in <project>/build/<os>/Release/bin (engine linked statically)
 #     Debug     Debug (D3D12 debug layer on)
 #     Profile   Release + Tracy profiling (connect with the Tracy profiler app)
-#     Export    Release game only, collected into <project>/export/<name>
-#     HeadlessOnly  Windows: the Linux/macOS CI build (core + headless targets only, clang-cl) in <project>/build/HeadlessOnly/bin
-#     ClangCL   Windows: Release built with clang-cl in <project>/build/ClangCL/bin (determinism comparison with MSVC, not shipped)
-#     Vulkan    Release game with the Vulkan RHI backend in <project>/build/Vulkan/bin (backend comparison, not shipped on Windows)
-#     VulkanEditor  editor build with the Vulkan backend in <project>/build/VulkanEditor/bin (like Editor)
-#     VulkanExport  Export with the Vulkan backend in <project>/build/VulkanExport (Linux: the same as Export)
+#     Export    Release game only, collected into <project>/export/<os>/<name>
+#     HeadlessOnly  Windows: the Linux/macOS CI build (core + headless targets only, clang-cl) in <project>/build/<os>/HeadlessOnly/bin
+#     ClangCL   Windows: Release built with clang-cl in <project>/build/<os>/ClangCL/bin (determinism comparison with MSVC, not shipped)
+#     Vulkan    Release game with the Vulkan RHI backend in <project>/build/<os>/Vulkan/bin (backend comparison, not shipped on Windows)
+#     VulkanEditor  editor build with the Vulkan backend in <project>/build/<os>/VulkanEditor/bin (like Editor)
+#     VulkanExport  Export with the Vulkan backend (Linux: the same as Export)
 #     profile:<name>  the configuration (and for an export the output folder) written in <project>/profiles/<name>.profile (docs/DECISIONS.md 2026-11-23 "Build profiles")
 #     Presets   Release plus every engine preset (engine repository: also <sample>_solo.exe without net and <sample>_noaudio.exe without audio, docs/ENGINE_MODULES.md "Presets")
-#     EOS       Release with the EOS online backend (build/EOS, needs third_party/eos)
-#     Headless  Linux/macOS: headless game + tests in <project>/build/Headless/bin
+#     EOS       Release with the EOS online backend (build/<os>/EOS, needs third_party/eos)
+#     Headless  Linux/macOS: headless game + tests in <project>/build/<os>/Headless/bin
 #     Linux: every configuration but Headless builds the X11 front end with the Vulkan backend (Editor = VulkanEditor, Release = the Linux game exe)
-#     Editor    editor build in <project>/build/Editor/bin:
+#     Editor    editor build in <project>/build/<os>/Editor/bin:
 #                 engine repository: mealkit.dll + MealKitEditor.exe + sample game DLL
 #                 game project:      <name>_game.dll only (builds the engine editor first if needed)
 # Windows uses MSVC (vcvars64 from vswhere); Linux/macOS use clang/clang++ unless CC/CXX are set. Generator is always Ninja.
@@ -28,6 +29,7 @@ $ErrorActionPreference = "Stop"
 $onWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
 $projectDir = (Resolve-Path $Project).Path.TrimEnd("\", "/")
 $engineDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path.TrimEnd("\", "/")
+. (Join-Path $PSScriptRoot "build_dirs.ps1")
 
 function Fail([string]$message) {
     Write-Host "[MealKit] $message"
@@ -140,16 +142,11 @@ if ($isEditor -and $projectDir -ne $engineDir -and -not $installedEngine) {
 # Export cooks the assets with the development Release exe (game/Cook.h), so bring that up to date first
 if ($Config -in @("Export", "VulkanExport")) { Invoke-Self $projectDir "Release" "The Release build used for cooking failed." }
 
-$buildDir = Join-Path (Join-Path $projectDir "build") $buildName
-# A tree configured on Windows (MSVC, absolute C:/ paths) can't be reused here: keep it as <name>.windows, like build/Editor.windows
-if ((-not $onWindows) -and (Test-Path (Join-Path $buildDir "CMakeCache.txt"))) {
-    $foreign = Select-String -Path (Join-Path $buildDir "CMakeCache.txt") -Pattern '^CMAKE_CXX_COMPILER:[A-Z]+=[A-Za-z]:/' -Quiet
-    if ($foreign) {
-        $kept = "$buildDir.windows"
-        if (Test-Path $kept) { Fail "$buildDir was configured on Windows and $kept already exists: remove one of them." }
-        Move-Item $buildDir $kept
-        Write-Host "[MealKit] Moved the Windows build tree to $kept"
-    }
+$buildDir = Get-NewBuildDir $projectDir $buildName
+# A tree of the layout before build/<os>/ (build/<Config>) can't be moved (CMake keeps its absolute path): it's built anew once
+$oldDir = Join-Path (Join-Path $projectDir "build") $buildName
+if (-not (Test-Path $buildDir) -and (Test-Path (Join-Path $oldDir "CMakeCache.txt"))) {
+    Write-Host "[MealKit] Building $buildName into $buildDir (build trees are per OS now). The old tree $oldDir can be deleted once this build works."
 }
 # Editor builds are rebuilt often (hot reload): configure only once, Ninja re-runs CMake when CMakeLists change.
 $configured = (Test-Path (Join-Path $buildDir "build.ninja")) -and (Test-Path (Join-Path $buildDir "CMakeCache.txt"))
@@ -162,8 +159,13 @@ if (-not ($isEditor -and $configured)) {
 $buildArgs = @("--build", $buildDir)
 if ($Target.Count) { $buildArgs += @("--target") + $Target }
 Invoke-Native "cmake" $buildArgs
+# clangd and VS Code read build/compile_commands.json (.clangd, .vscode/settings.json): the Editor tree of this OS, which has every source
+if ($Config -eq "Editor") {
+    $commands = Join-Path $buildDir "compile_commands.json"
+    if (Test-Path $commands) { Copy-Item $commands (Join-Path (Join-Path $projectDir "build") "compile_commands.json") -Force }
+}
 if ($Config -in @("Export", "VulkanExport")) {
-    Write-Host "[MealKit] Export OK: $(if ($exportOut) { $exportOut } else { Join-Path $projectDir 'export' })"
+    Write-Host "[MealKit] Export OK: $(if ($exportOut) { $exportOut } else { Join-Path (Join-Path $projectDir 'export') $MealKitBuildOs })"
 } else {
     Write-Host "[MealKit] Build OK: $(Join-Path $buildDir 'bin')"
 }

@@ -1,4 +1,5 @@
 # Code completion/navigation for clangd-based editors (Zed, Neovim, Helix, CLion, VS Code with the clangd extension, ...).
-# Uses compile_commands.json from the Editor build (build once with build.bat Editor first).
+# Uses compile_commands.json from the Editor build (build once with build.bat Editor first): build/compile_commands.json,
+# which the build script copies from build/<os>/Editor.
 CompileFlags:
-  CompilationDatabase: build/Editor
+  CompilationDatabase: build

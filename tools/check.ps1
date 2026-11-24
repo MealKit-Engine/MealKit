@@ -23,6 +23,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "build_dirs.ps1")
 $out = Join-Path $root "build\check"
 # Reference samples are projects in samples\<name> (their own mealkit.project and assets\); sandbox is the one most checks run
 $sandbox = Join-Path $root "samples\sandbox"
@@ -130,8 +131,11 @@ $needEditor = (Selected "unit") -or (Selected "tools") -or (Selected "render") -
 $onWindows = [Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT
 $exeExt = if ($onWindows) { ".exe" } else { "" }
 $ps = (Get-Process -Id $PID).Path # the same PowerShell (5.1, or pwsh on Linux)
-$release = Join-Path $root "build/Release/bin"
-$editorBin = Join-Path $root "build/Editor/bin"
+# The checks build what they run, so always the build/<os>/<Config> trees (never an old build/<Config> one)
+$releaseDir = Get-NewBuildDir $root "Release"
+$release = Join-Path $releaseDir "bin"
+$editorDir = Get-NewBuildDir $root "Editor"
+$editorBin = Join-Path $editorDir "bin"
 $game = Join-Path $release "sandbox$exeExt"
 $headless = Join-Path $release "sandbox_headless$exeExt"
 $coopGame = Join-Path $release "coop$exeExt"
@@ -207,7 +211,7 @@ $groups["build-editor"] = $needEditor
 # Determinism key: the Release build's simulation version (cmake/BuildInfo.cmake, hash of sources touching the simulation) + content the simulation reads
 function Get-DetKey {
     $parts = @()
-    foreach ($h in @(Get-ChildItem (Join-Path $root "build/Release/samples") -Recurse -Filter mealkit_build_info.h -ErrorAction SilentlyContinue | Sort-Object FullName)) {
+    foreach ($h in @(Get-ChildItem (Join-Path $releaseDir "samples") -Recurse -Filter mealkit_build_info.h -ErrorAction SilentlyContinue | Sort-Object FullName)) {
         $parts += "$($h.Directory.Name) " + (Select-String -Path $h.FullName -Pattern "SIM_VERSION (\w+)").Matches[0].Groups[1].Value
     }
     if ($parts.Count -eq 0) { return "" }
@@ -627,7 +631,7 @@ if (-not $Quick) {
     }
     # RHI backends (ROADMAP stage 2 "RHI layer"): does the Vulkan editor draw the same scene the same as DX12, with no validation layer errors.
     # The editor edit screen is the same every run (the game screen changes over time). The status bar (fps) is excluded.
-    $vkEditorBin = Join-Path $root "build/VulkanEditor/bin"
+    $vkEditorBin = Join-Path (Get-NewBuildDir $root "VulkanEditor") "bin"
     $vkEditor = Join-Path $vkEditorBin "MealKitEditor$exeExt"
     Invoke-Check render "Vulkan editor build" { param($log) Build $log "VulkanEditor" }
     Invoke-Check render "Vulkan = DX12 (editor capture)" {
@@ -711,12 +715,12 @@ if (-not $Quick) {
         Set-Content "$lib/LICENSE" "MIT" -Encoding UTF8
         Set-Content "$lib/mealkit.txt" "name checklib`r`nversion 1`r`nlicense MIT`r`nsource local`r`n" -Encoding UTF8
         Set-Content "$projects/CheckGame/source/sim/ZzLib.cpp" "#include `"checklib.h`"`r`n" -Encoding UTF8
-        $sim = & "$root/build/Release/tools/mealkit_simcheck$exeExt" "$projects/stamp" --third-party $lib "$projects/CheckGame/source/sim/ZzLib.cpp" 2>&1
+        $sim = & "$releaseDir/tools/mealkit_simcheck$exeExt" "$projects/stamp" --third-party $lib "$projects/CheckGame/source/sim/ZzLib.cpp" 2>&1
         $output += $sim
         $simOk = ($sim -match "SIM011").Count -gt 0
         # Platform branches in sim/ are SIM015 (crossplay: every platform runs the same simulation code)
         Set-Content "$projects/CheckGame/source/sim/ZzPlatform.cpp" "#if defined(_WIN32) || __aarch64__`r`nint x;`r`n#endif`r`n" -Encoding UTF8
-        $psim = & "$root/build/Release/tools/mealkit_simcheck$exeExt" "$projects/stamp" "$projects/CheckGame/source/sim/ZzPlatform.cpp" 2>&1
+        $psim = & "$releaseDir/tools/mealkit_simcheck$exeExt" "$projects/stamp" "$projects/CheckGame/source/sim/ZzPlatform.cpp" 2>&1
         $output += $psim
         $simOk = $simOk -and ($psim -match "SIM015").Count -ge 2
         # Source modules: a module's sim/ including game source/ is SIM013, a module not in requires is SIM014 (docs/MODULES.md)
@@ -726,7 +730,7 @@ if (-not $Quick) {
         Set-Content "$mod/sim/Bad.cpp" "#include `"source/World.h`"`r`n#include `"othermod/sim/X.h`"`r`n" -Encoding UTF8
         New-Item -ItemType Directory -Force "$projects/CheckGame/modules/othermod/sim" | Out-Null
         Set-Content "$projects/CheckGame/modules/othermod/module.txt" "@format module 1`r`nname othermod`r`nversion 0.1.0`r`n" -Encoding UTF8
-        $msim = & "$root/build/Release/tools/mealkit_simcheck$exeExt" "$projects/stamp" --modules "$projects/CheckGame/modules" "$mod/sim/Bad.cpp" 2>&1
+        $msim = & "$releaseDir/tools/mealkit_simcheck$exeExt" "$projects/stamp" --modules "$projects/CheckGame/modules" "$mod/sim/Bad.cpp" 2>&1
         $output += $msim
         $simOk = $simOk -and ($msim -match "SIM013").Count -gt 0 -and ($msim -match "SIM014").Count -gt 0
         $output | Out-File -Encoding utf8 $log
@@ -738,7 +742,7 @@ if (-not $Quick) {
         param($log)
         # tools\new_project.ps1 -Template empty: its own sim/view/app (no menus or match flow since 2026-11-15). Builds the game DLL against
         # the engine's Editor build, plays 2 bot players in the editor (shadow simulation on), then checks upgrade and layout
-        if (-not (Test-Path "$root/build/Editor/MealKitTargets.cmake")) { return "SKIP: no Editor build (build.bat Editor)" }
+        if (-not (Test-Path "$editorDir/MealKitTargets.cmake")) { return "SKIP: no Editor build (build.bat Editor)" }
         $projects = Join-Path ([IO.Path]::GetTempPath()) "mealkit-check-empty" # must be outside the engine folder
         Remove-Item -Recurse -Force $projects -ErrorAction SilentlyContinue
         $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/new_project.ps1" -Name EmptyCheck -Path $projects -Template empty 2>&1
@@ -810,7 +814,7 @@ if (-not $Quick) {
         param($log)
         if (-not (Build $log "Export")) { return $false }
         foreach ($name in "sandbox", "coop") { # every reference sample ships
-            $exe = Join-Path $root "samples/$name/export/$name/$name$exeExt"
+            $exe = Join-Path $root "samples/$name/export/$MealKitBuildOs/$name/$name$exeExt"
             if (-not (Test-Path $exe)) { return "$exe missing" }
             # Shipping builds have no live connection server (MEALKIT_LIVE=0) and no dev project folder
             $text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes($exe))

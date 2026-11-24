@@ -50,7 +50,7 @@ jobs:
         shell: pwsh
         run: |
           $areas = "${{ inputs.modules }}".Replace(" ", ",")
-          MealKit/build/Presets/bin/mealkit_tests.exe --only $areas
+          MealKit/build/windows/Presets/bin/mealkit_tests.exe --only $areas
       - name: Determinism (kind sim modules)
         shell: pwsh
         run: |
@@ -58,7 +58,7 @@ jobs:
           foreach ($m in "${{ inputs.modules }}".Split(" ", [StringSplitOptions]::RemoveEmptyEntries)) {
             if (Select-String -Path "MealKit/modules/$m/module.txt" -Pattern '^kind sim' -Quiet) { $sim = $true }
           }
-          if ($sim) { powershell -ExecutionPolicy Bypass -File MealKit/tools/ci_test.ps1 -Bin MealKit/build/Presets/bin -Name module-windows }
+          if ($sim) { powershell -ExecutionPolicy Bypass -File MealKit/tools/ci_test.ps1 -Config Presets -Name module-windows }
 
   linux:
     runs-on: ubuntu-latest
@@ -90,5 +90,5 @@ jobs:
           }
           if ($sim) {
             pwsh MealKit/build.ps1 Headless
-            pwsh MealKit/tools/ci_test.ps1 -Bin MealKit/build/Headless/bin -Name module-linux
+            pwsh MealKit/tools/ci_test.ps1 -Config Headless -Name module-linux
           }

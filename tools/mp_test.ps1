@@ -2,8 +2,8 @@
 # and checks they all produce the same state hash at the same ticks.
 # Client i uses i physics threads (the host is automatic) → also checks results match across thread counts.
 #   powershell -ExecutionPolicy Bypass -File tools\mp_test.ps1 [-Clients 1] [-Ticks 900] [-Config Release] [-Scene <file>] [-Tuning <file>]
-# To test a game project's executable: -Exe <project>\build\Release\bin\<name>.exe
-# To pit against a build from another compiler: -ClientExe build\ClangCL\bin\sandbox.exe (host is -Exe, clients use this)
+# To test a game project's executable: -Exe <project>\build\windows\Release\bin\<name>.exe (build/<os>/<Config>, tools/build_dirs.ps1)
+# To pit against a build from another compiler: -ClientExe build\windows\ClangCL\bin\sandbox.exe (host is -Exe, clients use this)
 # To simulate distant peers/loss: -Lag <ms> -Jitter <ms> -Loss <%> (--net-lag etc. on all processes)
 # To run without windows (headless): -Headless (adds --headless to each executable. Runs as fast as input allows)
 # Desync diagnostics test with -DesyncTest <tick>: client 1 perturbs physics slightly at that tick (--desync-test). PASS if everyone detects the desync, each peer
@@ -38,9 +38,10 @@ param(
     [string]$Remote = ""
 )
 
+. (Join-Path $PSScriptRoot "build_dirs.ps1")
 if ($Exe -eq "") {
     $root = Split-Path -Parent $PSScriptRoot
-    $Exe = Join-Path $root "build/$Config/bin/sandbox$(if ($IsWindows -or $PSVersionTable.PSVersion.Major -lt 6) { '.exe' })"
+    $Exe = Join-Path (Get-BuildBin $root $Config) "sandbox$(if ($IsWindows -or $PSVersionTable.PSVersion.Major -lt 6) { '.exe' })"
 }
 if (-not (Test-Path $Exe)) { Write-Error "Build first: $Exe not found"; exit 1 }
 $exe = (Resolve-Path $Exe).Path
@@ -51,8 +52,10 @@ if ($ClientExe -ne "") {
     Write-Host "host:    $exe"
     Write-Host "clients: $clientPath"
 }
-# Logs: <build folder>\mp_test (executables are in <build>\<Config>\bin)
-$logDir = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe))) "mp_test"
+# Logs: <build folder>\mp_test (executables are in <build>\<os>\<Config>\bin, or <build>\<Config>\bin in an old tree)
+$exeBuild = Get-BuildFolderOf $exe
+if (-not $exeBuild) { $exeBuild = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe)) }
+$logDir = Join-Path $exeBuild "mp_test"
 New-Item -ItemType Directory -Force $logDir | Out-Null
 
 if ($Peer -ne "") {
@@ -103,7 +106,7 @@ $procs = @()
 $started = Get-Date
 if ($DesyncTest -gt 0) {
     # Dev builds dump into <project>\build\desync only when <project>\build exists (an engine repo sample may not have one yet)
-    $repo = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe))) # exe is <repo>\build\<config>\bin
+    $repo = Split-Path -Parent $exeBuild # exe is <repo>\build\<os>\<config>\bin
     $sampleDir = Join-Path $repo ("samples/" + [IO.Path]::GetFileNameWithoutExtension($exe).Replace("_headless", ""))
     if (Test-Path $sampleDir) { New-Item -ItemType Directory -Force (Join-Path $sampleDir "build") | Out-Null }
 }
@@ -162,8 +165,7 @@ foreach ($n in $names) {
 if ($DesyncTest -gt 0) {
     # Dumps go to build\desync in the executable's project folder (seed 12345 = 3039). The engine repo's samples are
     # samples\<exe name> next to its build\ folder; their build\ is created when the test starts (see below)
-    $buildRoot = Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $exe)) # <project>\build
-    $dumpDir = if (Test-Path $sampleDir) { Join-Path $sampleDir "build/desync" } else { Join-Path $buildRoot "desync" }
+    $dumpDir = if (Test-Path $sampleDir) { Join-Path $sampleDir "build/desync" } else { Join-Path $exeBuild "desync" } # <project>\build\desync
     $dumps = @(Get-ChildItem $dumpDir -Filter "desync_0000000000003039_t*.txt" -ErrorAction SilentlyContinue |
         Where-Object { $_.LastWriteTime -ge $started })
     $desynced = @($finals | Where-Object { $_ -match "desync=1" }).Count

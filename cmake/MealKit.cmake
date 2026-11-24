@@ -6,12 +6,22 @@
 #   mealkit_add_game(MyGame)   # source/sim, source/view, source/app
 #
 # Build kind (MEALKIT_BUILD_KIND, set by build_project.bat):
-#   Game    shipping: a single <name>.exe with the engine as a static library (static CRT). build\Release, build\Debug, build\Profile
-#   Editor  for the editor: engine is mealkit.dll (dynamic CRT), game code is <name>_game.dll. build\Editor
+#   Game    shipping: a single <name>.exe with the engine as a static library (static CRT). build/<os>/Release, Debug, Profile
+#   Editor  for the editor: engine is mealkit.dll (dynamic CRT), game code is <name>_game.dll. build/<os>/Editor
+#   (<os> = MEALKIT_BUILD_OS: windows, linux, macos; tools/build_dirs.ps1, docs/DECISIONS.md 2026-11-24 "Build trees per OS")
 #           The engine repo builds mealkit.dll and MealKitEditor.exe; game projects import them (MealKitTargets.cmake) and build only the game DLL.
 #
 # Must be included from the top-level CMakeLists.txt: the global settings below (C++20, CRT) must apply to game targets too for linking.
 include_guard(GLOBAL)
+
+# The OS folder of build trees and exports (build/<os>/<Config>, export/<os>/<name>); the same names as tools/build_dirs.ps1
+if(CMAKE_HOST_WIN32)
+    set(MEALKIT_BUILD_OS windows)
+elseif(CMAKE_HOST_APPLE)
+    set(MEALKIT_BUILD_OS macos)
+else()
+    set(MEALKIT_BUILD_OS linux)
+endif()
 
 # Windows uses MSVC (or clang-cl). Linux/macOS build headless targets (<game>_headless, engine unit tests) with Clang/GCC (CI determinism comparison).
 # Linux also builds the front end (X11 window, Vulkan renderer, editor) with MEALKIT_LINUX_FRONTEND=ON (build.ps1 Editor/Vulkan; macOS: ROADMAP stage 5).
@@ -97,7 +107,7 @@ if(NOT MEALKIT_RHI MATCHES "^(DX12|Vulkan)$")
 endif()
 
 option(MEALKIT_PROFILE "Enable Tracy profiling markers (build.bat Profile)" OFF)
-# Debug UI (Dear ImGui): included in dev builds (build\Release/Debug/Profile) and the editor, excluded from shipping builds (build.bat Export → build\Export).
+# Debug UI (Dear ImGui): included in dev builds (build/<os>/Release, Debug, Profile) and the editor, excluded from shipping builds (build.bat Export → build/<os>/Export).
 # When on, the engine target passes MEALKIT_DEBUG_UI=1 and the imgui.h path to the game. Game code wraps it in #if MEALKIT_DEBUG_UI.
 option(MEALKIT_DEBUG_UI "Include the debug UI (Dear ImGui) (OFF for build.bat Export)" ON)
 if(MEALKIT_HEADLESS_ONLY)
@@ -387,13 +397,18 @@ list(REMOVE_DUPLICATES MEALKIT_SELECTED_MODULES)
 
 if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT MEALKIT_IS_ENGINE)
     # ---------------------------------------------------------------- Editor build of a game project: imports the engine
-    # The Vulkan editor (build.bat VulkanEditor) uses the engine's build\VulkanEditor. Linux has only Vulkan, in build/Editor
+    # The Vulkan editor (build.bat VulkanEditor) uses the engine's build/windows/VulkanEditor. Linux has only Vulkan, in build/linux/Editor
     if(MEALKIT_RHI STREQUAL "Vulkan" AND WIN32)
         set(mealkit_editor_build VulkanEditor)
     else()
         set(mealkit_editor_build Editor)
     endif()
-    set(MEALKIT_EDITOR_SDK "${MEALKIT_ENGINE_DIR}/build/${mealkit_editor_build}" CACHE PATH "Engine editor build folder (mealkit.dll, MealKitEditor.exe)")
+    # An engine built or installed before build/<os>/ has its editor build in build/<Config>
+    set(mealkit_editor_sdk "${MEALKIT_ENGINE_DIR}/build/${MEALKIT_BUILD_OS}/${mealkit_editor_build}")
+    if(NOT EXISTS "${mealkit_editor_sdk}/MealKitTargets.cmake" AND EXISTS "${MEALKIT_ENGINE_DIR}/build/${mealkit_editor_build}/MealKitTargets.cmake")
+        set(mealkit_editor_sdk "${MEALKIT_ENGINE_DIR}/build/${mealkit_editor_build}")
+    endif()
+    set(MEALKIT_EDITOR_SDK "${mealkit_editor_sdk}" CACHE PATH "Engine editor build folder (mealkit.dll, MealKitEditor.exe)")
     if(NOT EXISTS "${MEALKIT_EDITOR_SDK}/MealKitTargets.cmake")
         message(FATAL_ERROR "Engine editor build not found in ${MEALKIT_EDITOR_SDK}. Run ${MEALKIT_ENGINE_DIR}\\build.bat ${mealkit_editor_build} first.")
     endif()
@@ -467,8 +482,8 @@ endif()
 # Files with a sim/ folder in their path are checked for determinism rules by SimCheck (engine/tools/SimCheck.cpp) before the build; violations fail the build.
 # Project third_party/<lib>/ (folders with mealkit.txt): if it has a CMakeLists.txt, add_subdirectory then link mealkit.txt's cmakeTarget;
 # otherwise header-only: the include folder (mealkit.txt's include, default that folder) is attached only to the game exe/DLL. Not usable in sim/ (SimCheck SIM011).
-# The project folder is where the top-level CMakeLists.txt is. assets/ under it is used, and shipping builds go to export/<name>/.
-# game_export target: gathers game executable + assets + Steam DLL + license notices into export/<name>/ (build.bat Export).
+# The project folder is where the top-level CMakeLists.txt is. assets/ under it is used, and shipping builds go to export/<os>/<name>/.
+# game_export target: gathers game executable + assets + Steam DLL + license notices into export/<os>/<name>/ (build.bat Export).
 # Precompiled header for game targets (Game exe and Editor DLL): cmake/MealKitGamePch.h holds the standard and engine headers most view/ and app/
 # files include. sim/ files and the headless file are left out: they also build in <game>_headless against the kernel only, and a force-included
 # header there would hide a missing include until that build. OFF (-DMEALKIT_GAME_PCH=OFF) restores plain compiles, for measuring or a compiler problem.
@@ -917,8 +932,8 @@ function(mealkit_add_game name)
     # Pre-ship checks: folder layout (tools/check_layout.ps1, fails on violation) → merge notices (MealKit + engine libraries in the game exe + game libraries + fonts)
     # → shipping folder (MealKitExport.cmake also checks the exe size budget)
     set(export_notices "${CMAKE_BINARY_DIR}/export_notices/${name}/THIRD_PARTY_NOTICES.txt")
-    # Shipping folder: export/<name>, or export/<name>-<version> if mealkit.project's exportVersionFolder is on
-    set(export_dir "${project_dir}/export/${name}")
+    # Shipping folder: export/<os>/<name>, or export/<os>/<name>-<version> if mealkit.project's exportVersionFolder is on
+    set(export_dir "${project_dir}/export/${MEALKIT_BUILD_OS}/${name}")
     if(EXISTS "${project_file}")
         file(STRINGS "${project_file}" export_lines REGEX "^[ \t]*(version|exportVersionFolder)([ \t=]|$)" ENCODING UTF-8)
         set(export_version "")
@@ -931,7 +946,7 @@ function(mealkit_add_game name)
             endif()
         endforeach()
         if(export_with_version AND export_version)
-            set(export_dir "${project_dir}/export/${name}-${export_version}")
+            set(export_dir "${project_dir}/export/${MEALKIT_BUILD_OS}/${name}-${export_version}")
         endif()
     endif()
     # A build profile's "output" line (tools/build.ps1 profile:<name>) replaces the folder above, for a project built on its own

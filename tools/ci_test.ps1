@@ -1,18 +1,24 @@
 ﻿# CI tests (one build): unit tests, fixed input recording replay, headless mp_test. Runs on Windows PowerShell 5.1 and pwsh 7 (Linux/macOS).
-#   pwsh tools/ci_test.ps1 -Bin build/Headless/bin -Name linux-clang [-Out ci-out/linux-clang] [-NoHeadless]
+#   pwsh tools/ci_test.ps1 -Config Headless -Name linux-clang (or -Bin <folder with the exes>) [-Out ci-out/linux-clang] [-NoHeadless]
 # Results (-Out folder, uploaded as artifacts by CI):
 #   detmath-bits.txt          the "detmath-bits <hash>" line of mealkit_tests (must be the same on all builds)
 #   <sample>-<recording>.hashes.txt   per-tick hashes from replaying samples/*/replays/*.rec (must be the same on all OSes/CPUs/compilers)
 #   *.log                     output of each run
 # Comparison between builds is tools/ci_compare.ps1. Exit code 1 if anything fails.
 param(
-    [Parameter(Mandatory = $true)][string]$Bin,
+    [string]$Bin = "",
+    [string]$Config = "", # instead of -Bin: the bin folder of build/<os>/<Config> (tools/build_dirs.ps1)
     [Parameter(Mandatory = $true)][string]$Name,
     [string]$Out = "",
     [switch]$NoHeadless # Editor build: no headless target (unit tests only)
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot "build_dirs.ps1")
+if (-not $Bin) {
+    if (-not $Config) { Write-Error "Give -Bin or -Config"; exit 1 }
+    $Bin = Get-BuildBin $root $Config
+}
 $exeSuffix = if ($env:OS -eq "Windows_NT") { ".exe" } else { "" }
 $Bin = (Resolve-Path $Bin).Path
 if ($Out -eq "") { $Out = Join-Path $root "build/ci/$Name" }
@@ -85,7 +91,7 @@ if (-not $NoHeadless) {
     if ($code -ne 0 -or @($output -match "^PASS").Count -eq 0) {
         $failed += "mp_test -Headless"
         # On failure, keep each peer's output (mp_test log folder: <build>/mp_test)
-        $mpLogs = Join-Path (Split-Path -Parent (Split-Path -Parent $Bin)) "mp_test"
+        $mpLogs = Join-Path (Get-BuildFolderOf (Join-Path $Bin "x")) "mp_test"
         if (Test-Path $mpLogs) {
             Copy-Item (Join-Path $mpLogs "*") $Out -ErrorAction SilentlyContinue
             foreach ($f in Get-ChildItem $mpLogs -File | Sort-Object Name) {
