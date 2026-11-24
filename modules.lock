@@ -7,7 +7,7 @@ module data https://github.com/MealKit-Engine/module-data v0.1.10 8b10465c0c3bac
 module debug https://github.com/MealKit-Engine/module-debug v0.1.4 aa77251f2132eca23a91e93f4536791037ee3689 .
 module editor https://github.com/MealKit-Engine/module-editor v0.2.24 60ae991794cb23d4e1317c707df8650690a38e93 .
 module feedback https://github.com/MealKit-Engine/module-feedback v0.1.5 eb882826e9b8a791bf3215d7e37b8b62b71cba45 .
-module game https://github.com/MealKit-Engine/module-game v0.2.6 9c230e988aa343b38f26ab17d24def1efcb0b833 .
+module game https://github.com/MealKit-Engine/module-game v0.2.7 01d0663eeb31dc35d445616bf7b0028ca53bad3f .
 module input https://github.com/MealKit-Engine/module-input v0.1.2 2dcb56c28d9e457775eb5661307b4e387c3bbcb0 .
 module live https://github.com/MealKit-Engine/module-live v0.1.2 9734ef88bd8c30d5f7cf6ca0d1c8ec8376885913 .
 module loc https://github.com/MealKit-Engine/module-loc v0.2.0 2c3e7701cf993056ef3c37e47c3739ff198d9d97 .

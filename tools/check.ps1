@@ -279,6 +279,13 @@ Invoke-Check static "Public headers (game code)" {
     $output | Out-File -Encoding utf8 $log
     return $LASTEXITCODE -eq 0
 }
+# Game code takes services GameContext already holds from the context, not services::get<T>() (docs/DECISIONS.md 2026-11-25)
+Invoke-Check static "Context access (game code)" {
+    param($log)
+    $output = & $ps -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot/check_context_access.ps1" 2>&1
+    $output | Out-File -Encoding utf8 $log
+    return $LASTEXITCODE -eq 0
+}
 # Tool suite runtimes (third_party/mkaudio = separate repo MkAudio) don't use engine headers/macros
 Invoke-Check static "Engine libs (no engine headers)" {
     param($log)

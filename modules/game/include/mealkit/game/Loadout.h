@@ -1,4 +1,4 @@
-// Vendored copy of module-game v0.2.6; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-game v0.2.7; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Hash.h"

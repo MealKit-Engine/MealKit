@@ -3,6 +3,11 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## GameContext access (2026-11-25; GAMECONTEXT_REVIEW_2026-11-21)
+- `tools/check_context_access.ps1` (check.ps1 static group "Context access (game code)"): game code must not call `get<T>()` for a service `GameContext` holds. Run on the sample code, templates and module-game: 0 violations.
+- `module-game` `GameContext.h`: structured-binding member count (16, 17 with audio) so adding a member without touching `ContextServices` fails to compile. Edited in the module repo, not yet committed, tagged or bumped here. Not run: full `check.ps1`, an engine build.
+- Not done: `FrameState` split and the screen-flow context (see DECISIONS 2026-11-25).
+
 ## API index for agents (2026-11-25; ROADMAP AI agents A3)
 - `tools/gen_api_index.py` writes one `API.txt` per kernel folder (`engine/core/core`, `jobs`, `platform`) and per engine module repo (`--module ../module-<name>`; a vendored `modules/<name>` is checked only when it has one). Each line is `<header>:<line> <declaration>  // <first sentence of its comment>`, `+` in front for headers in `engine/public_headers.txt`. Only `include/mealkit/` headers, public members, no data fields or bodies. Generated, never edited by hand.
 - The 20 `module-<name>` repos carry their `API.txt` (commits "Add API.txt index", 2026-11-25), so module copies in game projects ship it too.
