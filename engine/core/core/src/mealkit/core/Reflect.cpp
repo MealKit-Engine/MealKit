@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <vector>
 
 namespace mealkit {
 namespace {
@@ -473,10 +474,54 @@ bool parseValue(const ValueInfo& value, void* data, const std::string& text) {
     return parseScalar(value, data, text);
 }
 
+namespace {
+
+// Edit distance between two short names (field paths), two rows of the table
+size_t editDistance(const std::string& a, const std::string& b) {
+    std::vector<size_t> prev(b.size() + 1), cur(b.size() + 1);
+    for (size_t j = 0; j <= b.size(); ++j) prev[j] = j;
+    for (size_t i = 1; i <= a.size(); ++i) {
+        cur[0] = i;
+        for (size_t j = 1; j <= b.size(); ++j)
+            cur[j] = std::min({prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] == b[j - 1] ? 0 : 1)});
+        std::swap(prev, cur);
+    }
+    return prev[b.size()];
+}
+
+// The declared path closest to a misspelled one (empty when nothing is close enough: at most a third of the name, 1 to 3 edits)
+std::string closestPath(const TypeInfo& type, const void* data, const std::string& path) {
+    TextFields declared;
+    toText(type, data, declared);
+    std::string best;
+    size_t bestDistance = std::max<size_t>(1, std::min<size_t>(3, path.size() / 3)) + 1;
+    for (const auto& [name, value] : declared) {
+        const size_t d = editDistance(path, name);
+        if (d < bestDistance) {
+            bestDistance = d;
+            best = name;
+        }
+    }
+    return best;
+}
+
+} // namespace
+
 void fromText(const TypeInfo& type, void* data, const TextFields& fields, std::string* warnings) {
     for (const auto& [path, text] : fields) {
         if (setFromText(type, data, path, text)) continue;
-        if (warnings) *warnings += (warnings->empty() ? "" : ", ") + path;
+        if (!warnings) continue;
+        const ValueInfo* v = nullptr;
+        void* p = nullptr;
+        std::string message;
+        if (resolve(type, data, path.c_str(), v, p)) {
+            message = "bad value '" + text + "' for field '" + path + "'";
+        } else {
+            message = "unknown field '" + path + "'";
+            const std::string close = closestPath(type, data, path);
+            if (!close.empty()) message += "; did you mean '" + close + "'?";
+        }
+        *warnings += (warnings->empty() ? "" : "; ") + message;
     }
 }
 

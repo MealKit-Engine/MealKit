@@ -241,7 +241,7 @@ using TextFields = std::vector<std::pair<std::string, std::string>>;
 void toText(const TypeInfo& type, const void* data, TextFields& out);
 // Reads one path into the value. false for a missing path or bad value (value unchanged).
 bool setFromText(const TypeInfo& type, void* data, const std::string& path, const std::string& text);
-// Reads multiple lines, appending failed paths to warnings.
+// Reads multiple lines. Each failed line adds a sentence to warnings: an unknown field names the closest declared one ("did you mean"), a bad value shows the text.
 void fromText(const TypeInfo& type, void* data, const TextFields& fields, std::string* warnings = nullptr);
 // Reads text into one scalar value (data points at a value of that kind). false for structs/arrays/containers or a bad value.
 bool parseValue(const ValueInfo& value, void* data, const std::string& text);

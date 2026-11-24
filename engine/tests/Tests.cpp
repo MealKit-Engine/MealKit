@@ -347,6 +347,16 @@ TEST_CASE(core, reflect) {
     reflect::fromText(t, &b, text, &warnings);
     TEST_CHECK(warnings.empty());
     TEST_CHECK(b.list[1].a == 42);
+
+    // A misspelled field names the closest declared one; a bad value shows the text
+    {
+        reflect::TextFields typo = {{"smal", "7"}, {"small", "abc"}};
+        std::string typoWarnings;
+        reflect::fromText(t, &b, typo, &typoWarnings);
+        TEST_CHECK(typoWarnings.find("unknown field 'smal'") != std::string::npos &&
+                   typoWarnings.find("did you mean 'small'?") != std::string::npos &&
+                   typoWarnings.find("bad value 'abc' for field 'small'") != std::string::npos);
+    }
     TEST_CHECK(reflect::hashOf(a) == reflect::hashOf(b));
     b.look = 9.0f;
     TEST_CHECK(reflect::hashOf(a, reflect::kFieldView) == reflect::hashOf(b, reflect::kFieldView));

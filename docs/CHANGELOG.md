@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Load warnings that say what to do (2026-11-24; ROADMAP "AI agents" A7, part)
+- `reflect::fromText` (`Reflect.cpp`) now words each failed line: `unknown field 'smal'; did you mean 'small'?` (closest declared path by edit distance, at most a third of the name and 3 edits, else no hint) or `bad value 'abc' for field 'small'`. Joined with `; `. It was a bare comma list of paths. Every caller that logs the string (tuning, project settings, saves, tables) gets it; the test `reflect` checks both sentences.
+- module-data `v0.1.9` (local commit and tag in `../module-data`, not pushed): table rows log `row <id>: <those sentences>` instead of `row <id>: unknown fields ...`. **Not bumped here yet**: `modules.lock` stays at v0.1.8 until that repo is pushed (`tools\module.ps1 engine bump data`). Until then table warnings read `row crate: unknown fields unknown field 'speeed'; ...`.
+- Left (A7 stays open): the file and line. Table rows are located by row id only (`TableText` has no line numbers); scene (`readObject` drops its warnings silently), `.ui` and tuning files name no line.
+- Verified: Release build, `mealkit_tests --only core,data` PASS. Full `check.ps1` not run.
+
 ## Play timeline: shadow divergence mark (2026-11-24; ROADMAP editor usability 33, part)
 - `Editor::drawPlayControls` draws a red line on the timeline slider at `ShadowStatus::tick` when the shadow simulation has diverged and the tick is inside the recorded range; the slider tooltip adds "Red mark: the shadow simulation first diverged at tick %u." (Korean in `ko.txt`). No `SimDebug` change, so no `kApiVersion` bump. Solo play only, like the timeline itself (decided with the user 2026-11-24).
 - Left: a mark for a rewind replay that differs from the recording (needs a tick field in `Timeline`, so `kApiVersion` goes up) and simulation event ticks. Not checked: the mark itself on screen (no divergence was forced; a normal play capture shows the bar unchanged).
