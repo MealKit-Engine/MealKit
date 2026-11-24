@@ -3,6 +3,15 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## `samples.lock` and `tools\sample.ps1` (2026-11-24; `docs/DECISIONS.md` 2026-11-24 "The reference samples leave the engine repo", step 2)
+- **Lock**: `samples.lock` (`@format sample-lock 1`, `sample <name> <url> <tag> <commit>`), empty until the sample repos exist (step 3).
+- **Commands**: `tools\sample.ps1 status|sync|bump|local`. `status` reports MISSING, DIFF (changed, missing or extra files against the locked commit), LOCAL or ok, and exits 1 for MISSING and DIFF. `sync [name ...]` rewrites `samples/<name>` from the locked commit (`.github/` left out; `build/`, `export/` and `CLAUDE.md` kept). `bump <name> [tag]` locks the checkout's newest `v*` tag or the given one and syncs. `local on` links `samples/<name>` to the sibling `sample-<name>` checkout (skipped when the folder has changes not in the lock), `local off` removes the link and syncs.
+- **Repos**: a sibling checkout beside the engine, else a clone in the per-user cache (`%LOCALAPPDATA%\MealKit\samples`, `$XDG_CACHE_HOME` or `~/.cache` elsewhere).
+- **Shared helpers**: `tools/lock_repo.ps1` (lock read/write, repo directory, locked file list, blob copy, junction or symbolic link, newest tag) is used by `tools/module_engine.ps1` and `tools/sample.ps1`. `module_engine.ps1` only lost its own copies of these; `module.ps1 engine status` gives the same output as before.
+- **`samples/README.md`** says how to fetch and change a sample.
+- **Checked** (Linux): all four commands against a scratch repo with two tags (missing, sync, edited file, extra build folder, bump, local on/off, unknown name); `module.ps1 engine status` still ok for every module; `sample.ps1 status` with the empty lock exits 0.
+- **Left**: the `.gitignore` line moved to step 3. Not run on Windows (junction branch).
+
 ## Engine unit tests stop reading sample files (2026-11-24; `docs/DECISIONS.md` 2026-11-24 "The reference samples leave the engine repo", step 1)
 - **Test data**: `engine/tests/data/` holds the few assets `mealkit_tests` needs: `assets/models` (`characters/rig_figure.glb`, `cutscenes/intro.glb`, `tree.glb`), `assets/terrain/hills.png`, `assets/ui` (`hud.ui`, `menu.ui`, `settings.ui`, `theme.ui`) and `modules/cooldown/assets/ui/cooldown_bar.ui` (used by `hud.ui`). `main` sets the project root there instead of `samples/sandbox`, and `terrain_heightmap` and `ui_source` read from it.
 - **`ui_source`**: scans the templates and the test data always, and the samples when `samples/` exists. The file-count floor is 20 with samples and 5 without.

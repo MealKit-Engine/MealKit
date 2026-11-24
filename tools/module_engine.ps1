@@ -18,71 +18,24 @@ $ErrorActionPreference = "Stop"
 $engine = Split-Path -Parent $PSScriptRoot
 $lockPath = Join-Path $engine "modules.lock"
 $workspace = Split-Path -Parent $engine
-$utf8 = New-Object System.Text.UTF8Encoding $false
+. "$PSScriptRoot\lock_repo.ps1"
+$moduleSkip = { param($rel) $rel -eq "README.md" -or $rel.StartsWith(".github/") -or $rel.StartsWith("backends/") }
 
 # ---- modules.lock: "module <name> <url> <tag> <commit> <path in repo>"
-function Read-Lock {
-    $entries = @()
-    foreach ($line in [IO.File]::ReadAllLines($lockPath)) {
-        $t = $line.Trim()
-        if (-not $t -or $t.StartsWith("#") -or $t.StartsWith("@format")) { continue }
-        $p = $t -split '\s+'
-        if ($p[0] -ne "module" -or $p.Count -lt 6) { throw "modules.lock: bad line '$t'" }
-        $entries += [pscustomobject]@{ Name = $p[1]; Url = $p[2]; Tag = $p[3]; Commit = $p[4]; Path = $p[5] }
-    }
-    return $entries
-}
+function Read-Lock { return Read-LockFile $lockPath "module" 6 }
 
 function Write-Lock($entries) {
-    $lines = @("# Engine modules vendored into modules/<name> (tools\module.ps1 engine). One engine version = VERSION + this file.",
-               "# module <name> <repo url> <tag> <commit> <path in the repo>",
-               "@format module-lock 1")
-    foreach ($e in $entries) { $lines += "module $($e.Name) $($e.Url) $($e.Tag) $($e.Commit) $($e.Path)" }
-    [IO.File]::WriteAllText($lockPath, (($lines -join "`r`n") + "`r`n"), $utf8)
+    Write-LockFile $lockPath @("# Engine modules vendored into modules/<name> (tools\module.ps1 engine). One engine version = VERSION + this file.",
+                               "# module <name> <repo url> <tag> <commit> <path in the repo>",
+                               "@format module-lock 1") "module" $entries $true
 }
 
-function Repo-Name($url) { return ($url.TrimEnd("/") -split "/")[-1] }
+function Repo-Dir($e) { return Get-RepoDir $e $workspace "modules" }
 
-# The repo checkout for an entry: the sibling folder, or a cache clone
-function Repo-Dir($e) {
-    $sibling = Join-Path $workspace (Repo-Name $e.Url)
-    if (Test-Path (Join-Path $sibling ".git")) { return $sibling }
-    $cache = Join-Path $env:LOCALAPPDATA ("MealKit\modules\" + (Repo-Name $e.Url))
-    if (-not (Test-Path (Join-Path $cache ".git"))) {
-        & git clone --quiet $e.Url $cache
-        if ($LASTEXITCODE -ne 0) { throw "could not clone $($e.Url)" }
-    }
-    & git -C $cache fetch --quiet --tags
-    return $cache
-}
-
-function Git-Lines($dir, [string[]]$arguments) {
-    $out = & git -C $dir @arguments
-    if ($LASTEXITCODE -ne 0) { throw "git $($arguments -join ' ') failed in $dir" }
-    return @($out)
-}
-
-# Files of the vendored copy at the locked commit: relative path → blob id
-function Locked-Files($e, $dir) {
-    $files = @{}
-    $prefix = if ($e.Path -eq ".") { "" } else { $e.Path.TrimEnd("/") + "/" }
-    $spec = if ($prefix) { @($e.Commit, "--", $prefix) } else { @($e.Commit) }
-    foreach ($line in Git-Lines $dir (@("ls-tree", "-r") + $spec)) {
-        $tab = $line.IndexOf("`t")
-        $blob = ($line.Substring(0, $tab) -split ' ')[2]
-        $rel = $line.Substring($tab + 1).Substring($prefix.Length)
-        if ($rel -eq "README.md" -or $rel.StartsWith(".github/") -or $rel.StartsWith("backends/")) { continue }
-        $files[$rel] = $blob
-    }
-    return $files
-}
+# Files of the vendored copy at the locked commit: relative path -> blob id
+function Locked-Files($e, $dir) { return Get-LockedFiles $e $dir $moduleSkip }
 
 function Vendored-Dir($e) { return Join-Path $engine ("modules\" + $e.Name) }
-
-function Is-Junction($path) {
-    if (-not (Test-Path $path)) { return $false }
-    return [bool]((Get-Item $path -Force).Attributes -band [IO.FileAttributes]::ReparsePoint)
-}
 
 function Vendored-Differences($e, $dir) {
     $locked = Locked-Files $e $dir
@@ -117,30 +70,13 @@ function Sync-Entry($e, [string]$into = "") {
             if ($f.Name -ne "CLAUDE.md") { Remove-Item -LiteralPath $f.FullName -Force }
         }
     }
-    $prefix = if ($e.Path -eq ".") { "" } else { $e.Path.TrimEnd("/") + "/" }
     foreach ($rel in $locked.Keys) {
         $full = Join-Path $target $rel
         New-Item -ItemType Directory -Force (Split-Path -Parent $full) | Out-Null
-        if ($IsLinux -or $IsMacOS) {
-            # PowerShell 7 there rewrites redirected output line by line and drops empty lines: copy git's bytes as they are
-            $psi = New-Object Diagnostics.ProcessStartInfo "git", "-C `"$dir`" cat-file blob $($locked[$rel])"
-            $psi.UseShellExecute = $false
-            $psi.RedirectStandardOutput = $true
-            $proc = [Diagnostics.Process]::Start($psi)
-            $stream = [IO.File]::Create($full)
-            try { $proc.StandardOutput.BaseStream.CopyTo($stream) } finally { $stream.Close() }
-            $proc.WaitForExit()
-            $code = $proc.ExitCode
-        } else {
-            $p = Start-Process -FilePath git -ArgumentList @("-C", "`"$dir`"", "cat-file", "blob", $locked[$rel]) -NoNewWindow -Wait -PassThru `
-                -RedirectStandardOutput $full
-            $code = $p.ExitCode
-        }
-        if ($code -ne 0) { throw "could not read $prefix$rel from $dir" }
+        Copy-GitBlob $dir $locked[$rel] $full
     }
     # Empty folders left by removed files
-    Get-ChildItem -Path $target -Recurse -Directory | Sort-Object { $_.FullName.Length } -Descending |
-        Where-Object { -not (Get-ChildItem -LiteralPath $_.FullName -Force) } | Remove-Item -Force
+    Remove-EmptyDirectories $target
     Write-Host "synced $($e.Name) $($e.Tag) ($($e.Commit.Substring(0, 9))) -> $target"
 }
 
@@ -156,7 +92,7 @@ switch ($Command) {
             $dir = Repo-Dir $e
             $diff = Vendored-Differences $e $dir
             $head = @(Git-Lines $dir @("rev-parse", "HEAD"))[0].Trim()
-            $newest = (& git -C $dir tag --list "v*" --sort=-v:refname | Select-Object -First 1)
+            $newest = (Newest-Tag $dir)
             $note = if ($head -ne $e.Commit) { "checkout at $($head.Substring(0, 9)), newest tag $newest" } else { "" }
             if ($diff.Count) { $bad++; Write-Host ("{0,-14} DIFF   {1} {2}" -f $e.Name, $e.Tag, ($diff -join ", ")) -ForegroundColor Red }
             else { Write-Host ("{0,-14} ok     {1} {2}" -f $e.Name, $e.Tag, $note) }
@@ -169,7 +105,7 @@ switch ($Command) {
         $e = $entries | Where-Object { $_.Name -eq $Names[0] }
         if (-not $e) { throw "no module '$($Names[0])' in modules.lock" }
         $dir = Repo-Dir $e
-        $tag = if ($Names.Count -ge 2) { $Names[1] } else { (& git -C $dir tag --list "v*" --sort=-v:refname | Select-Object -First 1) }
+        $tag = if ($Names.Count -ge 2) { $Names[1] } else { (Newest-Tag $dir) }
         if (-not $tag) { throw "$dir has no v* tag" }
         $commit = @(Git-Lines $dir @("rev-parse", "$tag^{commit}"))[0].Trim()
         # Every module of the same repo moves together (module-online: online and its backends)
@@ -200,10 +136,7 @@ switch ($Command) {
                     Copy-Item -LiteralPath $_.FullName -Destination $dest -Force
                 }
                 Remove-Item -Recurse -Force $target
-                # Linux/macOS have no junctions (New-Item makes nothing there): a symbolic link, which Is-Junction sees as a reparse point too
-                $linkType = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { "Junction" } else { "SymbolicLink" }
-                New-Item -ItemType $linkType -Path $target -Target $sibling | Out-Null
-                if (-not (Is-Junction $target)) { throw "could not link modules/$($e.Name) to $sibling (run 'git checkout -- modules/$($e.Name)' to restore it)" }
+                try { New-DirectoryLink $target $sibling } catch { throw "$_ (run 'git checkout -- modules/$($e.Name)' to restore it)" }
                 Write-Host "local $($e.Name) -> $sibling"
             } else {
                 if (-not (Is-Junction $target)) { continue }

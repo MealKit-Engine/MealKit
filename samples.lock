@@ -1,0 +1,3 @@
+# Reference samples fetched into samples/<name> (tools\sample.ps1). One engine version = VERSION + this file.
+# sample <name> <repo url> <tag> <commit>
+@format sample-lock 1
