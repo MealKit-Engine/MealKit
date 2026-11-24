@@ -9,7 +9,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 **Next, in order** (reordered 2026-11-23; the first item keeps the 2026-11-22 decision "Linux editor and editor reinforcement come first"; game work such as FuseTag M5/M6 waits until item 1 is done):
 1. **Linux editor finish and editor reinforcement** ("In progress").
 2. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
-3. **First beta release**: the code side is done (`docs/CHANGELOG.md` "First beta release": A1 build traps, A2 vendored copies, R1 collaboration setup). Left: the template modules published by name, the editor's new project window picking modules (or leaving that to the Manager), FuseTag moving from its vendored `sim` with `MatchFlow` to `matchflow`, and everything that needs a person (R2 publishing, publication checks: `docs/ROADMAP_HUMAN.md`).
+3. **First beta release**: the code side is done (`docs/CHANGELOG.md` "First beta release": A1 build traps, A2 vendored copies, R1 collaboration setup). Left: the Manager's New Project dialog picking modules (passes `-Modules`; the editor window does not, `docs/DECISIONS.md` 2026-11-24 "Choosing modules for a new project is the Manager's job"), and everything that needs a person (the template modules published by name, R2 publishing, publication checks: `docs/ROADMAP_HUMAN.md`).
 4. **Game-facing gaps that FuseTag hits when game work resumes**: designer independence D4 (with FuseTag M5), shipped sound size and streaming, gamepad rumble (E2).
 5. **Multiplayer modes** (Relay, Dedicated) together with the lobby browser and quick match (E3) and spectator slots (E4).
 6. **UI 2**: MkUI's XAML-like layer, one piece at a time.
