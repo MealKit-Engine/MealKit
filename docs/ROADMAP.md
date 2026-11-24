@@ -203,6 +203,28 @@ Each platform gets a minimum spec/performance budget table when started, and fin
 
 ---
 
+## Samples out of the engine repo (decided 2026-11-24, `docs/DECISIONS.md` "The reference samples leave the engine repo"; not yet placed in "Next, in order")
+
+Steps in order; each one leaves the engine building and `check.ps1` passing.
+
+### [ ] 2. `samples.lock` and `tools\sample.ps1`
+Lock format `@format sample-lock 1`, lines `sample <name> <url> <tag> <commit>`. Commands `status`, `sync [name ...]` (clone into the per-user MealKit cache, check out the locked commit, copy its files into `samples/<name>`), `bump <name> [tag]`, `local on|off [name ...]` (junction/symlink to the sibling `..\sample-<name>`). Share the repo and lock helpers with `tools/module_engine.ps1` instead of copying them. `.gitignore` ignores `/samples/*/`; a tracked `samples/README.md` says how to fetch them.
+
+### [ ] 3. Create the sample repos (needs the user's go-ahead: new public GitHub repos)
+`sample-sandbox` and `sample-coop` from `git subtree split --prefix samples/<name>` so their history comes along, tag `v0.1.0`, commit as KingProtea99, write `samples.lock`, remove the folders from engine git.
+
+### [ ] 4. Build and checks fetch the locked samples
+The root `CMakeLists.txt` adds `samples/<name>` only when present (a message names `tools\sample.ps1 sync` otherwise); the engine build script syncs missing samples on the engine repo's first build so a beta visitor never hits a missing folder. `check.ps1`, `ci_test.ps1`, `mp_test.ps1`, `record_replay.ps1`, `live_probe.ps1` and the golden/perf paths fail early when `sample.ps1 status` differs from the lock (as with modules). CI adds a sync step before the build. `check.ps1` `$pathRules` routes changes of `samples.lock` to the groups that `samples/` changes route to today.
+
+### [ ] 5. Templates come from the lock
+`new_project.ps1 -Template arena|coop` and `upgrade_project.ps1 -Source` read the sample through `sample.ps1` (sync when missing) instead of assuming `samples/sandbox`; `-Template` also takes a git URL or folder of a sample repo, and the project's `.mealkit-template` records the sample's tag and commit so `upgrade_project` diffs against the right version.
+
+### [ ] 6. MealKit Manager: a Templates tab
+Cards for the built-in templates (empty, empty2d) and the engine's locked samples (arena = sandbox, coop) with the `templates/previews/*.png` picture, a description and the sample version; a URL field for another sample repo. Picking one runs `new_project.ps1`. Replaces the two-choice `m_newTemplate`. Korean strings too, look per `docs/TOOL_DESIGN.md`.
+
+### [ ] 7. Docs
+`docs/ENGINE_MODULES.md` (or a new `docs/SAMPLES.md`), the engine CLAUDE.md "Engine folder and game projects", `CONTRIBUTING.md` (changing a sample with the engine: `sample.ps1 local on`, commit and tag the sample, `bump`, `local off`), and MealKit-Docs (English + Korean) for new projects from the Manager.
+
 ## Smaller engine items
 
 ### [ ] Small leftovers

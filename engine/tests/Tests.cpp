@@ -1361,7 +1361,9 @@ TEST_CASE(ui, ui_image_field) {
 
 TEST_CASE(ui, ui_source) {
     const std::string engine = std::string(MEALKIT_ENGINE_DIR);
-    std::vector<std::string> dirs = {engine + "/templates/empty/assets/ui"};
+    const std::string data = engine + "/engine/tests/data";
+    std::vector<std::string> dirs = {engine + "/templates/empty/assets/ui", data + "/assets/ui", data + "/modules/cooldown/assets/ui"};
+    // Samples are fetched by tools/sample.ps1 and may be missing: scan the ones present, the copies in tests/data always
     for (const std::string& sample : listDirectories(engine + "/samples")) {
         dirs.push_back(engine + "/samples/" + sample + "/assets/ui");
         for (const std::string& module : listDirectories(engine + "/samples/" + sample + "/modules"))
@@ -1383,14 +1385,13 @@ TEST_CASE(ui, ui_source) {
             TEST_CHECK(ok && ui::writeSource(source) == lf);
             ++files;
         }
-    TEST_CHECK(files >= 20);
+    TEST_CHECK(files >= (listDirectories(engine + "/samples").empty() ? 5u : 20u));
 
     // Sample screens with components: Document nodes map back to source nodes (a use subtree to the use node)
     // menu.ui comes with the sandbox's screens source module (its own assets/, not the sample's)
-    const std::string sandbox = engine + "/samples/sandbox";
-    const std::pair<const char*, std::string> screens[] = {{"ui/hud.ui", sandbox + "/assets/ui/hud.ui"},
-                                                           {"ui/menu.ui", sandbox + "/modules/screens/assets/ui/menu.ui"},
-                                                           {"ui/settings.ui", sandbox + "/assets/ui/settings.ui"}};
+    const std::pair<const char*, std::string> screens[] = {{"ui/hud.ui", data + "/assets/ui/hud.ui"},
+                                                           {"ui/menu.ui", data + "/assets/ui/menu.ui"},
+                                                           {"ui/settings.ui", data + "/assets/ui/settings.ui"}};
     for (const auto& [screen, file] : screens) {
         std::string text;
         TEST_CHECK(readTextFile(file, text));
@@ -1542,10 +1543,10 @@ TEST_CASE(asset, material_extras) {
 // Sky HDRI baking: RGB9E5 round trip, cube face directions, a uniform sky of brightness 1 gives 1 for ambient/reflection/sky
 // Color grading LUT (.cube): tables of other sizes are trilinearly resampled to 32 cells, DOMAIN is honored, 1D/short tables are rejected
 TEST_CASE(asset, terrain_heightmap) {
-    // The sample's 16-bit PNG loads square (writing heightmaps is MkRender's), and bytes that aren't a PNG fail with a reason
+    // The test data's 16-bit PNG loads square (writing heightmaps is MkRender's), and bytes that aren't a PNG fail with a reason
     asset::Heightmap hills;
     std::string error;
-    TEST_CHECK(asset::loadHeightmap(std::string(MEALKIT_ENGINE_DIR) + "/samples/sandbox/assets/terrain/hills.png", hills, error) && hills.valid());
+    TEST_CHECK(asset::loadHeightmap(std::string(MEALKIT_ENGINE_DIR) + "/engine/tests/data/assets/terrain/hills.png", hills, error) && hills.valid());
     const u8 junk[8] = {1, 2, 3, 4, 5, 6, 7, 8};
     asset::Heightmap bad;
     TEST_CHECK(!asset::decodeHeightmap(junk, sizeof(junk), bad, error) && !error.empty());
@@ -3311,7 +3312,7 @@ int main(int argc, char** argv) {
     if (argc > 1 && std::string(argv[1]) == "--write-asset-schema") // the Blender add-on's schema.json (asset_schema test)
         return writeTextFile(std::string(MEALKIT_ENGINE_DIR) + "/tools/blender-addon/mealkit/schema.json", asset::modelSchemaJson()) ? 0 : 1;
 #endif
-    setProjectRoot(std::string(MEALKIT_ENGINE_DIR) + "/samples/sandbox"); // sample assets the tests read (models, scenes, ui)
+    setProjectRoot(std::string(MEALKIT_ENGINE_DIR) + "/engine/tests/data"); // the few assets the tests read (models, ui); samples may be missing
     std::string only;
     if (argc > 2 && std::string(argv[1]) == "--only") only = argv[2];
     return test::runAll(only);

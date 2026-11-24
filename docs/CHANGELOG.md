@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Engine unit tests stop reading sample files (2026-11-24; `docs/DECISIONS.md` 2026-11-24 "The reference samples leave the engine repo", step 1)
+- **Test data**: `engine/tests/data/` holds the few assets `mealkit_tests` needs: `assets/models` (`characters/rig_figure.glb`, `cutscenes/intro.glb`, `tree.glb`), `assets/terrain/hills.png`, `assets/ui` (`hud.ui`, `menu.ui`, `settings.ui`, `theme.ui`) and `modules/cooldown/assets/ui/cooldown_bar.ui` (used by `hud.ui`). `main` sets the project root there instead of `samples/sandbox`, and `terrain_heightmap` and `ui_source` read from it.
+- **`ui_source`**: scans the templates and the test data always, and the samples when `samples/` exists. The file-count floor is 20 with samples and 5 without.
+- **Checked** (Linux, Editor): `mealkit_tests` passes with `samples/` present and with it moved away.
+- **Left**: the copies are not kept in sync with the samples. If a sample's screen changes, the test copy stays as it was (the samples are checked by their own `check.ps1` groups).
+
 ## Build trees per OS (2026-11-24; `docs/DECISIONS.md` 2026-11-24 "Build trees per OS"; module-editor v0.2.22; VERSION 0.9.13)
 - **Layout**: `build/<os>/<Config>` and `export/<os>/<name>` (os = `windows`, `linux`, `macos`). The names live in `tools/build_dirs.ps1` (`$MealKitBuildOs`, `Get-NewBuildDir`, `Get-BuildDir`, `Get-BuildBin`, `Get-BuildFolderOf`) and `MEALKIT_BUILD_OS` in `cmake/MealKit.cmake`; the editor's `buildOsName()`/`buildTreeDirectory()` (`editor/Project.h`), the Manager's `kBuildOs` and MkQA's `builtFile()` use the same names.
 - **Build script**: `tools/build.ps1` writes `build/<os>/<Config>` and no longer renames foreign trees to `<Config>.windows`; when only an old `build/<Config>` tree exists it says the old one can be deleted. An Editor build copies its `compile_commands.json` to `build/`, which `.clangd` and `.vscode/settings.json` now read (engine and template).

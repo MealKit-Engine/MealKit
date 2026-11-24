@@ -1,0 +1,13 @@
+# MealKit UI theme: "color <name> #RRGGBB[AA]" and "number <name> <value>", used as $name in assets/ui/*.ui.
+# Penpot design tokens map to these (Penpot plugin, later).
+@format ui 1
+color panel #10141CCC
+color panelStroke #FFFFFF26
+color text #F2F4F8
+color textDim #A8B0BE
+color accent #FFC83D
+color focus #FFD250
+color button #2A3242E6
+color buttonHover #3A4560F0
+color buttonPressed #1A2030F0
+number radius 12
