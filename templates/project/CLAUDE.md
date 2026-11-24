@@ -12,48 +12,30 @@ Talk with the user in Korean. Code comments, log messages, and scene file keys a
 - Check the game screen: `build\<os>\Release\bin\@NAME@.exe --bot --exit-tick 300 --capture out.png 240`
 - Check the editor screen: `@MEALKIT_ROOT@\build\Editor\bin\MealKitEditor.exe --project . --frames 60 --select 5 --capture out.png` (add `--play --bot` for play mode)
 
-## Rules
+## Core rules
 
-- Engine code and the editor aren't in this folder. If the engine needs changes, change it in `@MEALKIT_ROOT@` (following its CLAUDE.md).
-- `source/sim/` is deterministic code: no CRT trig functions (use `mealkit/core/DetMath.h`), keep `/fp:precise`, use only `Pcg32`, fixed iteration and body creation order.
-  State that persists across ticks is declared with `MEALKIT_FIELD` inside `WorldState`. Once declared, it automatically goes into the hash, snapshots, and the editor [State] panel.
-  SimCheck checks at build time, and violations stop the build with `error SIMnnn` (it tells you what to use instead). The reasoning behind the rules is in the engine's `docs/CODING_MODEL.md`.
-  After changing simulation code, confirm there are no desyncs with the determinism test.
-- Rule tests: `tests/*.scenario` (seed or input recording + `tick 300 slots[1].falls == 1` checks on `WorldState` fields) run with `build\<os>\Release\bin\@NAME@_headless.exe --test tests\x.scenario` (`--update-expected` after changing results on purpose). Editor play bar [Save Scenario] makes one from solo play.
-- Game code is in a namespace named after the project in lower case (`tools\rename_project.ps1` renames it with the project).
-- Game code folders: `source/sim/` (rules: one file per system; system functions take only `World&` and `World::step()` calls them in order),
-  `source/view/` (camera, local input, drawing; only reads sim state), `source/app/` (`GameSession` = the `mealkit::game::GameInstance` implementation, `MEALKIT_GAME_MAIN` in `main.cpp` (shipping exe; main, window, and session are in the engine's `mealkit/game/GameMain.h`), `MEALKIT_GAME_MODULE` in `GameModule.cpp`).
-  In `sim/`, objects created/destroyed during a match use `mealkit::sim::Pool<T>`, "N ticks later" uses `TickTimer`, and things to tell the view go through `world.events` (`TickEvents`).
-  The view side takes engine services as `mealkit::game::GameContext&` (`docs/CODING_MODEL.md`).
-- People (`PlayerSlot`) and bodies (`Pawn`) are separate. The arena template connects them with a `Controller` (player or AI), and respawn, spectating, mounting, and AI create new Pawns or switch with `possess`/`unpossess` (`source/sim/Pawns.cpp`); the empty template starts with one Pawn per slot (`source/sim/Players.cpp`). `templateName` in `mealkit.project` says which template the project came from.
-- `GameSession` derives from the engine's `game::SimulationGame<World>`, which owns the `game::Simulation<World>` (`sim()`) that runs the ticks (shadow simulation, pause, and rewind come from here) and implements the `GameInstance` functions that only report it. Don't write your own tick loop.
-- New object kinds to place in the editor are declared in `source/sim/Objects.h` as `MEALKIT_OBJECT(Name) { MEALKIT_FIELD(type, field, default, "Display name"); };`,
-  and read in `World.cpp`'s `loadScene` with `scene::readObject<Name>(entity)`. Rebuilding game code makes them appear in the editor [Add] menu.
-  Includes are written relative to `source/`, like `"sim/World.h"`. Adding files doesn't require editing `CMakeLists.txt`.
-- **Don't keep numbers as code constants** (engine `docs/CODING_MODEL.md` "Where to put numbers"): game rule values → `Tuning`; values that differ per map (ranges, counts, heights) → scene objects (areas are the position/size of a `MEALKIT_OBJECT` with `kObjectFlags = mealkit::reflect::kObjectArea`),
-  visual-only values → `ViewTuning`. SimCheck warns on float literals in `sim/` (SIM012). Only unit conversions and algorithm constants are kept, with `// const-ok: <reason>` at line end.
-- Tuning values (numbers like speeds and cooldowns) are declared with `MEALKIT_FIELD` in `source/sim/Tuning.h` instead of code constants and read via `world.tuning`. Values are edited in `assets/game.tuning` and the editor [Tuning] panel.
-  Visual-only values (camera, colors, effect durations) go in `source/view/ViewTuning.h` (`assets/view.tuning`, the "View" tab of the [Tuning] panel) and are read on the view side with `ctx.viewTuning<ViewTuning>()`. They aren't in the content hash, so they change immediately even during multiplayer.
-  Time values are declared as `MEALKIT_FIELD(mealkit::Ticks, name, mealkit::Ticks::seconds(0.5f), "Description (seconds)")` (seconds in files and the editor, integer ticks in `sim/`).
-- Data with many rows of the same shape (weapons, items, enemy kinds) uses definition data tables: row type `MEALKIT_STRUCT` and `MEALKIT_TABLE(Row, "tables/x.table", 0)` in `source/sim/Tables.h`,
-  values in `assets/tables/x.table` (editor [Tables] panel, CSV). Other data points to rows with `mealkit::RowRef<Row>` (row id). `startWorld` in `app/Headless.cpp` reads them with `mealkit::data::loadTable` and passes them to the `World`, and `sim/` reads by row index.
-- Engine modules (renderer, physics, networking, sound, UI ...) are folders in `modules/` like source modules (`module.txt` with `type engine`); only those are built into the game. `@MEALKIT_ROOT@\tools\module.ps1 remove audio -Project .` leaves sound out (code using it stays inside `#if MEALKIT_HAS_AUDIO`), `add <name>[@version]`/`update <name>` bring one in or move it. Engine updates don't change them: `update` each.
-- After upgrading the engine, accept when the editor asks to "upgrade project" (or `@MEALKIT_ROOT@\tools\upgrade_project.ps1 -Project .`).
-  It replaces only build files and leaves files you edited as `<file>.new`. Don't delete `.mealkit-template`.
-- The engine decides the folder layout: directly under `assets/` only kind folders (`scenes models textures sounds effects ui fonts tables strings lut`) and fixed files; external tool sources (`.blend`, `.psd`, Penpot) go in `art/`.
-  External libraries get attached to the game exe/DLL when placed in `third_party/<lib>/` with the original `LICENSE` and a `mealkit.txt` (name, version, license, source, usedIn, and `cmakeTarget` if there's something to build) (SIM011 in `sim/`).
-  `@MEALKIT_ROOT@\tools\check_layout.ps1 -Project .` checks it, and Export fails with the same check.
-- Things that change the simulation, like debug cheats and mid-match settings changes, aren't done by modifying state from the view side but sent as confirmed commands: a command type `MEALKIT_STRUCT` (no strings) in `source/sim/`, `mealkit::sim::sendCommand(ctx.session, command)` on the view side, processed with `mealkit::sim::forEachCommand` at the very start of `World::step()` (`mealkit/sim/Commands.h`).
-- Dev screens (performance, cheat buttons, state views) are drawn with Dear ImGui inside `GameSession::debugUi(ctx)`, wrapped in `#if MEALKIT_DEBUG_UI` (F1 in the game exe, during play in the editor). They're absent in shipping builds (`build.bat Export`). Not used for game UI.
-- Game screens (HUD, menus) are written in `assets/ui/*.ui` (previewed in the editor [View] > [UI], re-read immediately on save), and game code keeps `MEALKIT_VIEWMODEL` view models in `source/view/` and does `ctx.ui.open("ui/hud.ui")` → `ctx.ui.bind(screen, vm)` → fill vm every frame; buttons via `ctx.ui.actions()`. If UI needs to change the simulation, send confirmed commands.
-- Player settings (display, sound, keys, language) use the engine's standard settings screen: `button settings.open` on a button, `ctx.settings.open()` in code, values via `ctx.settings.values()` (view side only; not read in `sim/`). Change the look in `assets/ui/settings.ui`, keeping the bindings and `settings.*` actions.
-- Values that affect a match, like each player's chosen character and gear, are sent as loadouts (a `MEALKIT_STRUCT` in `source/sim/Loadout.h`): `mealkit::game::setLoadout(session, l)` in `GameSession::lobby`, read with `mealkit::game::readLoadout(match, p, l)` in `Headless::startWorld`, and `World::reset` copies them into player slots (state). `sim/` reads only that copy. People joining mid-match arrive via engine commands: in `applyCommands`, `mealkit::sim::readPresence(c, p)` → for a new slot, create the slot and controller and `p.readLoadout(l)`; on disconnect (`!p.connected`), remove that person's character (sandbox `setPresence`).
-- Screen flow and match rules are source modules, not template code (engine `docs/DECISIONS.md` 2026-11-15): a project from `empty`/`empty2d` starts straight in a match with no menus. Add `screens` (title → menu → lobby → match → results, `screens::Flow` called from `GameSession::update` with a `screens::FlowGame` every frame: player colors, the lobby choice, results scores; screens and text overridable from `assets/ui/` and `assets/strings/`), `matchflow` (waiting, countdown, rounds, results: `matchflow::MatchFlow` in `WorldState` advanced from `sim/`) and `camrig` (orbit control, 2D follow camera) with `tools\module.ps1 add`, and connect each as its `modules/<name>/docs/index.md` says. Opening and closing rooms only calls `ctx.match` (`host`, `join`, `playOffline`, `start`, `returnToLobby`, `leave`), and a match end that opens results must come from `sim/` state so every peer sees it on the same tick.
-- Character movement is the engine's `mealkit/sim/Movement.h`: each Pawn has a `Mover` whose mode (Kinematic, Capsule, Floating, Ragdoll) is chosen at spawn (arena: `tables/bodies.table` `movement`), tuned by `move.*` in `game.tuning`. Don't write your own controller; call `move()`/`senseMover()` as `sim/Pawns.cpp` (arena) or `sim/Players.cpp` (empty) does.
-- Records and unlocks that persist outside matches are saved as one `MEALKIT_STRUCT(SaveData)` in `source/app/SaveData.h` with `mealkit::game::writeSave(m_save, ctx.userFolder, "progress", kSaveVersion)`/`readSave`. Old files are read even when fields are added or removed, and when meanings change, bump the version and convert in migrate. `sim/` doesn't read saves.
-- Player-visible text isn't written in code; it goes in `assets/strings/ko.txt` (`key = string`, one file per language) and is read with `ctx.strings.get("key")`, or with values `ctx.strings.format("key", {{"name", value}})`. If table characters aren't in the fonts in `assets/fonts`, the build stops (STR001).
-- Controls are read as input actions, not keys: `ctx.actions.axis2("move")`, `ctx.actions.pressed("jump")`. Actions and key/mouse/gamepad bindings live in `assets/input.bindings` (editor [Tables] panel), and code doesn't look at keys (`window.input()`) directly.
-- Sound, shake, flash, and screen freeze attached to tick events (`world.events`, `GameEvent` kinds are `MEALKIT_ENUM`) go in the feedback table `assets/feedback.table` (editor [Feedback] panel), not code. Game code only calls `ctx.feedback.trigger(e, localPlayer)`.
-- Sound is played only from `source/view/` with `ctx.audio.play("event", position, {{"parameter", value}})` (`mealkit/audio/Audio.h`). Events (clips, volume, attenuation, concurrent play limits) and buses are in `assets/sounds.events` (authoring tool MkAudio, editor [Tools] menu; preview in the [Sound] panel),
-  clips are WAVs in `assets/sounds/` (music uses `stream true`). `sim/` doesn't know sound and only leaves tick events in `world.events`.
-- When scene collision data, model files, or tuning values change, the content hash changes, and peers using different data are refused connection.
+1. The engine and the editor aren't in this folder. If the engine needs a change, make it in `@MEALKIT_ROOT@` (following its CLAUDE.md).
+2. `source/sim/` is deterministic: no CRT trig (use `mealkit/core/DetMath.h`), `Pcg32` only, fixed iteration and creation order, persistent state is a `MEALKIT_FIELD` inside `WorldState`. SimCheck stops the build with `error SIMnnn` and says what to use instead. After a change in `sim/`, run the determinism test.
+3. `source/sim/` (rules), `source/view/` (drawing, local input; only reads sim state) and `source/app/` (`GameSession`) stay apart. The view changes the simulation only by sending confirmed commands.
+4. No numbers as code constants: rule values go in `Tuning` (`assets/game.tuning`), per-map values in scene objects, visual-only values in `ViewTuning`.
+5. Many rows of the same shape (weapons, items, enemies) are a `.table` with `RowRef`, not code.
+6. Player-visible text is in `assets/strings/`, controls are input actions (`assets/input.bindings`), screens are `assets/ui/*.ui`, and sound and shake are table rows (`assets/sounds.events`, `assets/feedback.table`). None of it is in code or `sim/`.
+7. Use what the engine has: `SimulationGame` (no own tick loop), `Mover` (no own character controller), the settings screen, and the source modules `screens`, `matchflow`, `camrig`.
+8. Build through the commands above. Template files you haven't edited are replaced by the editor's "upgrade project"; edited ones get `<file>.new`. Don't delete `.mealkit-template`.
+9. The engine decides the folder layout (`assets/` has only kind folders, tool sources go in `art/`, libraries in `third_party/<lib>/` with `LICENSE` and `mealkit.txt`): `@MEALKIT_ROOT@\tools\check_layout.ps1 -Project .`.
+10. A change to scene collision, models or tuning changes the content hash, and peers with different data are refused.
+
+## When doing X, read Y
+
+| Job | Read |
+|---|---|
+| New code, new object kinds, modules, upgrading, folder layout | `docs/AGENT_NOTES.md` "Code layout and engine parts" |
+| Anything in `source/sim/`, scenarios, the content hash, commands from the view | `docs/AGENT_NOTES.md` "Determinism and tests" |
+| A number, a speed or cooldown, a list of weapons or items | `docs/AGENT_NOTES.md` "Numbers and data tables" |
+| HUD, menus, settings, dev screens, title/lobby/results flow | `docs/AGENT_NOTES.md` "Screens and UI" |
+| Loadouts, character movement, progress saved between matches | `docs/AGENT_NOTES.md` "Match values, movement and saves" |
+| Player-visible text, controls | `docs/AGENT_NOTES.md` "Text and input" |
+| Shake, flash, hit stop, sound | `docs/AGENT_NOTES.md` "Feedback and sound" |
+| A recipe for a job games repeat | the engine cookbook (MealKit-Docs cookbook pages, `@MEALKIT_ROOT@\docs\CONTRACTS.md`) |
+| A source module (`screens`, `matchflow`, `camrig` ...) | `modules/<name>/docs/index.md` |
+| Why a rule exists | the engine's `docs/CODING_MODEL.md` |
