@@ -200,7 +200,10 @@ switch ($Command) {
                     Copy-Item -LiteralPath $_.FullName -Destination $dest -Force
                 }
                 Remove-Item -Recurse -Force $target
-                New-Item -ItemType Junction -Path $target -Target $sibling | Out-Null
+                # Linux/macOS have no junctions (New-Item makes nothing there): a symbolic link, which Is-Junction sees as a reparse point too
+                $linkType = if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) { "Junction" } else { "SymbolicLink" }
+                New-Item -ItemType $linkType -Path $target -Target $sibling | Out-Null
+                if (-not (Is-Junction $target)) { throw "could not link modules/$($e.Name) to $sibling (run 'git checkout -- modules/$($e.Name)' to restore it)" }
                 Write-Host "local $($e.Name) -> $sibling"
             } else {
                 if (-not (Is-Junction $target)) { continue }
