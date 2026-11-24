@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Opens the MealKit editor. Builds the editor first if needed.
+# Opens the MealKit editor. Builds the editor first when it is missing or older than the engine sources.
 # Usage: ./editor.sh                    MealKit Manager when it is installed, otherwise a project list (recent projects,
 #                                       the games beside the engine, the sample, or a folder you pick)
 #        ./editor.sh <project folder>   that project
@@ -86,7 +86,15 @@ case "${1:-}" in
     ;;
 esac
 
-if [ ! -x "$exe" ]; then
+# The shortcut must never open an old build: rebuild when the editor is missing or any engine source is newer than it
+# (a 30 ms scan; the build itself is incremental). MEALKIT_NO_REBUILD=1 skips the check.
+stale() {
+    [ ! -x "$exe" ] && return 0
+    [ -n "${MEALKIT_NO_REBUILD:-}" ] && return 1
+    [ -n "$(cd "$here" && find engine modules cmake third_party CMakeLists.txt VERSION -type f -newer "$exe" -print -quit 2>/dev/null)" ]
+}
+
+if stale; then
     build=(pwsh -NoProfile -File "$workspace/.claude/scripts/mk-build.ps1" -Config Editor -Repo MealKit)
     if [ ! -t 1 ] && have_gui; then
         # Started from the shortcut: no terminal, so show that it is building
