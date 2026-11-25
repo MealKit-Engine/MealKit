@@ -167,7 +167,7 @@ Aimed at a technical artist (TA) who owns a game's look: writing shaders, checki
 **Suggested order**: T2 (small, useful with the current presets) → T5, T3 when a TA is comparing looks (T10 if an engine upgrade breaks a game's look). All are editor or tool work or debug-only shader paths, view-side. T6~T9 and T11~T14 build on project surface shaders, whose API shape is the user's decision: they are in `docs/ROADMAP_HUMAN.md` "Blocked on a decision".
 
 ### Checking a look (no project shaders needed)
-- [ ] T2. ★ **Pixel inspector** (S, part). Done in MkRender (its scene view and [Look Dev], `docs/CHANGELOG.md` "Pixel inspector"). Left: the MealKit editor's own scene view and [Look Dev] page, after `tools\update_mkrender.ps1` brings the pinned MkRender to the version with `Renderer::inspectPixel`; DX12 hand check (the DX12 readback code was written on Linux and has not been built or run).
+- [ ] T2. ★ **Pixel inspector** (S, part). Done in MkRender and in the MealKit editor (scene view and [Look Dev], `docs/CHANGELOG.md` "Pixel inspector" and "Pixel inspector in the editor"). Left: the DX12 hand check (the DX12 readback code was written on Linux and has not been built or run).
 - [ ] T5. ★ **Cost comparison** (M). A page like [Debug] > [Balance] that runs `--benchmark` on a scene twice (before and after a change, or with a project setting flipped) and shows the difference per `render::GpuPass`, saying which GPU the numbers came from.
 - [ ] T3. **[Look Dev] references and comparison** (M). A grey ball, a chrome ball and a color chart beside the model; a split view of two states (lighting model, HDRI, LUT or a saved image).
 

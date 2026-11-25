@@ -1,4 +1,4 @@
-// Vendored copy of module-render v0.7.0; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-render v0.7.1; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 // MkRender host types (mkrender/Config.h): the engine's own math and mesh types are mkrender's, so engine and game code
