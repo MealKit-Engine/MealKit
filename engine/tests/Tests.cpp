@@ -3032,6 +3032,71 @@ TEST_CASE(physics, physics_snapshot) {
     std::printf("  physics snapshot: %zu bytes for 61 bodies\n", snap.byteSize());
 }
 
+// E7 links: five kinds between a static anchor and a hanging box, the same result with 1 and 4 threads, restore gives the same run, a weak link breaks
+TEST_CASE(physics, physics_links) {
+    auto run = [](u32 threads, bool restoreMidway, f32 breakForce, bool& broken) {
+        physics::PhysicsWorld w;
+        w.init(1024, threads);
+        w.setGravity({0.0f, -10.0f, 0.0f});
+        physics::BodyDesc fixedBody;
+        fixedBody.motion = physics::Motion::Static;
+        fixedBody.position = {0.0f, 10.0f, 0.0f};
+        const physics::BodyId anchor = w.createBox({0.2f, 0.2f, 0.2f}, fixedBody);
+        std::vector<physics::BodyId> boxes;
+        for (u32 i = 0; i < 5; ++i) {
+            physics::BodyDesc d;
+            d.position = {static_cast<f32>(i) * 2.0f - 4.0f, 8.0f, 0.0f};
+            const physics::BodyId box = w.createBox({0.3f, 0.3f, 0.3f}, d);
+            boxes.push_back(box);
+            physics::LinkDesc l;
+            l.kind = static_cast<physics::LinkKind>(i);
+            l.pivot = {d.position.x, 10.0f, 0.0f};
+            l.pivot2 = d.position;
+            l.axis = i == 1 ? Vec3{0.0f, 1.0f, 0.0f} : Vec3{0.0f, 0.0f, 1.0f};
+            l.limitMin = i == 1 ? -1.0f : 0.0f;
+            l.limitMax = i == 1 ? 1.0f : 0.0f;
+            l.breakForce = i == 3 ? breakForce : 0.0f;
+            TEST_CHECK(w.createLink(anchor, box, l) != physics::kInvalidLink);
+        }
+        TEST_CHECK(w.linkCount() == 5);
+        physics::PhysicsSnapshot snap;
+        for (int tick = 0; tick < 90; ++tick) {
+            if (tick == 30) w.save(snap);
+            if (tick == 60 && restoreMidway) {
+                TEST_CHECK(w.restore(snap));
+                tick = 30;
+                restoreMidway = false;
+            }
+            w.step(1.0f / 30.0f);
+        }
+        broken = w.linkBroken(3);
+        Hasher h;
+        w.hashState(h);
+        return h.value;
+    };
+    bool b1 = false, b4 = false, br = false, weak = false;
+    const u64 one = run(1, false, 0.0f, b1);
+    const u64 four = run(4, false, 0.0f, b4);
+    const u64 restored = run(2, true, 0.0f, br);
+    TEST_CHECK(one == four);
+    TEST_CHECK(one == restored);
+    TEST_CHECK(!b1 && !b4 && !br);
+    run(2, false, 1.0f, weak); // 1 N cannot hold a hanging box
+    TEST_CHECK(weak);
+}
+
+TEST_CASE(scene, scene_joint) {
+    const reflect::TypeInfo* type = scene::findType(scene::kTypeJoint, nullptr);
+    TEST_CHECK(type && type->field("bodyA") && type->field("bodyB") && type->field("breakForce") && !(type->flags & reflect::kObjectCosmetic));
+    scene::Scene s;
+    scene::Entity& e = s.add(scene::kTypeJoint, "Hinge 1");
+    e.position = {1.0f, 2.0f, 3.0f};
+    e.fields = {{"kind", "Hinge"}, {"bodyA", "Door"}, {"limitMin", "-90"}, {"limitMax", "90"}};
+    scene::SceneJoint j = scene::readJoint(e);
+    TEST_CHECK(j.fields.bodyA == "Door" && j.fields.bodyB.empty() && !j.fields.dynamicA && j.fields.dynamicB);
+    TEST_CHECK(j.pivot.y == 2.0f && j.axis.y == 1.0f && std::abs(j.limitMax - 1.5707964f) < 1.0e-6f);
+}
+
 // Late join: a snapshot written as bytes gives the same result even when cleared into and loaded in another World (with other bodies)
 // 2D games (PhysicsWorld::setPlane2D): bodies knocked sideways and spun stay on z = 0 and turn only about z; characters too
 TEST_CASE(physics, physics_plane2d) {

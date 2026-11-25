@@ -1,4 +1,4 @@
-// Vendored copy of module-scene v0.3.5; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-scene v0.3.6; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/scene/Scene.h"
 
 #include "mealkit/core/Hash.h"
@@ -120,6 +120,14 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         t.flags = b.flags;
         return t;
     }();
+    static const reflect::TypeInfo joint = [] {
+        reflect::TypeInfo t = reflect::typeOf<JointFields>();
+        const reflect::TypeInfo b = makeBuiltin(kTypeJoint, "Joint", reflect::kObjectMarker); // not drawn in the game, but read by the simulation
+        t.name = b.name;
+        t.label = b.label;
+        t.flags = b.flags;
+        return t;
+    }();
     static const reflect::TypeInfo tilemap = [] {
         reflect::TypeInfo t = reflect::typeOf<TilemapFields>();
         const reflect::TypeInfo b = makeBuiltin(kTypeTilemap, "Tilemap", 0);
@@ -145,7 +153,7 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         return t;
     }();
     static const std::vector<const reflect::TypeInfo*> list{&solid,      &decoration,    &spawn,   &probe,   &pointLight,
-                                                            &reverbZone, &virtualCamera, &terrain, &scatter, &sprite, &tilemap, &path};
+                                                            &reverbZone, &virtualCamera, &terrain, &scatter, &sprite, &tilemap, &path, &joint};
     return list;
 }
 
@@ -304,6 +312,18 @@ ScenePath readPath(const Entity& e) {
     }
     path.length = total;
     return path;
+}
+
+SceneJoint readJoint(const Entity& e) {
+    SceneJoint j;
+    j.fields = readObject<JointFields>(e);
+    j.pivot = e.position;
+    j.axis = rotate(e.rotation, {0.0f, 1.0f, 0.0f});
+    constexpr f32 kRadiansPerDegree = 0.017453292f; // const-ok: unit conversion
+    const bool hinge = j.fields.kind == JointKind::Hinge;
+    j.limitMin = hinge ? j.fields.limitMin * kRadiansPerDegree : j.fields.limitMin;
+    j.limitMax = hinge ? j.fields.limitMax * kRadiansPerDegree : j.fields.limitMax;
+    return j;
 }
 
 Vec3 pathPoint(const ScenePath& path, u32 millimeters) {

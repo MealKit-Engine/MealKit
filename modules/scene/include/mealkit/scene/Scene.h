@@ -1,4 +1,4 @@
-// Vendored copy of module-scene v0.3.5; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-scene v0.3.6; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Math.h"
@@ -30,6 +30,7 @@ inline constexpr const char* kTypeTerrain = "terrain"; // heightmap terrain (col
 inline constexpr const char* kTypeSprite = "sprite"; // image in the world (view only, fields are SpriteFields, render/Sprites.h). color = tint
 
 inline constexpr const char* kTypePath = "path"; // ordered points an `ai` patrol follows (invisible in the game, fields are PathFields, readPath); enters the content hash
+inline constexpr const char* kTypeJoint = "joint"; // physics joint between two named solids (fields are JointFields, readJoint); enters the content hash
 inline constexpr const char* kTypeTilemap = "tilemap"; // painted grid of sheet cells (fields are TilemapFields); solid tiles collide as merged boxes (tilemapBoxes)
 
 // Fields of point light objects (a built-in kind, but edited with inspector/field lines like game kinds). Read with readObject<PointLightFields>(e)
@@ -96,6 +97,25 @@ MEALKIT_STRUCT(TilemapFields) {
 MEALKIT_STRUCT(PathFields) {
     MEALKIT_FIELD(bool, closed, false, "Closed loop (the last point joins the first)");
     MEALKIT_FIELD(std::string, points, {}, "Points (x y z; x y z; ... in the object's space)");
+};
+
+// Fields of joint objects (docs/DECISIONS.md 2026-11-25 "E7 joints"): a physics link between two scene objects named by bodyA and bodyB (`solid`
+// objects; an empty name is the world). The object's position is the anchor, its local +Y the hinge/slider axis. A solid a
+// joint names turns dynamic when its dynamic flag says so (the other stays as it is). Spring and Rope run from the anchor to body B's own position.
+// Hinge limits are in degrees, slider limits in meters, both from the placed pose; 0 and 0 = free. Read with readJoint
+MEALKIT_ENUM(JointKind, u8, Hinge, Slider, Spring, Fixed, Rope);
+MEALKIT_STRUCT(JointFields) {
+    MEALKIT_FIELD(JointKind, kind, JointKind::Hinge, "Kind");
+    MEALKIT_FIELD(std::string, bodyA, {}, "Body A (object name, empty = world)");
+    MEALKIT_FIELD(std::string, bodyB, {}, "Body B (object name, empty = world)");
+    MEALKIT_FIELD(bool, dynamicA, false, "Body A is dynamic");
+    MEALKIT_FIELD(bool, dynamicB, true, "Body B is dynamic");
+    MEALKIT_FIELD(f32, limitMin, 0.0f, "Lower limit (degrees for hinge, m for slider)");
+    MEALKIT_FIELD(f32, limitMax, 0.0f, "Upper limit (degrees for hinge, m for slider)");
+    MEALKIT_FIELD(f32, length, 0.0f, "Spring rest / rope max length (m, 0 = as placed)");
+    MEALKIT_FIELD(f32, frequency, 2.0f, "Spring frequency (Hz)");
+    MEALKIT_FIELD(f32, damping, 0.3f, "Spring damping ratio");
+    MEALKIT_FIELD(f32, breakForce, 0.0f, "Break force (N, 0 = unbreakable)");
 };
 
 // Fields of scatter layers: one model painted many times. Instances are in file (written by the editor), not in the scene
@@ -291,6 +311,17 @@ struct ScenePath {
     bool valid() const { return points.size() >= 2 && length > 0; }
 };
 ScenePath readPath(const Entity& e);
+
+// A joint object read for the simulation: names, kind and values with the anchor and axis in world space. Limits are radians for a hinge
+// (the object's degrees, converted with one multiply), meters for a slider. The world axis is the object's rotation applied to +Y
+struct SceneJoint {
+    JointFields fields;
+    Vec3 pivot;
+    Vec3 axis{0.0f, 1.0f, 0.0f};
+    f32 limitMin = 0.0f;
+    f32 limitMax = 0.0f;
+};
+SceneJoint readJoint(const Entity& e);
 // The point `millimeters` along the path: a closed path wraps around, an open one stops at its ends
 Vec3 pathPoint(const ScenePath& path, u32 millimeters);
 // Distance (millimeters) of the point on the path closest to p (the first one on a tie)

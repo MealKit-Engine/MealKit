@@ -10,7 +10,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 1. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
 2. **Game-facing gaps that FuseTag hits when game work resumes**: none left (designer independence D4 is done).
 3. **UI 2**: MkUI's XAML-like layer, one piece at a time.
-4. **Proposals from other engines** E7, E8 in their suggested order, interleaved with the picked pool items below.
+4. **Proposals from other engines** E8, interleaved with the picked pool items below.
 
 Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
 
@@ -181,10 +181,22 @@ Aimed at a technical artist (TA) who owns a game's look: writing shaders, checki
 
 From a review of terms in other teams' engine talks (Unreal, Unity, own engines) against MealKit. **Nothing here is decided yet**; pick items before work starts. Everything stays opt-in and keeps the two fixed rules, ECS and determinism (`docs/DECISIONS.md` 2026-11-25). Already present or deliberately left out (OpenGL/DX11, deferred rendering, general ECS, shader graph, particle editor, own DB/backend) aren't repeated here.
 
-**Suggested order**: G1; G6 only after the genre question is answered.
+**Suggested order**: G1; G8 → G9 when a game asks; G6 only after the genre question is answered.
+
+Re-reviewed 2026-11-25 against a second term list (Unreal 5, Unity 6, GAS, Niagara, MetaHuman, froxel fog, mesh shaders, IOCP, FlatBuffers, StateTree, ONNX, MCP and so on). Most of it was already present or decided: the gameplay ability pieces (`cooldown`, `health`, the combat set), IK, root motion and motion warping, ragdoll, terrain, PCG (`procgen`), `ai` (utility + states; behavior trees only as data if a game finds it too flat), RenderDoc/PIX/Tracy, glTF with FBX through Blender (G5), `--gym` (G7, ONNX left out on purpose), compute (G1), post and outline passes, froxel fog, mesh shaders and ray tracing (later opt-ins under "Visual feedback proposals"), and `--query` / MCP-style asking (A6, `docs/ROADMAP_HUMAN.md`). Left out by design: IOCP (UDP lockstep, no MMO server), FlatBuffers (input-only packets of 8 bytes per player), a DB/cache/message queue backend, StateTree-style graphs, a MetaHuman-class character creator, Substance and modeling tools (criterion ④). What is genuinely missing:
+
+- [ ] G8. **Gameplay tags** (S~M; DECISIONS row first). A hierarchical name (`Damage.Fire`, `State.Stunned`) kept as an interned id in a `.table`, with a fixed-size tag set (bitset) per object that is a `MEALKIT_FIELD`, and parent matching (`has(Damage)` is true for `Damage.Fire`). Replaces ad-hoc enums and string compares in `health`, `cooldown`, `ai` and feedback rows. Open: ids assigned by table order or by a hash of the name (hash keeps saves stable when rows move); a fixed tag count or a growable set.
+- [ ] G9. **Fracture and destruction** (M~L; DECISIONS row first). A pre-fractured model (pieces cut in Blender) that is swapped for rigid bodies on a hit, with pieces created in a fixed order and removed after a tick budget so the simulation stays bounded and deterministic. Not Chaos-style runtime fracturing. Open: sim-side bodies (hashed) or view-side debris only; the piece cap.
+- [ ] G10. **Network relevance filtering** is not needed for lockstep (every peer holds the full state), so it belongs to G6 only; nothing to build before the genre question.
 
 - [ ] G1. **RHI compute**, DX12 hand check (Vulkan part done, `docs/CHANGELOG.md` "RHI compute"). Left: build and run the DX12 backend on Windows (`mkrender_compute` from the MkRender repo plus `mealkit_tests --only render`); the DX12 code was written on Linux and has not been built or run.
 - [ ] G6. **Server-authoritative networking** (snapshot interpolation, dead reckoning, client prediction, dedicated server): "Not included" in the deferred table. Only if the target genre needs competitive PvP with many players or MO/MMO; the dedicated server questions are answered and the dedicated server is built (`docs/CHANGELOG.md` "Dedicated server"), so what is left is only the genre question.
+
+## Proposals from other engines (E8)
+
+The section was lost in an earlier cleanup; rebuilt 2026-11-25 from the item names the user gave. E2 (gamepad rumble) and E6 (dev console) are in `docs/ROADMAP_HUMAN.md`; E3 and E4 are not in any document any more (check `docs/CHANGELOG.md` before assuming they are done). E7 (joints) is done (`docs/CHANGELOG.md` "Joints"). E1 (paths) is done (`docs/CHANGELOG.md` "Paths"); `objects` platforms and virtual cameras don't use `path` objects yet (they can when a game asks).
+
+- [ ] E8. **Executable size watch in CI** (S). `ci.yml` builds the shipping exe of a sample, fails above the 5 MB budget (and warns above a set margin), and prints the size per library and module (the breakdown in "Small leftovers"). Open: which sample is measured and the warning margin.
 
 ## AI agents and game developer ease (proposed 2026-11-18, not scheduled)
 
@@ -236,7 +248,7 @@ A pass over every game development role, applying criterion ④ role by role. **
 | Role | Now | What we'd add |
 |---|---|---|
 | Systems and balance design | [Data], [Balance], [Tests] | (none left) |
-| Level design | Scenes, terrain brushes, prefabs, D9 triggers, platforms, timers, `path` objects for AI patrols | E7 joints |
+| Level design | Scenes, terrain brushes, prefabs, D9 triggers, platforms, timers, `path` objects for AI patrols, `joint` objects | |
 | Narrative | No dialogue system | R4, when a game needs it |
 | Texture art | Texture cache, [Look Dev] [Materials] page | — |
 | Animation | State table, animation events, 2D blend spaces, two-bone IK, visual root motion, motion warping | Sim-side root motion when a game asks (deferred table) |
