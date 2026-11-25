@@ -1,4 +1,4 @@
-// Vendored copy of module-scene v0.3.4; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-scene v0.3.5; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/scene/Scene.h"
 
 #include "mealkit/core/Hash.h"
@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cctype>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -111,6 +112,14 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         t.flags = b.flags;
         return t;
     }();
+    static const reflect::TypeInfo path = [] {
+        reflect::TypeInfo t = reflect::typeOf<PathFields>();
+        const reflect::TypeInfo b = makeBuiltin(kTypePath, "Path", reflect::kObjectMarker); // not drawn in the game, but read by the simulation
+        t.name = b.name;
+        t.label = b.label;
+        t.flags = b.flags;
+        return t;
+    }();
     static const reflect::TypeInfo tilemap = [] {
         reflect::TypeInfo t = reflect::typeOf<TilemapFields>();
         const reflect::TypeInfo b = makeBuiltin(kTypeTilemap, "Tilemap", 0);
@@ -136,7 +145,7 @@ const std::vector<const reflect::TypeInfo*>& builtinTypes() {
         return t;
     }();
     static const std::vector<const reflect::TypeInfo*> list{&solid,      &decoration,    &spawn,   &probe,   &pointLight,
-                                                            &reverbZone, &virtualCamera, &terrain, &scatter, &sprite, &tilemap};
+                                                            &reverbZone, &virtualCamera, &terrain, &scatter, &sprite, &tilemap, &path};
     return list;
 }
 
@@ -250,6 +259,88 @@ std::vector<TileBox> tilemapBoxes(const Entity& e) {
         boxes.push_back({{e.position.x + left + w * 0.5f, e.position.y + top - h * 0.5f, e.position.z}, {w, h, depth}});
     }
     return boxes;
+}
+
+std::vector<Vec3> parsePathPoints(const std::string& text) {
+    std::vector<Vec3> points;
+    size_t start = 0;
+    while (start <= text.size()) {
+        size_t end = text.find(';', start);
+        if (end == std::string::npos) end = text.size();
+        Vec3 v;
+        if (readVec3(text.substr(start, end - start).c_str(), v)) points.push_back(v);
+        start = end + 1;
+    }
+    return points;
+}
+
+std::string formatPathPoints(const std::vector<Vec3>& points) {
+    std::string out;
+    for (const Vec3& p : points) {
+        char text[64];
+        const f32 v[3] = {p.x, p.y, p.z};
+        text::writeFloats(text, sizeof(text), v, 3);
+        if (!out.empty()) out += "; ";
+        out += text;
+    }
+    return out;
+}
+
+ScenePath readPath(const Entity& e) {
+    ScenePath path;
+    const PathFields f = readObject<PathFields>(e);
+    for (const Vec3& local : parsePathPoints(f.points))
+        path.points.push_back(e.position + rotate(e.rotation, {local.x * e.scale.x, local.y * e.scale.y, local.z * e.scale.z}));
+    path.closed = f.closed && path.points.size() >= 3;
+    const size_t n = path.points.size();
+    const size_t segments = path.closed ? n : (n > 0 ? n - 1 : 0);
+    path.distance.assign(1, 0);
+    u32 total = 0;
+    for (size_t i = 0; i < segments; ++i) {
+        const Vec3 d = path.points[(i + 1) % n] - path.points[i];
+        const f32 mm = std::sqrt(d.x * d.x + d.y * d.y + d.z * d.z) * 1000.0f + 0.5f;
+        total += mm < 4.0e6f ? static_cast<u32>(mm) : 4000000u; // 4 km per segment is far past any scene
+        path.distance.push_back(total);
+    }
+    path.length = total;
+    return path;
+}
+
+Vec3 pathPoint(const ScenePath& path, u32 millimeters) {
+    const size_t n = path.points.size();
+    if (n == 0) return {};
+    if (!path.valid()) return path.points[0];
+    const u32 at = path.closed ? millimeters % path.length : std::min(millimeters, path.length);
+    size_t i = 0;
+    while (i + 2 < path.distance.size() && path.distance[i + 1] <= at) ++i; // the segment [distance[i], distance[i + 1]]
+    const u32 span = path.distance[i + 1] - path.distance[i];
+    const Vec3 a = path.points[i], b = path.points[(i + 1) % n];
+    if (span == 0) return a;
+    const f32 t = static_cast<f32>(at - path.distance[i]) / static_cast<f32>(span);
+    return {a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, a.z + (b.z - a.z) * t};
+}
+
+u32 pathClosest(const ScenePath& path, Vec3 p) {
+    if (!path.valid()) return 0;
+    const size_t n = path.points.size();
+    f32 best = 0.0f;
+    u32 bestAt = 0;
+    bool first = true;
+    for (size_t i = 0; i + 1 < path.distance.size(); ++i) {
+        const Vec3 a = path.points[i], b = path.points[(i + 1) % n];
+        const Vec3 ab = b - a, ap = p - a;
+        const f32 len2 = ab.x * ab.x + ab.y * ab.y + ab.z * ab.z;
+        f32 t = len2 > 0.0f ? (ap.x * ab.x + ap.y * ab.y + ap.z * ab.z) / len2 : 0.0f;
+        t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+        const Vec3 d = p - Vec3{a.x + ab.x * t, a.y + ab.y * t, a.z + ab.z * t};
+        const f32 dist2 = d.x * d.x + d.y * d.y + d.z * d.z;
+        if (first || dist2 < best) {
+            first = false;
+            best = dist2;
+            bestAt = path.distance[i] + static_cast<u32>(t * static_cast<f32>(path.distance[i + 1] - path.distance[i]) + 0.5f);
+        }
+    }
+    return bestAt;
 }
 
 std::string terrainFileFor(const std::string& sceneName, const Entity& terrain) {

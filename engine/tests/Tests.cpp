@@ -1875,6 +1875,42 @@ TEST_CASE(render, scene_tilemaps) {
     TEST_CHECK(empty.contentHash() != base);
 }
 
+// Paths (E1): points text round trip, world baking, integer millimeter distances, wrap/clamp sampling, closest point, hash
+TEST_CASE(scene, scene_paths) {
+    const reflect::TypeInfo* type = scene::findType(scene::kTypePath, nullptr);
+    TEST_CHECK(type && type->field("points") && type->field("closed") && !(type->flags & reflect::kObjectCosmetic));
+    const std::vector<Vec3> pts = scene::parsePathPoints("0 0 0; 4 0 0;bad; 4 0 3");
+    TEST_CHECK(pts.size() == 3 && pts[2].z == 3.0f);
+    TEST_CHECK(scene::formatPathPoints(pts) == "0 0 0; 4 0 0; 4 0 3");
+    scene::Scene s;
+    scene::Entity& e = s.add(scene::kTypePath, "Patrol");
+    e.position = {10.0f, 1.0f, 0.0f};
+    e.fields = {{"points", "0 0 0; 4 0 0; 4 0 3"}};
+    scene::ScenePath open = scene::readPath(e);
+    TEST_CHECK(open.valid() && !open.closed && open.length == 7000 && open.distance.size() == 3 && open.distance[1] == 4000);
+    Vec3 p = scene::pathPoint(open, 2000);
+    TEST_CHECK(p.x == 12.0f && p.y == 1.0f && p.z == 0.0f);
+    p = scene::pathPoint(open, 5500);
+    TEST_CHECK(p.x == 14.0f && p.z == 1.5f);
+    p = scene::pathPoint(open, 99999); // an open path stops at its end
+    TEST_CHECK(p.x == 14.0f && p.z == 3.0f);
+    TEST_CHECK(scene::pathClosest(open, {13.0f, 1.0f, 2.0f}) == 4000 + 2000 && scene::pathClosest(open, {0.0f, 0.0f, 0.0f}) == 0);
+    e.fields.emplace_back("closed", "true");
+    scene::ScenePath loop = scene::readPath(e);
+    TEST_CHECK(loop.closed && loop.length == 12000 && loop.distance.size() == 4); // 4 + 3 + the way back (5 m)
+    p = scene::pathPoint(loop, 12000 + 2000); // a closed path wraps
+    TEST_CHECK(p.x == 12.0f && p.z == 0.0f);
+    p = scene::pathPoint(loop, 9500); // on the closing segment, halfway from (14, 3) back to (10, 0)
+    TEST_CHECK(p.x == 12.0f && p.z == 1.5f);
+    e.rotation = quatFromAxisAngle({0.0f, 1.0f, 0.0f}, 3.14159265f * 0.5f);
+    scene::ScenePath turned = scene::readPath(e);
+    TEST_CHECK(turned.length == loop.length && std::fabs(turned.points[1].z - (-4.0f)) < 1e-4f);
+    const u64 base = s.contentHash();
+    e.fields[0].second = "0 0 0; 4 0 0; 4 0 4";
+    TEST_CHECK(s.contentHash() != base);
+    TEST_CHECK(!scene::readPath(s.add(scene::kTypePath, "Empty")).valid());
+}
+
 // Point lights: a built-in kind but with fields; scene object → render::PointLight (world position, linear color × intensity, disabled lights excluded)
 TEST_CASE(render, scene_point_lights) {
     const reflect::TypeInfo* type = scene::findType(scene::kTypePointLight, nullptr);

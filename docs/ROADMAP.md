@@ -10,7 +10,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 1. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
 2. **Game-facing gaps that FuseTag hits when game work resumes**: none left (designer independence D4 is done).
 3. **UI 2**: MkUI's XAML-like layer, one piece at a time.
-4. **Proposals from other engines** E1, E7, E8 in their suggested order, interleaved with the picked pool items below.
+4. **Proposals from other engines** E7, E8 in their suggested order, interleaved with the picked pool items below.
 
 Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
 
@@ -236,7 +236,7 @@ A pass over every game development role, applying criterion ④ role by role. **
 | Role | Now | What we'd add |
 |---|---|---|
 | Systems and balance design | [Data], [Balance], [Tests] | (none left) |
-| Level design | Scenes, terrain brushes, prefabs, D9 triggers, platforms, timers | E1 paths, E7 joints |
+| Level design | Scenes, terrain brushes, prefabs, D9 triggers, platforms, timers, `path` objects for AI patrols | E7 joints |
 | Narrative | No dialogue system | R4, when a game needs it |
 | Texture art | Texture cache, [Look Dev] [Materials] page | — |
 | Animation | State table, animation events, 2D blend spaces, two-bone IK, visual root motion, motion warping | Sim-side root motion when a game asks (deferred table) |

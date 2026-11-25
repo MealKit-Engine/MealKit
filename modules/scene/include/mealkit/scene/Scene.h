@@ -1,4 +1,4 @@
-// Vendored copy of module-scene v0.3.4; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-scene v0.3.5; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Math.h"
@@ -29,6 +29,7 @@ inline constexpr const char* kTypeReverbZone = "reverb_zone"; // reverb area (vi
 inline constexpr const char* kTypeTerrain = "terrain"; // heightmap terrain (colliding, fields are TerrainFields, asset/Terrain.h). size = the box the heights fill
 inline constexpr const char* kTypeSprite = "sprite"; // image in the world (view only, fields are SpriteFields, render/Sprites.h). color = tint
 
+inline constexpr const char* kTypePath = "path"; // ordered points an `ai` patrol follows (invisible in the game, fields are PathFields, readPath); enters the content hash
 inline constexpr const char* kTypeTilemap = "tilemap"; // painted grid of sheet cells (fields are TilemapFields); solid tiles collide as merged boxes (tilemapBoxes)
 
 // Fields of point light objects (a built-in kind, but edited with inspector/field lines like game kinds). Read with readObject<PointLightFields>(e)
@@ -88,6 +89,13 @@ MEALKIT_STRUCT(TilemapFields) {
     MEALKIT_FIELD(std::string, cells, {}, "Cells (tile numbers row by row from the top, . for empty)");
     MEALKIT_VIEW_FIELD(i32, layer, 0, "Layer (higher draws over lower)");
     MEALKIT_VIEW_FIELD(bool, pixelArt, true, "Pixel art (nearest texel, no filtering)");
+};
+
+// Fields of path objects (docs/DECISIONS.md 2026-11-25 "E1 paths"): a polyline of points in the object's own space ("x y z; x y z; ..."), so
+// moving, turning or scaling the object moves the path. closed joins the last point back to the first. Read with readPath
+MEALKIT_STRUCT(PathFields) {
+    MEALKIT_FIELD(bool, closed, false, "Closed loop (the last point joins the first)");
+    MEALKIT_FIELD(std::string, points, {}, "Points (x y z; x y z; ... in the object's space)");
 };
 
 // Fields of scatter layers: one model painted many times. Instances are in file (written by the editor), not in the scene
@@ -266,6 +274,27 @@ struct TileBox {
     Vec3 size;
 };
 std::vector<TileBox> tilemapBoxes(const Entity& e);
+
+// ---------------------------------------------------------------- Paths (kind "path")
+// Parses a points text ("x y z; x y z"); a piece that doesn't hold three numbers is skipped
+std::vector<Vec3> parsePathPoints(const std::string& text);
+std::string formatPathPoints(const std::vector<Vec3>& points);
+// A path baked into world points and a length table in whole millimeters. Distances along the path are integers, so which segment a distance
+// falls in is an integer comparison on every platform; the position inside a segment is one lerp (add, multiply). The only other float math is
+// one sqrt per segment (correctly rounded, the same everywhere) when the table is built, and none of it uses trig, so a path is deterministic
+// and may be read by the simulation (pass objects of a flattened scene: the object's own transform is applied, not its parents')
+struct ScenePath {
+    std::vector<Vec3> points;  // world points
+    std::vector<u32> distance; // millimeters from the first point to point i; a closed path has one more entry, the whole loop
+    bool closed = false;
+    u32 length = 0;            // millimeters (the loop for a closed path)
+    bool valid() const { return points.size() >= 2 && length > 0; }
+};
+ScenePath readPath(const Entity& e);
+// The point `millimeters` along the path: a closed path wraps around, an open one stops at its ends
+Vec3 pathPoint(const ScenePath& path, u32 millimeters);
+// Distance (millimeters) of the point on the path closest to p (the first one on a tie)
+u32 pathClosest(const ScenePath& path, Vec3 p);
 
 // Logs "<file>:<line>: object 'name' (id, kind): <warnings>" once per object and text (readObject may run every frame)
 void warnObject(const Entity& e, const std::string& warnings);
