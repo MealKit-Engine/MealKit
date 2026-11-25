@@ -1,4 +1,4 @@
-// Vendored copy of module-game v0.2.9; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-game v0.2.10; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Clock.h"

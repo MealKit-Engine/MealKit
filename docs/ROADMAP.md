@@ -184,7 +184,7 @@ From a review of terms in other teams' engine talks (Unreal, Unity, own engines)
 **Suggested order**: G1; G6 only after the genre question is answered.
 
 - [ ] G1. **RHI compute**, DX12 hand check (Vulkan part done, `docs/CHANGELOG.md` "RHI compute"). Left: build and run the DX12 backend on Windows (`mkrender_compute` from the MkRender repo plus `mealkit_tests --only render`); the DX12 code was written on Linux and has not been built or run.
-- [ ] G6. **Server-authoritative networking** (snapshot interpolation, dead reckoning, client prediction, dedicated server): "Not included" in the deferred table. Only if the target genre needs competitive PvP with many players or MO/MMO; first answer the dedicated server questions in `docs/ROADMAP_HUMAN.md`.
+- [ ] G6. **Server-authoritative networking** (snapshot interpolation, dead reckoning, client prediction, dedicated server): "Not included" in the deferred table. Only if the target genre needs competitive PvP with many players or MO/MMO; the dedicated server questions are answered and the dedicated server is built (`docs/CHANGELOG.md` "Dedicated server"), so what is left is only the genre question.
 
 ## AI agents and game developer ease (proposed 2026-11-18, not scheduled)
 

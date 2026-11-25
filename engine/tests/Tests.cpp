@@ -2753,6 +2753,61 @@ TEST_CASE(net, join_input_kind_crossplay) {
     TEST_CHECK(r.reason == net::RejectReason::None);
 }
 
+// Dedicated server: the host keeps slot 0 without playing, clients get 1 and 2, nobody takes over when it dies
+TEST_CASE(net, dedicated_server) {
+    constexpr u16 kPort = 27942;
+    net::Address address;
+    net::startup();
+    TEST_CHECK(net::resolveAddress("127.0.0.1", kPort, address));
+    net::cleanup();
+    net::LockstepSession server, a, b;
+    TEST_CHECK(server.hostDedicated(kPort, 8, 2, true) && server.dedicated());
+    TEST_CHECK(server.maxPlayers() == 7); // slot 0 is the server's
+    TEST_CHECK(a.join(address) && b.join(address));
+    auto pump = [&] {
+        server.update(nowSeconds());
+        a.update(nowSeconds());
+        b.update(nowSeconds());
+        sleepSeconds(0.001);
+    };
+    f64 until = nowSeconds() + 5.0;
+    while (nowSeconds() < until && !(a.lobbyPlayerCount() == 2 && b.lobbyPlayerCount() == 2 && server.lobbyPlayerCount() == 2)) pump();
+    TEST_CHECK(server.lobbyPlayerCount() == 2 && server.lobbyMembers().size() == 2);
+    for (const net::LobbyMember& member : server.lobbyMembers()) TEST_CHECK(!member.host && member.player >= 1);
+    server.startMatch(5, 0);
+    until = nowSeconds() + 5.0;
+    while (nowSeconds() < until && !(a.state() == net::SessionState::Running && b.state() == net::SessionState::Running)) pump();
+    TEST_CHECK(a.state() == net::SessionState::Running && b.state() == net::SessionState::Running);
+    TEST_CHECK(server.playerCount() == 3 && a.playerCount() == 3);
+    TEST_CHECK(a.localPlayer() + b.localPlayer() == 3 && a.localPlayer() >= 1 && b.localPlayer() >= 1);
+    // 60 ticks with only the clients (and the server's empty input) playing: the slot-0 disconnect arrives for everyone
+    u32 tickA = 0, tickB = 0, tickS = 0;
+    until = nowSeconds() + 5.0;
+    while (nowSeconds() < until && (tickA < 60 || tickB < 60 || tickS < 60)) {
+        pump();
+        auto step = [&](net::LockstepSession& s, u32& tick, bool plays) {
+            while (s.canExecute(tick) && tick < 60) {
+                s.tickExecuted(tick, 1);
+                ++tick;
+                s.submitLocalInput(tick + s.inputDelay() - 1, net::PlayerInput{});
+                (void)plays;
+            }
+        };
+        step(server, tickS, false);
+        step(a, tickA, true);
+        step(b, tickB, true);
+    }
+    TEST_CHECK(tickA >= 60 && tickB >= 60 && tickS >= 60);
+    TEST_CHECK((a.connectedMask() & 1u) == 0 && (b.connectedMask() & 1u) == 0 && (a.connectedMask() & 6u) == 6u);
+    // The server closes: it never sent a succession list, so the clients end instead of migrating
+    server.shutdown();
+    until = nowSeconds() + 5.0;
+    while (nowSeconds() < until && a.state() != net::SessionState::Ended) pump();
+    TEST_CHECK(a.state() == net::SessionState::Ended && a.hostMigrations() == 0);
+    a.shutdown();
+    b.shutdown();
+}
+
 TEST_CASE(game, project_file) {
     const std::string path = executableDirectory() + "\\test.project";
     // Reads even with the old format (key=value) and new format (path value) mixed

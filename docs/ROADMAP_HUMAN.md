@@ -45,7 +45,7 @@ Each line says **what is needed** (device, account, eyes, clean PC, decision) an
 ## Decisions only the user can make
 
 - [ ] **Ogg encoder library and quality setting** for shipped sound (DECISIONS row); shipped sound size and streaming is built after it.
-- [ ] **Open design questions** the roadmap leaves for the user: Dedicated server host migration, who starts a match without a host player, one match per process or several; E6 dev console vs `--query`; A6 what an agent may change; R3 free camera shipping or dev-only; R4 where dialogue state lives; surface API shape (T6~T9 "Open design questions"); R1 Git LFS default; A1/A2 open questions.
+- [ ] **Open design questions** the roadmap leaves for the user: E6 dev console vs `--query`; A6 what an agent may change; R3 free camera shipping or dev-only; R4 where dialogue state lives; surface API shape (T6~T9 "Open design questions"); R1 Git LFS default; A1/A2 open questions.
 - [ ] **Outside feedback** on the contracts (`docs/CONTRACTS.md`) and the first-run experience: needs people other than the user.
 - [ ] **When to start** each tool-suite split and each Modules ⑨ module ("whenever the user wants one").
 - [ ] **Whether to publish MkRender as a product of its own.**
@@ -54,7 +54,7 @@ Each line says **what is needed** (device, account, eyes, clean PC, decision) an
 
 Once the blocker above is resolved, move the item back to `docs/ROADMAP.md`.
 
-- [ ] **Multiplayer modes** (Relay, Dedicated) with the lobby browser and quick match (E3) and spectator slots (E4): Relay and the lobby browser need EOS and two PCs; Dedicated needs the open design questions answered (host migration, who starts a match, matches per process).
+- [ ] **Multiplayer modes** (Relay) with the lobby browser and quick match (E3) and spectator slots (E4): Relay and the lobby browser need EOS and two PCs. Dedicated is done (`docs/CHANGELOG.md` "Dedicated server").
 - [ ] **Shipped sound size and streaming**: waits on the Ogg encoder choice above.
 - [ ] **Gamepad rumble (E2)**: needs a real pad to check.
 - [ ] **E6 dev console**: dev console vs `--query` (with A6).
