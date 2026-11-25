@@ -119,13 +119,14 @@
  platform/Process.h:19 bool ChildProcess::poll(std::string& out)  // Appends newly produced output to the end of out (line based, converted to UTF-8).
  platform/Process.h:20 bool ChildProcess::running() const
  platform/Process.h:21 int ChildProcess::exitCode() const
- platform/Process.h:35 class ProcessGroup  // Launches several programs and closes them all at once (join windows of editor multiplay...
- platform/Process.h:42 bool ProcessGroup::launch(const std::string& exe, const std::string& arguments, const std::string& workingDirectory, const std::string& l...
- platform/Process.h:44 unsigned ProcessGroup::running() const
- platform/Process.h:45 void ProcessGroup::terminateAll()  // number of processes still alive
- platform/Process.h:53 bool hasCppCompiler()  // Can this PC compile game code?
- platform/Process.h:56 void openInExplorer(const std::string& path)  // Opens a folder in Explorer.
- platform/Process.h:59 bool launchDetached(const std::string& exe, const std::string& arguments, const std::string& workingDirectory)  // Runs a program as a new process without waiting.
+ platform/Process.h:23 void ChildProcess::terminate()  // Stops the process and everything it started (the build tree).
+ platform/Process.h:37 class ProcessGroup  // Launches several programs and closes them all at once (join windows of editor multiplay...
+ platform/Process.h:44 bool ProcessGroup::launch(const std::string& exe, const std::string& arguments, const std::string& workingDirectory, const std::string& l...
+ platform/Process.h:46 unsigned ProcessGroup::running() const
+ platform/Process.h:47 void ProcessGroup::terminateAll()  // number of processes still alive
+ platform/Process.h:55 bool hasCppCompiler()  // Can this PC compile game code?
+ platform/Process.h:58 void openInExplorer(const std::string& path)  // Opens a folder in Explorer.
+ platform/Process.h:61 bool launchDetached(const std::string& exe, const std::string& arguments, const std::string& workingDirectory)  // Runs a program as a new process without waiting.
  platform/Socket.h:9 inline constexpr u32 kBroadcastIp
  platform/Socket.h:10 inline constexpr u32 kLoopbackIp  // 255.255.255.255 (the whole network)
  platform/Socket.h:11 inline constexpr u32 kLoopbackBroadcastIp  // 127.0.0.1

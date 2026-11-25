@@ -25,6 +25,12 @@
 //       MEALKIT_FIELD(f32, power, 12.0f, "Jump power");
 //   };
 //
+// Checks across fields (min below max, a total of 100): a const member validate. The editor lists what it adds under [Problems]
+// and marks the named field; the simulation never calls it.
+//   void validate(std::vector<mealkit::reflect::Problem>& out) const {
+//       if (minSpeed > maxSpeed) out.push_back({"maxSpeed", "must be at least minSpeed"});
+//   }
+//
 // Field types: bool, integers/enums, f32, Vec3, Quat, Pool Id, std::string, Ticks (time), Color, RowRef<Row> (table row), other MEALKIT_STRUCTs,
 // MEALKIT_ARRAY, sim::Pool<T>.
 // std::string is for settings/tuning/scene fields. Don't put it in simulation state (WorldState, Pool items) (game::Simulation checks).
@@ -182,6 +188,12 @@ struct FieldInfo {
     const ValueInfo* value;
 };
 
+// What a type's validate function found wrong (editor [Problems] list, and the inspector marks the field)
+struct Problem {
+    const char* field = nullptr; // top-level field name the problem is about, nullptr for the value as a whole
+    std::string text;
+};
+
 struct TypeInfo {
     const char* name;  // type name in code (kind value in scene files)
     const char* label; // editor display name (kObjectLabel, or name if absent)
@@ -191,6 +203,9 @@ struct TypeInfo {
     void* (*create)() = nullptr; // instance created with defaults (deleted with destroy). Uses the heap of the module that defined the type
     void (*destroy)(void*) = nullptr;
     void (*copy)(void* dst, const void* src) = nullptr;
+    // Checks across fields, from a member "void validate(std::vector<mealkit::reflect::Problem>& out) const" (optional, editor only).
+    // Called for tuning, scene objects and inspected values; never by the simulation
+    void (*validate)(const void* data, std::vector<Problem>& out) = nullptr;
 
     const FieldInfo* field(const char* fieldName) const;
 };
@@ -388,6 +403,8 @@ TypeInfo makeType() {
     t.create = []() -> void* { return new T(); };
     t.destroy = [](void* p) { delete static_cast<T*>(p); };
     t.copy = [](void* dst, const void* src) { *static_cast<T*>(dst) = *static_cast<const T*>(src); };
+    if constexpr (requires(const T& v, std::vector<Problem>& out) { v.validate(out); })
+        t.validate = [](const void* data, std::vector<Problem>& out) { static_cast<const T*>(data)->validate(out); };
     return t;
 }
 

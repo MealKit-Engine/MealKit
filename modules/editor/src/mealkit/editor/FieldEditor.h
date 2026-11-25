@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.24; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.25; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include <imgui.h>
@@ -60,19 +60,25 @@ bool drawValueWidget(const char* label, const char* name, const reflect::ValueIn
 void setSoundEventSource(std::function<std::vector<std::string>()> source);
 // The play button next to a pick= field: (pick, value). Empty function = no button.
 void setPickPreview(std::function<void(const std::string&, const std::string&)> preview);
-// Adds a line to out for each required field that is empty and not hidden by showIf
+// Field right-click "Find in Code": (type name, field name) opens the declaration. Empty function = no menu item.
+void setFindInCode(std::function<void(const char* typeName, const char* fieldName)> find);
+// Adds a line to out for each required field that is empty and not hidden by showIf, and for each problem the type's validate finds
 void collectRequired(const reflect::TypeInfo& type, const void* data, const std::string& where, std::vector<std::string>& out);
 
 // Input field that edits a std::string directly (grows the string if the buffer is too small)
 bool inputString(const char* label, std::string& text);
 
 // Read-only table (name | value). Structs/arrays/Pools can be expanded. Large Pools draw only visible rows.
-void drawFieldsReadOnly(const reflect::TypeInfo& type, const void* data);
+// watch: right-clicking a number row offers "Watch as Graph" and passes its path ("a.b", "a[2]", "pool[5].c", as reflect::resolvePath reads it)
+void drawFieldsReadOnly(const reflect::TypeInfo& type, const void* data, const std::function<void(const std::string& path)>& watch = {});
 
 // One "name | value" row: draws the name in the left column (shortened with its full text in a tooltip), makes the next
 // widget fill the value column, and returns the hidden label to give that widget:
 //   ImGui::DragFloat(propertyRow(tr("Speed")).c_str(), &speed);
+// The name column fits the longest name the window drew last frame, up to half its width.
 std::string propertyRow(const char* label, const char* tooltip = nullptr);
+// After propertyRow: the next widget at most this many font heights wide (numbers), or the column when it is narrower
+void limitNextWidth(f32 fontHeights);
 
 // Inspector section: space above, a small chevron and dimmed text instead of a bar. Opens and closes like ImGui::CollapsingHeader
 bool sectionHeader(const char* label, int treeNodeFlags = 0);
@@ -100,7 +106,13 @@ bool colorEdit(const char* label, f32* color, bool alpha = false, int flags = 0)
 f32& colorPickerSize();
 
 // Left page/folder list of a window: resizable, no border, the selection bar has room around its text. Close with ImGui::EndChild()
+// It never takes more than 40% of the window width, so the pane on its right keeps room when the window is narrow or the list is dragged wide
 bool beginListPane(const char* id, f32 width);
+
+// Next item on the same row when `width` still fits there, else on the next row (toolbars that wrap instead of overlapping in a narrow window)
+void sameLineOrWrap(f32 width);
+// Next item on the same row at x (window-local, like ImGui::SameLine), or right after the previous item when that already reaches past x
+void sameLineAt(f32 x);
 
 // "<icon>  <translated title>###<id>" for a window title, from a trl() style label
 std::string iconTitle(const char* glyph, const char* label);

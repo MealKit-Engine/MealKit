@@ -1,4 +1,4 @@
-// Vendored copy of module-game v0.2.7; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-game v0.2.8; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/game/Scenario.h"
 
 #include "mealkit/platform/Paths.h"

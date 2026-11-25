@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.24; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.25; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/ProjectSettingsPanel.h"
 
 #include "mealkit/core/Log.h"
@@ -87,7 +87,6 @@ void ProjectSettingsPanel::drawContent(ProjectInfo& project, const std::string& 
     ImGui::EndDisabled();
     ImGui::TextDisabled("%s", tr("The game and the editor use these values from the next run. Gray items are managed by the tools."));
 
-    ImGui::PushItemWidth(-ImGui::GetContentRegionAvail().x * 0.4f);
     ImGui::SeparatorText(tr("Engine"));
     FieldContext context;
     context.filter = m_search;
@@ -100,7 +99,6 @@ void ProjectSettingsPanel::drawContent(ProjectInfo& project, const std::string& 
     } else if (drawFields(*m_game.type(), m_game.data(), &context)) {
         m_dirty = true;
     }
-    ImGui::PopItemWidth();
 }
 
 } // namespace mealkit::editor

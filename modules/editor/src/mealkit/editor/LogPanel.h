@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.24; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.25; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Log.h"
@@ -23,6 +23,13 @@ public:
     // The Log page of the [Debug] window, in two parts: the problems list goes between them
     void drawFilters();
     void drawLines();
+    // Play starts: clears the lines when [Clear on Play] is on
+    void onPlayStart() {
+        if (!m_clearOnPlay) return;
+        std::lock_guard<std::mutex> guard(m_lock);
+        m_entries.clear();
+        for (u32& c : m_counts) c = 0;
+    }
 
 private:
     struct Entry {
@@ -37,6 +44,8 @@ private:
     u32 m_counts[3] = {};
     bool m_added = false;
     bool m_show[3] = {true, true, true};
+    bool m_group = false;       // same message once, with a count
+    bool m_clearOnPlay = false;
     bool m_follow = true; // when at the bottom, follows new lines
     char m_search[128] = {};
     std::string m_codeEditor;

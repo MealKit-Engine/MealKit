@@ -1,4 +1,4 @@
-// Vendored copy of module-data v0.1.10; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-data v0.1.11; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/TablesPanel.h"
 
 #include "mealkit/core/Log.h"
@@ -653,8 +653,19 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                     m_scrollToRow = -1;
                 }
                 ImGui::PushID(row);
+                // The row type's validate: cells of the fields it names get a red frame (the [Problems] list has them too)
+                std::vector<reflect::Problem> problems;
+                if (t.rowType->validate) t.rowType->validate(t.rows[r].data(), problems);
                 ImGui::TableNextColumn();
                 if (ImGui::Selectable(std::to_string(row).c_str(), doc.selected == row)) doc.selected = row;
+                if (!problems.empty()) { // the row number shows every problem of the row, also those of hidden columns
+                    ImGui::GetWindowDrawList()->AddRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), IM_COL32(230, 70, 60, 255), 0.0f, 0, 2.0f);
+                    if (ImGui::IsItemHovered()) {
+                        std::string all;
+                        for (const reflect::Problem& p : problems) all += (all.empty() ? "" : "\n") + (p.field ? std::string(p.field) + ": " : std::string()) + p.text;
+                        ImGui::SetTooltip("%s", all.c_str());
+                    }
+                }
                 ImGui::TableNextColumn();
                 if (inRange(row, 0)) ImGui::TableSetBgColor(ImGuiTableBgTarget_CellBg, ImGui::GetColorU32(ImGuiCol_TextSelectedBg));
                 // id: applied on Enter or clicking elsewhere (letters/digits/_/-/. , unique within the table)
@@ -704,6 +715,14 @@ void TablesPanel::drawDoc(Doc& doc, void* owner, bool editing) {
                         if (ImGui::IsItemHovered())
                             ImGui::SetTooltip("%s", trf("%.6g is outside the range %.6g..%.6g", shown, static_cast<double>(attributes[c].min),
                                                         static_cast<double>(attributes[c].max)).c_str());
+                    }
+                    std::string problem; // validate problems about this column's top-level field
+                    const std::string top = path.substr(0, path.find_first_of(".["));
+                    for (const reflect::Problem& p : problems)
+                        if (p.field && top == p.field) problem += (problem.empty() ? "" : "\n") + p.text;
+                    if (!problem.empty()) {
+                        ImGui::GetWindowDrawList()->AddRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax(), IM_COL32(230, 70, 60, 255), 0.0f, 0, 2.0f);
+                        if (ImGui::IsItemHovered()) ImGui::SetTooltip("%s", problem.c_str());
                     }
                     ImGui::PopID();
                 }

@@ -19,6 +19,8 @@ public:
     bool poll(std::string& out);
     bool running() const { return m_process != nullptr; }
     int exitCode() const { return m_exitCode; }
+    // Stops the process and everything it started (the build tree). Keep calling poll(): it reports the end and the exit code.
+    void terminate();
 
 private:
     void readAvailable(std::string& out, bool flush);

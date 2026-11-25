@@ -1,4 +1,4 @@
-// Vendored copy of module-game v0.2.7; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-game v0.2.8; change it in that repo (tools\module.ps1 update), not here.
 // main of the shipping exe (mealkit/game/GameMain.h). The game's app/main.cpp calls it via MEALKIT_GAME_MAIN.
 //
 //   <game>.exe                         games with menus start at the title (GameInstance::menus), otherwise solo play

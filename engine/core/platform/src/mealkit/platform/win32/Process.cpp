@@ -168,6 +168,21 @@ bool ChildProcess::poll(std::string& out) {
     return false;
 }
 
+void ChildProcess::terminate() {
+    if (!m_process) return;
+    // taskkill /T ends the whole tree (cmd.exe > build.bat > ninja > compilers)
+    std::wstring cmd = L"taskkill.exe /PID " + std::to_wstring(GetProcessId(static_cast<HANDLE>(m_process))) + L" /T /F";
+    STARTUPINFOW si{};
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi{};
+    if (CreateProcessW(nullptr, cmd.data(), nullptr, nullptr, FALSE, CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi)) {
+        CloseHandle(pi.hThread);
+        CloseHandle(pi.hProcess);
+    } else {
+        TerminateProcess(static_cast<HANDLE>(m_process), 1);
+    }
+}
+
 // If running, let it go without waiting (the build continues to completion)
 void ChildProcess::close() {
     if (m_pipe) CloseHandle(static_cast<HANDLE>(m_pipe));

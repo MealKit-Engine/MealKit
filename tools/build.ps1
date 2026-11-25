@@ -49,16 +49,23 @@ function Invoke-Self([string]$dir, [string]$config, [string]$failMessage) {
     if ($LASTEXITCODE -ne 0) { Fail $failMessage }
 }
 
-# A build profile (profiles/<name>.profile, "config" and "output" lines) names the configuration and the folder an export goes to
+# A build profile (profiles/<name>.profile, "config", "output" and "platform" lines) names the configuration and the folder an export goes to
 $exportOut = ""
 if ($Config -like "profile:*") {
     $profileName = $Config.Substring(8)
     $profileFile = Join-Path (Join-Path $projectDir "profiles") "$profileName.profile"
     if ($profileName -notmatch '^[A-Za-z0-9_.-]+$' -or -not (Test-Path $profileFile)) { Fail "build profile '$profileName' not found: $profileFile" }
     $Config = ""
+    $profilePlatform = ""
     foreach ($line in Get-Content $profileFile -Encoding UTF8) {
         if ($line -match '^\s*config\s*[= ]\s*(\S+)\s*$') { $Config = $Matches[1] }
         elseif ($line -match '^\s*output\s*[= ]\s*(.+?)\s*$') { $exportOut = $Matches[1] }
+        elseif ($line -match '^\s*platform\s*[= ]\s*(\S+)\s*$') { $profilePlatform = $Matches[1] }
+    }
+    # No cross builds: a profile for another OS stops here instead of building this OS's exe into its folder
+    if ($profilePlatform) {
+        $hostOs = if ($onWindows) { "windows" } elseif ($IsMacOS) { "macos" } else { "linux" }
+        if ($profilePlatform -ne $hostOs) { Fail "build profile '$profileName' builds on $profilePlatform (this PC: $hostOs)" }
     }
     if (-not $Config -or $Config -like "profile:*") { Fail "build profile '$profileName' has no valid config line" }
     if ($exportOut -and $Config -notin @("Export", "VulkanExport")) { Fail "build profile '$profileName': output is only for Export and VulkanExport" }

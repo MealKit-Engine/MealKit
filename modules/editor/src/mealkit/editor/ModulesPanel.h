@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.24; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.25; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/editor/Project.h"
@@ -37,6 +37,8 @@ public:
         return changed;
     }
     std::string takeStatus() { return std::move(m_status); }
+    bool busy() const { return m_process.running(); }
+    const std::string& label() const { return m_label; }
 
 private:
     enum class Filter { All, Installed, Engine, Community, Updates };

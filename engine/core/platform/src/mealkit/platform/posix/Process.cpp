@@ -96,6 +96,7 @@ bool ChildProcess::start(const std::string& commandLine, const std::string& work
     }
     if (pid == 0) {
         ::close(fds[0]);
+        setpgid(0, 0); // own process group, so terminate() reaches the build tree
         dup2(fds[1], STDOUT_FILENO);
         dup2(fds[1], STDERR_FILENO);
         ::close(fds[1]);
@@ -141,6 +142,13 @@ bool ChildProcess::poll(std::string& out) {
     m_process = nullptr; // reaped
     close();
     return false;
+}
+
+void ChildProcess::terminate() {
+    if (!m_process) return;
+    const pid_t pid = pidOf(m_process);
+    kill(-pid, SIGTERM);
+    kill(pid, SIGTERM);
 }
 
 // If running, let it go without waiting (the build continues to completion; init reaps it once the editor exits)
