@@ -110,7 +110,7 @@ None touches `sim/`.
 
 ## Modules ⑨: the remaining first modules (one at a time, whenever the user wants one)
 
-The source module system is done (`docs/MODULES.md`); `cooldown`, `objects` and `procgen` exist. One module = one git repo (`KingProtea99/module-<name>`, MIT), registered in `MealKit-Modules`. Suggested order: `health` (most games need it, and `ai` builds on it), `ai`, `inventory`, `minimap`.
+The source module system is done (`docs/MODULES.md`); `cooldown`, `objects` and `procgen` exist. One module = one git repo (`KingProtea99/module-<name>`, MIT), registered in `MealKit-Modules`. Suggested order: `ai`, `inventory`, `minimap` (`health` 0.1.0 is done as part of G2; its hit queries and `.ui` are left in G2).
 
 | Module | sim | view/UI | Notes |
 |---|---|---|---|
@@ -185,7 +185,7 @@ From a review of terms in other teams' engine talks (Unreal, Unity, own engines)
 **Suggested order**: G1 → G2 → G3 → G4; G5 any time (small); G6 only after the genre question is answered.
 
 - [ ] G1. **RHI compute**, DX12 hand check (Vulkan part done, `docs/CHANGELOG.md` "RHI compute"). Left: build and run the DX12 backend on Windows (`mkrender_compute` from the MkRender repo plus `mealkit_tests --only render`); the DX12 code was written on Linux and has not been built or run.
-- [ ] G2. **Combat framework** (GAS-like, as source modules, sim side): `health` (Modules ⑨) → `stats` (attributes with base value + modifiers, recomputed in a fixed order) → `effects` (timed or permanent modifiers, stacking rules, tick timers) → gameplay tags (hierarchical ids interned at match start, used for "can act" checks and effect queries). Flat arrays and ids, no runtime component attach; table rows for definitions.
+- [ ] G2. **Combat framework**, left over (the four modules `tags`, `stats`, `effects`, `health` 0.1.0 are done, `docs/CHANGELOG.md` "Combat framework"): (a) `health` hit queries (sphere, capsule, ray; physics queries, results in id order) and the health bar / damage number `.ui` (Modules ⑨); (b) a `.table` loader for `EffectDef` rows with tag names resolved to ids at match start (today the game fills the `EffectDef` array); (c) use the four in a reference sample (`samples/sandbox` or `coop`) to check them against `mp_test` and a saved replay; (d) module CI: the shared workflow doesn't fetch required source modules, so `effects` passes `tools/check_module.ps1` only with `module-tags` and `module-stats` checked out beside it.
 - [ ] G3. **Game AI**: build the planned `ai` module (Modules ⑨: utility scoring + `enum` state machines, perception). Behavior trees as data (a table or text, no graph editor) only if utility + FSM proves too flat; Recast navmesh stays deferred until grids fail on a real map.
 - [ ] G4. **Animation**: two-bone IK (feet on terrain, hands, aim; the deferred row's "flat floors" reason no longer holds since heightmap terrain exists), clip blend trees / blend spaces, then root motion as a visual offset or a sim-side motion curve (needs the deferred row's question answered) and motion warping for melee.
 - [ ] G5. **FBX path**: Mixamo, Cascadeur and 3ds Max export FBX. No FBX importer in the engine; a documented Blender batch conversion (`.fbx` → `.glb`, a Blender add-on button or a `tools/` script) plus a check that names the step when an `.fbx` lands in `assets/`.
