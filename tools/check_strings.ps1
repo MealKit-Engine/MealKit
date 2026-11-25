@@ -60,6 +60,11 @@ foreach ($file in Get-ChildItem $editorDirs -File -Include *.cpp, *.h -Recurse) 
             if ($m.Groups[2].Success) { Add-Key (Key-Of (Unescape-C $m.Groups[2].Value)) $name }
         }
     }
+    # Build configuration table (BuildPanel.cpp kConfigs): {"config", "what it makes"}, the second is shown with tr(choice.what)
+    if ($name -eq "BuildPanel.cpp") {
+        $table = [regex]::Match($text, '(?s)kConfigs\[\]\s*=\s*\{(.*?)\n\};')
+        foreach ($m in [regex]::Matches($table.Groups[1].Value, '\{\s*' + $literal + '\s*,\s*' + $literal + '\s*\}')) { Add-Key (Key-Of (Unescape-C $m.Groups[2].Value)) $name }
+    }
     # Korean strings
     $lineNo = 0
     foreach ($line in $raw -split "`n") {

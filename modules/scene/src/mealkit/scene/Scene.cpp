@@ -1,4 +1,4 @@
-// Vendored copy of module-scene v0.3.3; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-scene v0.3.4; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/scene/Scene.h"
 
 #include "mealkit/core/Hash.h"

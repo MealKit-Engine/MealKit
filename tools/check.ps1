@@ -484,16 +484,19 @@ if (-not $Quick) {
     # Crash report (ROADMAP "Crash reports"): crash on purpose → crash/pending/ (minidump, info, log) → the next run bundles crash/<time>.zip with replay.rec
     Invoke-Check game "Crash report" {
         param($log)
-        $crashDir = Join-Path $env:LOCALAPPDATA "sandbox/crash" # userFolder of the sample's mealkit.project
+        # userFolder of the sample's mealkit.project (platform Paths: %LOCALAPPDATA%, else $XDG_DATA_HOME or ~/.local/share)
+        $dataHome = if ($onWindows) { $env:LOCALAPPDATA } elseif ($env:XDG_DATA_HOME) { $env:XDG_DATA_HOME } else { Join-Path $HOME ".local/share" }
+        $crashDir = Join-Path $dataHome "sandbox/crash"
+        $pendingFile = if ($onWindows) { "crash.dmp" } else { "crash.txt" } # no minidump on POSIX: crash.txt names the signal
         $before = @(Get-ChildItem $crashDir -Filter *.zip -ErrorAction SilentlyContinue | ForEach-Object FullName)
         $rec = Join-Path $out "crash.rec"
         $code = Run $log $game "--bot --mute --vsync 0 --exit-tick 900 --crash-at 120 --record-inputs `"$rec`""
         if ($code -eq 0) { return "the game did not crash" }
-        if (-not (Test-Path (Join-Path $crashDir "pending/crash.dmp"))) { return "no crash.dmp in crash/pending" }
+        if (-not (Test-Path (Join-Path $crashDir "pending/$pendingFile"))) { return "no $pendingFile in crash/pending" }
         $log2 = "$log.next"
         $code = Run $log2 $game "--bot --mute --vsync 0 --exit-tick 30 --crash-at 100000"
         $new = @(Get-ChildItem $crashDir -Filter *.zip | Where-Object { $before -notcontains $_.FullName })
-        $ok = $code -eq 0 -and $new.Count -eq 1 -and (Has $log2 "Crash report saved") -and -not (Test-Path (Join-Path $crashDir "pending\crash.txt"))
+        $ok = $code -eq 0 -and $new.Count -eq 1 -and (Has $log2 "Crash report saved") -and -not (Test-Path (Join-Path $crashDir "pending/crash.txt"))
         $new | Remove-Item # test reports are deleted
         return $ok
     }
@@ -518,7 +521,8 @@ if (-not $Quick) {
     # Live connection (contract between tools, mealkit/live/Server.h): hello + stats events using the game's build\live\ connection info; the connection info file disappears when done
     Invoke-Check game "Live connection (game)" {
         param($log)
-        $p = Start-Process -FilePath $game -ArgumentList "--bot --mute --vsync 0 --size 640 360 --exit-tick 600" -PassThru -WindowStyle Hidden
+        $hidden = if ($onWindows) { @{ WindowStyle = "Hidden" } } else { @{} } # -WindowStyle is Windows only in PowerShell 7
+        $p = Start-Process -FilePath $game -ArgumentList "--bot --mute --vsync 0 --size 640 360 --exit-tick 600" -PassThru @hidden
         try {
             & $ps -NoProfile -ExecutionPolicy Bypass -File "$root/tools/live_probe.ps1" -Kind game -Wait 20 -Events 2 *> $log
             $code = $LASTEXITCODE
