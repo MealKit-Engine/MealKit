@@ -1235,6 +1235,13 @@ ebuild_editor.ps1` is unchanged).
 - Builds Release first when the headless exe is missing or older than the game sources, which needs a compiler (see D1). Data changes need no build. It reads saved files, not unsaved edits.
 - Checked on FuseTag: four scenarios pass, and a wrongly edited expected value showed as failed with its line. The Accept button wasn't clicked in the check. Replays aren't covered.
 
+## Object squash and spring as table data: designer independence D4 (v0.9.21, 2026-11-25)
+
+- `feedback.table` columns (keys only, old files read the same): `squash` (kick at full strength, negative squashes, positive stretches), `squashFrequency` (Hz, 5), `squashDamping` (0.3, 1 is no wobble); the target id comes from `targetFrom`, shared with `hitFlash` (its `showIf` is gone). Module feedback 0.1.6.
+- `Player::objectSquash(id)` returns the value of a damped spring per target id (the same semi-implicit Euler spring as FuseTag's `view/Juice.h`; kicks add to the velocity, clamped to 8, value to -0.6..0.8; the spring is dropped at rest; stops during hit stop; scaled by the flash setting). `feedback::squashScale(value)` turns it into a volume-keeping `{xz, y, xz}` (height 1 + value, at least 0.2) for view code to multiply into the object's scale.
+- **No renderer change**: squash is a CPU transform, so the 48-byte `InstanceData` and the DX12/Vulkan shaders stay as they are (the ROADMAP's "64-byte instance" was 48). A per-instance word is still needed only by the object glow pulse (`emissivePulse`).
+- Checked: unit test `feedback/object_squash` (`engine/tests/data/assets/feedback.table` row `Bump`: starts at rest, squashes first, wobbles past rest, settles and is dropped, other ids untouched, volume kept, flash setting 0 turns it off). Not seen on screen: no sample or FuseTag row uses it yet (FuseTag still has its own `Juice` springs).
+
 ## Feedback table: lights, kicks, hit flash, playersFrom (v0.9.x, 2026-11-04)
 
 - New `feedback.table` columns (keys only, old files read the same): `light*` (a fading point light at the event, 32 at most, added to the frame by `game::Frontend`), `bloomKick`/`exposureKick`/`kickSeconds`, `hitFlash*` with `targetFrom`, and `playersFrom` (which event field `players` compares). The flash setting scales lights, kicks and hit flash.

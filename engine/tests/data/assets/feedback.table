@@ -1,0 +1,8 @@
+# MealKit table (Reaction). Test rows for the feedback unit tests (engine/tests/Tests.cpp).
+@format table 1
+
+row Bump
+squash -3
+squashFrequency 5
+squashDamping 0.3
+targetFrom id

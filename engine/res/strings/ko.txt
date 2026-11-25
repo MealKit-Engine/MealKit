@@ -409,7 +409,10 @@ Exposure added at full strength (EV) = 최대 세기일 때 더할 노출 (EV)
 Bloom and exposure kick time (s) = 블룸·노출 효과 시간 (초)
 Object flash at full strength (0 to 1) = 최대 세기일 때 물체 번쩍임 (0~1)
 Object flash time (s) = 물체 번쩍임 시간 (초)
-Event field with the id that flashes = 번쩍일 대상 번호가 든 이벤트 필드
+Event field with the id of the object hit flash and squash act on = 물체 번쩍임과 스쿼시가 향할 대상 번호가 든 이벤트 필드
+Object squash kick at full strength (negative squashes, positive stretches) = 최대 세기일 때 물체 스쿼시 충격 (음수는 눌림, 양수는 늘어남)
+Squash spring frequency (Hz) = 스쿼시 스프링 진동수 (Hz)
+Squash spring damping (1 is no wobble) = 스쿼시 스프링 감쇠 (1이면 출렁임 없음)
 UI binding has no field: %s = UI 바인딩의 필드가 없음: %s
 
 # ---- 플레이어 설정 (settings.ini 필드)

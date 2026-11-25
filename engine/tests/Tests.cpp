@@ -34,6 +34,7 @@
 #include "mealkit/core/TextFormat.h"
 #if MEALKIT_TEST_FRONT // front end (bug reports, audio): not in the Linux/macOS headless build
 #include "mealkit/audio/Audio.h"
+#include "mealkit/feedback/Feedback.h"
 #endif
 #include "mealkit/physics/PhysicsWorld.h"
 #include "mealkit/platform/Input.h"
@@ -1765,6 +1766,42 @@ TEST_CASE(render, scene_sprites) {
 
 // Flipbook clips: frame from view time (looping wraps, non-looping holds the last frame, negative time shows the first), the cell
 // follows firstCell, and a sprite object names its clip in the `clip` field
+MEALKIT_ENUM(FbTestKind, u8, Bump, Other);
+MEALKIT_STRUCT(FbTestEvent) {
+    MEALKIT_FIELD(FbTestKind, kind, FbTestKind::Bump, "kind");
+    MEALKIT_FIELD(u32, id, 0, "id");
+};
+
+TEST_CASE(feedback, object_squash) { // feedback.table `squash` columns: a damped spring per target id, view side only
+    feedback::Player player;
+    TEST_CHECK(player.objectSquash(7) == 0.0f);
+    FbTestEvent hit;
+    hit.id = 7;
+    player.trigger(hit, 0);
+    TEST_CHECK(player.objectSquash(7) == 0.0f); // the kick is a velocity: the value starts from rest
+    f32 lowest = 0.0f, highest = 0.0f;
+    for (int i = 0; i < 12; ++i) {
+        player.update(1.0 / 60.0);
+        lowest = std::min(lowest, player.objectSquash(7));
+        highest = std::max(highest, player.objectSquash(7));
+    }
+    TEST_CHECK(lowest < -0.03f);                  // squashes first (negative kick)
+    TEST_CHECK(player.objectSquash(8) == 0.0f);   // other ids are untouched
+    for (int i = 0; i < 12 * 60; ++i) {
+        player.update(1.0 / 60.0);
+        highest = std::max(highest, player.objectSquash(7));
+        TEST_CHECK(player.objectSquash(7) >= -0.6f && player.objectSquash(7) <= 0.8f);
+    }
+    TEST_CHECK(highest > 0.0f);                   // under-damped: it wobbles past rest
+    TEST_CHECK(player.objectSquash(7) == 0.0f);   // and settles, the spring is dropped
+    const Vec3 s = feedback::squashScale(-0.5f);  // volume kept: x*y*z stays 1
+    TEST_CHECK(std::abs(s.x * s.y * s.z - 1.0f) < 1e-4f && s.y == 0.5f);
+    player.trigger(hit, 0);
+    player.setAccessibility(1.0f, 0.0f, true);    // the flash setting scales the result
+    player.update(1.0 / 60.0);
+    TEST_CHECK(player.objectSquash(7) == 0.0f);
+}
+
 TEST_CASE(render, sprite_clips) {
     const reflect::TypeInfo* type = scene::findType(scene::kTypeSprite, nullptr);
     TEST_CHECK(type && type->field("clip"));

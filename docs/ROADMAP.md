@@ -8,7 +8,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 
 **Next, in order** (reordered 2026-11-23; the Linux editor and editor reinforcement, the 2026-11-22 decision that came first, is done: `docs/CHANGELOG.md` "check.ps1 on Linux" and "Linux editor", so game work such as FuseTag M5/M6 can resume):
 1. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
-2. **Game-facing gaps that FuseTag hits when game work resumes**: designer independence D4 (with FuseTag M5).
+2. **Game-facing gaps that FuseTag hits when game work resumes**: none left (designer independence D4 is done).
 3. **UI 2**: MkUI's XAML-like layer, one piece at a time.
 4. **Proposals from other engines** E1, E5, E7, E8 in their suggested order, interleaved with the picked pool items below.
 
