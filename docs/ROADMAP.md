@@ -14,7 +14,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 
 Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
 
-**Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T2 → AI agents A5 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) → engine gaps G1~G5 (proposed 2026-11-25) → Modules ⑨ (`health` first) → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
+**Pool, picked before work starts** (suggested order when nothing above is blocked): technical artist T2 → AI agents A5 → visual feedback A/C (decals, soft particles) → opt-in rendering features (1) → engine gaps G1 (proposed 2026-11-25) → Modules ⑨ (`health` first) → the rest of the tool suite rows → optimization #5~#7 only after a measured bottleneck.
 
 ## Decision criteria
 
@@ -181,10 +181,9 @@ Aimed at a technical artist (TA) who owns a game's look: writing shaders, checki
 
 From a review of terms in other teams' engine talks (Unreal, Unity, own engines) against MealKit. **Nothing here is decided yet**; pick items before work starts. Everything stays opt-in and keeps the two fixed rules, ECS and determinism (`docs/DECISIONS.md` 2026-11-25). Already present or deliberately left out (OpenGL/DX11, deferred rendering, general ECS, shader graph, particle editor, own DB/backend) aren't repeated here.
 
-**Suggested order**: G1; G5 any time (small); G6 only after the genre question is answered.
+**Suggested order**: G1; G6 only after the genre question is answered.
 
 - [ ] G1. **RHI compute**, DX12 hand check (Vulkan part done, `docs/CHANGELOG.md` "RHI compute"). Left: build and run the DX12 backend on Windows (`mkrender_compute` from the MkRender repo plus `mealkit_tests --only render`); the DX12 code was written on Linux and has not been built or run.
-- [ ] G5. **FBX path**: Mixamo, Cascadeur and 3ds Max export FBX. No FBX importer in the engine; a documented Blender batch conversion (`.fbx` → `.glb`, a Blender add-on button or a `tools/` script) plus a check that names the step when an `.fbx` lands in `assets/`.
 - [ ] G6. **Server-authoritative networking** (snapshot interpolation, dead reckoning, client prediction, dedicated server): "Not included" in the deferred table. Only if the target genre needs competitive PvP with many players or MO/MMO; first answer the dedicated server questions in `docs/ROADMAP_HUMAN.md`.
 - [ ] G7. **Learning agents** (experiment): headless + deterministic sim + bot input already make a training environment. A gym-style step/reset/observation API over `MEALKIT_HEADLESS_GAME` and an optional ONNX runtime for inference on the view or bot side (inference inside `sim/` only if bitwise deterministic).
 

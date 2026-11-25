@@ -78,6 +78,10 @@ function Check-Assets([string]$assets, [bool]$wantKinds) {
     foreach ($file in Get-ChildItem $assets -Recurse -File -Force) {
         $ext = $file.Extension.ToLowerInvariant()
         if ($alwaysOk -contains $ext -or $file.Name -ieq ".gitkeep") { continue }
+        if ($ext -eq ".fbx") {
+            Err $file.FullName "FBX is not read by the engine. Convert it: tools\fbx_to_glb.ps1 -Path <file>.fbx -Out <project>\assets\models (Blender, no window), and keep the .fbx in art/ ($label ships with the game)"
+            continue
+        }
         if ($sourceFormats -contains $ext) {
             Err $file.FullName "source files of external tools go in art/ ($label ships with the game)"
             continue
