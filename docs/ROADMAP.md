@@ -74,9 +74,6 @@ The engine version is `VERSION` at the repo root. **MealKit is a beta and stays 
 - **Later, separate items**: 2D lights, a parallax layers helper.
 - **Checks**: render golden on DX12/Vulkan (`sprites_front` exists), an MkRender capture of a sprite scene in its 2D front view, the 2D template built from scratch.
 
-### [ ] 7. Docs (nearly done)
-Left: run MealKit-Docs `tools/build.py check --engine ..\MealKit` once on a machine with Sphinx. The English pages and the Korean `.po` entries were edited by hand there (commit in MealKit-Docs); a mismatch shows up as untranslated or leftover sentences to fix with `build.py update`. Then delete this section and the "Samples out of the engine repo" heading.
-
 ## Smaller engine items
 
 ### [ ] Small leftovers
@@ -206,7 +203,7 @@ A review of how well an AI agent (and a developer new to MealKit) can read the e
 
 **Suggested order**: A5. A6 waits on its open questions (`docs/ROADMAP_HUMAN.md`).
 
-- [ ] A5. **More cookbook recipes** (S each). Jobs a game repeats: add a weapon (table row + RowRef + feedback row), add an enemy kind, add a game mode, add a map gimmick with `objects`. Each one is also the pattern an agent copies. English and Korean together.
+- [ ] A5. **More cookbook recipes** (S each). Done: "A new kind from a table row" (`docs/CHANGELOG.md` "Cookbook: a new kind from a table row"). Left: add a weapon and add an enemy kind (the samples have no weapon or enemy table yet, so the recipes wait for a sample that has one: the check compares code with sample files), add a game mode, add a map gimmick with `objects`. Each one is also the pattern an agent copies. English and Korean together.
 - Higher-level building blocks (Modules ⑨: `inventory`, `minimap`; `health` and `ai` exist) help game developers and agents the most, and stay in that section.
 
 ## Visual feedback proposals (drafted 2026-10-29, not scheduled)
