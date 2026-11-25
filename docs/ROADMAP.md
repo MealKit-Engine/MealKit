@@ -110,7 +110,7 @@ None touches `sim/`.
 
 ## Modules ⑨: the remaining first modules (one at a time, whenever the user wants one)
 
-The source module system is done (`docs/MODULES.md`); `cooldown`, `objects` and `procgen` exist. One module = one git repo (`KingProtea99/module-<name>`, MIT), registered in `MealKit-Modules`. Suggested order: `ai`, `inventory`, `minimap` (`health` 0.1.0 is done as part of G2; its hit queries and `.ui` are left in G2).
+The source module system is done (`docs/MODULES.md`); `cooldown`, `objects` and `procgen` exist. One module = one git repo (`KingProtea99/module-<name>`, MIT), registered in `MealKit-Modules`. Suggested order: `ai`, `inventory`, `minimap` (`health` is done with G2, `docs/CHANGELOG.md` "Combat framework").
 
 | Module | sim | view/UI | Notes |
 |---|---|---|---|
