@@ -1,6 +1,6 @@
 # MealKit
 
-A lightweight 3D multiplayer game engine that runs fast even on office PCs with Intel integrated graphics.
+A lightweight 3D multiplayer game engine: a light default that runs fast even on integrated graphics, with heavier features opt-in per project.
 
 > **Beta (v0.x).** MealKit is under active development: APIs and file formats may change between versions, and projects are moved forward with the upgrade tool. Feedback and bug reports are welcome.
 
@@ -12,7 +12,7 @@ A lightweight 3D multiplayer game engine that runs fast even on office PCs with 
 - **Tiny builds**: a shipped game is a single static exe of about 1.4 MB, with no redistributable needed.
 - **Godot-style editor**: one general-purpose editor opens many game project folders. Game code is C++ and hot-reloads into the editor as a DLL, and one-click export makes a release folder.
 
-Windows + DirectX 12 only for now. Minimum spec: Intel 11th-gen (Xe) integrated graphics.
+Windows + DirectX 12 only for now. GPU: Shader Model 6.6 bindless (DirectX 12) or Vulkan 1.3; no other minimum spec.
 
 Documentation: the separate `MealKit-Docs` repository (English and Korean, published together with this repository) · [Roadmap](docs/ROADMAP.md) · [Decisions](docs/DECISIONS.md) · [Changelog](docs/CHANGELOG.md)
 

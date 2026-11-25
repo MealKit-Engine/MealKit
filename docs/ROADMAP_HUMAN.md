@@ -6,7 +6,7 @@ Each line says **what is needed** (device, account, eyes, clean PC, decision) an
 
 ## Hardware (devices the user has to own and run on)
 
-- [ ] **Minimum spec PC (Intel 11th gen Xe)**: re-measure the performance budget table, shadows and GPU budgets (ROADMAP "Performance budget"). Every opt-in rendering feature's cost is also measured there. Intel↔AMD determinism wasn't run (assumed passed, 2026-10-18).
+- [ ] **Intel↔AMD determinism run**: not run yet (assumed passed, 2026-10-18). (The minimum spec PC re-measurement is gone: no minimum spec since `docs/DECISIONS.md` 2026-11-25; costs are measured on the reference PC.)
 - [ ] **A real gamepad**: XInput is untested with a pad; gamepad rumble (E2) is built and checked with it.
 - [ ] **Real Steam connection tests** (assumed passed, 2026-10-18), **PIX capture** (code only).
 - [ ] **Steam login on Linux** (ROADMAP item 1 A).

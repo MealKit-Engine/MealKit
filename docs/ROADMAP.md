@@ -21,7 +21,7 @@ Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an accoun
 Every feature is weighed in the order below to decide whether it goes in.
 
 1. **Does it not hurt 3D + multiplayer?** Features touching the simulation must keep lockstep determinism (`docs/CODING_MODEL.md` "Determinism rules").
-2. **Lightness and speed.** The target hardware is office PCs with Intel integrated graphics, **minimum spec Intel 11th gen (Xe integrated graphics) or newer**. The budgets below are what the default preset guarantees, not a limit on what the engine supports: features exceeding them are opt-in (off by default, no GPU cost when off, turned on per project, player-toggleable through quality presets unless the game locks them; `docs/DECISIONS.md` 2026-11-04).
+2. **A light default, everything else opt-in.** There is **no minimum spec** (`docs/DECISIONS.md` 2026-11-25): the target hardware is the game developer's choice. The default preset stays light (budgets below, a cost reference, not a guarantee); every heavier feature is opt-in (off by default, no cost when off, turned on per project, player-toggleable through quality presets unless the game locks them; `docs/DECISIONS.md` 2026-11-04), and a feature a device lacks is turned off on that device rather than left out of the engine. **The only rules a game must keep are the ECS structure and determinism** (criterion 1; `docs/CODING_MODEL.md` "Game object composition" and "Determinism rules").
 3. **Multiple platforms, DX12 as reference.** OS APIs are called only behind the platform layer, graphics APIs only behind the thin RHI.
    New rendering features are designed on the DX12 backend first, and **the Vulkan backend is built together within the same item**. Metal, WebGPU, and console backends (stage 5) follow. Features aren't lowered to fit other APIs; features a backend can't do are turned off in that platform's preset.
    The editor runs on Windows and Linux; macOS comes in stage 5. The goal is crossplay between all platforms.
@@ -34,10 +34,10 @@ Every feature is weighed in the order below to decide whether it goes in.
 
 **Networking model** (fixed): host-client lockstep over UDP with input-only exchange (8 bytes per player per tick), host relay, state hashes for desync detection, host migration. Suits co-op, party, RTS, physics games and small versus with 8 or fewer players; doesn't suit competitive FPS or large player counts (every peer holds the full state, input delay 60~270 ms by ping).
 
-### Performance budget of the default preset (minimum spec Intel 11th gen Xe integrated graphics, 1280×720, 60 fps)
+### Performance budget of the default preset (reference PC, 1280×720, 60 fps)
 
-"Current" values were measured on a Core Ultra 5 125U (Xe-LPG), faster than the minimum spec. **They must be re-measured on minimum spec hardware** (not done yet).
-This table is for Windows. Minimum specs and budgets for other platforms are set in a table of the same shape when that platform is started (stage 5). The 5 MB executable is the same on all platforms.
+"Current" values were measured on the reference PC, a Core Ultra 5 125U (Xe-LPG integrated graphics). The table tells developers what the default preset costs; it isn't a hardware guarantee (no minimum spec, `docs/DECISIONS.md` 2026-11-25). Opt-in features report their cost on the same PC.
+This table is for Windows. Budgets for other platforms are set in a table of the same shape when that platform is started (stage 5). The 5 MB executable is the same on all platforms.
 
 | Item | Budget | Current |
 |---|---|---|
@@ -45,7 +45,7 @@ This table is for Windows. Minimum specs and budgets for other platforms are set
 | Simulation tick (30 Hz) | 4 ms or less per tick | 0.9~2.5 ms (2,000 bodies) |
 | Draw calls | 200 or fewer | 26 (816 instances, arena) |
 | Network (4 players, host send) | 10 KB/s or less | about 5 KB/s |
-| Game executable | 5 MB or less (excluding assets) | about 3.6 MB (Export build, including audio, Jolt, post, 2026-11-03) |
+| Game executable | 5 MB or less for the default preset (excluding assets; opt-ins that add size show it) | about 3.6 MB (Export build, including audio, Jolt, post, 2026-11-03) |
 
 ## Versions
 
@@ -132,7 +132,7 @@ MealKit is a suite with the engine + general-purpose editor at the center, where
 | Code work | Programmers | VS Code, Visual Studio | An own IDE is deferred. External IDE integration first |
 
 Items, in suggested order:
-- [ ] **Opt-in rendering features** (`docs/DECISIONS.md` 2026-11-04, one at a time, each with its cost measured with `--benchmark` here and shown to the developer (minimum spec numbers: `docs/ROADMAP_HUMAN.md`); view-side; additions only). Shared first piece: project settings for each feature, player quality presets (Low, Medium, High) with a per-game lock, and an editor warning when the enabled features exceed the project GPU budgets. Order: (1) glTF occlusion texture applied to ambient light only, point light shadows on chosen lights (shadow atlas), UI blur, screen-space outlines, mesh particles → (2) post passes that don't run when off: SMAA, EASU upscaling, depth of field, motion blur, SSR → (3) RHI compute on DX12 and Vulkan, then Forward+, SSAO and GPU particles → (4) real-time GI, technique chosen when started. Deferred rendering only when a game shows a need Forward+ can't meet. Project surface shaders wait on the surface API decision (`docs/ROADMAP_HUMAN.md` "Blocked on a decision").
+- [ ] **Opt-in rendering features** (`docs/DECISIONS.md` 2026-11-04, one at a time, each with its cost measured with `--benchmark` on the reference PC and shown to the developer; view-side; additions only). Shared first piece: project settings for each feature, player quality presets (Low, Medium, High) with a per-game lock, and an editor warning when the enabled features exceed the project GPU budgets. Order: (1) glTF occlusion texture applied to ambient light only, point light shadows on chosen lights (shadow atlas), UI blur, screen-space outlines, mesh particles → (2) post passes that don't run when off: SMAA, EASU upscaling, depth of field, motion blur, SSR → (3) RHI compute on DX12 and Vulkan, then Forward+, SSAO and GPU particles → (4) real-time GI, technique chosen when started. Deferred rendering only when a game shows a need Forward+ can't meet. Project surface shaders wait on the surface API decision (`docs/ROADMAP_HUMAN.md` "Blocked on a decision").
 - [ ] **Design refresh for the rest of the suite** (planned 2026-11-05, approach settled by `docs/DECISIONS.md` 2026-11-12: each tool copies `applyStyle`, no shared style library). State per app is `docs/TOOL_DESIGN.md` section 7; each tool is done when the checklist in section 6 holds. App icons and the theme, icon font, icon buttons and title bar of every tool are done (CHANGELOG). Left:
   - **Tools**: a right-click item for each icon action (TOOL_DESIGN section 1; MkRender done), QA's one window on the gutter and panel layout (section 6 item 3), the Fluent icon font in place of Segoe (`docs/DECISIONS.md` 2026-11-22).
   - **Editor**: tree and table arrows, still ImGui's triangles.
@@ -140,7 +140,7 @@ Items, in suggested order:
   - **Manager screens**: a left navigation instead of the top tabs; a project details pane (module summary with `Update all`, engine and folder under a collapsed "Details"), so the Modules tab is not the only place to see updates.
 - [ ] **MkQA next candidates**: running `tests/*.scenario` with results, turning a report's recording into a scenario, `mp_test` runs.
 - [ ] **UI 3 leftovers**: the old preview-tool proposal is covered by MkUI Designer; check whether it still lacks a gamepad focus walk and `--ui-check` box differences, and add them to MkUI if so.
-- [ ] **UI features** (one at a time as games need them, each checked against the 11th gen Xe budget): virtualized long lists, UI cost numbers (quads, layout ms) in the benchmark budget, keyframe timeline animation (deferred table), per-player focus for local multiplayer, right-to-left and complex-script shaping.
+- [ ] **UI features** (one at a time as games need them, each with its cost measured against the default preset's budget): virtualized long lists, UI cost numbers (quads, layout ms) in the benchmark budget, keyframe timeline animation (deferred table), per-player focus for local multiplayer, right-to-left and complex-script shaping.
 - [ ] **Audio features** (in MkAudio, runtime + tool together, one at a time): master limiter + loudness meter (LUFS), bus effect chains (EQ, compressor/limiter, delay) and sidechain compression in place of volume-only ducking, clip sets loaded/unloaded per scene with a memory budget warning, a voice/profiler timeline over the live `audio/` state, dialogue lines (queue, priority, tied to subtitles), Steam Audio HRTF (deferred table).
 
 ---
@@ -199,7 +199,7 @@ Goal: **a designer adds light and glow to an event with one `feedback.table` row
 - [ ] **Editor**: View Mode > Event Lights (each active event light as a wire sphere with its range); the preview fires `hitFlash`/`emissivePulse` at the look dev object. Open: hit flash colors other than white (instance data size).
 - [ ] **Shockwave distortion** (`shockwave`, `shockwaveRadius`, `shockwaveSeconds`): a ring that bends the picture outward; needs the distortion pass (D below) and follows the shake setting.
 
-**Shading techniques** (each a toggle; cost is a guess for the minimum spec, measured with `--benchmark` before deciding; ordered by effect per millisecond; overlaps with "Opt-in rendering features" are built there)
+**Shading techniques** (each a toggle; cost is a guess for the reference PC, measured with `--benchmark` before deciding; ordered by effect per millisecond; overlaps with "Opt-in rendering features" are built there)
 
 | # | Technique | What it gives | Rough cost | Notes |
 |---|---|---|---|---|
@@ -215,7 +215,7 @@ Goal: **a designer adds light and glow to an event with one `feedback.table` row
 | J | Subsurface wrap | Softer skin and wax | ~0 | Wrap term + tint per material |
 | K | Hatching | Drawn look for Toon shadows | ~0 | Driven by the toon ramp value |
 
-Suggested order: A and C → F and B → D, then the shockwave column → the rest when a game needs them. Not for the minimum spec now: SSR, TAA, froxel volumetric fog, ray tracing, deferred shading.
+Suggested order: A and C → F and B → D, then the shockwave column → the rest when a game needs them. Later opt-ins, not ruled out (no minimum spec, `docs/DECISIONS.md` 2026-11-25): SSR, TAA, froxel volumetric fog, ray tracing, mesh shaders, deferred shading.
 
 ## Roles and tools review (proposed 2026-11-04, not scheduled)
 
