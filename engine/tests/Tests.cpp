@@ -12,6 +12,7 @@
 #include "mealkit/core/Random.h"
 #include "mealkit/asset/Animation.h"
 #include "mealkit/data/Tables.h"
+#include "mealkit/game/Gym.h"
 #include "mealkit/game/InputRecord.h"
 #include "mealkit/game/Scenario.h"
 #if MEALKIT_TEST_FRONT // front end (bug reports, audio): not in the Linux/macOS headless build
@@ -825,6 +826,24 @@ TEST_CASE(game, scenario) {
     TEST_CHECK(game::loadScenario(path, sc, error) && sc.checks.size() == 2 && sc.checks[0].tick == 1 &&
                sc.checks[0].path == "phase" && sc.checks[0].expected == "Playing" && sc.checks[1].path == "height");
     removeFile(path);
+}
+
+TEST_CASE(game, gym_protocol) {
+    game::gym::Request r;
+    std::string error;
+    TEST_CHECK(game::gym::parseRequest("{\"cmd\":\"step\", \"actions\":[[1,-2.5],[3]], \"repeat\":4}", r, error));
+    TEST_CHECK(r.cmd == "step" && r.repeat == 4 && r.actions.size() == 2 && r.actions[0].size() == 2 && r.actions[1][0] == 3.0f);
+    game::gym::Request one;
+    TEST_CHECK(game::gym::parseRequest("{\"cmd\":\"reset\",\"seed\":7,\"action\":[5]}", one, error));
+    TEST_CHECK(one.hasSeed && one.seed == 7 && one.actions.size() == 1);
+    game::gym::Request bad;
+    TEST_CHECK(!game::gym::parseRequest("{\"cmd\":\"step\",\"typo\":1}", bad, error)); // unknown keys are errors
+    TEST_CHECK(!game::gym::parseRequest("step", bad, error));
+    game::gym::Request noCmd;
+    TEST_CHECK(!game::gym::parseRequest("{\"repeat\":1}", noCmd, error)); // no cmd
+    TEST_CHECK(game::gym::actionByte(127.0f) == 127 && game::gym::actionByte(-1.0f) == 255 && game::gym::actionByte(999.0f) == 255);
+    TEST_CHECK(game::gym::stateLine(3, 0xABull, {{1.0f, 2.5f}}, {0.5f}, true) ==
+               "{\"ok\":true,\"tick\":3,\"hash\":\"00000000000000ab\",\"obs\":[[1,2.5]],\"reward\":[0.5],\"done\":true}");
 }
 
 TEST_CASE(game, input_record) {

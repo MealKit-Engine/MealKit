@@ -1,4 +1,4 @@
-// Vendored copy of module-game v0.2.8; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-game v0.2.9; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Types.h"
@@ -38,6 +38,7 @@ struct MatchOptions {
     std::string hashLogPath, recordInputsPath;
     std::string replayInputsPath; // headless --replay-inputs (hash comparison), windowed --replay (viewing)
     std::string testPath;         // headless --test: scenario file (game/Scenario.h)
+    bool gym = false;             // --gym: headless learning-agent environment on stdin/stdout (game/Gym.h)
     bool finalState = false;      // --final-state: print the numbers of the state at the last tick ("STATE path value")
     bool writeKinds = false;      // --write-kinds: write build/editor/kinds.txt (object kinds for MkRender) and exit
     bool updateExpected = false;  // --update-expected: rewrite the scenario's == values with the results

@@ -185,7 +185,6 @@ From a review of terms in other teams' engine talks (Unreal, Unity, own engines)
 
 - [ ] G1. **RHI compute**, DX12 hand check (Vulkan part done, `docs/CHANGELOG.md` "RHI compute"). Left: build and run the DX12 backend on Windows (`mkrender_compute` from the MkRender repo plus `mealkit_tests --only render`); the DX12 code was written on Linux and has not been built or run.
 - [ ] G6. **Server-authoritative networking** (snapshot interpolation, dead reckoning, client prediction, dedicated server): "Not included" in the deferred table. Only if the target genre needs competitive PvP with many players or MO/MMO; first answer the dedicated server questions in `docs/ROADMAP_HUMAN.md`.
-- [ ] G7. **Learning agents** (experiment): headless + deterministic sim + bot input already make a training environment. A gym-style step/reset/observation API over `MEALKIT_HEADLESS_GAME` and an optional ONNX runtime for inference on the view or bot side (inference inside `sim/` only if bitwise deterministic).
 
 ## AI agents and game developer ease (proposed 2026-11-18, not scheduled)
 
