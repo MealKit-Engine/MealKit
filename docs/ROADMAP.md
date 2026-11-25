@@ -181,10 +181,9 @@ Aimed at a technical artist (TA) who owns a game's look: writing shaders, checki
 
 From a review of terms in other teams' engine talks (Unreal, Unity, own engines) against MealKit. **Nothing here is decided yet**; pick items before work starts. Everything stays opt-in and keeps the two fixed rules, ECS and determinism (`docs/DECISIONS.md` 2026-11-25). Already present or deliberately left out (OpenGL/DX11, deferred rendering, general ECS, shader graph, particle editor, own DB/backend) aren't repeated here.
 
-**Suggested order**: G1 → G4; G5 any time (small); G6 only after the genre question is answered.
+**Suggested order**: G1; G5 any time (small); G6 only after the genre question is answered.
 
 - [ ] G1. **RHI compute**, DX12 hand check (Vulkan part done, `docs/CHANGELOG.md` "RHI compute"). Left: build and run the DX12 backend on Windows (`mkrender_compute` from the MkRender repo plus `mealkit_tests --only render`); the DX12 code was written on Linux and has not been built or run.
-- [ ] G4. **Animation**: two-bone IK (feet on terrain, hands, aim; the deferred row's "flat floors" reason no longer holds since heightmap terrain exists), clip blend trees / blend spaces, then root motion as a visual offset or a sim-side motion curve (needs the deferred row's question answered) and motion warping for melee.
 - [ ] G5. **FBX path**: Mixamo, Cascadeur and 3ds Max export FBX. No FBX importer in the engine; a documented Blender batch conversion (`.fbx` → `.glb`, a Blender add-on button or a `tools/` script) plus a check that names the step when an `.fbx` lands in `assets/`.
 - [ ] G6. **Server-authoritative networking** (snapshot interpolation, dead reckoning, client prediction, dedicated server): "Not included" in the deferred table. Only if the target genre needs competitive PvP with many players or MO/MMO; first answer the dedicated server questions in `docs/ROADMAP_HUMAN.md`.
 - [ ] G7. **Learning agents** (experiment): headless + deterministic sim + bot input already make a training environment. A gym-style step/reset/observation API over `MEALKIT_HEADLESS_GAME` and an optional ONNX runtime for inference on the view or bot side (inference inside `sim/` only if bitwise deterministic).
@@ -242,7 +241,7 @@ A pass over every game development role, applying criterion ④ role by role. **
 | Level design | Scenes, terrain brushes, prefabs, D9 triggers, platforms, timers | E1 paths, E7 joints |
 | Narrative | No dialogue system | R4, when a game needs it |
 | Texture art | Texture cache, [Look Dev] [Materials] page | — |
-| Animation | State table, animation events | IK and root motion when a game asks (deferred table) |
+| Animation | State table, animation events, 2D blend spaces, two-bone IK, visual root motion, motion warping | Sim-side root motion when a game asks (deferred table) |
 | Technical art | [Look Dev] [Materials] page, proposals | T1, T2, T6~T8 |
 | VFX | Own particle runtime | Mesh and GPU particles as opt-ins |
 | UI/UX | MkUI Designer; Penpot optional | Nothing (Figma when designers can only use Figma) |

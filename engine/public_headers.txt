@@ -36,6 +36,7 @@ session/LocalSession.h
 data/Tables.h
 scene/Scene.h
 asset/ModelCache.h
+asset/AnimIk.h
 asset/AnimStates.h
 asset/Cutscene.h
 

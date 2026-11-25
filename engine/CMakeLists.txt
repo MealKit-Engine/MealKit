@@ -124,8 +124,10 @@ set(MEALKIT_CORE_SOURCES
     ../modules/asset/src/mealkit/asset/Terrain.cpp # heightmap PNG decode/encode (static stb_image + stb_image_write copies, headless too)
     ../modules/asset/include/mealkit/asset/Animation.h
     ../modules/asset/src/mealkit/asset/Animation.cpp
+    ../modules/asset/include/mealkit/asset/AnimIk.h
     ../modules/asset/include/mealkit/asset/AnimStates.h
     ../modules/asset/src/mealkit/asset/AnimStates.cpp
+    ../modules/asset/src/mealkit/asset/AnimIk.cpp
     ../modules/asset/include/mealkit/asset/Cutscene.h
     ../modules/asset/src/mealkit/asset/Cutscene.cpp
     ../modules/render/include/mealkit/render/DrawList.h

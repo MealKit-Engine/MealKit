@@ -44,6 +44,7 @@
 #include "mealkit/sim/Pool.h"
 #include "mealkit/sim/TickEvents.h"
 #include "mealkit/sim/TickTimer.h"
+#include "mealkit/asset/AnimIk.h"
 #include "mealkit/asset/AnimStates.h"
 #include "mealkit/asset/Cooked.h"
 #include "mealkit/asset/Cutscene.h"
@@ -2045,6 +2046,130 @@ TEST_CASE(asset, animation_states) {
     // Unknown set resets
     asset::updateAnim(states, 5, rig->clips, anim, params, dt, &events);
     TEST_CHECK(anim.set == -1);
+}
+
+// Two-bone IK, 2D blend space, root motion and motion warping (view side, docs/DECISIONS.md 2026-11-25)
+TEST_CASE(asset, animation_ik_rootmotion) {
+    // hip(0) → knee(1) → ankle(2): a leg hanging down, thigh and shin 1 long, hip at height 2; "hips" root joint above
+    asset::Skeleton sk;
+    const auto joint = [&](const char* name, i32 parent, Vec3 t) {
+        asset::Skeleton::Joint j;
+        j.name = name;
+        j.parent = parent;
+        j.rest.translation = t;
+        sk.joints.push_back(j);
+    };
+    joint("hips", -1, {0, 2, 0});
+    joint("knee", 0, {0, -1, 0});
+    joint("ankle", 1, {0, -1, 0});
+    std::vector<asset::JointPose> pose;
+    asset::restPose(sk, pose);
+    asset::IkJoints leg;
+    leg.root = 0, leg.mid = 1, leg.tip = 2;
+    leg.pole = {0, 0, 1};
+    leg.hasPole = true;
+    // Forward kinematics here must agree with the skinning matrices
+    std::vector<Mat4> world;
+    asset::jointMatrices(sk, pose, world);
+    TEST_CHECK(length(asset::jointPosition(sk, pose, 2) - Vec3{0, 0, 0}) < 1e-5f && std::fabs(world[2].m[3][1]) < 1e-5f);
+    // Reachable target: the ankle lands on it, the knee bends towards the pole
+    const Vec3 target{0.5f, 0.6f, 0.3f};
+    TEST_CHECK(asset::solveTwoBone(sk, leg, target, 1.0f, pose));
+    TEST_CHECK(length(asset::jointPosition(sk, pose, 2) - target) < 1e-3f);
+    const Vec3 knee = asset::jointPosition(sk, pose, 1);
+    TEST_CHECK(std::fabs(length(knee - Vec3{0, 2, 0}) - 1.0f) < 1e-3f && knee.z > 0.3f); // bone length kept, bends forward
+    // Out of reach: stretches straight towards the target and reports false
+    asset::restPose(sk, pose);
+    TEST_CHECK(!asset::solveTwoBone(sk, leg, {3.0f, 2.0f, 0.0f}, 1.0f, pose));
+    const Vec3 far = asset::jointPosition(sk, pose, 2);
+    TEST_CHECK(far.x > 1.9f && std::fabs(far.y - 2.0f) < 0.05f);
+    // Weight 0 leaves the pose; 0.5 is part of the way
+    asset::restPose(sk, pose);
+    asset::solveTwoBone(sk, leg, target, 0.0f, pose);
+    TEST_CHECK(length(asset::jointPosition(sk, pose, 2)) < 1e-5f);
+    asset::solveTwoBone(sk, leg, target, 0.5f, pose);
+    const f32 half = length(asset::jointPosition(sk, pose, 2) - target);
+    TEST_CHECK(half > 1e-3f && half < length(target));
+    // Feet on terrain: ground target keeps x/z, height = ground + ankle; hips offset lowers the whole leg
+    leg.ankle = 0.1f;
+    asset::restPose(sk, pose);
+    const Vec3 g = asset::groundTarget(sk, leg, pose, 0.4f);
+    TEST_CHECK(std::fabs(g.y - 0.5f) < 1e-5f && std::fabs(g.x) < 1e-5f);
+    asset::offsetJoint(sk, 0, -0.25f, pose);
+    TEST_CHECK(std::fabs(asset::jointPosition(sk, pose, 2).y + 0.25f) < 1e-5f);
+
+    // IK table: ids, joint resolution, bad rows
+    sim::Table<asset::IkChain> table;
+    const auto row = [&](const char* id, const char* r, const char* m, const char* t, const char* pole) {
+        asset::IkChain c;
+        c.root = r, c.mid = m, c.tip = t, c.pole = pole;
+        table.ids.push_back(id);
+        table.rows.push_back(c);
+    };
+    row("pawn.legL", "hips", "knee", "ankle", "0 0 1");
+    row("pawn.bad", "hips", "knee", "nope", "x");
+    row("nodot", "hips", "knee", "ankle", "");
+    asset::IkChains chains;
+    std::string warnings;
+    chains.build(table, &warnings);
+    TEST_CHECK(chains.find("pawn", "legL", sk).valid() && chains.find("pawn", "legL", sk).hasPole);
+    TEST_CHECK(!chains.find("pawn", "bad", sk).valid() && !chains.find("pawn", "legR", sk).valid());
+    TEST_CHECK(chains.names("pawn").size() == 2 && warnings.find("nodot") != std::string::npos && warnings.find("pole") != std::string::npos);
+
+    // Root motion: a 1 s looping clip whose hips travel 2 units along x per cycle
+    asset::AnimationClip walk;
+    walk.name = "walk";
+    walk.frames = asset::kClipFrameRate + 1;
+    walk.duration = 1.0f;
+    for (u32 f = 0; f < walk.frames; ++f) {
+        std::vector<asset::JointPose> p;
+        asset::restPose(sk, p);
+        p[0].translation.x = 2.0f * static_cast<f32>(f) / static_cast<f32>(asset::kClipFrameRate);
+        walk.poses.insert(walk.poses.end(), p.begin(), p.end());
+    }
+    TEST_CHECK(length(asset::clipRootTravel(sk, walk, 0) - Vec3{2, 0, 0}) < 1e-4f);
+    TEST_CHECK(length(asset::clipRootDelta(sk, walk, 0, 0.75f, 1.25f, true) - Vec3{1, 0, 0}) < 1e-4f); // across the loop point
+    std::vector<asset::JointPose> moved;
+    asset::samplePose(sk, walk, 0.5f, true, moved);
+    const Vec3 removed = asset::stripRootMotion(sk, 0, moved);
+    TEST_CHECK(std::fabs(removed.x - 1.0f) < 1e-4f && std::fabs(moved[0].translation.x) < 1e-6f && moved[0].translation.y == 2.0f);
+
+    // State with rootMotion: pose stays in place, the per-update delta sums to the clip travel; a 2D blend space picks clips by weight
+    sim::Table<asset::AnimState> states;
+    asset::AnimState s;
+    s.clip = "walk 0 0 walk 1 1";
+    s.blendParam = "x";
+    s.blendParam2 = "y";
+    s.rootMotion = "hips";
+    states.ids.push_back("pawn.walk");
+    states.rows.push_back(s);
+    asset::AnimStates anims;
+    std::string aw;
+    anims.build(states, &aw);
+    TEST_CHECK(aw.empty() && anims.set(0).states[0].points.size() == 2 && anims.set(0).states[0].points[1].at2 == 1.0f);
+    std::vector<asset::AnimationClip> clips{walk};
+    asset::AnimInstance inst;
+    asset::AnimParams params;
+    Vec3 sum{};
+    const f32 dt = 1.0f / 60.0f;
+    for (int i = 0; i < 120; ++i) { // two cycles
+        asset::updateAnim(anims, 0, clips, inst, params, dt);
+        sum += asset::animRootDelta(anims, sk, clips, inst);
+    }
+    TEST_CHECK(std::fabs(sum.x - 4.0f) < 0.02f && std::fabs(sum.y) < 1e-6f);
+    asset::animPose(anims, sk, clips, inst, moved);
+    TEST_CHECK(std::fabs(moved[0].translation.x) < 1e-6f);
+
+    // Root offset eases back to the simulation position; warp scales and turns the travel onto a target
+    asset::RootOffset off;
+    off.add({1, 0, 0});
+    for (int i = 0; i < 600; ++i) off.update(dt, 0.5f);
+    TEST_CHECK(length(off.offset) == 0.0f);
+    const asset::MotionWarp warp = asset::MotionWarp::make({2, 0, 0}, {0, 0, 3});
+    const Vec3 warped = warp.apply({2, 0, 0});
+    TEST_CHECK(warp.active && length(warped - Vec3{0, 0, 3}) < 1e-4f && std::fabs(warp.apply({0, 0.5f, 0}).y - 0.5f) < 1e-6f);
+    TEST_CHECK(!asset::MotionWarp::make({0, 0, 0}, {1, 0, 0}).active);
+    TEST_CHECK(asset::MotionWarp::make({1, 0, 0}, {10, 0, 0}, 2.0f).scale == 2.0f); // scale is capped
 }
 
 // Texture cache mipmaps: size halves, sRGB averages in linear, normals renormalize to length 1. half conversion

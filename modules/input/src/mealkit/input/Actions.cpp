@@ -1,6 +1,7 @@
-// Vendored copy of module-input v0.1.2; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-input v0.1.3; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/input/Actions.h"
 
+#include "mealkit/asset/AnimIk.h"
 #include "mealkit/asset/AnimStates.h"
 #include "mealkit/asset/Cutscene.h"
 #include "mealkit/core/Log.h"
@@ -460,7 +461,8 @@ bool Actions::saveUser() const {
 const reflect::TableList& engineTables() {
     static const reflect::TableList list{{&reflect::typeOf<Action>(), kBindingsTable, reflect::kTableView},
                                          {&reflect::typeOf<asset::AnimState>(), asset::kAnimationTable, reflect::kTableView},
-                                         {&reflect::typeOf<asset::CutsceneRow>(), asset::kCutsceneTable, reflect::kTableView}};
+                                         {&reflect::typeOf<asset::CutsceneRow>(), asset::kCutsceneTable, reflect::kTableView},
+                                         {&reflect::typeOf<asset::IkChain>(), asset::kIkTable, reflect::kTableView}};
     return list;
 }
 

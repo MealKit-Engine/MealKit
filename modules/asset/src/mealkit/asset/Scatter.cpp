@@ -1,4 +1,4 @@
-// Vendored copy of module-asset v0.4.0; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-asset v0.5.0; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/asset/Scatter.h"
 
 #include "mealkit/core/TextFormat.h"
