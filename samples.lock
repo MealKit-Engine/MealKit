@@ -1,5 +1,5 @@
 # Reference samples fetched into samples/<name> (tools\sample.ps1). One engine version = VERSION + this file.
 # sample <name> <repo url> <tag> <commit>
 @format sample-lock 1
-sample sandbox https://github.com/MealKit-Engine/sample-sandbox v0.2.0 b98e18c70b2ed4dc01d26254babcf5c9ed27a20f
+sample sandbox https://github.com/MealKit-Engine/sample-sandbox v0.3.0 1d82ffcca3db6d13dc3f393b74105cb768e60039
 sample coop https://github.com/MealKit-Engine/sample-coop v0.1.0 7d63fbcb897f5e8acd175f158f4891f50cfe473b

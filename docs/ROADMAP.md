@@ -110,12 +110,11 @@ None touches `sim/`.
 
 ## Modules ⑨: the remaining first modules (one at a time, whenever the user wants one)
 
-The source module system is done (`docs/MODULES.md`); `cooldown`, `objects` and `procgen` exist. One module = one git repo (`KingProtea99/module-<name>`, MIT), registered in `MealKit-Modules`. Suggested order: `ai`, `inventory`, `minimap` (`health` is done with G2, `docs/CHANGELOG.md` "Combat framework").
+The source module system is done (`docs/MODULES.md`); `cooldown`, `objects`, `procgen`, `ai` and the combat set exist. One module = one git repo (`KingProtea99/module-<name>`, MIT), registered in `MealKit-Modules`. Suggested order: `inventory`, `minimap` (`health` is done with G2, `docs/CHANGELOG.md` "Combat framework").
 
 | Module | sim | view/UI | Notes |
 |---|---|---|---|
 | `health` health/damage | hit queries (sphere, capsule, ray), damage (attacker, amount, kind), health, invulnerability ticks, death → remove Pawn → respawn wait → possess a new Pawn | health bar and damage number `.ui` | Uses the game flow framework. Hit results are processed in id order |
-| `ai` decision making | utility scoring + `enum` state machines per `Controller`, perception (sight cones, hearing) via physics queries | debug drawing | Uses "AI pathfinding" for movement (and E1 paths for patrols when it exists). No behavior tree graph editor (DECISIONS 2026-10-29) |
 | `inventory` inventory | fixed-array slots, item definitions in a `.table` | grid `.ui` | Connected to saves and match start data |
 | `minimap` minimap | none | top-down render or icons | View only |
 
@@ -182,10 +181,9 @@ Aimed at a technical artist (TA) who owns a game's look: writing shaders, checki
 
 From a review of terms in other teams' engine talks (Unreal, Unity, own engines) against MealKit. **Nothing here is decided yet**; pick items before work starts. Everything stays opt-in and keeps the two fixed rules, ECS and determinism (`docs/DECISIONS.md` 2026-11-25). Already present or deliberately left out (OpenGL/DX11, deferred rendering, general ECS, shader graph, particle editor, own DB/backend) aren't repeated here.
 
-**Suggested order**: G1 → G3 → G4; G5 any time (small); G6 only after the genre question is answered.
+**Suggested order**: G1 → G4; G5 any time (small); G6 only after the genre question is answered.
 
 - [ ] G1. **RHI compute**, DX12 hand check (Vulkan part done, `docs/CHANGELOG.md` "RHI compute"). Left: build and run the DX12 backend on Windows (`mkrender_compute` from the MkRender repo plus `mealkit_tests --only render`); the DX12 code was written on Linux and has not been built or run.
-- [ ] G3. **Game AI**: build the planned `ai` module (Modules ⑨: utility scoring + `enum` state machines, perception). Behavior trees as data (a table or text, no graph editor) only if utility + FSM proves too flat; Recast navmesh stays deferred until grids fail on a real map.
 - [ ] G4. **Animation**: two-bone IK (feet on terrain, hands, aim; the deferred row's "flat floors" reason no longer holds since heightmap terrain exists), clip blend trees / blend spaces, then root motion as a visual offset or a sim-side motion curve (needs the deferred row's question answered) and motion warping for melee.
 - [ ] G5. **FBX path**: Mixamo, Cascadeur and 3ds Max export FBX. No FBX importer in the engine; a documented Blender batch conversion (`.fbx` → `.glb`, a Blender add-on button or a `tools/` script) plus a check that names the step when an `.fbx` lands in `assets/`.
 - [ ] G6. **Server-authoritative networking** (snapshot interpolation, dead reckoning, client prediction, dedicated server): "Not included" in the deferred table. Only if the target genre needs competitive PvP with many players or MO/MMO; first answer the dedicated server questions in `docs/ROADMAP_HUMAN.md`.
@@ -200,7 +198,7 @@ A review of how well an AI agent (and a developer new to MealKit) can read the e
 **Suggested order**: A5. A6 waits on its open questions (`docs/ROADMAP_HUMAN.md`).
 
 - [ ] A5. **More cookbook recipes** (S each). Jobs a game repeats: add a weapon (table row + RowRef + feedback row), add an enemy kind, add a game mode, add a map gimmick with `objects`. Each one is also the pattern an agent copies. English and Korean together.
-- Higher-level building blocks (Modules ⑨: `health`, `inventory`, `minimap`, `ai`) help game developers and agents the most, and stay in that section.
+- Higher-level building blocks (Modules ⑨: `inventory`, `minimap`; `health` and `ai` exist) help game developers and agents the most, and stay in that section.
 
 ## Visual feedback proposals (drafted 2026-10-29, not scheduled)
 
