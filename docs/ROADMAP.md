@@ -10,7 +10,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 1. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
 2. **Game-facing gaps that FuseTag hits when game work resumes**: none left (designer independence D4 is done).
 3. **UI 2**: MkUI's XAML-like layer, one piece at a time.
-4. **Proposals from other engines** E1, E5, E7, E8 in their suggested order, interleaved with the picked pool items below.
+4. **Proposals from other engines** E1, E7, E8 in their suggested order, interleaved with the picked pool items below.
 
 Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
 
@@ -152,7 +152,7 @@ Every ★ item of the 2026-11-04 review is done; what is left isn't decided. Pic
 
 - **Inspector** (scene object inspector: MkRender's, `../MkRender/docs/ROADMAP.md` 4): item 10 and its left-over parts (tabs in field groups 2, asset/event picker drag and drop and preview 4, `validate` rules 6) moved there.
 - **Scene tree** (MkRender's hierarchy, `../MkRender/docs/ROADMAP.md` 4): items 19~23, separators (18) and the prefab badge (20) moved there.
-- **Asset browser** (25 and 27 done, `docs/CHANGELOG.md`): nothing left. E5's "used by" / "uses" lines go in its preview pane.
+- **Asset browser** (25 and 27 done, `docs/CHANGELOG.md`): nothing left. E5's "used by" / "uses" lines are done (`docs/CHANGELOG.md` "Asset preview: Used by and Uses").
 - **Tables and spreadsheets (proposed 2026-11-18)**: `.table` stays the source (text: git diff and merge, RowRef checks, content hash); Excel or Google Sheets is only for editing, as Unreal teams do with DataTable + CSV reimport, but without a binary asset. In `module-data` (`TablesPanel.cpp`, `Tables.cpp`), in this order (39 to 43 are done: `docs/CHANGELOG.md` "Tables: copy and paste of cell ranges", "Tables: CSV import preview", "Tables: Reimport", "Tables: field ranges", "Tables: Scale Selected"; left over from them: watching the file for changes, so a save in the spreadsheet offers the reimport by itself): Known Excel traps the import checks should cover: CSV is saved as cells are formatted (`0.125` shown with 2 decimals is written as `0.13`), automatic conversion of ids and values (`1-2` to a date, `1.10` to `1.1`, leading zeros), plain "CSV" saved as CP949 on Korean Windows instead of UTF-8, and the file locked while Excel has it open. No formulas in the engine: they stay in a spreadsheet.
 - **Shared UI and workflow**: 37 and 38 done (`docs/CHANGELOG.md`). Left from done items: icons with tooltips on the viewport toolbar (35); status-bar hints for menu items (`commandMenuItem` has no description yet) and for the play tool.
 - **From the 2026-11-09 feedback review** (build profiles are done: `docs/CHANGELOG.md` "Build profiles"; other OSes get their profiles with stage 5): Own move/scale gizmo drawing (round ends, outline, hover growth) while rotation and the axis cube stay ImGuizmo, so `third_party/imguizmo` isn't patched (now MkRender's viewport).

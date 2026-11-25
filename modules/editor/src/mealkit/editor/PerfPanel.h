@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.25; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.26; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/game/FrameStats.h"
