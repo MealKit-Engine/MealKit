@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.27; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.28; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/Project.h"
 #include "mealkit/editor/Strings.h"
 
@@ -17,10 +17,10 @@ using mkcontract::normalizeDirectory;
 std::string ProjectInfo::filePath() const { return directory + "/" + kProjectFileName; }
 
 const std::string& editorBuildName() {
-    // The editor exe is in <folder>/build/<os>/<name>/bin: Editor (DX12) or VulkanEditor
+    // The editor exe is in <folder>/build/<os>/<name>/bin: Editor (DX12; Vulkan on Linux), VulkanEditor or WebGPUEditor
     static const std::string name = [] {
         const std::string build = fileName(parentDirectory(executableDirectory()));
-        return build == "VulkanEditor" ? build : std::string("Editor");
+        return build == "VulkanEditor" || build == "WebGPUEditor" ? build : std::string("Editor");
     }();
     return name;
 }

@@ -41,7 +41,9 @@ else()
         option(MEALKIT_LINUX_FRONTEND "Linux: build the X11 window, Vulkan renderer and editor (build.ps1 Editor/Vulkan pass ON)" OFF)
         if(MEALKIT_LINUX_FRONTEND)
             set(MEALKIT_HEADLESS_ONLY OFF)
-            set(MEALKIT_RHI "Vulkan" CACHE STRING "RHI backend: DX12 / Vulkan" FORCE) # no DX12 here
+            if(NOT MEALKIT_RHI STREQUAL "WebGPU") # Vulkan, or WebGPU (build.ps1 WebGPU/WebGPUEditor); no DX12 here
+                set(MEALKIT_RHI "Vulkan" CACHE STRING "RHI backend: DX12 / Vulkan / WebGPU" FORCE)
+            endif()
         endif()
     endif()
 endif()
@@ -99,11 +101,15 @@ else()
     endif()
 endif()
 
-# Graphics API backend (mealkit/rhi/<api>/, one per build). Shipping Windows builds use DX12; Vulkan via build.bat Vulkan/VulkanEditor.
-set(MEALKIT_RHI "DX12" CACHE STRING "RHI backend: DX12 / Vulkan")
-set_property(CACHE MEALKIT_RHI PROPERTY STRINGS DX12 Vulkan)
-if(NOT MEALKIT_RHI MATCHES "^(DX12|Vulkan)$")
-    message(FATAL_ERROR "MEALKIT_RHI must be DX12 or Vulkan (got '${MEALKIT_RHI}')")
+# Graphics API backend (mkrhi in MkRender, one per build). Shipping Windows builds use DX12; Vulkan via build.bat Vulkan/VulkanEditor.
+# WebGPU (Linux for now: Dawn, build.ps1 WebGPU/WebGPUEditor) is the backend the browser build will use; no shader hot reload
+set(MEALKIT_RHI "DX12" CACHE STRING "RHI backend: DX12 / Vulkan / WebGPU")
+set_property(CACHE MEALKIT_RHI PROPERTY STRINGS DX12 Vulkan WebGPU)
+if(NOT MEALKIT_RHI MATCHES "^(DX12|Vulkan|WebGPU)$")
+    message(FATAL_ERROR "MEALKIT_RHI must be DX12, Vulkan or WebGPU (got '${MEALKIT_RHI}')")
+endif()
+if(MEALKIT_RHI STREQUAL "WebGPU" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    message(FATAL_ERROR "MEALKIT_RHI WebGPU is built on Linux for now (Dawn, X11)")
 endif()
 
 option(MEALKIT_PROFILE "Enable Tracy profiling markers (build.bat Profile)" OFF)
@@ -400,6 +406,8 @@ if(MEALKIT_BUILD_KIND STREQUAL "Editor" AND NOT MEALKIT_IS_ENGINE)
     # The Vulkan editor (build.bat VulkanEditor) uses the engine's build/windows/VulkanEditor. Linux has only Vulkan, in build/linux/Editor
     if(MEALKIT_RHI STREQUAL "Vulkan" AND WIN32)
         set(mealkit_editor_build VulkanEditor)
+    elseif(MEALKIT_RHI STREQUAL "WebGPU")
+        set(mealkit_editor_build WebGPUEditor) # build.ps1 WebGPUEditor
     else()
         set(mealkit_editor_build Editor)
     endif()

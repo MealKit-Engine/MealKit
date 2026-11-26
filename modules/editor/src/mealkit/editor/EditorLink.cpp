@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.27; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.28; change it in that repo (tools\module.ps1 update), not here.
 // MkRender link (MealKit-Contract docs/CONTRACT.md "Scene service"): the MkRender scene editor finds this editor through the live connection
 // and asks it to play the saved scene (optionally from its camera, solo), stop, look through a virtual camera or preview a cutscene.
 // The editor's play view does the playing; MkRender only edits files.

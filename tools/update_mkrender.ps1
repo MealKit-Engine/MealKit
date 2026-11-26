@@ -1,7 +1,7 @@
 # Pulls the renderer libraries (separate repo MkRender: mkrhi, mkrender) into the engine's third_party/mkrender/ (docs/CODING_MODEL.md "Placing external libraries").
 #   powershell -ExecutionPolicy Bypass -File tools\update_mkrender.ps1 -From D:\MealKit-Engine\MkRender [-Ref v0.1.0]
 # - Extracts the contents of -Ref (tag/commit, default HEAD) with git archive, so files being edited in the checkout don't come in
-# - What's pulled: CMakeLists.txt, include/, src/, shaders/ (when present), LICENSE (tests, CI and build files are excluded)
+# - What's pulled: CMakeLists.txt, include/, src/, shaders/ and cmake/ (when present), LICENSE (tests, CI and build files are excluded)
 # - Changes version in third_party/mkrender/mealkit.txt to "<tag or CMake version> (<commit>)" and runs tools\gen_notices.ps1
 # While editing the libraries and engine together, don't pull; point to the checkout with the CMake variable MEALKIT_MKRENDER_DIR:
 #   cmake ... -DMEALKIT_MKRENDER_DIR=D:/MealKit-Engine/MkRender   (when done, tag the MkRender repo and pull it with this script)
@@ -26,6 +26,8 @@ $version = if ($tag) { $tag.Trim() } else { "v$($Matches[1])+$commit" }
 $paths = @("CMakeLists.txt", "include", "src", "LICENSE")
 if ($IsLinux -or $IsMacOS) { & git -C $From cat-file -e "${commit}:shaders" 2>$null } else { & cmd /c "git -C `"$From`" cat-file -e ${commit}:shaders 2>nul" }
 if ($LASTEXITCODE -eq 0) { $paths += "shaders" }
+if ($IsLinux -or $IsMacOS) { & git -C $From cat-file -e "${commit}:cmake" 2>$null } else { & cmd /c "git -C `"$From`" cat-file -e ${commit}:cmake 2>nul" }
+if ($LASTEXITCODE -eq 0) { $paths += "cmake" } # build-time scripts (WgslHeader.cmake: WebGPU shaders)
 
 # Extract (temp folder -> replaces the target folder except mealkit.txt)
 $tmp = Join-Path ([IO.Path]::GetTempPath()) ("mkrender-" + [guid]::NewGuid().ToString("N"))

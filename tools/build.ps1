@@ -100,8 +100,10 @@ switch ($Config) {
     "Headless" { $buildType = "Release" }
     "HeadlessOnly" { $buildType = "Release"; $extra = @("-DMEALKIT_FORCE_HEADLESS_ONLY=ON") }
     "VulkanEditor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor", "-DMEALKIT_RHI=Vulkan"); $isEditor = $true }
+    "WebGPU" { $buildType = "Release"; $extra = @("-DMEALKIT_RHI=WebGPU") } # Linux: Dawn (MkRender's WebGPU backend)
+    "WebGPUEditor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor", "-DMEALKIT_RHI=WebGPU"); $isEditor = $true }
     "Editor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor"); $isEditor = $true }
-    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, VulkanExport, profile:<name>, Editor, ClangCL, Vulkan, VulkanEditor, EOS, Presets, Headless, HeadlessOnly)" }
+    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, VulkanExport, profile:<name>, Editor, ClangCL, Vulkan, VulkanEditor, WebGPU, WebGPUEditor, EOS, Presets, Headless, HeadlessOnly)" }
 }
 
 if ($onWindows) {

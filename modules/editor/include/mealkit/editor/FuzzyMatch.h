@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.27; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.28; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include <algorithm>

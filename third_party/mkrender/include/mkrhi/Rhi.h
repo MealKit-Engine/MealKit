@@ -2,13 +2,14 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <initializer_list>
 #include <string>
 #include <vector>
 
 // mkrhi: thin graphics API layer of MkRender (no engine headers; the host passes a native window handle and size).
 // Only as much as the renderer uses: device/swap chain, frame command lists, static buffers, textures, pipelines, frame upload ring, capture.
 // Its shape follows DX12 (command list recording, explicit barriers, bindless indices). One backend per build (CMake MKRHI_BACKEND: src/mkrhi/dx12/,
-// src/mkrhi/vulkan/), with per-backend .cpp files implementing the same classes without virtual functions. Graphics API headers stay in the backend folders.
+// src/mkrhi/vulkan/, src/mkrhi/webgpu/), with per-backend .cpp files implementing the same classes without virtual functions. Graphics API headers stay in the backend folders.
 //
 // Binding: every pipeline uses the same layout (shaders/Bindless.hlsli on the renderer side).
 //   push constants 64 bytes (HLSL `[[vk::push_constant]] ConstantBuffer<T> : register(b0)`)
@@ -37,7 +38,7 @@ enum class LogLevel : u8 { Info, Warn, Error, Fatal };
 using LogFn = void (*)(LogLevel level, const char* message, void* user);
 void setLog(LogFn fn, void* user = nullptr);
 
-// "dx12" or "vulkan": the backend this library was built with
+// "dx12", "vulkan" or "webgpu": the backend this library was built with
 const char* backendName();
 
 // GPU feature inspection results. Written to the startup log and `--system-info` (min-spec hardware measurement records).
@@ -163,8 +164,14 @@ struct XlibWindow {
     unsigned long window = 0;
 };
 
+// Browser (Emscripten, WebGPU backend) window for DeviceDesc::window: the canvas element's CSS selector. The canvas size is the
+// host's (DeviceDesc width/height, resize); endFrame waits for the browser's next animation frame instead of presenting
+struct WebCanvas {
+    const char* selector = "#canvas";
+};
+
 struct DeviceDesc {
-    void* window = nullptr; // native window handle: HWND on Windows, XlibWindow* on Linux (X11)
+    void* window = nullptr; // native window handle: HWND on Windows, XlibWindow* on Linux (X11), WebCanvas* in a browser
     u32 width = 0;
     u32 height = 0;
     bool debug = false; // validation layer (DX12 debug layer, Vulkan validation)
@@ -231,6 +238,12 @@ public:
     void drawIndexed(u32 indexCount, u32 instanceCount);
     void draw(u32 vertexCount, u32 instanceCount);
     void textureBarrier(Texture texture, TextureState before, TextureState after);
+    // Textures (textureIndex values; kNoTexture-like ~0u and pooled ones are skipped) the next draws and dispatches may read that a
+    // WebGPU texture pool doesn't hold: render targets, storage textures, other formats and sizes. WebGPU binds at most two 2D
+    // textures, one cube and one depth texture of these at a time (browsers allow 16 sampled textures per shader stage); a shader
+    // reading another one gets the wrong texture. Stays until the next call. DX12/Vulkan read every texture and ignore it
+    void useTextures(const u32* indices, u32 count);
+    void useTextures(std::initializer_list<u32> indices) { useTextures(indices.begin(), static_cast<u32>(indices.size())); }
     // Compute (G1). dispatch runs the current compute pipeline with groupsX*Y*Z thread groups (it ends the bound target).
     // bufferBarrier moves a storage buffer between read (g_buffers[]) and read/write (g_rwBuffers[]) use; uavBarrier makes earlier
     // compute writes visible to later reads/writes of the same state (dispatch → dispatch on the same buffer or texture)
