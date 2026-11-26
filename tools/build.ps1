@@ -11,6 +11,7 @@
 #     Vulkan    Release game with the Vulkan RHI backend in <project>/build/<os>/Vulkan/bin (backend comparison, not shipped on Windows)
 #     VulkanEditor  editor build with the Vulkan backend in <project>/build/<os>/VulkanEditor/bin (like Editor)
 #     VulkanExport  Export with the Vulkan backend (Linux: the same as Export)
+#     WebGPU / WebGPUEditor / WebGPUExport  Linux: Release, editor and export builds with the WebGPU backend (Dawn)
 #     profile:<name>  the configuration (and for an export the output folder) written in <project>/profiles/<name>.profile (docs/DECISIONS.md 2026-11-23 "Build profiles")
 #     Presets   Release plus every engine preset (engine repository: also <sample>_solo.exe without net and <sample>_noaudio.exe without audio, docs/ENGINE_MODULES.md "Presets")
 #     EOS       Release with the EOS online backend (build/<os>/EOS, needs third_party/eos)
@@ -68,7 +69,7 @@ if ($Config -like "profile:*") {
         if ($profilePlatform -ne $hostOs) { Fail "build profile '$profileName' builds on $profilePlatform (this PC: $hostOs)" }
     }
     if (-not $Config -or $Config -like "profile:*") { Fail "build profile '$profileName' has no valid config line" }
-    if ($exportOut -and $Config -notin @("Export", "VulkanExport")) { Fail "build profile '$profileName': output is only for Export and VulkanExport" }
+    if ($exportOut -and $Config -notin @("Export", "VulkanExport", "WebGPUExport")) { Fail "build profile '$profileName': output is only for Export, VulkanExport and WebGPUExport" }
     if ($exportOut) {
         if (-not [IO.Path]::IsPathRooted($exportOut)) { $exportOut = Join-Path $projectDir $exportOut }
         $exportOut = $exportOut.Replace("\", "/")
@@ -93,6 +94,11 @@ switch ($Config) {
         $extra = @("-DMEALKIT_RHI=Vulkan", "-DMEALKIT_DEBUG_UI=OFF", "-DMEALKIT_LIVE=OFF")
         if ($Target.Count -eq 0) { $Target = @("game_export") }
     }
+    "WebGPUExport" {
+        $buildType = "Release"
+        $extra = @("-DMEALKIT_RHI=WebGPU", "-DMEALKIT_DEBUG_UI=OFF", "-DMEALKIT_LIVE=OFF")
+        if ($Target.Count -eq 0) { $Target = @("game_export") }
+    }
     "ClangCL" { $buildType = "Release" }
     "Vulkan" { $buildType = "Release"; $extra = @("-DMEALKIT_RHI=Vulkan") }
     "EOS" { $buildType = "Release"; $extra = @("-DMEALKIT_ONLINE=EOS") }
@@ -103,7 +109,7 @@ switch ($Config) {
     "WebGPU" { $buildType = "Release"; $extra = @("-DMEALKIT_RHI=WebGPU") } # Linux: Dawn (MkRender's WebGPU backend)
     "WebGPUEditor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor", "-DMEALKIT_RHI=WebGPU"); $isEditor = $true }
     "Editor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor"); $isEditor = $true }
-    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, VulkanExport, profile:<name>, Editor, ClangCL, Vulkan, VulkanEditor, WebGPU, WebGPUEditor, EOS, Presets, Headless, HeadlessOnly)" }
+    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, VulkanExport, WebGPUExport, profile:<name>, Editor, ClangCL, Vulkan, VulkanEditor, WebGPU, WebGPUEditor, EOS, Presets, Headless, HeadlessOnly)" }
 }
 
 if ($onWindows) {
@@ -168,7 +174,7 @@ if ($isEditor -and $projectDir -ne $engineDir -and -not $installedEngine) {
     Invoke-Self $engineDir $Config "Engine editor build failed. If MealKitEditor is running and the engine changed, close it and build again."
 }
 # Export cooks the assets with the development Release exe (game/Cook.h), so bring that up to date first
-if ($Config -in @("Export", "VulkanExport")) { Invoke-Self $projectDir "Release" "The Release build used for cooking failed." }
+if ($Config -in @("Export", "VulkanExport", "WebGPUExport")) { Invoke-Self $projectDir "Release" "The Release build used for cooking failed." }
 
 $buildDir = Get-NewBuildDir $projectDir $buildName
 # A tree of the layout before build/<os>/ (build/<Config>) can't be moved (CMake keeps its absolute path): it's built anew once
@@ -180,7 +186,7 @@ if (-not (Test-Path $buildDir) -and (Test-Path (Join-Path $oldDir "CMakeCache.tx
 $configured = (Test-Path (Join-Path $buildDir "build.ninja")) -and (Test-Path (Join-Path $buildDir "CMakeCache.txt"))
 if (-not ($isEditor -and $configured)) {
     # Always set for an export (empty clears the value a previous profile left in the CMake cache)
-    if ($Config -in @("Export", "VulkanExport")) { $extra += "-DMEALKIT_EXPORT_DIR=$exportOut" }
+    if ($Config -in @("Export", "VulkanExport", "WebGPUExport")) { $extra += "-DMEALKIT_EXPORT_DIR=$exportOut" }
     Invoke-Native "cmake" (@("-S", $projectDir, "-B", $buildDir, "-G", "Ninja", "--no-warn-unused-cli", "-DCMAKE_BUILD_TYPE=$buildType",
             "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DMEALKIT_ROOT=$engineDir") + $extra)
 }
@@ -208,7 +214,7 @@ if ($Config -eq "Editor") {
     $commands = Join-Path $buildDir "compile_commands.json"
     if (Test-Path $commands) { Copy-Item $commands (Join-Path (Join-Path $projectDir "build") "compile_commands.json") -Force }
 }
-if ($Config -in @("Export", "VulkanExport")) {
+if ($Config -in @("Export", "VulkanExport", "WebGPUExport")) {
     Write-Host "[MealKit] Export OK: $(if ($exportOut) { $exportOut } else { Join-Path (Join-Path $projectDir 'export') $MealKitBuildOs })"
 } else {
     Write-Host "[MealKit] Build OK: $(Join-Path $buildDir 'bin')"

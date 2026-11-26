@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.28; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.29; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/BuildProfile.h"
 
 #include "mealkit/editor/Project.h"
@@ -98,6 +98,7 @@ std::vector<BuildProfile> defaultBuildProfiles() {
         {"windows-dx12", "Windows DX12", "Export", "export/windows-dx12", "windows"},
         {"windows-vulkan", "Windows Vulkan", "VulkanExport", "export/windows-vulkan", "windows"},
         {"linux-vulkan", "Linux Vulkan", "Export", "export/linux-vulkan", "linux"},
+        {"linux-webgpu", "Linux WebGPU", "WebGPUExport", "export/linux-webgpu", "linux"},
         {"debug", "Debug", "Debug", "", ""},
     };
 }

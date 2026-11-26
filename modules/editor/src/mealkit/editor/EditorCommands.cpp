@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.28; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.29; change it in that repo (tools\module.ps1 update), not here.
 // Editor command table and command palette (Ctrl+P). Menus, shortcuts, palette, and F1 help all use this one table.
 #include "mealkit/editor/Editor.h"
 #include "mealkit/editor/SharedBuild.h"

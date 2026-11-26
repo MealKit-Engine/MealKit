@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.28; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.29; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/BuildPanel.h"
 
 #include "mealkit/core/Log.h"
@@ -117,6 +117,8 @@ const ConfigChoice kConfigs[] = {
     {"Profile", "Release with Tracy profiling"},
     {"Debug", "Debug build"},
     {"Vulkan", "Development build with the Vulkan renderer"},
+    {"WebGPUExport", "Shipping build with the WebGPU renderer (Linux)"},
+    {"WebGPU", "Development build with the WebGPU renderer (Linux)"},
 };
 
 } // namespace
@@ -538,7 +540,7 @@ bool BuildPanel::drawSettings(bool* open, bool editing, const ProjectInfo& proje
                 loadProfiles(project);
             }
             if (ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("%s", tr("Writes profiles/*.profile: Windows DX12, Windows Vulkan, Linux Vulkan and Debug"));
+                ImGui::SetTooltip("%s", tr("Writes profiles/*.profile: Windows DX12, Windows Vulkan, Linux Vulkan, Linux WebGPU and Debug"));
         }
         ImGui::EndDisabled();
     }

@@ -966,6 +966,11 @@ function(mealkit_add_game name)
     get_filename_component(build_root "${CMAKE_BINARY_DIR}" DIRECTORY)
     set(export_cooker "${build_root}/Release/bin/${name}${CMAKE_EXECUTABLE_SUFFIX}")
     set(export_pack "${build_root}/cook/${name}.pak")
+    # 5 MB executable budget (docs/ROADMAP.md "Performance budget"); native WebGPU links Dawn statically (~12 MB), so 20 MB there
+    set(mealkit_exe_budget_mb 5)
+    if(MEALKIT_RHI STREQUAL "WebGPU")
+        set(mealkit_exe_budget_mb 20)
+    endif()
     add_custom_target(${name}_export
         COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/check_layout.ps1"
             -Project "${project_dir}"
@@ -982,7 +987,7 @@ function(mealkit_add_game name)
             -DEOS_DLL=${MEALKIT_EOS_DLL}
             -DSTEAM_APP_ID=${ARG_STEAM_APP_ID}
             -DNOTICES=${export_notices}
-            -DEXE_BUDGET_MB=5
+            -DEXE_BUDGET_MB=${mealkit_exe_budget_mb}
             -P ${MEALKIT_ENGINE_DIR}/cmake/MealKitExport.cmake
         DEPENDS ${name}
         COMMENT "Exporting ${name}"

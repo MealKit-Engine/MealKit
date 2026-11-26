@@ -3,6 +3,12 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## WebGPU build profile (2026-11-26; module editor 0.2.29; VERSION 0.9.26)
+- `build.ps1 WebGPUExport` (Linux): the shipping export with the WebGPU backend, like `VulkanExport` (cooked with the Release exe, `game_export`, a profile's `output` folder).
+- **module editor 0.2.29**: Build Profiles lists `WebGPU` and `WebGPUExport` as configurations, and the default profiles add `linux-webgpu` (`WebGPUExport` into `export/linux-webgpu`, Linux only). Korean strings for both.
+- The export's executable budget is 20 MB with `MEALKIT_RHI=WebGPU` (5 MB otherwise): Dawn is linked statically, and the stripped sandbox is 18.6 MB. The browser build will not carry Dawn (the browser has WebGPU), so its budget is set with stage 5.
+- Verified (Ubuntu): `WebGPUEditor` build with the editor module; `WebGPUExport` of the engine samples (`samples/sandbox/export/linux/sandbox` runs on WebGPU (Dawn, Vulkan)). Not verified: the Build Profiles window by hand, Windows, `tools\check.ps1` (not asked for).
+
 ## WebGPU backend in the engine (2026-11-26; MkRender d73ec16, module editor 0.2.28; VERSION 0.9.25)
 - Ahead of stage 5's web build: `MEALKIT_RHI` takes `WebGPU` (Linux for now: MkRender's Dawn backend on X11), with `build.ps1 WebGPU` (game exe, `build/linux/WebGPU`) and `WebGPUEditor` (`build/linux/WebGPUEditor`; a game project's editor build imports that tree). No graphics API code moved into the engine: the window handle is the same `XlibWindowHandle`, the debug UI is drawn by mkrhi itself (no ImGui backend file for WebGPU), and `d3d12`/`d3dcompiler`/`imgui_impl_dx12` are linked only for DX12 now (they were "not Vulkan" before).
 - Shader hot reload is off on WebGPU (its shaders go through DXC + Tint into WGSL headers at build time; the hot path only knows DXIL/SPIR-V).

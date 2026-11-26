@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.28; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.29; change it in that repo (tools\module.ps1 update), not here.
 // [Assets] window: assets/ folder tree and files, drag models into the scene view, rename/move (references fixed too), broken reference list.
 // Assets are referenced by paths relative to assets ("models/tree.glb") (docs/CODING_MODEL.md "Asset references and loading").
 #include "mealkit/editor/Editor.h"
