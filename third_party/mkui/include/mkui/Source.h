@@ -13,10 +13,11 @@
 namespace mkui {
 
 struct Document;
+struct Theme;
 
 // One line inside a node, in file order: a property, comment or blank line (child < 0), or the place of a child node
 struct SourceItem {
-    std::string line; // trimmed; empty for blank lines and children
+    std::string line; // trimmed (but the lines inside a root "style" block keep a two-space indent); empty for blank lines and children
     i32 child = -1;   // index in SourceNode::children
 };
 
@@ -29,7 +30,7 @@ struct SourceNode {
 };
 
 struct Source {
-    SourceNode root; // kind empty; its items are the lines around the board (comments, @format), its one child the board
+    SourceNode root; // kind empty; its items are the lines around the board (comments, @format, style blocks), its one child the board
     bool exported = false; // first line marks a Penpot export (open read-only, mkui/Document.h)
 };
 
@@ -48,6 +49,8 @@ const SourceNode* findNode(const Source& source, const SourcePath& path);
 // Properties. key is the leading words that identify the line: "pos", "fill", "on hover fill", "set label color", "span 1".
 // getProperty gives the rest of the first matching line (false if none).
 bool getProperty(const SourceNode& node, const std::string& key, std::string& value);
+// The same, but of the lines the node ends up with: its styles (doc: the file's own, theme) under its own lines
+bool getStyledProperty(const SourceNode& node, const std::string& key, const Document& doc, const Theme& theme, std::string& value);
 // Replaces the first matching line (and drops later duplicates) or adds the line after the node's last property line
 void setProperty(SourceNode& node, const std::string& key, const std::string& value);
 bool removeProperty(SourceNode& node, const std::string& key); // removes every matching line

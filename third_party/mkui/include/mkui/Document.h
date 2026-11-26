@@ -29,6 +29,22 @@
 //     end
 //   end
 //
+// Styles are named groups of property lines, shared in theme.ui or written above a screen's board (that file only):
+//   style button                 ← any node property lines (not id/set), closed with end
+//     radius 12
+//     on hover fill $buttonHover
+//   end
+//   style danger
+//     style button               ← builds on other styles
+//     fill #802020
+//   end
+//   ...  frame quit
+//          style danger big      ← several apply left to right; the node's own lines beat all of them
+// A later layer (base, then style, then later styles, then the node) replaces the earlier lines of the same property
+// ("shadow" lines as a set, "span <n>" per tag, "on <state> <property>" per state, key/content together, one widget).
+// Flags (hidden, clip, absolute, underline, strike) can be set by a style but not unset. A style used twice applies once.
+// A screen's style hides the theme's style of the same name from that file; theme styles only see theme styles.
+//
 // One line = one property ("name value..."). Nodes open with board / frame / text / image / use (another .ui as a component) and close with end.
 // Colors are #RRGGBB[AA] or theme tokens $name (assets/ui/theme.ui). The property list is parseProperty in Document.cpp.
 namespace mkui {
@@ -208,6 +224,12 @@ struct Node {
     std::string focusNext[4]; // node names to go to for up, down, left, right (nearest if empty)
 };
 
+// "style <name>" ... "end" (above): the property lines in file order, "style a b" among them naming the styles it builds on
+struct Style {
+    std::string name;
+    std::vector<std::string> lines;
+};
+
 struct Document {
     std::string path;     // relative to assets
     bool exported = false; // exported by the Penpot plugin (not edited by hand)
@@ -216,13 +238,16 @@ struct Document {
     std::string firstFocus; // name of the node to focus first
     bool navigation = false; // keyboard/gamepad move between widgets (menus). Off for HUDs (so they don't take movement keys)
     std::vector<Node> nodes; // depth first, [0] = board
+    std::vector<Style> styles; // this file's own (not a component's, not the theme's)
     std::vector<std::string> errors;
 };
 
-// Theme (assets/ui/theme.ui): "color name #RRGGBBAA", "number name value". Color tokens are resolved when drawing, number tokens ($name) when reading
+// Theme (assets/ui/theme.ui): "color name #RRGGBBAA", "number name value", "style name" ... "end". Color tokens are resolved when
+// drawing, number tokens ($name) and styles when reading
 struct Theme {
     std::vector<std::pair<std::string, u32>> colors;
     std::vector<std::pair<std::string, f32>> numbers;
+    std::vector<Style> styles;
     u32 color(const ColorValue& c, u32 fallback = 0xFFFFFFFFu) const;
     bool number(const std::string& name, f32& out) const;
 };
@@ -232,6 +257,12 @@ bool loadTheme(Theme& out, Host& host, std::vector<std::string>* errors = nullpt
 // Reads a .ui at a path relative to assets (use rereads that file and inserts it as a subtree). Even on failure uses what was read and puts line numbers in errors.
 bool loadDocument(const std::string& assetPath, Document& out, Host& host, const Theme* theme = nullptr);
 bool parseDocument(const std::string& text, const std::string& assetPath, Document& out, Host& host, const Theme* theme = nullptr);
+
+// The property lines a node ends up with from its own lines ("style a b" among them): the styles' lines, then its own, a later
+// layer replacing the earlier ones. local: the file's own styles. Unknown names and styles that build on themselves are
+// reported in errors and skipped
+std::vector<std::string> expandStyles(const std::vector<std::string>& lines, const std::vector<Style>& local, const Theme* theme,
+                                      std::vector<std::string>* errors = nullptr);
 
 // Applies one property line to a node (state overrides use this function too). false for unknown properties
 bool applyProperty(Node& node, const std::string& line, const Theme* theme, std::string* error = nullptr);

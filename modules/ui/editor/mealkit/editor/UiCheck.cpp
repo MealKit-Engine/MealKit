@@ -1,4 +1,4 @@
-// Vendored copy of module-ui v0.1.14; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-ui v0.1.15; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/UiCheck.h"
 
 #include "mealkit/loc/Strings.h"
@@ -84,8 +84,10 @@ int runUiCheck(const std::string& projectDir, const std::string& language) {
         }
         ++screens;
         // Nodes to skip: text with bindings, inside lists
+        ui::Theme theme; // $number tokens and theme styles are resolved when reading
+        ui::loadTheme(theme);
         ui::Document doc;
-        ui::loadDocument("ui/" + file, doc);
+        ui::loadDocument("ui/" + file, doc, &theme);
         std::vector<std::string> skip;
         for (size_t i = 0; i < doc.nodes.size(); ++i) {
             const ui::Node& n = doc.nodes[i];
@@ -152,8 +154,10 @@ int runUiCheck(const std::string& projectDir, const std::string& language) {
 
 int runUiRender(const std::string& projectDir, const std::string& language, const std::string& uiFile, const std::string& pngPath) {
     setProjectRoot(projectDir);
+    ui::Theme theme;
+    ui::loadTheme(theme);
     ui::Document doc;
-    if (!ui::loadDocument(uiFile, doc)) {
+    if (!ui::loadDocument(uiFile, doc, &theme)) {
         std::printf("UI-RENDER cannot read %s\n", uiFile.c_str());
         for (const std::string& e : doc.errors) std::printf("  %s\n", e.c_str());
         return 1;

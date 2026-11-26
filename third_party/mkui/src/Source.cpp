@@ -57,6 +57,52 @@ bool matches(const std::string& line, const std::vector<std::string>& key) {
     return true;
 }
 
+// Every style name on a "style" line (or "set <child> style") in the node and under it
+void styleNames(const SourceNode& n, std::vector<std::string>& out) {
+    for (const SourceItem& item : n.items) {
+        const std::vector<std::string> words = split(item.line);
+        const size_t from = !words.empty() && words[0] == "style" ? 1 : words.size() > 2 && words[0] == "set" && words[2] == "style" ? 3 : words.size();
+        out.insert(out.end(), words.begin() + static_cast<std::ptrdiff_t>(from), words.end());
+    }
+    for (const SourceNode& c : n.children) styleNames(c, out);
+}
+
+// The file's own style blocks ("style" ... "end" root lines) that names (and what they build on) ask for, in file order
+std::vector<SourceItem> styleBlocks(const SourceNode& root, std::vector<std::string> names) {
+    struct Block {
+        size_t first, last;
+        std::string name;
+        bool taken = false;
+    };
+    std::vector<Block> blocks;
+    bool open = false;
+    for (size_t i = 0; i < root.items.size(); ++i) {
+        if (root.items[i].child >= 0) continue;
+        const std::vector<std::string> words = split(root.items[i].line);
+        if (words.empty()) continue;
+        if (!open && words[0] == "style" && words.size() == 2) {
+            blocks.push_back({i, i, words[1]});
+            open = true;
+        } else if (open && words[0] == "end") {
+            blocks.back().last = i;
+            open = false;
+        }
+    }
+    for (size_t i = 0; i < names.size(); ++i) // names grows with what the taken styles build on
+        for (Block& b : blocks) {
+            if (b.taken || b.name != names[i]) continue;
+            b.taken = true;
+            for (size_t l = b.first + 1; l < b.last; ++l) {
+                const std::vector<std::string> words = split(root.items[l].line);
+                if (!words.empty() && words[0] == "style") names.insert(names.end(), words.begin() + 1, words.end());
+            }
+        }
+    std::vector<SourceItem> out;
+    for (const Block& b : blocks)
+        if (b.taken) out.insert(out.end(), root.items.begin() + static_cast<std::ptrdiff_t>(b.first), root.items.begin() + static_cast<std::ptrdiff_t>(b.last + 1));
+    return out;
+}
+
 std::string joinLine(const std::string& key, const std::string& value) {
     return value.empty() ? key : key + " " + value;
 }
@@ -137,6 +183,7 @@ bool parseSource(const std::string& text, Source& out, std::string* error) {
         if (error) *error = "line " + std::to_string(lineNo) + ": " + message;
         return false;
     };
+    u32 styleLine = 0; // inside a "style" block above or below the board: its lines stay root items, indented
     while (pos < text.size()) {
         size_t end = text.find('\n', pos);
         if (end == std::string::npos) end = text.size();
@@ -146,7 +193,14 @@ bool parseSource(const std::string& text, Source& out, std::string* error) {
         if (lineNo == 1 && line.rfind("# MealKit UI exported from Penpot", 0) == 0) out.exported = true;
         SourceNode& top = *stack.back();
         const std::vector<std::string> words = line.empty() || line[0] == '#' ? std::vector<std::string>{} : split(line);
-        if (!words.empty() && isHead(words[0])) {
+        if (styleLine) {
+            const bool closes = !words.empty() && words[0] == "end";
+            top.items.push_back({closes || line.empty() ? line : "  " + line, -1});
+            if (closes) styleLine = 0;
+        } else if (!words.empty() && words[0] == "style" && stack.size() == 1) {
+            styleLine = lineNo;
+            top.items.push_back({line, -1});
+        } else if (!words.empty() && isHead(words[0])) {
             if (words.size() < 2) return fail("expected \"" + words[0] + " <name>\"");
             if ((words[0] == "board") != (stack.size() == 1)) return fail(words[0] == "board" ? "board inside a node" : "node outside the board");
             if (words[0] == "board" && !out.root.children.empty()) return fail("only one board per file");
@@ -164,6 +218,7 @@ bool parseSource(const std::string& text, Source& out, std::string* error) {
             top.items.push_back({line, -1});
         }
     }
+    if (styleLine) return fail("style without end (opened on line " + std::to_string(styleLine) + ")");
     if (stack.size() != 1) return fail("missing end (" + std::to_string(stack.size() - 1) + " node(s) open)");
     if (out.root.children.empty()) return fail("no board");
     return true;
@@ -206,6 +261,24 @@ bool getProperty(const SourceNode& node, const std::string& key, std::string& va
     for (const SourceItem& item : node.items)
         if (item.child < 0 && matches(item.line, k)) {
             value = rest(item.line, k.size());
+            return true;
+        }
+    return false;
+}
+
+bool getStyledProperty(const SourceNode& node, const std::string& key, const Document& doc, const Theme& theme, std::string& value) {
+    std::vector<std::string> lines;
+    bool styled = false;
+    for (const SourceItem& item : node.items)
+        if (isProperty(item)) {
+            lines.push_back(item.line);
+            styled = styled || matches(item.line, {"style"});
+        }
+    if (!styled || key == "style") return getProperty(node, key, value);
+    const std::vector<std::string> k = split(key);
+    for (const std::string& line : expandStyles(lines, doc.styles, &theme))
+        if (matches(line, k)) {
+            value = rest(line, k.size());
             return true;
         }
     return false;
@@ -365,6 +438,15 @@ bool extractComponent(Source& source, const SourcePath& path, const std::string&
     }
     board.children = std::move(n->children);
     *n = std::move(use);
+    // The screen's own styles the moved nodes name go along (the screen keeps them: other nodes may use them)
+    std::vector<std::string> names;
+    styleNames(board, names);
+    const std::vector<SourceItem> styles = styleBlocks(source.root, std::move(names));
+    for (size_t i = 0; i < out.root.items.size(); ++i)
+        if (out.root.items[i].child >= 0) {
+            out.root.items.insert(out.root.items.begin() + static_cast<std::ptrdiff_t>(i), styles.begin(), styles.end());
+            break;
+        }
     component = std::move(out);
     return true;
 }

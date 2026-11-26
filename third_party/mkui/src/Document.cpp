@@ -180,7 +180,125 @@ bool parseState(const std::string& s, State& out) {
     return false;
 }
 
+bool isStyleLine(const std::string& line) {
+    return line.compare(0, 5, "style") == 0 && (line.size() == 5 || line[5] == ' ' || line[5] == '\t');
+}
+
+// Lines of the same property replace each other from one style layer to the next
+std::string mergeKey(const std::string& line) {
+    const std::vector<std::string> t = split(line);
+    if (t.empty()) return {};
+    const std::string& k = t[0];
+    if (k == "on" && t.size() > 2) return "on " + t[1] + " " + mergeKey(rest(line, 2));
+    if (k == "span" && t.size() > 1) return "span " + t[1];
+    if (k == "key" || k == "content") return "text";
+    for (const char* w : {"button", "toggle", "slider", "select", "scroll", "list", "textInput"})
+        if (k == w) return "widget";
+    return k;
+}
+
+void mergeLayer(std::vector<std::string>& out, const std::vector<std::string>& layer) {
+    std::vector<std::string> keys;
+    for (const std::string& line : layer) keys.push_back(mergeKey(line));
+    out.erase(std::remove_if(out.begin(), out.end(),
+                             [&](const std::string& line) { return std::find(keys.begin(), keys.end(), mergeKey(line)) != keys.end(); }),
+              out.end());
+    out.insert(out.end(), layer.begin(), layer.end());
+}
+
+struct StyleExpander {
+    const std::vector<Style>& local;
+    const Theme* theme;
+    std::vector<std::string>* errors;
+    std::vector<const Style*> open, applied;
+    std::vector<std::string> out;
+
+    static const Style* find(const std::vector<Style>& styles, const std::string& name) {
+        for (const Style& s : styles)
+            if (s.name == name) return &s;
+        return nullptr;
+    }
+    void fail(const std::string& message) {
+        if (errors) errors->push_back(message);
+    }
+    // fromTheme: a theme style's "style" lines name theme styles only
+    void use(const std::string& line, bool fromTheme) {
+        const std::vector<std::string> names = split(line);
+        if (names.size() < 2) fail("expected \"style <name> [name...]\"");
+        for (size_t i = 1; i < names.size(); ++i) {
+            const Style* s = fromTheme ? nullptr : find(local, names[i]);
+            const bool inTheme = !s;
+            if (!s && theme) s = find(theme->styles, names[i]);
+            if (!s) fail("no style named '" + names[i] + "'");
+            else if (std::find(open.begin(), open.end(), s) != open.end()) fail("style '" + names[i] + "' builds on itself");
+            else if (std::find(applied.begin(), applied.end(), s) == applied.end()) apply(*s, inTheme);
+        }
+    }
+    void apply(const Style& s, bool fromTheme) {
+        open.push_back(&s);
+        std::vector<std::string> own;
+        for (const std::string& line : s.lines)
+            if (isStyleLine(line)) use(line, fromTheme);
+            else own.push_back(line);
+        mergeLayer(out, own);
+        open.pop_back();
+        applied.push_back(&s);
+    }
+};
+
+// Collects the "style <name>" ... "end" blocks of one file
+struct StyleBlock {
+    Style style;
+    bool open = false, keep = false;
+    u32 line = 0;
+    std::vector<std::pair<u32, std::string>> body;
+
+    void begin(const std::vector<std::string>& t, u32 lineNo) {
+        style = {};
+        body.clear();
+        open = true;
+        keep = t.size() == 2;
+        line = lineNo;
+        if (keep) style.name = t[1];
+    }
+    // After the block: checks its lines (the theme's numbers are all known by then) and adds it to styles
+    template <class Error>
+    void finish(std::vector<Style>& styles, const Theme* theme, const Error& error) {
+        for (const auto& [lineNo, text] : body) {
+            if (!isStyleLine(text)) {
+                Node probe;
+                probe.kind = NodeKind::Text; // takes every property, textInput too
+                std::string message;
+                const std::string word = split(text)[0];
+                if (word == "id" || word == "set") {
+                    error(lineNo, "'" + word + "' belongs to a node, not a style");
+                    continue;
+                }
+                if (!applyProperty(probe, text, theme, &message)) {
+                    error(lineNo, message);
+                    continue;
+                }
+            }
+            style.lines.push_back(text);
+        }
+        if (!keep) error(line, "expected \"style <name>\"");
+        else if (StyleExpander::find(styles, style.name)) error(line, "style '" + style.name + "' is defined twice");
+        else styles.push_back(std::move(style));
+    }
+};
+
 } // namespace
+
+std::vector<std::string> expandStyles(const std::vector<std::string>& lines, const std::vector<Style>& local, const Theme* theme,
+                                      std::vector<std::string>* errors) {
+    StyleExpander e{local, theme, errors, {}, {}, {}};
+    std::vector<std::string> own;
+    for (const std::string& line : lines)
+        if (isStyleLine(line)) e.use(line, false);
+        else own.push_back(line);
+    mergeLayer(e.out, own);
+    return e.out;
+}
 
 u32 Theme::color(const ColorValue& c, u32 fallback) const {
     if (c.token.empty()) return c.rgba;
@@ -205,6 +323,11 @@ bool loadTheme(Theme& out, Host& host, std::vector<std::string>* errors) {
     if (!host.readFile(kThemeFile, text)) return false;
     u32 lineNo = 0;
     size_t pos = 0;
+    auto report = [&](u32 at, const std::string& message) {
+        if (errors) errors->push_back(std::string(kThemeFile) + "(" + std::to_string(at) + "): " + message);
+    };
+    std::vector<StyleBlock> blocks;
+    StyleBlock block;
     while (pos < text.size()) {
         size_t end = text.find('\n', pos);
         if (end == std::string::npos) end = text.size();
@@ -214,6 +337,17 @@ bool loadTheme(Theme& out, Host& host, std::vector<std::string>* errors) {
         if (line.empty() || line[0] == '#') continue;
         if (formatLine(line, path, host)) continue;
         const std::vector<std::string> t = split(line);
+        if (block.open) {
+            if (t[0] == "end") {
+                block.open = false;
+                blocks.push_back(block);
+            } else block.body.emplace_back(lineNo, line);
+            continue;
+        }
+        if (t[0] == "style") {
+            block.begin(t, lineNo);
+            continue;
+        }
         bool ok = t.size() == 3;
         if (ok && t[0] == "color") {
             ColorValue c;
@@ -226,8 +360,10 @@ bool loadTheme(Theme& out, Host& host, std::vector<std::string>* errors) {
         } else {
             ok = false;
         }
-        if (!ok && errors) errors->push_back(std::string(kThemeFile) + "(" + std::to_string(lineNo) + "): expected \"color <name> #RRGGBB\" or \"number <name> <value>\"");
+        if (!ok) report(lineNo, "expected \"color <name> #RRGGBB\", \"number <name> <value>\" or \"style <name>\"");
     }
+    if (block.open) report(block.line, "style without end");
+    for (StyleBlock& b : blocks) b.finish(out.styles, &out, report);
     return true;
 }
 
@@ -238,7 +374,7 @@ constexpr const char* kPropertyNames[] = {
     "gap", "gradientField", "hidden", "id", "justify", "justifyItems", "justifySelf", "key", "layout", "letterSpacing", "lineHeight", "list",
     "margin", "max", "maxLength", "maxLines", "min", "offsetField", "on", "opacity", "opacityField", "outline", "outlineColorField", "outlineField",
     "overflow", "padding", "placeholder", "pos", "radius", "rotation", "rows", "scaleField", "scroll", "select", "shadow", "size", "skew",
-    "skewField", "slice", "slider", "span", "squeeze", "squeezeField", "src", "strike", "stroke", "textAlign", "textInput", "tint", "toggle",
+    "skewField", "slice", "slider", "span", "squeeze", "squeezeField", "src", "strike", "stroke", "style", "textAlign", "textInput", "tint", "toggle",
     "transform", "transition", "underline", "verticalAlign", "visible", "widthRatio", "wrap"};
 
 size_t editDistance(const std::string& a, const std::string& b) {
@@ -577,6 +713,7 @@ bool applyProperty(Node& n, const std::string& line, const Theme* theme, std::st
         return true;
     }
     if (k == "transition") return num(1, n.transition) || fail("seconds");
+    if (k == "style") return fail("a style is named on a node's own line (or in another style), not in a state");
     if (k == "on") {
         StateOverride o;
         if (args < 2 || !parseState(t[1], o.state)) return fail("on <hover|pressed|focus|disabled|checked> <property> ...");
@@ -612,6 +749,48 @@ struct Parser {
     std::string file;
     std::vector<i32> stack;
     u32 includeDepth = 0;
+    // The property lines of each open node (parallel to stack): applied when it closes, as its styles go under all of them
+    struct Pending {
+        std::vector<std::pair<u32, std::string>> lines;
+    };
+    std::vector<Pending> pending{};
+    StyleBlock block{};
+
+    // Pops the innermost node and gives it its properties
+    void close() {
+        Node& n = doc.nodes[static_cast<size_t>(stack.back())];
+        applyLines(n, pending.back().lines);
+        stack.pop_back();
+        pending.pop_back();
+    }
+
+    void applyLines(Node& n, const std::vector<std::pair<u32, std::string>>& lines) {
+        std::vector<std::string> texts;
+        u32 styleLine = 0;
+        for (const auto& [lineNo, text] : lines) {
+            texts.push_back(text);
+            if (!styleLine && isStyleLine(text)) styleLine = lineNo;
+        }
+        if (styleLine) {
+            std::vector<std::string> errors;
+            texts = expandStyles(texts, doc.styles, theme, &errors);
+            for (const std::string& e : errors) error(styleLine, e);
+        }
+        for (size_t i = 0; i < texts.size(); ++i) {
+            const std::string& text = texts[i];
+            u32 at = styleLine ? styleLine : lines[i].first; // a line that came from a style is reported where the style is named
+            if (styleLine)
+                for (const auto& [lineNo, own] : lines)
+                    if (own == text) at = lineNo;
+            std::string message;
+            if (!applyProperty(n, text, theme, &message)) error(at, message);
+        }
+    }
+
+    void push(i32 node) {
+        stack.push_back(node);
+        pending.emplace_back();
+    }
 
     void error(u32 line, const std::string& message) {
         doc.errors.push_back(file + "(" + std::to_string(line) + "): " + message);
@@ -645,7 +824,16 @@ struct Parser {
             if (formatLine(line, "assets/" + doc.path, host)) continue;
             const std::vector<std::string> t = split(line);
             const std::string& k = t[0];
-            if (k == "board") {
+            if (block.open) {
+                if (k == "end") endStyle();
+                else block.body.emplace_back(lineNo, line);
+            } else if (k == "style" && stack.empty()) {
+                block.begin(t, lineNo);
+                if (!doc.nodes.empty()) {
+                    error(lineNo, "styles go above the board");
+                    block.keep = false;
+                }
+            } else if (k == "board") {
                 f32 w = 0, h = 0;
                 if (!stack.empty() || t.size() != 4 || !parseNumber(t[2], theme, w) || !parseNumber(t[3], theme, h)) {
                     error(lineNo, "expected \"board <name> <width> <height>\" at the top");
@@ -656,22 +844,22 @@ struct Parser {
                 doc.nodes[static_cast<size_t>(i)].h = h;
                 doc.boardW = w;
                 doc.boardH = h;
-                stack.push_back(i);
+                push(i);
             } else if (k == "frame" || k == "text" || k == "image") {
                 if (stack.empty() || t.size() != 2) {
                     error(lineNo, "expected \"" + k + " <name>\" inside the board");
                     continue;
                 }
-                stack.push_back(open(k == "frame" ? NodeKind::Frame : k == "text" ? NodeKind::Text : NodeKind::Image, t[1], lineNo));
+                push(open(k == "frame" ? NodeKind::Frame : k == "text" ? NodeKind::Text : NodeKind::Image, t[1], lineNo));
             } else if (k == "use") {
                 if (stack.empty() || t.size() != 3) {
                     error(lineNo, "expected \"use <name> <component.ui>\" inside the board");
                     continue;
                 }
-                stack.push_back(include(t[1], t[2], lineNo));
+                push(include(t[1], t[2], lineNo));
             } else if (k == "end") {
                 if (stack.empty()) error(lineNo, "end without a node");
-                else stack.pop_back();
+                else close();
             } else if (k == "back" && stack.size() == 1) {
                 doc.backAction = t.size() > 1 ? t[1] : "";
             } else if (k == "navigation" && stack.size() == 1) {
@@ -688,8 +876,7 @@ struct Parser {
                 bool found = false;
                 for (size_t i = from + 1; i < doc.nodes.size() && doc.nodes[i].depth > doc.nodes[from].depth; ++i)
                     if (doc.nodes[i].name == t[1]) {
-                        std::string message;
-                        if (!applyProperty(doc.nodes[i], rest(line, 2), theme, &message)) error(lineNo, message);
+                        applyLines(doc.nodes[i], {{lineNo, rest(line, 2)}});
                         found = true;
                         break;
                     }
@@ -699,12 +886,20 @@ struct Parser {
                     error(lineNo, "property outside a node");
                     continue;
                 }
-                std::string message;
-                if (!applyProperty(doc.nodes[static_cast<size_t>(stack.back())], line, theme, &message)) error(lineNo, message);
+                pending.back().lines.emplace_back(lineNo, line);
             }
         }
-        if (!stack.empty()) error(lineNo, "missing end (" + std::to_string(stack.size()) + " node(s) open)");
+        if (block.open) error(block.line, "style without end");
+        if (!stack.empty()) {
+            error(lineNo, "missing end (" + std::to_string(stack.size()) + " node(s) open)");
+            while (!stack.empty()) close(); // keeps what was read
+        }
         return doc.errors.empty();
+    }
+
+    void endStyle() {
+        block.open = false;
+        block.finish(doc.styles, theme, [&](u32 at, const std::string& message) { error(at, message); });
     }
 
     // Component: puts that file's board here as a frame

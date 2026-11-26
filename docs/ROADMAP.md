@@ -9,7 +9,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 **Next, in order** (reordered 2026-11-23; the Linux editor and editor reinforcement, the 2026-11-22 decision that came first, is done: `docs/CHANGELOG.md` "check.ps1 on Linux" and "Linux editor", so game work such as FuseTag M5/M6 can resume):
 1. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
 2. **Game-facing gaps that FuseTag hits when game work resumes**: none left (designer independence D4 is done).
-3. **UI 2**: MkUI's XAML-like layer, one piece at a time.
+3. **UI 2**: MkUI's XAML-like layer, one piece at a time. Named styles are done (`docs/CHANGELOG.md` "UI 2: named styles"); left, each with its syntax decided first: converters and two-way binding, control templates, triggers and state animations, resource dictionaries.
 4. **Proposals from other engines** E8, interleaved with the picked pool items below.
 
 Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
