@@ -204,6 +204,7 @@ set(MEALKIT_FRONT_SOURCES
 # Platform layer implementations (docs/CODING_MODEL.md "Graphics APIs and OS features"): OS APIs are called only inside platform/<os>/.
 # posix/ has what headless (Linux/macOS) needs (time, files, UDP, logging), dynamic libraries, child processes and images.
 # linux/ is the X11 window, input, gamepads and file dialogs (docs/DECISIONS.md 2026-11-22). macOS has no front end yet (stage 5).
+# web/ is the browser (Emscripten): the page's canvas, its input events, the Gamepad API and fetching the game pack; posix/ covers the rest.
 if(WIN32)
     list(APPEND MEALKIT_CORE_SOURCES
         core/platform/src/mealkit/platform/win32/Clock.cpp
@@ -227,7 +228,13 @@ else()
         core/platform/src/mealkit/platform/posix/DynamicLibrary.cpp
         core/platform/src/mealkit/platform/posix/Image.cpp
         core/platform/src/mealkit/platform/posix/Process.cpp)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    if(EMSCRIPTEN)
+        list(APPEND MEALKIT_FRONT_SOURCES
+            core/platform/src/mealkit/platform/web/FileDialog.cpp
+            core/platform/src/mealkit/platform/web/Gamepad.cpp
+            core/platform/src/mealkit/platform/web/Web.cpp
+            core/platform/src/mealkit/platform/web/Window.cpp)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         list(APPEND MEALKIT_FRONT_SOURCES
             core/platform/src/mealkit/platform/linux/X11Keys.h
             core/platform/src/mealkit/platform/linux/FileDialog.cpp
@@ -538,6 +545,8 @@ endif()
 if(NOT MEALKIT_HEADLESS_ONLY)
     if(WIN32)
         target_link_libraries(mealkit PUBLIC windowscodecs uuid dwmapi comdlg32 xinput)
+    elseif(EMSCRIPTEN)
+        target_include_directories(mealkit PRIVATE ${MEALKIT_THIRD_PARTY}/stb) # posix/Image.cpp
     else()
         # X11 window (platform/linux/): Xlib, XInput2 raw motion, XRandR display modes. Ubuntu: libx11-dev libxi-dev libxrandr-dev
         find_package(X11 REQUIRED)
@@ -563,6 +572,9 @@ else()
     target_compile_options(mealkit_simcheck PRIVATE -Wall -Wextra)
 endif()
 set_target_properties(mealkit_simcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tools)
+if(EMSCRIPTEN) # build tools run under node (the toolchain's CMAKE_CROSSCOMPILING_EMULATOR) with the host's files
+    target_link_options(mealkit_simcheck PRIVATE -sNODERAWFS=1 -sENVIRONMENT=node -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1)
+endif()
 
 # Whether all characters in the string tables exist in the fonts (before the game build, mealkit_add_game). Windowed builds only (headless draws no text)
 if(NOT MEALKIT_HEADLESS_ONLY)
@@ -574,6 +586,9 @@ if(NOT MEALKIT_HEADLESS_ONLY)
         target_compile_options(mealkit_stringcheck PRIVATE -Wall -Wextra)
     endif()
     set_target_properties(mealkit_stringcheck PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/tools)
+    if(EMSCRIPTEN)
+        target_link_options(mealkit_stringcheck PRIVATE -sNODERAWFS=1 -sENVIRONMENT=node -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1)
+    endif()
 endif()
 
 # --- Engine unit tests: engine repo build only (tools\check.ps1 runs them in Release and Editor builds). Uses only the core, no front end ---

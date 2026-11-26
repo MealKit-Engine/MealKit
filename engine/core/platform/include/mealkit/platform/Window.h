@@ -37,6 +37,11 @@ struct XlibWindowHandle {
     unsigned long window = 0; // X11 Window
 };
 
+// Native window handle for the RHI in a browser: the page's canvas (same layout as mkrhi::WebCanvas)
+struct WebCanvasHandle {
+    const char* selector = "#canvas";
+};
+
 // Hook letting other modules (editor UI etc.) see window messages first. Returning nonzero treats the message as handled.
 // Windows: (hwnd, msg, wparam, lparam). Linux: (XEvent*, event type, 0, 0)
 using MessageHook = std::intptr_t (*)(void* user, void* hwnd, u32 msg, std::uintptr_t wparam, std::intptr_t lparam);
@@ -53,7 +58,7 @@ public:
     // Processes messages and updates input state. false when the window is closed.
     bool pumpMessages();
 
-    void* nativeHandle() const { return m_hwnd; } // Windows: HWND, Linux: XlibWindowHandle*
+    void* nativeHandle() const { return m_hwnd; } // Windows: HWND, Linux: XlibWindowHandle*, browser: WebCanvasHandle*
     u32 width() const { return m_width; }
     u32 height() const { return m_height; }
     bool minimized() const { return m_minimized; }

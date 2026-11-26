@@ -45,6 +45,9 @@ bool packsMounted();
 const std::string& packRoot();
 // contentHash of the mounted packs (0 without packs)
 u64 mountedPackHash();
+// Browser: downloads <gameName>.pak from beside the page into executableDirectory() (platform/web/Web.cpp), so the
+// pack search below finds it. Elsewhere nothing to do (true)
+bool downloadGamePack(const std::string& gameName, std::string& error);
 
 // For platform/Paths.cpp and the OS file functions. path is a full path (root + "/" + entry, either slash)
 namespace pack {

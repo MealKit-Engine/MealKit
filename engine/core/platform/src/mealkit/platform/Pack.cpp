@@ -166,6 +166,10 @@ bool PackWriter::write(const std::string& file, std::string& error) const {
     return true;
 }
 
+#if !defined(__EMSCRIPTEN__)
+bool downloadGamePack(const std::string&, std::string&) { return true; } // the pack is next to the exe
+#endif
+
 bool mountPack(const std::string& file, std::string& error) {
     auto m = std::make_unique<Mounted>();
     m->file = file;

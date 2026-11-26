@@ -1,5 +1,5 @@
 # Build the shipping folder (run by the game_export target via cmake -P).
-# Input: GAME_EXE, PACK (cooked by <game>.exe --cook, game/Cook.h), PROJECT_FILE, ENGINE_VERSION, OUT_DIR, STEAM_DLL/EOS_DLL (empty if absent), STEAM_APP_ID, NOTICES (merged notices), EXE_BUDGET_MB
+# Input: WEB (browser: GAME_EXE is <name>.html with .js and .wasm beside it), GAME_EXE, PACK (cooked by <game>.exe --cook, game/Cook.h), PROJECT_FILE, ENGINE_VERSION, OUT_DIR, STEAM_DLL/EOS_DLL (empty if absent), STEAM_APP_ID, NOTICES (merged notices), EXE_BUDGET_MB
 foreach(var GAME_EXE PACK PROJECT_FILE OUT_DIR NOTICES)
     if(NOT ${var})
         message(FATAL_ERROR "MealKitExport: ${var} is not set")
@@ -7,12 +7,18 @@ foreach(var GAME_EXE PACK PROJECT_FILE OUT_DIR NOTICES)
 endforeach()
 
 # Shipping exe budget (ROADMAP "Performance budget": 5 MB on all platforms, excluding assets)
+get_filename_component(game_dir "${GAME_EXE}" DIRECTORY)
+get_filename_component(game_stem "${GAME_EXE}" NAME_WE)
+set(budget_file "${GAME_EXE}")
+if(WEB)
+    set(budget_file "${game_dir}/${game_stem}.wasm") # the code; the page and its loader script are small
+endif()
 if(EXE_BUDGET_MB)
-    file(SIZE "${GAME_EXE}" exe_bytes)
+    file(SIZE "${budget_file}" exe_bytes)
     math(EXPR exe_budget "${EXE_BUDGET_MB} * 1024 * 1024")
     math(EXPR exe_kb "${exe_bytes} / 1024")
     if(exe_bytes GREATER exe_budget)
-        message(FATAL_ERROR "MealKitExport: ${GAME_EXE} is ${exe_kb} KB, over the ${EXE_BUDGET_MB} MB budget (see docs/ROADMAP.md \"Performance budget\")")
+        message(FATAL_ERROR "MealKitExport: ${budget_file} is ${exe_kb} KB, over the ${EXE_BUDGET_MB} MB budget (see docs/ROADMAP.md \"Performance budget\")")
     endif()
     message(STATUS "Game executable: ${exe_kb} KB (budget ${EXE_BUDGET_MB} MB)")
 endif()
@@ -22,6 +28,11 @@ file(REMOVE_RECURSE "${OUT_DIR}")
 file(MAKE_DIRECTORY "${OUT_DIR}")
 
 file(COPY "${GAME_EXE}" DESTINATION "${OUT_DIR}")
+if(WEB)
+    file(COPY "${game_dir}/${game_stem}.js" "${game_dir}/${game_stem}.wasm" DESTINATION "${OUT_DIR}")
+    # Served by any static web server (WebGPU needs a secure context: https, or http://localhost)
+    file(COPY_FILE "${GAME_EXE}" "${OUT_DIR}/index.html")
+endif()
 # Game data: one pack (platform/Pack.h) holding the cooked assets the game reaches and mealkit.project. No assets folder or caches
 if(NOT EXISTS "${PACK}")
     message(FATAL_ERROR "MealKitExport: no pack at ${PACK} (the cook step failed, see above)")

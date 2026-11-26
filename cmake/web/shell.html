@@ -1,0 +1,34 @@
+<!doctype html>
+<!-- MealKit browser page (build.ps1 WebExport, cmake/MealKit.cmake): a canvas filling the window. The game draws with WebGPU
+     and reads <name>.pak from beside this page; serve the folder over https or http://localhost -->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MealKit</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+  #canvas { display: block; width: 100vw; height: 100vh; outline: none; }
+  #status { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+            color: #ccc; font: 16px system-ui, sans-serif; pointer-events: none; white-space: pre-line; text-align: center; }
+</style>
+</head>
+<body>
+<canvas id="canvas" tabindex="-1" oncontextmenu="event.preventDefault()"></canvas>
+<div id="status">Loading...</div>
+<script>
+  const statusBox = document.getElementById("status");
+  if (!navigator.gpu) statusBox.textContent = "This browser has no WebGPU.\nUse a current Chrome, Edge or Firefox.";
+  var Module = {
+    canvas: document.getElementById("canvas"),
+    print: (text) => console.log(text),
+    printErr: (text) => console.warn(text),
+    setStatus: (text) => { if (navigator.gpu) statusBox.textContent = text || ""; },
+    onRuntimeInitialized: () => { statusBox.textContent = ""; },
+    onAbort: (what) => { statusBox.textContent = "The game stopped: " + what + "\n(see the browser console)"; },
+  };
+  document.getElementById("canvas").addEventListener("pointerdown", (e) => e.target.focus());
+</script>
+{{{ SCRIPT }}}
+</body>
+</html>

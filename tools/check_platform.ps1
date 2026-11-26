@@ -10,7 +10,7 @@ $root = Split-Path -Parent $PSScriptRoot
 
 $osHeaders = 'windows\.h|winsock2?\.h|ws2tcpip\.h|mstcpip\.h|shobjidl\.h|shlobj\.h|shellapi\.h|commdlg\.h|wincodec\.h|dwmapi\.h|' +
     'unistd\.h|pthread\.h|dlfcn\.h|fcntl\.h|netdb\.h|sys/\w+\.h|arpa/\w+\.h|' +
-    'netinet/\w+\.h|mach-o/\w+\.h|xaudio2\.h|xinput\.h'
+    'netinet/\w+\.h|mach-o/\w+\.h|xaudio2\.h|xinput\.h|emscripten\.h|emscripten/\w+\.h'
 $graphicsHeaders = 'd3d12\w*\.h|dxgi\w*\.h|d3dcompiler\.h|wrl/\w+\.h|vulkan/\w+\.h|volk\.h|vk_mem_alloc\.h|imgui_impl_(dx12|vulkan)\.h'
 $includePattern = "^\s*#\s*include\s*<($osHeaders)>"
 $graphicsPattern = "^\s*#\s*include\s*<($graphicsHeaders)>"
@@ -20,7 +20,7 @@ $callPattern = '\b(MultiByteToWideChar|WideCharToMultiByte|_wfopen(_s)?|LoadLibr
 
 $files = @()
 $files += Get-EngineModuleFiles $root |
-    Where-Object { $_.FullName -notmatch '[\\/]mealkit[\\/]platform[\\/](win32|posix|linux)[\\/]' }
+    Where-Object { $_.FullName -notmatch '[\\/]mealkit[\\/]platform[\\/](win32|posix|linux|web)[\\/]' }
 $files += Get-ChildItem -Path (Join-Path $root "samples") -Recurse -Include *.cpp, *.h
 
 $problems = @()

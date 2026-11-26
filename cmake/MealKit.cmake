@@ -37,7 +37,13 @@ else()
         message(FATAL_ERROR "MealKit headless builds need Clang or GCC (got ${CMAKE_CXX_COMPILER_ID}).")
     endif()
     set(MEALKIT_HEADLESS_ONLY ON)
-    if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    if(EMSCRIPTEN)
+        # Browser (build.ps1 WebExport, Emscripten toolchain): the shipping game only, on WebGPU, one thread (no SharedArrayBuffer
+        # needed), no online services or live connection. Built on a Linux host; exports go to export/web/<name>
+        set(MEALKIT_HEADLESS_ONLY OFF)
+        set(MEALKIT_RHI "WebGPU" CACHE STRING "RHI backend: DX12 / Vulkan / WebGPU" FORCE)
+        set(MEALKIT_ONLINE "None" CACHE STRING "Online backend: Auto, Steam, EOS, None" FORCE)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         option(MEALKIT_LINUX_FRONTEND "Linux: build the X11 window, Vulkan renderer and editor (build.ps1 Editor/Vulkan pass ON)" OFF)
         if(MEALKIT_LINUX_FRONTEND)
             set(MEALKIT_HEADLESS_ONLY OFF)
@@ -71,6 +77,9 @@ set(MEALKIT_BUILD_KIND "Game" CACHE STRING "Game: shipping static exe / Editor: 
 set_property(CACHE MEALKIT_BUILD_KIND PROPERTY STRINGS Game Editor)
 if(NOT MEALKIT_BUILD_KIND MATCHES "^(Game|Editor)$")
     message(FATAL_ERROR "MEALKIT_BUILD_KIND must be Game or Editor (got '${MEALKIT_BUILD_KIND}')")
+endif()
+if(EMSCRIPTEN AND MEALKIT_BUILD_KIND STREQUAL "Editor")
+    message(FATAL_ERROR "The browser build is the game only (build.ps1 WebExport); the editor runs on Windows and Linux.")
 endif()
 if(MEALKIT_HEADLESS_ONLY AND MEALKIT_BUILD_KIND STREQUAL "Editor")
     message(FATAL_ERROR "The editor build needs a front end: Windows, or Linux with -DMEALKIT_LINUX_FRONTEND=ON (build.ps1 Editor). macOS: ROADMAP stage 5.")
@@ -108,8 +117,8 @@ set_property(CACHE MEALKIT_RHI PROPERTY STRINGS DX12 Vulkan WebGPU)
 if(NOT MEALKIT_RHI MATCHES "^(DX12|Vulkan|WebGPU)$")
     message(FATAL_ERROR "MEALKIT_RHI must be DX12, Vulkan or WebGPU (got '${MEALKIT_RHI}')")
 endif()
-if(MEALKIT_RHI STREQUAL "WebGPU" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    message(FATAL_ERROR "MEALKIT_RHI WebGPU is built on Linux for now (Dawn, X11)")
+if(MEALKIT_RHI STREQUAL "WebGPU" AND NOT CMAKE_SYSTEM_NAME STREQUAL "Linux" AND NOT EMSCRIPTEN)
+    message(FATAL_ERROR "MEALKIT_RHI WebGPU is built on Linux (Dawn, X11) and in the browser (Emscripten) for now")
 endif()
 
 option(MEALKIT_PROFILE "Enable Tracy profiling markers (build.bat Profile)" OFF)
@@ -122,7 +131,9 @@ elseif(MEALKIT_BUILD_KIND STREQUAL "Editor")
     set(MEALKIT_DEBUG_UI ON) # the editor draws with ImGui
 endif()
 if(NOT MSVC AND NOT MEALKIT_DEBUG_UI AND NOT MEALKIT_HEADLESS_ONLY AND MEALKIT_BUILD_KIND STREQUAL "Game")
-    add_link_options(-s) # shipping exe (build.ps1 Export): no symbol table
+    if(NOT EMSCRIPTEN) # emcc reads -s as a setting; a release wasm has no names section anyway
+        add_link_options(-s) # shipping exe (build.ps1 Export): no symbol table
+    endif()
     # No dev folder in the exe: the build RUNPATH (the Steam library folder) is dropped (the explicit $ORIGIN one stays) and
     # __FILE__ paths under the engine and project folders are shortened
     set(CMAKE_SKIP_BUILD_RPATH ON)
@@ -131,7 +142,7 @@ endif()
 # Live connection (mealkit/live/Server.h, the contract between tools): dev build game exes open a 127.0.0.1 server. Excluded from shipping builds (Export).
 # The editor opens it regardless of this value. When on, the engine target passes MEALKIT_LIVE=1
 option(MEALKIT_LIVE "Include the live connection server (OFF for build.bat Export)" ON)
-if(MEALKIT_HEADLESS_ONLY)
+if(MEALKIT_HEADLESS_ONLY OR EMSCRIPTEN)
     set(MEALKIT_LIVE OFF)
 endif()
 
@@ -911,6 +922,14 @@ function(mealkit_add_game name)
     endif()
     target_link_libraries(${name} PRIVATE mealkit${engine_suffix} ${game_libs})
     mealkit_game_pch(${name} ${sim_sources} "${ARG_HEADLESS}")
+    if(EMSCRIPTEN)
+        # Browser: <name>.html + .js + .wasm from the engine's page (cmake/web/shell.html, a canvas filling the window).
+        # The pack is fetched by the page at start (platform/web/Web.cpp), not embedded, so it can be cached apart from the code
+        set_target_properties(${name} PROPERTIES SUFFIX ".html")
+        target_link_options(${name} PRIVATE "--shell-file=${MEALKIT_ENGINE_DIR}/cmake/web/shell.html" -sINITIAL_MEMORY=256MB
+            -sEXIT_RUNTIME=0 -sENVIRONMENT=web)
+        set_property(TARGET ${name} APPEND PROPERTY LINK_DEPENDS "${MEALKIT_ENGINE_DIR}/cmake/web/shell.html")
+    endif()
     if(WIN32 AND MSVC AND NOT MEALKIT_DEBUG_UI)
         # Shipping exe (Export) is a GUI program: no console window behind it. main() stays the same; run from a command prompt, attachParentConsole attaches
         target_link_options(${name} PRIVATE /SUBSYSTEM:WINDOWS /ENTRY:mainCRTStartup)
@@ -941,7 +960,11 @@ function(mealkit_add_game name)
     # → shipping folder (MealKitExport.cmake also checks the exe size budget)
     set(export_notices "${CMAKE_BINARY_DIR}/export_notices/${name}/THIRD_PARTY_NOTICES.txt")
     # Shipping folder: export/<os>/<name>, or export/<os>/<name>-<version> if mealkit.project's exportVersionFolder is on
-    set(export_dir "${project_dir}/export/${MEALKIT_BUILD_OS}/${name}")
+    set(export_os ${MEALKIT_BUILD_OS})
+    if(EMSCRIPTEN)
+        set(export_os web)
+    endif()
+    set(export_dir "${project_dir}/export/${export_os}/${name}")
     if(EXISTS "${project_file}")
         file(STRINGS "${project_file}" export_lines REGEX "^[ \t]*(version|exportVersionFolder)([ \t=]|$)" ENCODING UTF-8)
         set(export_version "")
@@ -954,7 +977,7 @@ function(mealkit_add_game name)
             endif()
         endforeach()
         if(export_with_version AND export_version)
-            set(export_dir "${project_dir}/export/${MEALKIT_BUILD_OS}/${name}-${export_version}")
+            set(export_dir "${project_dir}/export/${export_os}/${name}-${export_version}")
         endif()
     endif()
     # A build profile's "output" line (tools/build.ps1 profile:<name>) replaces the folder above, for a project built on its own
@@ -965,10 +988,13 @@ function(mealkit_add_game name)
     # Cook step (game/Cook.h): the dev Release exe (build_project.bat Export builds it first, next to this build folder) packs the reached assets into one pack
     get_filename_component(build_root "${CMAKE_BINARY_DIR}" DIRECTORY)
     set(export_cooker "${build_root}/Release/bin/${name}${CMAKE_EXECUTABLE_SUFFIX}")
+    if(EMSCRIPTEN)
+        set(export_cooker "${build_root}/Release/bin/${name}") # the Linux host's Release build cooks for the browser too
+    endif()
     set(export_pack "${build_root}/cook/${name}.pak")
     # 5 MB executable budget (docs/ROADMAP.md "Performance budget"); native WebGPU links Dawn statically (~12 MB), so 20 MB there
     set(mealkit_exe_budget_mb 5)
-    if(MEALKIT_RHI STREQUAL "WebGPU")
+    if(MEALKIT_RHI STREQUAL "WebGPU" AND NOT EMSCRIPTEN)
         set(mealkit_exe_budget_mb 20)
     endif()
     add_custom_target(${name}_export
@@ -988,6 +1014,7 @@ function(mealkit_add_game name)
             -DSTEAM_APP_ID=${ARG_STEAM_APP_ID}
             -DNOTICES=${export_notices}
             -DEXE_BUDGET_MB=${mealkit_exe_budget_mb}
+            -DWEB=${EMSCRIPTEN}
             -P ${MEALKIT_ENGINE_DIR}/cmake/MealKitExport.cmake
         DEPENDS ${name}
         COMMENT "Exporting ${name}"

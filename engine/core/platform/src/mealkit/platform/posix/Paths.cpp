@@ -24,6 +24,9 @@ std::string environmentVariable(const char* name) {
 } // namespace
 
 std::string executableDirectory() {
+#if defined(__EMSCRIPTEN__)
+    return "/game"; // in-memory files; the page's files are downloaded here (platform/web/Web.cpp)
+#else
 #if defined(__APPLE__)
     char buffer[4096];
     uint32_t size = sizeof(buffer);
@@ -35,6 +38,7 @@ std::string executableDirectory() {
     const fs::path exe = fs::read_symlink("/proc/self/exe", ec);
 #endif
     return ec ? std::string(".") : exe.parent_path().string();
+#endif
 }
 
 FILE* openFile(const std::string& path, const char* mode) {

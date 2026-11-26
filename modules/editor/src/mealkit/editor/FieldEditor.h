@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.29; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.30; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include <imgui.h>

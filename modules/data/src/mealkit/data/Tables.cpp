@@ -1,4 +1,4 @@
-// Vendored copy of module-data v0.1.11; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-data v0.1.12; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/data/Tables.h"
 
 #include "mealkit/core/TextFormat.h"
@@ -7,6 +7,7 @@
 #include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <cstdlib>
 #include <cstring>
 
 namespace mealkit::data {

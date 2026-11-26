@@ -3,11 +3,11 @@
 @format module-lock 1
 module asset https://github.com/MealKit-Engine/module-asset v0.5.0 604973a975e05e15774fd0483a56ed6dbc79ae06 .
 module camera https://github.com/MealKit-Engine/module-camera v0.1.2 9e5f51463ce32806e2a985504d9b4cd7d62db2b8 .
-module data https://github.com/MealKit-Engine/module-data v0.1.11 3842161e980b3c8e9e62ef33a6b29ff2ee556271 .
+module data https://github.com/MealKit-Engine/module-data v0.1.12 bb4031fdf85e2017d017cb2e930727d16ebf7b89 .
 module debug https://github.com/MealKit-Engine/module-debug v0.1.4 aa77251f2132eca23a91e93f4536791037ee3689 .
-module editor https://github.com/MealKit-Engine/module-editor v0.2.29 71b3e4235352feba8c7bf9b9b746ec11a2a68335 .
+module editor https://github.com/MealKit-Engine/module-editor v0.2.30 fa15b8a2c5f25db73478f0074308adc3ee041d7c .
 module feedback https://github.com/MealKit-Engine/module-feedback v0.1.6 122d3cef066a00f3dc6a1755d7bb381c438933d4 .
-module game https://github.com/MealKit-Engine/module-game v0.2.10 5ae5d08c2d65c2d0668ea270b1c87810149ed015 .
+module game https://github.com/MealKit-Engine/module-game v0.2.11 022175424ecbf55003e9ce0ce36dbb1f73a47a3e .
 module input https://github.com/MealKit-Engine/module-input v0.1.3 739120ded122446ad8f7d2dd99f0ac9338026b4f .
 module live https://github.com/MealKit-Engine/module-live v0.1.2 9734ef88bd8c30d5f7cf6ca0d1c8ec8376885913 .
 module loc https://github.com/MealKit-Engine/module-loc v0.2.0 2c3e7701cf993056ef3c37e47c3739ff198d9d97 .
@@ -22,4 +22,4 @@ module scene https://github.com/MealKit-Engine/module-scene v0.3.6 b9a026a85a08d
 module session https://github.com/MealKit-Engine/module-session v0.1.2 31b2239bb50c6fc18e9d641c9e026f069b45e200 .
 module settings https://github.com/MealKit-Engine/module-settings v0.1.5 97a4bf703e09a4f8979ead8787c3b569d8ea3cf6 .
 module sim https://github.com/MealKit-Engine/module-sim v0.2.0 3ba5d121c7f3a14ea6c2b999ec332f1b2e105816 .
-module ui https://github.com/MealKit-Engine/module-ui v0.1.15 27712acb95f75b1be78b447b9e36189f71f0bfe5 .
+module ui https://github.com/MealKit-Engine/module-ui v0.1.16 4090b32bcedcd2d688d0829511ae7295dbd4a01f .

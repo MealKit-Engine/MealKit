@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.29; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.30; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include <string>
@@ -21,7 +21,8 @@ struct BuildProfile {
     std::string platform; // "windows", "linux" or empty (any). A file without the line takes it from an id starting with windows/linux
 
     const std::string& title() const { return label.empty() ? id : label; }
-    bool isExport() const { return config == "Export" || config == "VulkanExport"; }
+    bool isExport() const { return config == "Export" || config == "VulkanExport" || config == "WebGPUExport" || isWeb(); }
+    bool isWeb() const { return config == "WebExport"; } // a browser page (export/web/<name>), not an exe to start
     bool buildsHere() const; // platform is empty or this OS (no cross builds)
 };
 

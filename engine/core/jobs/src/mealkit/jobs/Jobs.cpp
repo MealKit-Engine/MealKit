@@ -29,7 +29,12 @@ void acquire() {
     if (g_users++ > 0) return;
     installJoltAllocator(); // the pool allocates through Jolt's hooks, shared with physics (JoltAllocator.h)
     const u32 cores = std::max(1u, std::thread::hardware_concurrency());
+#if defined(__EMSCRIPTEN__) && !defined(__EMSCRIPTEN_PTHREADS__)
+    const u32 workers = 0; // browser build without threads: every job runs on the main thread (results don't depend on it)
+    (void)cores;
+#else
     const u32 workers = std::clamp(cores - 1, 1u, 6u); // leave one for the main thread
+#endif
     g_pool = new JPH::JobSystemThreadPool(kMaxJobs, kMaxBarriers, static_cast<int>(workers));
 }
 
