@@ -3,6 +3,11 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Tool repositories build per OS (2026-11-28)
+- MealKit Manager, MkAudio, MkQA, MkRender, MkUI and MealKit-Contract build into `build/<os>` on Windows too (`build/windows`), as Linux already did; MkRender's Windows Vulkan build moves from `build-vulkan/` to `build/windows-vulkan`. They have one configuration, so there is no `<Config>` folder.
+- Readers follow: `tools/check.ps1` (MkRender), the Manager's `scripts/package.ps1`, the workspace's `mk-build.ps1`.
+- Left: old Windows trees (`build/` itself, `build-vulkan/`) are neither read nor deleted; each tool builds once from scratch on Windows, and a `--tool-path` or `toolPath` setting pointing at a tool's `build\bin` needs the new folder. CI still configures into `build/` on its fresh checkouts. The Windows side is untested.
+
 ## Browser determinism check and stack size (2026-11-27)
 - **Fixed: browser builds ran on Emscripten's 64 KB stack**, which the simulation overflows. Without stack checks it corrupts memory silently (the wasm headless replays hung, or read out of bounds). All Emscripten builds now link with `-sSTACK_SIZE=1MB` (`cmake/MealKit.cmake`).
 - `build.ps1 WebHeadless` (Linux, the WebExport toolchain): `<name>_headless` and `mealkit_tests` as wasm that runs under node (`build/linux/WebHeadless/bin/*.js`), with stack overflow checks.
