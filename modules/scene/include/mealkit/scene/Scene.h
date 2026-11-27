@@ -1,4 +1,4 @@
-// Vendored copy of module-scene v0.3.6; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-scene v0.3.7; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Math.h"
@@ -106,16 +106,16 @@ MEALKIT_STRUCT(PathFields) {
 MEALKIT_ENUM(JointKind, u8, Hinge, Slider, Spring, Fixed, Rope);
 MEALKIT_STRUCT(JointFields) {
     MEALKIT_FIELD(JointKind, kind, JointKind::Hinge, "Kind");
-    MEALKIT_FIELD(std::string, bodyA, {}, "Body A (object name, empty = world)");
-    MEALKIT_FIELD(std::string, bodyB, {}, "Body B (object name, empty = world)");
+    MEALKIT_FIELD(std::string, bodyA, {}, "Body A (object name, empty: the world)");
+    MEALKIT_FIELD(std::string, bodyB, {}, "Body B (object name, empty: the world)");
     MEALKIT_FIELD(bool, dynamicA, false, "Body A is dynamic");
     MEALKIT_FIELD(bool, dynamicB, true, "Body B is dynamic");
     MEALKIT_FIELD(f32, limitMin, 0.0f, "Lower limit (degrees for hinge, m for slider)");
     MEALKIT_FIELD(f32, limitMax, 0.0f, "Upper limit (degrees for hinge, m for slider)");
-    MEALKIT_FIELD(f32, length, 0.0f, "Spring rest / rope max length (m, 0 = as placed)");
+    MEALKIT_FIELD(f32, length, 0.0f, "Spring rest / rope max length (m, 0: as placed)");
     MEALKIT_FIELD(f32, frequency, 2.0f, "Spring frequency (Hz)");
     MEALKIT_FIELD(f32, damping, 0.3f, "Spring damping ratio");
-    MEALKIT_FIELD(f32, breakForce, 0.0f, "Break force (N, 0 = unbreakable)");
+    MEALKIT_FIELD(f32, breakForce, 0.0f, "Break force (N, 0: unbreakable)");
 };
 
 // Fields of scatter layers: one model painted many times. Instances are in file (written by the editor), not in the scene

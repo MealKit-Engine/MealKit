@@ -1,4 +1,4 @@
-// Vendored copy of module-online-eos v0.1.2; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-online-eos v0.1.3; change it in that repo (tools\module.ps1 update), not here.
 // EOS backend (game builds with the EOS SDK and third_party/eos/credentials.txt, MEALKIT_EOS=1).
 // Login is EOS Connect (no Epic account). Builds that also have the Steam SDK (MEALKIT_EOS_STEAM=1) log in with a Steam web API ticket and
 // friend invites carry the lobby code through the Steam overlay (+connect_lobby <code>). Without Steam or without a Steam ID provider in the portal, device ID.

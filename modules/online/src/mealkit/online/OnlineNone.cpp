@@ -1,4 +1,4 @@
-// Vendored copy of module-online v0.1.2; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-online v0.1.3; change it in that repo (tools\module.ps1 update), not here.
 // No online backend: builds without the Steamworks SDK and Editor builds. No lobbies; connecting uses UDP (direct IP).
 // Extracting the SDK to third_party/steamworks/sdk builds OnlineSteam.cpp instead.
 #include "mealkit/online/Online.h"

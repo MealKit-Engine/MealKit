@@ -68,6 +68,7 @@ set(MEALKIT_CORE_SOURCES
     ../modules/data/src/mealkit/data/Tables.cpp
     ../modules/game/include/mealkit/game/GameOptions.h
     ../modules/game/src/mealkit/game/GameOptions.cpp
+    ../modules/game/include/mealkit/game/Gym.h # header only (--gym, included by Headless.h)
     ../modules/game/include/mealkit/game/Headless.h
     ../modules/game/src/mealkit/game/Headless.cpp
     ../modules/game/include/mealkit/game/InputRecord.h

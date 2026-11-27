@@ -342,6 +342,8 @@ def module_index(mod_dir, public):
             full = os.path.join(root, f)
             rel = os.path.relpath(full, inc).replace(os.sep, "/")
             text = open(full, encoding="utf-8", errors="replace").read().replace("\r\n", "\n")
+            if text.lstrip("\ufeff").startswith("// Vendored copy of module-"):  # added by the engine's copy: line numbers are the repo's
+                text = text.split("\n", 1)[-1]
             sc = Scanner(text)
             try:
                 sc.scan()

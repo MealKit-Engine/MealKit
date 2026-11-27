@@ -1049,3 +1049,18 @@ Built, but there is no %s to run = 빌드했지만 실행할 %s이(가) 없습�
 Could not start %s = %s을(를) 실행하지 못했습니다
 Started %s = %s 실행
 Save or revert [Project Settings] first = [프로젝트 설정]을 먼저 저장하거나 되돌리세요
+Browser build: PNG folders or files under assets packed at half size (separated by spaces) = 브라우저 빌드: 절반 크기로 묶을 assets 아래 PNG 폴더나 파일 (공백으로 구분)
+Closed loop (the last point joins the first) = 닫힌 경로 (마지막 점이 첫 점과 이어짐)
+Kind = 종류
+Body A (object name, empty: the world) = 몸체 A (물체 이름, 비우면 월드)
+Body B (object name, empty: the world) = 몸체 B (물체 이름, 비우면 월드)
+Body A is dynamic = 몸체 A를 동적으로
+Body B is dynamic = 몸체 B를 동적으로
+Lower limit (degrees for hinge, m for slider) = 하한 (경첩은 도, 슬라이더는 m)
+Upper limit (degrees for hinge, m for slider) = 상한 (경첩은 도, 슬라이더는 m)
+Spring rest / rope max length (m, 0: as placed) = 용수철 기본 길이 / 밧줄 최대 길이 (m, 0 = 배치한 그대로)
+Spring frequency (Hz) = 용수철 진동수 (Hz)
+Spring damping ratio = 용수철 감쇠비
+Break force (N, 0: unbreakable) = 끊어지는 힘 (N, 0 = 끊어지지 않음)
+Path = 경로
+Joint = 조인트

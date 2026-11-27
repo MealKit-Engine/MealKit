@@ -1,4 +1,4 @@
-// Vendored copy of module-data v0.1.12; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-data v0.1.13; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/TablesPanel.h"
 
 #include "mealkit/core/Log.h"

@@ -1,3 +1,4 @@
+// Vendored copy of module-online-steam v0.1.3; change it in that repo (tools\module.ps1 update), not here.
 // Steam backend (compiled only in game builds with the Steamworks SDK, MEALKIT_STEAM=1).
 #include "mealkit/online/Online.h"
 
