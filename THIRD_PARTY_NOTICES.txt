@@ -324,7 +324,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 ==============================================================================
-mkrender (MkRender: mkrhi graphics layer, mkrender renderer) v0.12.0+d73ec16 (d73ec16)
+mkrender (MkRender: mkrhi graphics layer, mkrender renderer) v0.12.0+08d04ce (08d04ce)
 ==============================================================================
 MIT License
 

@@ -43,6 +43,15 @@ if(NOT EXISTS "${PACK}")
 endif()
 get_filename_component(exe_stem "${GAME_EXE}" NAME_WE)
 file(COPY_FILE "${PACK}" "${OUT_DIR}/${exe_stem}.pak")
+# Chunk files of the pack (platform/Pack.h "Chunks", the browser cook's webChunks): <stem>.<n>.chunk beside it
+get_filename_component(pack_dir "${PACK}" DIRECTORY)
+get_filename_component(pack_stem "${PACK}" NAME_WE)
+file(GLOB pack_chunks "${pack_dir}/${pack_stem}.*.chunk")
+foreach(chunk IN LISTS pack_chunks)
+    get_filename_component(chunk_name "${chunk}" NAME)
+    string(REPLACE "${pack_stem}." "${exe_stem}." chunk_name "${chunk_name}")
+    file(COPY_FILE "${chunk}" "${OUT_DIR}/${chunk_name}")
+endforeach()
 file(COPY "${NOTICES}" DESTINATION "${OUT_DIR}")
 
 # Build stamp: engine version, git commit of the project, content hash of the pack. --help and bug reports show it

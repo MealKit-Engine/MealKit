@@ -143,6 +143,9 @@ set(MEALKIT_CORE_SOURCES
     ../modules/session/src/mealkit/session/Session.cpp
     ../modules/session/src/mealkit/session/LocalSession.cpp
     core/platform/src/mealkit/platform/Socket.cpp
+    core/platform/include/mealkit/platform/WebSocket.h
+    ../modules/net/include/mealkit/net/Relay.h
+    ../modules/net/src/mealkit/net/Relay.cpp
     ../modules/net/include/mealkit/net/Transport.h
     ../modules/net/include/mealkit/net/Lockstep.h
     ../modules/net/src/mealkit/net/Lockstep.cpp
@@ -205,6 +208,11 @@ set(MEALKIT_FRONT_SOURCES
 # posix/ has what headless (Linux/macOS) needs (time, files, UDP, logging), dynamic libraries, child processes and images.
 # linux/ is the X11 window, input, gamepads and file dialogs (docs/DECISIONS.md 2026-11-22). macOS has no front end yet (stage 5).
 # web/ is the browser (Emscripten): the page's canvas, its input events, the Gamepad API and fetching the game pack; posix/ covers the rest.
+if(EMSCRIPTEN)
+    list(APPEND MEALKIT_CORE_SOURCES core/platform/src/mealkit/platform/web/WebSocket.cpp)
+else()
+    list(APPEND MEALKIT_CORE_SOURCES core/platform/src/mealkit/platform/WebSocket.cpp)
+endif()
 if(WIN32)
     list(APPEND MEALKIT_CORE_SOURCES
         core/platform/src/mealkit/platform/win32/Clock.cpp
@@ -672,7 +680,8 @@ function(mealkit_engine_variant base key)
                     set(listed ON)
                 endif()
             endforeach()
-            if(NOT listed AND takes_new)
+            # Not new when the engine's copy has it too: left unlisted by this build's options (debug UI off)
+            if(NOT listed AND takes_new AND NOT EXISTS "${MEALKIT_ENGINE_DIR}/modules/${m}/src/mealkit/${m}/${fname}")
                 list(APPEND mapped "${f}")
             endif()
         endforeach()

@@ -1,4 +1,4 @@
-// Vendored copy of module-ui v0.1.16; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-ui v0.1.17; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/UiPanel.h"
 
 #include "mealkit/editor/FieldEditor.h"

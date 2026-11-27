@@ -1,4 +1,4 @@
-// Vendored copy of module-game v0.2.11; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-game v0.2.12; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/game/GameData.h"
 
 #include "mealkit/asset/ModelCache.h"

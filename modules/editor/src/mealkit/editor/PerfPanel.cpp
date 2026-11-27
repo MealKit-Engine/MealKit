@@ -1,4 +1,4 @@
-// Vendored copy of module-editor v0.2.30; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-editor v0.2.31; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/editor/PerfPanel.h"
 
 #include "mealkit/editor/Strings.h"

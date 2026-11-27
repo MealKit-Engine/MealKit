@@ -1,4 +1,4 @@
-// Vendored copy of module-net v0.1.3; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-net v0.1.4; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/net/Conditions.h"
 
 #include "mealkit/core/Clock.h"

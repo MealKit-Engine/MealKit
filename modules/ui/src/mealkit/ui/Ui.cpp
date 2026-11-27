@@ -1,4 +1,4 @@
-// Vendored copy of module-ui v0.1.16; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-ui v0.1.17; change it in that repo (tools\module.ps1 update), not here.
 #include "mealkit/ui/Ui.h"
 
 #include "mealkit/core/Log.h"
@@ -12,12 +12,65 @@
 
 #include "stb_image.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
+#include <string>
+#include <vector>
 
 namespace mealkit::ui {
 namespace {
+
+// The size a PNG had before the browser cook halved it (game/Cook.h): chunk "mkSz" before IDAT, big-endian u32 width and height.
+// false without one
+bool originalSize(const std::string& png, u32& width, u32& height) {
+    const auto be32 = [&](size_t at) {
+        return static_cast<u32>(static_cast<u8>(png[at])) << 24 | static_cast<u32>(static_cast<u8>(png[at + 1])) << 16 |
+               static_cast<u32>(static_cast<u8>(png[at + 2])) << 8 | static_cast<u32>(static_cast<u8>(png[at + 3]));
+    };
+    for (size_t at = 8; at + 12 <= png.size();) {
+        const u32 length = be32(at);
+        if (png.compare(at + 4, 4, "IDAT") == 0 || at + 12 + static_cast<size_t>(length) > png.size()) return false;
+        if (length == 8 && png.compare(at + 4, 4, "mkSz") == 0) {
+            const u32 w = be32(at + 8), h = be32(at + 12);
+            if (!w || !h || w > 16384 || h > 16384) return false;
+            width = w;
+            height = h;
+            return true;
+        }
+        at += 12 + static_cast<size_t>(length);
+    }
+    return false;
+}
+
+// Bilinear resize of straight-alpha RGBA, colour weighted by alpha so transparent pixels don't darken edges
+std::vector<u8> resize(const u8* src, u32 sw, u32 sh, u32 dw, u32 dh) {
+    std::vector<u8> out(static_cast<size_t>(dw) * dh * 4);
+    for (u32 y = 0; y < dh; ++y) {
+        const float fy = std::clamp((static_cast<float>(y) + 0.5f) * sh / dh - 0.5f, 0.0f, static_cast<float>(sh - 1));
+        const u32 y0 = static_cast<u32>(fy), y1 = std::min(y0 + 1, sh - 1);
+        const float ty = fy - static_cast<float>(y0);
+        for (u32 x = 0; x < dw; ++x) {
+            const float fx = std::clamp((static_cast<float>(x) + 0.5f) * sw / dw - 0.5f, 0.0f, static_cast<float>(sw - 1));
+            const u32 x0 = static_cast<u32>(fx), x1 = std::min(x0 + 1, sw - 1);
+            const float tx = fx - static_cast<float>(x0);
+            const u8* p[4] = {&src[(static_cast<size_t>(y0) * sw + x0) * 4], &src[(static_cast<size_t>(y0) * sw + x1) * 4],
+                              &src[(static_cast<size_t>(y1) * sw + x0) * 4], &src[(static_cast<size_t>(y1) * sw + x1) * 4]};
+            const float w[4] = {(1 - tx) * (1 - ty), tx * (1 - ty), (1 - tx) * ty, tx * ty};
+            float a = 0, c[3] = {};
+            for (int k = 0; k < 4; ++k) {
+                const float wa = w[k] * p[k][3];
+                a += wa;
+                for (int i = 0; i < 3; ++i) c[i] += wa * p[k][i];
+            }
+            u8* q = &out[(static_cast<size_t>(y) * dw + x) * 4];
+            for (int i = 0; i < 3; ++i) q[i] = static_cast<u8>(a > 0 ? std::min(255.0f, c[i] / a + 0.5f) : 0);
+            q[3] = static_cast<u8>(std::min(255.0f, a + 0.5f));
+        }
+    }
+    return out;
+}
 
 static_assert(sizeof(mkui::Quad) == sizeof(render::UiQuad) && offsetof(mkui::Quad, rect) == offsetof(render::UiQuad, rect) &&
                   offsetof(mkui::Quad, clip) == offsetof(render::UiQuad, clip) && offsetof(mkui::Quad, uv) == offsetof(render::UiQuad, uv) &&
@@ -99,7 +152,12 @@ struct EngineHost final : mkui::Host {
         if (!pixels) return false;
         width = static_cast<u32>(w);
         height = static_cast<u32>(h);
-        rgba.assign(pixels, pixels + static_cast<size_t>(width) * height * 4);
+        // A picture the browser cook halved goes back to its own size: UI layout and the atlas use the pixel size
+        if (u32 ow = 0, oh = 0; originalSize(bytes, ow, oh) && (ow != width || oh != height)) {
+            rgba = resize(pixels, width, height, ow, oh);
+            width = ow;
+            height = oh;
+        } else rgba.assign(pixels, pixels + static_cast<size_t>(width) * height * 4);
         stbi_image_free(pixels);
         return true;
     }

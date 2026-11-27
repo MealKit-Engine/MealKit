@@ -1,4 +1,4 @@
-// Vendored copy of module-game v0.2.11; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-game v0.2.12; change it in that repo (tools\module.ps1 update), not here.
 // main of the shipping exe (mealkit/game/GameMain.h). The game's app/main.cpp calls it via MEALKIT_GAME_MAIN.
 //
 //   <game>.exe                         games with menus start at the title (GameInstance::menus), otherwise solo play
@@ -44,6 +44,7 @@
 #include "mealkit/platform/Socket.h"
 #if MEALKIT_HAS_NET
 #include "mealkit/online/Online.h"
+#include "mealkit/platform/WebSocket.h"
 #endif
 #include "mealkit/platform/Paths.h"
 #include "mealkit/platform/Process.h"
@@ -172,6 +173,7 @@ std::string lobbyStatus(const MatchService& match, const loc::Strings& strings) 
     switch (match.phase()) {
     case MatchPhase::Opening:
 #if MEALKIT_HAS_NET
+        if (match.usesRelay()) return strings.format("title.connecting", {{"count", num(0)}});
         return strings.get(match.config().online && match.config().online->lobbyState() == online::LobbyState::Creating
                                ? "title.steamCreating"
                                : "title.steamJoining");
@@ -181,14 +183,31 @@ std::string lobbyStatus(const MatchService& match, const loc::Strings& strings) 
     case MatchPhase::Connecting: return strings.format("title.connecting", {{"count", num(session.lobbyPlayerCount())}});
     case MatchPhase::Lobby:
         if (session.isOffline()) return {};
-        if (session.isHost())
-            return strings.format(match.usesOnline() ? "title.lobbyHostSteam" : "title.lobbyHost",
-                                  {{"count", num(session.lobbyPlayerCount())}, {"max", num(session.maxPlayers())}});
-        return strings.format("title.waiting", {{"count", num(session.lobbyPlayerCount())}});
+        {
+            const std::string code = match.roomCode() ? " #" + std::to_string(match.roomCode()) : std::string();
+            if (session.isHost())
+                return strings.format(match.usesOnline() ? "title.lobbyHostSteam" : "title.lobbyHost",
+                                      {{"count", num(session.lobbyPlayerCount())}, {"max", num(session.maxPlayers())}}) + code;
+            return strings.format("title.waiting", {{"count", num(session.lobbyPlayerCount())}}) + code;
+        }
     case MatchPhase::Ended: return strings.format("title.ended", {{"reason", match.error()}});
     default: return {};
     }
 }
+
+#if MEALKIT_HAS_NET
+// The relay server (net/Relay.h): a browser uses game.relayUrl (a page from this computer: a relay on this computer),
+// desktop builds --relay or game.relayNativeUrl
+std::string relayAddress(const MatchOptions& options, const ProjectSettings& settings) {
+#ifdef __EMSCRIPTEN__
+    (void)options;
+    if (!settings.relayUrl.empty()) return settings.relayUrl;
+    return net::pageIsLocal() ? "ws://127.0.0.1:27020" : std::string();
+#else
+    return options.relayUrl.empty() ? settings.relayNativeUrl : options.relayUrl;
+#endif
+}
+#endif
 
 } // namespace
 
@@ -218,7 +237,7 @@ int runGame(int argc, char** argv, const GameMainSpec& spec) {
         printBuildStamp();
         return 1;
     }
-    if (!win.cookPath.empty()) return cookGame(win.cookPath) ? 0 : 1;
+    if (!win.cookPath.empty()) return cookGame(win.cookPath, win.cookWeb) ? 0 : 1;
     if (std::string error; win.packPath.empty() && !downloadGamePack(spec.module->name, error))
         MEALKIT_FATAL("Cannot download the game data: %s", error.c_str()); // browser only
     mountGamePacks(win.packPath);
@@ -318,6 +337,9 @@ int runGame(MatchOptions opt, const WindowOptions& win, const GameMainSpec& spec
         c.conditions = {opt.netLagMs, opt.netJitterMs, opt.netLossPercent};
 #endif
         c.build = spec.build;
+#if MEALKIT_HAS_NET
+        c.relayUrl = relayAddress(opt, project.settings);
+#endif
         std::copy(std::begin(data.contentParts), std::end(data.contentParts), std::begin(c.contentParts));
         c.autoDelay = autoDelayOf(project.settings, 1000.0f / static_cast<f32>(reflect::tickRate()));
         c.autoDelay.enabled = c.autoDelay.enabled && !opt.delayGiven; // --delay: fixed
@@ -395,7 +417,16 @@ int runGame(MatchOptions opt, const WindowOptions& win, const GameMainSpec& spec
         }
         break;
     case MatchOptions::Mode::Host:
-        if (!matches.host(opt.port, opt.maxPlayers)) MEALKIT_FATAL("%s", matches.error().c_str());
+    {
+        // --host is a direct room unless --relay asks for a relay one (the menus' [host] uses a configured relay)
+#ifdef __EMSCRIPTEN__
+        const bool relayed = true;
+#else
+        const bool relayed = !opt.relayUrl.empty();
+#endif
+        if (!(relayed ? matches.host(opt.port, opt.maxPlayers) : matches.hostDirect(opt.port, opt.maxPlayers)))
+            MEALKIT_FATAL("%s", matches.error().c_str());
+    }
         break;
     case MatchOptions::Mode::Join:
         if (!matches.join(opt.joinAddress)) MEALKIT_FATAL("%s", matches.error().c_str());

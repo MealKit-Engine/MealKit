@@ -3,6 +3,7 @@
 
 #include "mealkit/core/Compress.h"
 #include "mealkit/core/Hash.h"
+#include "mealkit/core/Log.h"
 #include "mealkit/platform/Paths.h"
 
 #include <algorithm>
@@ -16,8 +17,9 @@ namespace mealkit {
 namespace {
 
 constexpr char kMagic[8] = {'M', 'K', 'P', 'A', 'K', 0, 0, 0};
-constexpr u32 kVersion = 1;
+constexpr u32 kVersion = 2; // 2: chunk files (1 reads the same, without chunks)
 constexpr u32 kCompressed = 1;
+constexpr u32 kChunkShift = 16; // flags bits 16-31: chunk file number, 0 = in the pack
 
 struct Header {
     char magic[8];
@@ -33,9 +35,16 @@ struct Entry {
     u32 stored = 0, size = 0, flags = 0;
 };
 
+struct Chunk {
+    std::string file;
+    FILE* f = nullptr;   // opened on the first read from it
+    bool failed = false; // missing or download failed: its entries read as missing
+};
+
 struct Mounted {
     std::string file;
     FILE* f = nullptr;
+    std::vector<Chunk> chunks; // chunk n is chunks[n - 1]
     u64 hash = 0;
     unsigned long long time = 0;
     std::map<std::string, Entry> entries; // relative path → entry
@@ -94,15 +103,23 @@ u64 hashItems(const std::vector<std::pair<const std::string*, const std::string*
 
 } // namespace
 
-void PackWriter::add(const std::string& path, std::string_view bytes, bool compress) {
+// "dir/game.pak" → "dir/game" (chunk files are <stem>.<n>.chunk)
+static std::string packStem(const std::string& pack) {
+    return pack.size() > 4 && pack.compare(pack.size() - 4, 4, ".pak") == 0 ? pack.substr(0, pack.size() - 4) : pack;
+}
+
+std::string packChunkFile(const std::string& pack, u32 n) { return packStem(pack) + "." + std::to_string(n) + ".chunk"; }
+
+void PackWriter::add(const std::string& path, std::string_view bytes, bool compress, u32 chunk) {
     const std::string p = normalize(path);
     for (Item& i : m_items)
         if (i.path == p) {
             i.bytes.assign(bytes);
             i.compress = compress;
+            i.chunk = chunk;
             return;
         }
-    m_items.push_back({p, std::string(bytes), compress});
+    m_items.push_back({p, std::string(bytes), compress, chunk});
 }
 
 u64 PackWriter::bytes() const {
@@ -126,12 +143,15 @@ bool PackWriter::write(const std::string& file, std::string& error) const {
     std::sort(sorted.begin(), sorted.end(), [](const Item* a, const Item* b) { return a->path < b->path; });
 
     std::string out(sizeof(Header), '\0');
+    std::map<u32, std::string> chunks; // chunk number → its bytes
     std::string table;
     const auto put = [&table](const void* p, size_t n) { table.append(static_cast<const char*>(p), n); };
     for (const Item* i : sorted) {
         if (i->bytes.size() > 0xFFFFFFFFu) return error = i->path + " is over 4 GB", false;
+        if (i->chunk > 0xFFFFu) return error = i->path + ": chunk number over 65535", false;
+        std::string& data = i->chunk ? chunks[i->chunk] : out;
         Entry e;
-        e.offset = out.size();
+        e.offset = data.size();
         e.size = static_cast<u32>(i->bytes.size());
         std::vector<u8> packed;
         if (i->compress && !i->bytes.empty())
@@ -139,11 +159,12 @@ bool PackWriter::write(const std::string& file, std::string& error) const {
         if (!packed.empty() && packed.size() < i->bytes.size()) { // stored as is when compression doesn't help
             e.flags = kCompressed;
             e.stored = static_cast<u32>(packed.size());
-            out.append(reinterpret_cast<const char*>(packed.data()), packed.size());
+            data.append(reinterpret_cast<const char*>(packed.data()), packed.size());
         } else {
             e.stored = e.size;
-            out += i->bytes;
+            data += i->bytes;
         }
+        e.flags |= i->chunk << kChunkShift;
         const u32 len = static_cast<u32>(i->path.size());
         put(&len, 4);
         put(i->path.data(), len);
@@ -163,11 +184,20 @@ bool PackWriter::write(const std::string& file, std::string& error) const {
     const std::string folder = parentDirectory(file);
     if (!folder.empty()) createDirectories(folder);
     if (!writeTextFile(file, out)) return error = "cannot write " + file, false;
+    // Chunk files: older ones of this pack go first (a cook with fewer chunks leaves none behind)
+    const std::string dir = folder.empty() ? std::string(".") : folder;
+    const std::string prefix = fileName(packStem(file)) + ".";
+    for (const std::string& f : listFiles(dir, ".chunk"))
+        if (f.compare(0, prefix.size(), prefix) == 0) removeFile(dir + "/" + f);
+    for (const auto& [n, bytes] : chunks)
+        if (!writeTextFile(packChunkFile(file, n), bytes)) return error = "cannot write " + packChunkFile(file, n), false;
     return true;
 }
 
-#if !defined(__EMSCRIPTEN__)
+#if !defined(__EMSCRIPTEN__) || defined(MEALKIT_WEB_HEADLESS)
 bool downloadGamePack(const std::string&, std::string&) { return true; } // the pack is next to the exe
+void prefetchChunks(const std::vector<std::string>&) {}                // the chunk files are next to it too
+bool fetchChunk(const std::string& file) { return fileExists(file); }
 #endif
 
 bool mountPack(const std::string& file, std::string& error) {
@@ -183,7 +213,7 @@ bool mountPack(const std::string& file, std::string& error) {
     };
     Header hd{};
     if (fread(&hd, sizeof(hd), 1, m->f) != 1 || std::memcmp(hd.magic, kMagic, sizeof(kMagic)) != 0) return fail("not a MealKit pack");
-    if (hd.version != kVersion) return fail("pack of another engine version (cook it again)");
+    if (hd.version < 1 || hd.version > kVersion) return fail("pack of another engine version (cook it again)");
     fseek(m->f, 0, SEEK_END);
     const long end = ftell(m->f);
     if (end < 0 || hd.tableOffset > static_cast<u64>(end)) return fail("damaged pack");
@@ -203,26 +233,37 @@ bool mountPack(const std::string& file, std::string& error) {
         std::string path = table.substr(p, len);
         p += len;
         Entry e;
-        if (!get(&e.offset, 8) || !get(&e.stored, 4) || !get(&e.size, 4) || !get(&e.flags, 4) ||
-            e.offset + e.stored > hd.tableOffset)
-            return fail("damaged pack table");
+        if (!get(&e.offset, 8) || !get(&e.stored, 4) || !get(&e.size, 4) || !get(&e.flags, 4)) return fail("damaged pack table");
+        const u32 chunk = hd.version >= 2 ? e.flags >> kChunkShift : 0;
+        if (hd.version < 2) e.flags &= kCompressed;
+        if (chunk == 0 && e.offset + e.stored > hd.tableOffset) return fail("damaged pack table");
+        if (chunk > m->chunks.size()) m->chunks.resize(chunk);
         for (size_t slash = path.find('/'); slash != std::string::npos; slash = path.find('/', slash + 1))
             m->folders.insert(path.substr(0, slash));
         m->entries.emplace(std::move(path), e);
     }
     m->hash = hd.contentHash;
+    std::vector<std::string> chunkFiles;
+    for (size_t n = 0; n < m->chunks.size(); ++n) chunkFiles.push_back(m->chunks[n].file = packChunkFile(file, static_cast<u32>(n + 1)));
 
-    State& s = state();
-    std::lock_guard lock(s.mutex);
-    if (s.packs.empty()) s.root = normalize(parentDirectory(file));
-    s.packs.push_back(std::move(m));
+    {
+        State& s = state();
+        std::lock_guard lock(s.mutex);
+        if (s.packs.empty()) s.root = normalize(parentDirectory(file));
+        s.packs.push_back(std::move(m));
+    }
+    if (!chunkFiles.empty()) prefetchChunks(chunkFiles);
     return true;
 }
 
 void unmountPacks() {
     State& s = state();
     std::lock_guard lock(s.mutex);
-    for (auto& m : s.packs) fclose(m->f);
+    for (auto& m : s.packs) {
+        fclose(m->f);
+        for (Chunk& c : m->chunks)
+            if (c.f) fclose(c.f);
+    }
     s.packs.clear();
     s.root.clear();
 }
@@ -265,13 +306,41 @@ bool isDirectory(const std::string& path) {
 
 bool read(const std::string& path, std::string& out) {
     State& s = state();
-    std::lock_guard lock(s.mutex);
+    std::unique_lock lock(s.mutex);
     const Mounted* m = nullptr;
     const Entry* e = find(path, &m);
     if (!e) return false;
+    FILE* f = m->f;
+    if (const u32 n = e->flags >> kChunkShift) {
+        Chunk& c = const_cast<Mounted*>(m)->chunks[n - 1];
+        if (!c.f) {
+            if (c.failed) return false;
+            // Fetched and opened without the lock: the browser waits for the download here, and openFile asks the pack lookup
+            const std::string file = c.file;
+            lock.unlock();
+            FILE* opened = fetchChunk(file) ? openFile(file, "rb") : nullptr;
+            lock.lock();
+            e = find(path, &m); // the same pack (unmounting happens only at exit)
+            if (!e) {
+                if (opened) fclose(opened);
+                return false;
+            }
+            Chunk& again = const_cast<Mounted*>(m)->chunks[n - 1];
+            if (again.f) {
+                if (opened) fclose(opened); // another thread opened it meanwhile
+            } else if (opened) {
+                again.f = opened;
+                MEALKIT_INFO("Pack: %s opened for %s", fileName(file).c_str(), path.c_str());
+            } else {
+                again.failed = true;
+                MEALKIT_WARN("Pack: cannot read %s", file.c_str());
+                return false;
+            }
+        }
+        f = const_cast<Mounted*>(m)->chunks[n - 1].f;
+    }
     std::string stored(e->stored, '\0');
-    if (fseek(m->f, static_cast<long>(e->offset), SEEK_SET) != 0 ||
-        (e->stored && fread(stored.data(), 1, stored.size(), m->f) != stored.size()))
+    if (fseek(f, static_cast<long>(e->offset), SEEK_SET) != 0 || (e->stored && fread(stored.data(), 1, stored.size(), f) != stored.size()))
         return false;
     if (!(e->flags & kCompressed)) {
         out = std::move(stored);

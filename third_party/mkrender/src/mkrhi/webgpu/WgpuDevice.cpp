@@ -11,11 +11,41 @@
 #ifdef __EMSCRIPTEN__
 #include <emscripten/emscripten.h>
 // Browser: the canvas shows a frame when control goes back to the event loop. JSPI suspends the frame loop until the next
-// animation frame (the host's loop stays a plain loop). Hidden tabs get no animation frames: a 100 ms timer goes on instead
+// animation frame (the host's loop stays a plain loop). Hidden tabs get no animation frames and slow the page's timers to
+// about one a second, which would stall a multiplayer host: there a Worker's timer (not slowed) goes on at about 60 Hz.
+// A visible page whose frames stop (a covered window) gets the same after 100 ms. If no Worker can start (a page's content
+// security policy), the page timer is all that is left
 EM_ASYNC_JS(void, mkrhiWaitAnimationFrame, (), {
+    let s = Module.mkrhiFrames;
+    if (!s) {
+        s = Module.mkrhiFrames = { id: 0, wake: null, requested: false, stalled: false, worker: null };
+        try {
+            const code = "onmessage = (e) => setTimeout(() => postMessage(e.data.id), e.data.ms);";
+            s.worker = new Worker(URL.createObjectURL(new Blob([code], { type: "text/javascript" })));
+            s.worker.onmessage = (e) => { if (e.data === s.id && s.wake) s.wake(false); };
+            s.worker.onerror = () => { s.worker = null; };
+        } catch (e) {
+            console.warn("No frame timer worker: " + e);
+        }
+    }
     await new Promise((resolve) => {
-        requestAnimationFrame(resolve);
-        setTimeout(resolve, 100);
+        const id = ++s.id;
+        const backup = setTimeout(() => { if (id === s.id && s.wake) s.wake(false); }, 100);
+        s.wake = (animated) => {
+            s.wake = null;
+            s.stalled = !animated;
+            clearTimeout(backup);
+            resolve();
+        };
+        if (!s.requested) {
+            s.requested = true;
+            requestAnimationFrame(() => {
+                s.requested = false;
+                s.stalled = false;
+                if (s.wake) s.wake(true);
+            });
+        }
+        if (s.worker) s.worker.postMessage({ id, ms: document.hidden || s.stalled ? 16 : 100 });
     });
 });
 #endif
@@ -238,6 +268,15 @@ bool Device::Impl::configureSurface() {
     config.device = device;
     config.format = swapFormat;
     config.usage = wgpu::TextureUsage::RenderAttachment | (swapCopySrc ? wgpu::TextureUsage::CopySrc : wgpu::TextureUsage::None);
+#ifdef __EMSCRIPTEN__
+    config.usage |= wgpu::TextureUsage::CopyDst; // endFrame copies frameTexture in
+    wgpu::TextureDescriptor td;
+    td.dimension = wgpu::TextureDimension::e2D;
+    td.size = {width, height, 1};
+    td.format = swapFormat;
+    td.usage = wgpu::TextureUsage::RenderAttachment | wgpu::TextureUsage::CopySrc;
+    frameTexture = device.CreateTexture(&td);
+#endif
     config.width = width;
     config.height = height;
     config.alphaMode = wgpu::CompositeAlphaMode::Opaque;
@@ -1212,6 +1251,9 @@ bool Device::beginFrame() {
     if (!m || m->width == 0 || m->height == 0) return false;
     m->instance.ProcessEvents(); // error and device-lost callbacks
     if (m->surfaceDirty && !m->configureSurface()) return false;
+#ifdef __EMSCRIPTEN__
+    m->backTexture = m->frameTexture; // the canvas's texture is taken at endFrame (Wgpu.h frameTexture)
+#else
     wgpu::SurfaceTexture st;
     m->surface.GetCurrentTexture(&st);
     if (st.status != wgpu::SurfaceGetCurrentTextureStatus::SuccessOptimal &&
@@ -1221,7 +1263,8 @@ bool Device::beginFrame() {
     }
     if (st.status == wgpu::SurfaceGetCurrentTextureStatus::SuccessSuboptimal) m->surfaceDirty = true;
     m->backTexture = st.texture;
-    m->backView = st.texture.CreateView();
+#endif
+    m->backView = m->backTexture.CreateView();
     m->encoder = m->device.CreateCommandEncoder();
     m->readTimers(m->timerFrames[m->frameIndex]); // this frame index's previous timestamps (kFramesInFlight frames ago)
     Impl::TimerFrame& timers = m->timerFrames[m->frameIndex];
@@ -1250,6 +1293,7 @@ u8* Device::allocUpload(u64 bytes, u32 alignment, u64* offset) {
 }
 
 u32 Device::uploadBufferIndex() const { return 0; } // Bindless.hlsli mkBuffer: every index is the ring
+bool Device::readsEveryTexture() const { return false; } // group 2 binds what useTextures names
 u32 Device::copyPitch(u32 width, u32 bytesPerPixel) const { return align(width * bytesPerPixel, 256); } // bytesPerRow rule
 u32 Device::copyAlignment() const { return 16; }
 
@@ -1315,6 +1359,22 @@ void Device::endFrame(bool vsync, Capture* capture, PixelRead* reads, u32 readCo
         m->encoder.ResolveQuerySet(m->querySet, first, timers.queries, m->queryResolve, static_cast<u64>(first) * 8);
         m->encoder.CopyBufferToBuffer(m->queryResolve, static_cast<u64>(first) * 8, timers.readback, 0, Impl::kQueriesPerFrame * 8);
     }
+#ifdef __EMSCRIPTEN__
+    { // the canvas's texture, taken only now: nothing between here and the submit yields to the event loop
+        wgpu::SurfaceTexture st;
+        m->surface.GetCurrentTexture(&st);
+        if (st.status == wgpu::SurfaceGetCurrentTextureStatus::SuccessOptimal ||
+            st.status == wgpu::SurfaceGetCurrentTextureStatus::SuccessSuboptimal) {
+            wgpu::TexelCopyTextureInfo src, dst;
+            src.texture = m->frameTexture;
+            dst.texture = st.texture;
+            const wgpu::Extent3D size{std::min(m->frameTexture.GetWidth(), st.texture.GetWidth()),
+                                      std::min(m->frameTexture.GetHeight(), st.texture.GetHeight()), 1};
+            m->encoder.CopyTextureToTexture(&src, &dst, &size);
+        }
+        if (st.status != wgpu::SurfaceGetCurrentTextureStatus::SuccessOptimal) m->surfaceDirty = true;
+    }
+#endif
     const wgpu::CommandBuffer commands = m->encoder.Finish();
     m->encoder = nullptr;
     m->queue.Submit(1, &commands);

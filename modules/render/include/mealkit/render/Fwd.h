@@ -1,4 +1,4 @@
-// Vendored copy of module-render v0.7.1; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-render v0.7.2; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 // Forward declarations for headers that only hold render pointers or references. Most render types are mkrender's (MkRender),

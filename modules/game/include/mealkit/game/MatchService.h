@@ -1,4 +1,4 @@
-// Vendored copy of module-game v0.2.11; change it in that repo (tools\module.ps1 update), not here.
+// Vendored copy of module-game v0.2.12; change it in that repo (tools\module.ps1 update), not here.
 #pragma once
 
 #include "mealkit/core/Types.h"
@@ -6,6 +6,7 @@
 #include "mealkit/session/LocalSession.h"
 #if MEALKIT_HAS_NET
 #include "mealkit/net/Lockstep.h"
+#include "mealkit/net/Relay.h"
 #include "mealkit/net/Rooms.h"
 #endif
 
@@ -19,6 +20,8 @@ class Service;
 // Open/join/leave matches (docs/CODING_MODEL.md "Screen flow from title to results"). The engine (shipping exe, editor play, join windows) has one
 // and keeps the lockstep session inside it. The game's screen flow (app/) only calls this via ctx.match and never opens or closes the session directly:
 //   menu: playOffline / host / hostOnline (Steam) / join (address or LAN room) / joinOnline → lobby
+// With a relay server (MatchServiceConfig::relayUrl, net/Relay.h) host opens a room there and join also takes its code; a
+// browser has no other way. The room code is shown over the web page, and on desktop in the window title and the host's chat.
 //   lobby: names/ready/loadout/chat via ctx.session, host calls start → match
 //   match end (decided by the simulation) → results screen → host calls returnToLobby → lobby. Anyone calls leave → menu
 // Command lines (--host, --join, --steam) are opened in advance by the engine with the same functions. Requests are handled immediately; on failure, false and error().
@@ -47,6 +50,7 @@ struct MatchServiceConfig {
     bool announceRooms = true;   // the host sends LAN room announcements (off for editor play)
     u64 seed = 0;                // if 0, the current time per match. If given, the first match uses this value, the next +1 (test reproduction)
     online::Service* online = nullptr; // Steam lobby (IP/LAN only if absent or init failed)
+    std::string relayUrl; // relay server rooms for host and join(code); empty: none
 #if MEALKIT_HAS_NET
     net::NetConditions conditions; // network condition simulation (--net-lag/--net-jitter/--net-loss)
 #endif
@@ -89,9 +93,10 @@ public:
 
     // From the menu (only when there's no session). false on failure, reason in error()
     bool playOffline();                                // solo: starts at the lobby (pick a loadout and start)
-    bool host(u16 port = 0, u32 maxPlayers = 0);       // IP/LAN room (0 = default)
+    bool host(u16 port = 0, u32 maxPlayers = 0);       // a relay room if one is configured, else IP/LAN (0 = default)
+    bool hostDirect(u16 port = 0, u32 maxPlayers = 0); // IP/LAN room even with a relay (--host)
     bool hostOnline(u32 maxPlayers = 0);               // online friends lobby (Steam). Only when onlineAvailable
-    bool join(const std::string& address);             // "address[:port]" (the address from the LAN room list too)
+    bool join(const std::string& address);             // "address[:port]" (the address from the LAN room list too) or a relay room code
     bool joinOnline(u64 lobbyId);
     // A saved replay straight into a match (no network, my input is discarded). When the match ends and returnToLobby is called, back to the menu (game/InputRecord.h)
     bool playReplay(const InputRecording& recording);
@@ -113,6 +118,8 @@ public:
 
     bool onlineAvailable() const;
     bool usesOnline() const { return m_online; }
+    bool usesRelay() const { return m_relayed; } // this session is in a relay room
+    u64 roomCode() const;                        // the relay room's code, 0 if none
     void inviteFriends(); // friend invite window of the online lobby
 
     MatchPhase phase() const;
@@ -146,6 +153,13 @@ private:
     net::LockstepSession m_net;
     net::RoomAnnouncer m_announcer;
     net::RoomFinder m_finder;
+    bool hostRelay(u32 maxPlayers);
+    bool joinRelay(u64 code);
+    void updateRelay();
+    void leaveRelay();
+    net::RelayRoom m_relay;
+    u64 m_shownCode = 0;     // browser: the code over the page
+    u64 m_announcedCode = 0; // desktop host: the code already said in the chat
 #endif
     std::vector<RoomEntry> m_rooms;
     std::string m_error;
@@ -153,6 +167,8 @@ private:
     u32 m_maxPlayers = 0;
     bool m_online = false;      // this session uses an online lobby
     bool m_onlineHost = false;
+    bool m_relayed = false;     // this session uses a relay room
+    bool m_relayFailed = false; // the room couldn't be opened or entered: phase Ended until leave
     bool m_quit = false; // quit() was called and nobody took it yet
     f64 m_now = 0.0;
 };

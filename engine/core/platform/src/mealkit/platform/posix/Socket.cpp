@@ -10,6 +10,8 @@
 #include <fcntl.h>
 #include <netdb.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <poll.h>
 #include <sys/socket.h>
 #include <unistd.h>
 
@@ -161,6 +163,39 @@ void TcpStream::close() {
         ::close(static_cast<int>(m_socket));
         m_socket = ~0ull;
     }
+}
+
+bool TcpStream::connect(const Address& to) {
+    close();
+    const int s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s < 0) return false;
+    fcntl(s, F_SETFL, fcntl(s, F_GETFL, 0) | O_NONBLOCK);
+    int on = 1;
+    setsockopt(s, IPPROTO_TCP, TCP_NODELAY, &on, sizeof(on));
+#ifdef SO_NOSIGPIPE
+    setsockopt(s, SOL_SOCKET, SO_NOSIGPIPE, &on, sizeof(on));
+#endif
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(to.ip);
+    addr.sin_port = htons(to.port);
+    if (::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) != 0 && errno != EINPROGRESS) {
+        ::close(s);
+        return false;
+    }
+    m_socket = static_cast<u64>(s);
+    return true;
+}
+
+i32 TcpStream::connectState() const {
+    if (!isOpen()) return -1;
+    pollfd p{static_cast<int>(m_socket), POLLOUT, 0};
+    const int ready = poll(&p, 1, 0);
+    if (ready == 0) return 0;
+    int error = 0;
+    socklen_t length = sizeof(error);
+    if (ready < 0 || getsockopt(p.fd, SOL_SOCKET, SO_ERROR, &error, &length) != 0 || error != 0) return -1;
+    return 1;
 }
 
 i32 TcpStream::receive(void* buffer, u32 capacity) {

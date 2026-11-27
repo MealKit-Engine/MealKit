@@ -47,7 +47,8 @@ private:
     u64 m_socket = ~0ull;
 };
 
-// Non-blocking TCP connection (the live connection server, mealkit/live/Server.h). Only accepted connections are used.
+// Non-blocking TCP connection: accepted by a TcpListener (the live connection server, mealkit/live/Server.h) or made with
+// connect (the relay's WebSocket client, mealkit/platform/WebSocket.h).
 class TcpStream {
 public:
     TcpStream() = default;
@@ -59,6 +60,8 @@ public:
 
     bool isOpen() const;
     void close();
+    bool connect(const Address& to);  // starts connecting (small packets go out at once: TCP_NODELAY); watch with connectState
+    i32 connectState() const;         // 0 still connecting, 1 connected, -1 failed or closed
     i32 receive(void* buffer, u32 capacity); // bytes received, 0 if none yet, -1 if disconnected or error
     i32 send(const void* data, u32 size);    // bytes sent (may be partial), 0 if it can't send now, -1 on error
 

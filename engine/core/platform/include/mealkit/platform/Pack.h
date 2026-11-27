@@ -15,12 +15,19 @@
 // So asset code keeps using plain paths; there is no separate "virtual file" API.
 //
 // Layout (little-endian): Header, entry data, entry table (per entry: u32 path length, path, u64 offset, u32 stored size, u32 size, u32 flags).
+//
+// Chunks (the browser cook, game/Cook.h `webChunks`): an entry can keep its bytes in a chunk file beside the pack, <stem>.<n>.chunk
+// (flags bits 16-31 = n, offset into that file; a chunk file is only entry data). The pack's table still lists every entry, so
+// isFile/list/findAsset see them all from the start; only reading one needs its chunk. Mounting starts fetching the chunk files
+// (the browser downloads them in the background, platform/web/Web.cpp), and a read of a chunk not there yet waits for that one.
 namespace mealkit {
 
 // Builds a pack (cook step). Entries are written sorted by path; adding a path twice keeps the last
 class PackWriter {
 public:
-    void add(const std::string& path, std::string_view bytes, bool compress = true);
+    // chunk 0: in the pack itself; n > 0: in chunk file n (packChunkFile)
+    void add(const std::string& path, std::string_view bytes, bool compress = true, u32 chunk = 0);
+    // Also writes the chunk files and removes older <stem>.*.chunk files beside it
     bool write(const std::string& file, std::string& error) const;
     // Hash of all paths and uncompressed contents (build.txt "content"): the same assets give the same value on any PC
     u64 contentHash() const;
@@ -32,9 +39,13 @@ private:
         std::string path;
         std::string bytes;
         bool compress = true;
+        u32 chunk = 0;
     };
     std::vector<Item> m_items;
 };
+
+// Chunk file n of a pack: "dir/game.pak", 3 → "dir/game.3.chunk"
+std::string packChunkFile(const std::string& pack, u32 n);
 
 // Mounts a pack: its folder becomes the root of the files inside. Several packs can be mounted; later ones win for the same path.
 // false and a reason if the file is missing or not a pack of this version
@@ -48,6 +59,12 @@ u64 mountedPackHash();
 // Browser: downloads <gameName>.pak from beside the page into executableDirectory() (platform/web/Web.cpp), so the
 // pack search below finds it. Elsewhere nothing to do (true)
 bool downloadGamePack(const std::string& gameName, std::string& error);
+
+// Chunk files (platform/web/Web.cpp in the browser, Pack.cpp elsewhere). Mounting a pack calls prefetchChunks with its chunk
+// files in order (browser: downloads start in the background; elsewhere they are already on disk). fetchChunk makes one chunk
+// file readable at its path, waiting for its download first in the browser; false if it can't
+void prefetchChunks(const std::vector<std::string>& files);
+bool fetchChunk(const std::string& file);
 
 // For platform/Paths.cpp and the OS file functions. path is a full path (root + "/" + entry, either slash)
 namespace pack {

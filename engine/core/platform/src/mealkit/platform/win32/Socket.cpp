@@ -180,6 +180,40 @@ void TcpStream::close() {
     }
 }
 
+bool TcpStream::connect(const Address& to) {
+    close();
+    const SOCKET s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (s == INVALID_SOCKET) return false;
+    u_long nonBlocking = 1;
+    ioctlsocket(s, FIONBIO, &nonBlocking);
+    const BOOL on = TRUE;
+    setsockopt(s, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<const char*>(&on), sizeof(on));
+    sockaddr_in addr{};
+    addr.sin_family = AF_INET;
+    addr.sin_addr.s_addr = htonl(to.ip);
+    addr.sin_port = htons(to.port);
+    if (::connect(s, reinterpret_cast<const sockaddr*>(&addr), sizeof(addr)) != 0 && WSAGetLastError() != WSAEWOULDBLOCK) {
+        closesocket(s);
+        return false;
+    }
+    m_socket = static_cast<u64>(s);
+    return true;
+}
+
+i32 TcpStream::connectState() const {
+    if (!isOpen()) return -1;
+    const SOCKET s = static_cast<SOCKET>(m_socket);
+    fd_set writable, failed; // Windows reports a refused connection in the exception set
+    FD_ZERO(&writable);
+    FD_ZERO(&failed);
+    FD_SET(s, &writable);
+    FD_SET(s, &failed);
+    const timeval now{0, 0};
+    const int ready = select(0, nullptr, &writable, &failed, &now);
+    if (ready == 0) return 0;
+    return ready > 0 && !FD_ISSET(s, &failed) ? 1 : -1;
+}
+
 i32 TcpStream::receive(void* buffer, u32 capacity) {
     if (!isOpen()) return -1;
     const int got = recv(static_cast<SOCKET>(m_socket), static_cast<char*>(buffer), static_cast<int>(capacity), 0);

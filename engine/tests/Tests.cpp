@@ -953,6 +953,24 @@ TEST_CASE(platform, pack_files) {
     unmountPacks();
     TEST_CHECK(!packsMounted() && !fileExists(dir + "/assets/ui/a.ui"));
     removeFile(dir + "/game.pak");
+
+    // Chunks: entries in chunk files beside the pack are listed from the start and read from their chunk; a missing chunk reads as missing
+    PackWriter c;
+    c.add("assets/base.txt", "base");
+    c.add("assets/hero/a.txt", big, true, 1);
+    c.add("assets/hero/b.txt", "bee", false, 1);
+    c.add("assets/map/m.txt", "map", true, 2);
+    writeTextFile(packChunkFile(dir + "/game.pak", 7), "stale"); // an older cook's chunk: removed by write
+    TEST_CHECK(c.write(dir + "/game.pak", error) && fileExists(dir + "/game.1.chunk") && fileExists(dir + "/game.2.chunk") &&
+               !fileExists(dir + "/game.7.chunk"));
+    removeFile(dir + "/game.2.chunk");
+    TEST_CHECK(mountPack(dir + "/game.pak", error) && mountedPackHash() == c.contentHash());
+    TEST_CHECK(readTextFile(dir + "/assets/base.txt", text) && text == "base");
+    TEST_CHECK(readTextFile(dir + "/assets/hero/a.txt", text) && text == big && readTextFile(dir + "/assets/hero/b.txt", text) && text == "bee");
+    TEST_CHECK(fileExists(dir + "/assets/map/m.txt") && !readTextFile(dir + "/assets/map/m.txt", text));
+    TEST_CHECK((listDirectories(dir + "/assets") == std::vector<std::string>{"hero", "map"}));
+    unmountPacks();
+    for (const char* f : {"/game.pak", "/game.1.chunk"}) removeFile(dir + f);
 }
 
 #if MEALKIT_ASSET_IMPORT
@@ -2746,6 +2764,100 @@ TEST_CASE(net, input_delay_change) {
     TEST_CHECK(sameSwitch && sawSeven); // everyone changed on the same tick
     client.shutdown();
     host.shutdown();
+}
+
+// Host migration with peers that joined a running match: once caught up they take over as host; while still catching up they are
+// passed over for a peer that can (UDP loopback)
+TEST_CASE(net, late_joiner_host_migration) {
+    struct Node {
+        net::LockstepSession s;
+        u32 next = 0;
+        u64 sum = 0;          // the "world": what the join snapshot carries
+        bool simulate = true; // false: receives the snapshot but never catches up
+        void step() {
+            s.update(nowSeconds());
+            if (s.state() != net::SessionState::Running || !simulate) return;
+            std::vector<u8> bytes;
+            if (s.takeJoinSnapshot(bytes) && bytes.size() == sizeof(sum)) {
+                std::memcpy(&sum, bytes.data(), sizeof(sum));
+                next = s.joinTick();
+            }
+            for (u32 i = 0, n = s.catchingUp() ? 8 : 1; i < n; ++i) {
+                if (s.snapshotWanted()) {
+                    bytes.resize(sizeof(sum));
+                    std::memcpy(bytes.data(), &sum, sizeof(sum));
+                    s.provideSnapshot(next, bytes);
+                }
+                if (!s.canExecute(next)) return;
+                const u32 t = next++;
+                for (u32 p = 0; p < s.playerCount(); ++p) sum = sum * 31 + s.inputs(t).players[p].bytes[0] + 1;
+                s.tickExecuted(t, sum);
+                net::PlayerInput in;
+                in.bytes[0] = static_cast<u8>(t * 3 + s.localPlayer());
+                s.submitLocalInput(t + s.inputDelay(), in);
+            }
+        }
+    };
+    auto runUntil = [](std::initializer_list<Node*> nodes, auto done) {
+        const f64 deadline = nowSeconds() + 10.0;
+        while (nowSeconds() < deadline && !done()) {
+            for (Node* n : nodes) n->step();
+            sleepSeconds(0.001);
+        }
+        return done();
+    };
+    auto runFor = [&](std::initializer_list<Node*> nodes, f64 seconds) {
+        const f64 end = nowSeconds() + seconds;
+        runUntil(nodes, [&] { return nowSeconds() >= end; });
+    };
+    auto loopback = [](u16 port) {
+        net::Address address;
+        net::startup();
+        TEST_CHECK(net::resolveAddress("127.0.0.1", port, address));
+        net::cleanup();
+        return address;
+    };
+    { // the only other peer joined late: it takes over
+        constexpr u16 kPort = 27951;
+        Node host, late;
+        TEST_CHECK(host.s.host(kPort, 2, 3, true));
+        host.s.startMatch(1, 0);
+        TEST_CHECK(runUntil({&host}, [&] { return host.next >= 30; }));
+        TEST_CHECK(late.s.join(loopback(kPort)));
+        TEST_CHECK(runUntil({&host, &late}, [&] { return late.next > 0 && !late.s.catchingUp(); }));
+        runFor({&host, &late}, 1.5); // the host hears its inputs and sends the succession list
+        host.s.shutdown();
+        const u32 from = late.next;
+        TEST_CHECK(runUntil({&late}, [&] { return late.s.isHost() && late.next >= from + 30; }));
+        TEST_CHECK(late.s.state() == net::SessionState::Running && late.s.hostMigrations() == 1 && !late.s.desynced());
+        late.s.shutdown();
+    }
+    { // a peer still catching up sits before a caught-up one in slot order: the caught-up one takes over
+        constexpr u16 kPort = 27953;
+        Node host, first, second, joining;
+        first.s.setLocalName("first");
+        second.s.setLocalName("second");
+        joining.s.setLocalName("first"); // the first player coming back: takes slot 1 again
+        joining.simulate = false;
+        TEST_CHECK(host.s.host(kPort, 3, 3, true) && first.s.join(loopback(kPort)));
+        TEST_CHECK(runUntil({&host, &first}, [&] { return host.s.lobbyPlayerCount() == 2; }));
+        TEST_CHECK(second.s.join(loopback(kPort)));
+        TEST_CHECK(runUntil({&host, &first, &second}, [&] { return host.s.lobbyPlayerCount() == 3; }));
+        host.s.startMatch(2, 0);
+        TEST_CHECK(runUntil({&host, &first, &second}, [&] { return second.next >= 30 && second.s.localPlayer() == 2; }));
+        first.s.shutdown();
+        runFor({&host, &second}, 0.5);
+        TEST_CHECK(joining.s.join(loopback(kPort)));
+        TEST_CHECK(runUntil({&host, &second, &joining}, [&] { return joining.s.catchingUp(); }));
+        TEST_CHECK(joining.s.localPlayer() == 1);
+        runFor({&host, &second, &joining}, 1.5);
+        host.s.shutdown();
+        const u32 from = second.next;
+        TEST_CHECK(runUntil({&second, &joining}, [&] { return second.s.isHost() && second.next >= from + 30; }));
+        TEST_CHECK(second.s.state() == net::SessionState::Running && !second.s.desynced());
+        joining.s.shutdown();
+        second.s.shutdown();
+    }
 }
 
 // Connection rejection reasons: version if the simulation version differs (with the host's game version), differing components if game data differs

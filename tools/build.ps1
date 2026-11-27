@@ -13,6 +13,8 @@
 #     VulkanExport  Export with the Vulkan backend (Linux: the same as Export)
 #     WebGPU / WebGPUEditor / WebGPUExport  Linux: Release, editor and export builds with the WebGPU backend (Dawn)
 #     WebExport  Linux: the browser export (Emscripten from ~/.local/share/MealKit/tools/emsdk or $env:EMSDK) into <project>/export/web/<name>
+#     WebHeadless  Linux: headless game + tests as wasm (same toolchain) in <project>/build/<os>/WebHeadless/bin; run the .js with node
+#                  (determinism comparison between the browser and desktop builds)
 #     profile:<name>  the configuration (and for an export the output folder) written in <project>/profiles/<name>.profile (docs/DECISIONS.md 2026-11-23 "Build profiles")
 #     Presets   Release plus every engine preset (engine repository: also <sample>_solo.exe without net and <sample>_noaudio.exe without audio, docs/ENGINE_MODULES.md "Presets")
 #     EOS       Release with the EOS online backend (build/<os>/EOS, needs third_party/eos)
@@ -33,6 +35,7 @@ $projectDir = (Resolve-Path $Project).Path.TrimEnd("\", "/")
 $engineDir = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path.TrimEnd("\", "/")
 . (Join-Path $PSScriptRoot "build_dirs.ps1")
 . (Join-Path $PSScriptRoot "build_deps.ps1") # code page and header-dependency safety, so every caller of this script is protected (docs/CHANGELOG.md "Build traps")
+. (Join-Path $PSScriptRoot "build_lock.ps1")
 
 function Fail([string]$message) {
     Write-Host "[MealKit] $message"
@@ -105,6 +108,7 @@ switch ($Config) {
         $extra = @("-DMEALKIT_DEBUG_UI=OFF", "-DMEALKIT_LIVE=OFF") # the toolchain file below makes it the browser build
         if ($Target.Count -eq 0) { $Target = @("game_export") }
     }
+    "WebHeadless" { $buildType = "Release"; $extra = @("-DMEALKIT_FORCE_HEADLESS_ONLY=ON") } # toolchain below
     "ClangCL" { $buildType = "Release" }
     "Vulkan" { $buildType = "Release"; $extra = @("-DMEALKIT_RHI=Vulkan") }
     "EOS" { $buildType = "Release"; $extra = @("-DMEALKIT_ONLINE=EOS") }
@@ -115,7 +119,7 @@ switch ($Config) {
     "WebGPU" { $buildType = "Release"; $extra = @("-DMEALKIT_RHI=WebGPU") } # Linux: Dawn (MkRender's WebGPU backend)
     "WebGPUEditor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor", "-DMEALKIT_RHI=WebGPU"); $isEditor = $true }
     "Editor" { $buildType = "RelWithDebInfo"; $extra = @("-DMEALKIT_BUILD_KIND=Editor"); $isEditor = $true }
-    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, VulkanExport, WebGPUExport, WebExport, profile:<name>, Editor, ClangCL, Vulkan, VulkanEditor, WebGPU, WebGPUEditor, EOS, Presets, Headless, HeadlessOnly)" }
+    default { Fail "unknown configuration '$Config' (Release, Debug, Profile, Export, VulkanExport, WebGPUExport, WebExport, profile:<name>, Editor, ClangCL, Vulkan, VulkanEditor, WebGPU, WebGPUEditor, EOS, Presets, Headless, HeadlessOnly, WebHeadless)" }
 }
 
 if ($onWindows) {
@@ -147,9 +151,10 @@ if ($onWindows) {
     }
 } else {
     if ($Config -eq "ClangCL") { Fail "ClangCL is a Windows configuration (clang is already the compiler here)" }
-    if ($Config -eq "WebExport") {
+    $emscripten = $Config -in @("WebExport", "WebHeadless")
+    if ($emscripten) {
         # Emscripten: emcc through its CMake toolchain file (the compilers come from there, not CC/CXX)
-        if (-not $IsLinux) { Fail "WebExport is built on Linux for now" }
+        if (-not $IsLinux) { Fail "$Config is built on Linux for now" }
         $emsdk = if ($env:EMSDK) { $env:EMSDK } else { Join-Path $HOME ".local/share/MealKit/tools/emsdk" }
         $toolchain = Join-Path $emsdk "upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake"
         if (-not (Test-Path $toolchain)) { Fail "no Emscripten at $emsdk (git clone https://github.com/emscripten-core/emsdk there, then ./emsdk install latest and ./emsdk activate latest)" }
@@ -162,8 +167,8 @@ if ($onWindows) {
         if (-not $IsLinux) { Fail "$Config needs a front end, which exists on Windows and Linux only (macOS: ROADMAP stage 5)" }
         $extra += "-DMEALKIT_LINUX_FRONTEND=ON"
     }
-    if ($Config -ne "WebExport" -and -not $env:CC) { $extra += "-DCMAKE_C_COMPILER=clang" }
-    if ($Config -ne "WebExport" -and -not $env:CXX) { $extra += "-DCMAKE_CXX_COMPILER=clang++" }
+    if (-not $emscripten -and -not $env:CC) { $extra += "-DCMAKE_C_COMPILER=clang" }
+    if (-not $emscripten -and -not $env:CXX) { $extra += "-DCMAKE_CXX_COMPILER=clang++" }
 }
 
 # The console's code page must be the one CMake detects msvc_deps_prefix in (Windows only; a UTF-8 console loses every header dependency)
@@ -199,37 +204,47 @@ $oldDir = Join-Path (Join-Path $projectDir "build") $buildName
 if (-not (Test-Path $buildDir) -and (Test-Path (Join-Path $oldDir "CMakeCache.txt"))) {
     Write-Host "[MealKit] Building $buildName into $buildDir (build trees are per OS now). The old tree $oldDir can be deleted once this build works."
 }
-# Editor builds are rebuilt often (hot reload): configure only once, Ninja re-runs CMake when CMakeLists change.
-$configured = (Test-Path (Join-Path $buildDir "build.ninja")) -and (Test-Path (Join-Path $buildDir "CMakeCache.txt"))
-if (-not ($isEditor -and $configured)) {
-    # Always set for an export (empty clears the value a previous profile left in the CMake cache)
-    if ($Config -in @("Export", "VulkanExport", "WebGPUExport", "WebExport")) { $extra += "-DMEALKIT_EXPORT_DIR=$exportOut" }
-    Invoke-Native "cmake" (@("-S", $projectDir, "-B", $buildDir, "-G", "Ninja", "--no-warn-unused-cli", "-DCMAKE_BUILD_TYPE=$buildType",
-            "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DMEALKIT_ROOT=$engineDir") + $extra)
-}
-if (-not (Test-DepsPrefix $buildDir)) {
-    Fail "the compiler output doesn't match msvc_deps_prefix in ${buildDir}: a build now would lose header dependencies. Delete CMakeFiles\rules.ninja and CMakeCache.txt there to reconfigure."
-}
-$buildArgs = @("--build", $buildDir)
-if ($Target.Count) { $buildArgs += @("--target") + $Target }
-Invoke-Native "cmake" $buildArgs
-# Objects that lost their header dependencies (stale after a header or class layout change) are deleted and rebuilt once
-$zeroDeps = @(Get-ZeroDepObjects $buildDir)
-if ($zeroDeps.Count) {
-    Write-Host "[MealKit] $($zeroDeps.Count) object(s) have no recorded header dependencies; deleting them and rebuilding:"
-    foreach ($obj in $zeroDeps) {
-        Write-Host "  $obj"
-        Remove-Item -Force (Join-Path $buildDir $obj) -ErrorAction SilentlyContinue
+# One build per tree at a time; a second one waits (tools/build_lock.ps1). A game's editor build also holds the engine's editor tree so
+# nothing rewrites the library it links against. The engine's lock always comes first, so two builds can't wait for each other.
+$locks = @()
+try {
+    if ($isEditor -and $projectDir -ne $engineDir -and -not $installedEngine) { $locks += Wait-BuildLock (Get-NewBuildDir $engineDir $buildName) }
+    $locks += Wait-BuildLock $buildDir
+
+    # Editor builds are rebuilt often (hot reload): configure only once, Ninja re-runs CMake when CMakeLists change.
+    $configured = (Test-Path (Join-Path $buildDir "build.ninja")) -and (Test-Path (Join-Path $buildDir "CMakeCache.txt"))
+    if (-not ($isEditor -and $configured)) {
+        # Always set for an export (empty clears the value a previous profile left in the CMake cache)
+        if ($Config -in @("Export", "VulkanExport", "WebGPUExport", "WebExport")) { $extra += "-DMEALKIT_EXPORT_DIR=$exportOut" }
+        Invoke-Native "cmake" (@("-S", $projectDir, "-B", $buildDir, "-G", "Ninja", "--no-warn-unused-cli", "-DCMAKE_BUILD_TYPE=$buildType",
+                "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON", "-DMEALKIT_ROOT=$engineDir") + $extra)
     }
+    if (-not (Test-DepsPrefix $buildDir)) {
+        Fail "the compiler output doesn't match msvc_deps_prefix in ${buildDir}: a build now would lose header dependencies. Delete CMakeFiles\rules.ninja and CMakeCache.txt there to reconfigure."
+    }
+    $buildArgs = @("--build", $buildDir)
+    if ($Target.Count) { $buildArgs += @("--target") + $Target }
     Invoke-Native "cmake" $buildArgs
+    # Objects that lost their header dependencies (stale after a header or class layout change) are deleted and rebuilt once
     $zeroDeps = @(Get-ZeroDepObjects $buildDir)
-    if ($zeroDeps.Count) { Fail "still no header dependencies after rebuilding: $($zeroDeps -join ', ')" }
-}
-Restore-BuildCodePage
-# clangd and VS Code read build/compile_commands.json (.clangd, .vscode/settings.json): the Editor tree of this OS, which has every source
-if ($Config -eq "Editor") {
-    $commands = Join-Path $buildDir "compile_commands.json"
-    if (Test-Path $commands) { Copy-Item $commands (Join-Path (Join-Path $projectDir "build") "compile_commands.json") -Force }
+    if ($zeroDeps.Count) {
+        Write-Host "[MealKit] $($zeroDeps.Count) object(s) have no recorded header dependencies; deleting them and rebuilding:"
+        foreach ($obj in $zeroDeps) {
+            Write-Host "  $obj"
+            Remove-Item -Force (Join-Path $buildDir $obj) -ErrorAction SilentlyContinue
+        }
+        Invoke-Native "cmake" $buildArgs
+        $zeroDeps = @(Get-ZeroDepObjects $buildDir)
+        if ($zeroDeps.Count) { Fail "still no header dependencies after rebuilding: $($zeroDeps -join ', ')" }
+    }
+    Restore-BuildCodePage
+    # clangd and VS Code read build/compile_commands.json (.clangd, .vscode/settings.json): the Editor tree of this OS, which has every source
+    if ($Config -eq "Editor") {
+        $commands = Join-Path $buildDir "compile_commands.json"
+        if (Test-Path $commands) { Copy-Item $commands (Join-Path (Join-Path $projectDir "build") "compile_commands.json") -Force }
+    }
+} finally {
+    foreach ($lock in $locks) { $lock.Dispose() }
 }
 if ($Config -in @("Export", "VulkanExport", "WebGPUExport", "WebExport")) {
     Write-Host "[MealKit] Export OK: $(if ($exportOut) { $exportOut } else { Join-Path (Join-Path $projectDir 'export') $(if ($Config -eq 'WebExport') { 'web' } else { $MealKitBuildOs }) })"

@@ -38,8 +38,19 @@ else()
     endif()
     set(MEALKIT_HEADLESS_ONLY ON)
     if(EMSCRIPTEN)
+        option(MEALKIT_FORCE_HEADLESS_ONLY "Build only the core and headless targets, as wasm that runs under node" OFF)
+        # Emscripten's default stack is 64 KB, which the simulation overflows (silently: it corrupts memory, then hangs or
+        # reads out of bounds). 1 MB is what a Windows main thread has
+        add_link_options(-sSTACK_SIZE=1MB)
+    endif()
+    if(EMSCRIPTEN AND MEALKIT_FORCE_HEADLESS_ONLY)
+        # build.ps1 WebHeadless: <game>_headless and the engine tests as wasm, to compare the browser's simulation with
+        # desktop builds (replays, per-tick hashes). They run under node with the host's files
+        add_compile_definitions(MEALKIT_WEB_HEADLESS=1) # files are on disk, nothing to download (platform/Pack.cpp)
+        add_link_options(-sSTACK_OVERFLOW_CHECK=1 -sNODERAWFS=1 -sENVIRONMENT=node -sALLOW_MEMORY_GROWTH=1 -sEXIT_RUNTIME=1)
+    elseif(EMSCRIPTEN)
         # Browser (build.ps1 WebExport, Emscripten toolchain): the shipping game only, on WebGPU, one thread (no SharedArrayBuffer
-        # needed), no online services or live connection. Built on a Linux host; exports go to export/web/<name>
+        # needed), multiplayer only through a relay server (tools/relay.py), no live connection. Built on a Linux host; exports go to export/web/<name>
         set(MEALKIT_HEADLESS_ONLY OFF)
         set(MEALKIT_RHI "WebGPU" CACHE STRING "RHI backend: DX12 / Vulkan / WebGPU" FORCE)
         set(MEALKIT_ONLINE "None" CACHE STRING "Online backend: Auto, Steam, EOS, None" FORCE)
@@ -1007,6 +1018,12 @@ function(mealkit_add_game name)
         set(export_cooker "${build_root}/Release/bin/${name}") # the Linux host's Release build cooks for the browser too
     endif()
     set(export_pack "${build_root}/cook/${name}.pak")
+    set(export_cook_args "")
+    if(EMSCRIPTEN)
+        # The browser downloads the pack before the game starts: a pack of its own, cooked smaller (game/Cook.h --cook-web)
+        set(export_pack "${build_root}/cook-web/${name}.pak")
+        set(export_cook_args --cook-web)
+    endif()
     # 5 MB executable budget (docs/ROADMAP.md "Performance budget"); native WebGPU links Dawn statically (~12 MB), so 20 MB there
     set(mealkit_exe_budget_mb 5)
     if(MEALKIT_RHI STREQUAL "WebGPU" AND NOT EMSCRIPTEN)
@@ -1015,7 +1032,7 @@ function(mealkit_add_game name)
     add_custom_target(${name}_export
         COMMAND "${mealkit_powershell}" -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/check_layout.ps1"
             -Project "${project_dir}"
-        COMMAND "${export_cooker}" --cook "${export_pack}"
+        COMMAND "${export_cooker}" --cook "${export_pack}" ${export_cook_args}
         COMMAND "${mealkit_powershell}" -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/gen_notices.ps1"
             -Project "${project_dir}" -Out "${export_notices}"
         COMMAND ${CMAKE_COMMAND}

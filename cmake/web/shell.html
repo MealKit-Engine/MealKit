@@ -1,6 +1,7 @@
 <!doctype html>
 <!-- MealKit browser page (build.ps1 WebExport, cmake/MealKit.cmake): a canvas filling the window. The game draws with WebGPU
-     and reads <name>.pak from beside this page; serve the folder over https or http://localhost -->
+     and reads <name>.pak from beside this page; serve the folder over https or http://localhost.
+     Multiplayer: ?host opens a room, ?room=<code> enters one, ?autostart=<players> starts when that many are in -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -19,7 +20,14 @@
 <script>
   const statusBox = document.getElementById("status");
   if (!navigator.gpu) statusBox.textContent = "This browser has no WebGPU.\nUse a current Chrome, Edge or Firefox.";
+  // The only command-line options a link may give the game (mealkit/game/GameOptions.h)
+  const query = new URLSearchParams(location.search);
+  const args = [];
+  if (/^\d+$/.test(query.get("room") || "")) args.push("--join", query.get("room"));
+  else if (query.has("host")) args.push("--host");
+  if (/^[1-8]$/.test(query.get("autostart") || "")) args.push("--auto-start", query.get("autostart"));
   var Module = {
+    arguments: args,
     canvas: document.getElementById("canvas"),
     print: (text) => console.log(text),
     printErr: (text) => console.warn(text),
