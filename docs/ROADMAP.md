@@ -10,7 +10,7 @@ Stages 0~4 are done (v0.4~v0.8), the contract review and the cookbook are done (
 1. **2D on the 3D engine**: what is left is only the "Later" items (2D lights, parallax).
 2. **Game-facing gaps that FuseTag hits when game work resumes**: none left (designer independence D4 is done).
 3. **UI 2**: MkUI's XAML-like layer, one piece at a time. Named styles are done (`docs/CHANGELOG.md` "UI 2: named styles"); left, each with its syntax decided first: converters and two-way binding, control templates, triggers and state animations, resource dictionaries.
-4. **Proposals from other engines** E8, interleaved with the picked pool items below.
+4. **The pool** below, picked before work starts.
 
 Moved to `docs/ROADMAP_HUMAN.md` because they need a person, a device, an account or a decision (2026-11-24): the first beta release (its code side is done), shipped sound size and streaming (Ogg encoder choice), gamepad rumble E2 (a pad), multiplayer modes with the lobby browser, quick match and spectator slots (EOS, two PCs, Dedicated design questions), E6 (dev console vs `--query`), and stage 5.
 
@@ -186,12 +186,6 @@ Re-reviewed 2026-11-25 against a second term list (Unreal 5, Unity 6, GAS, Niaga
 
 - [ ] G1. **RHI compute**, DX12 hand check (Vulkan part done, `docs/CHANGELOG.md` "RHI compute"). Left: build and run the DX12 backend on Windows (`mkrender_compute` from the MkRender repo plus `mealkit_tests --only render`); the DX12 code was written on Linux and has not been built or run.
 - [ ] G6. **Server-authoritative networking** (snapshot interpolation, dead reckoning, client prediction, dedicated server): "Not included" in the deferred table. Only if the target genre needs competitive PvP with many players or MO/MMO; the dedicated server questions are answered and the dedicated server is built (`docs/CHANGELOG.md` "Dedicated server"), so what is left is only the genre question.
-
-## Proposals from other engines (E8)
-
-The section was lost in an earlier cleanup; rebuilt 2026-11-25 from the item names the user gave. E2 (gamepad rumble) and E6 (dev console) are in `docs/ROADMAP_HUMAN.md`; E3 and E4 are not in any document any more (check `docs/CHANGELOG.md` before assuming they are done). E7 (joints) is done (`docs/CHANGELOG.md` "Joints"). E1 (paths) is done (`docs/CHANGELOG.md` "Paths"); `objects` platforms and virtual cameras don't use `path` objects yet (they can when a game asks).
-
-- [ ] E8. **Executable size watch in CI** (S). `ci.yml` builds the shipping exe of a sample, fails above the 5 MB budget (and warns above a set margin), and prints the size per library and module (`tools/size_report.ps1`, `docs/CHANGELOG.md` "Shipping exe size breakdown"). Open: which sample is measured and the warning margin.
 
 ## AI agents and game developer ease (proposed 2026-11-18, not scheduled)
 

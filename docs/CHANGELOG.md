@@ -3,6 +3,13 @@
 Implementation details of finished roadmap items (what was built, why, how, and what's left). Future plans and order are in `docs/ROADMAP.md`, design answers in `docs/CODING_MODEL.md`. Reasons for decisions and features not included or deferred are in `docs/DECISIONS.md`.
 When a roadmap item is done, its details move here and it is removed from ROADMAP, which lists only work that is left. Newest version on top.
 
+## Executable size watch in CI (E8, 2026-11-27)
+- CI's Windows MSVC and Linux front end jobs build `Export` for both reference samples. An exe over the 5 MB budget fails the job (as every export does, `cmake/MealKitExport.cmake`), and `tools/size_report.ps1 -Name sandbox,coop` prints the size per library and module into the log, the job summary and the job's artifact (`size-report.txt`; the Linux and Windows jobs each their own).
+- Above 90% of the budget (4.5 MB of 5) the export prints a CMake warning, for games too, and in CI the report adds a workflow warning annotation (`-BudgetMB`, default 5). Decided: `docs/DECISIONS.md` 2026-11-27.
+- Export runs its check scripts with `powershell` where it exists, else `pwsh` (`find_program`, cache entry `MEALKIT_POWERSHELL`): a Linux machine without the alias couldn't export.
+- Fixed: `ci.yml` was not valid YAML since 2026-11-22 (an unquoted step name with `Editor: `), so every CI run failed at start without running a job.
+- Verified (Ubuntu): `Export` of both samples (4,338 KB and 4,222 KB), also with `MEALKIT_POWERSHELL` set to `pwsh`; the warning and failure paths of `MealKitExport.cmake` and of the report; cooking without a display; the workflow file parses. Not verified: the workflow on GitHub (nothing pushed), Windows (the MSVC map included).
+
 ## Shipping exe size breakdown (2026-11-27)
 - Shipping game exes (no debug UI) are linked with a map beside them (`build/<os>/<config>/bin/<name>.map`, MSVC `/MAP`, GNU ld `-Map`; not on macOS or the browser build). The exe itself doesn't change.
 - `tools/size_report.ps1 [-Name a,b] [-Config Export] [-Project <folder>] [-Out file]` lists the exe size and the bytes per third-party library, engine module, kernel folder and game code, from the map and the compile database. The engine library holds several targets' objects, so files of the same name (`Renderer.cpp`, `Ui.cpp` ...) are told apart by their section names (`readelf`) or symbol namespaces; what neither tells apart is listed as `unresolved`.

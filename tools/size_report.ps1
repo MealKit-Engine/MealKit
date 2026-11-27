@@ -1,13 +1,15 @@
 # Size of a shipping exe per library and module, read from the linker map the Export build writes beside it (cmake/MealKit.cmake).
 # Runs on Windows PowerShell 5.1 and pwsh 7. Build the export first.
-#   pwsh tools/size_report.ps1 [-Name sandbox,coop] [-Config Export] [-Project <project folder>] [-Out report.txt]
+#   pwsh tools/size_report.ps1 [-Name sandbox,coop] [-Config Export] [-Project <project folder>] [-Out report.txt] [-BudgetMB 5]
+# Warns above 90% of the budget and exits 1 over it (CI: a workflow annotation and the job summary).
 # Without -Name: every exe of the build that has a map. Map formats: MSVC /MAP and GNU ld -Map.
 # Sizes are the bytes each object file puts into the exe's initialized sections; "(headers, linker tables, padding)" is the rest.
 param(
     [string[]]$Name = @(),
     [string]$Config = "Export",
     [string]$Project = "",
-    [string]$Out = ""
+    [string]$Out = "",
+    [double]$BudgetMB = 5 # the shipping exe budget (cmake/MealKitExport.cmake; a native WebGPU export has 20)
 )
 $ErrorActionPreference = "Stop"
 $engine = Split-Path -Parent $PSScriptRoot
@@ -211,12 +213,22 @@ foreach ($exeName in $Name) {
     }
     $report.Add("  $(Format-KB ($total - $listed))  (headers, linker tables, padding)")
     $report.Add("")
+    $size = [string]::Format($invariant, "{0} is {1:N0} KB", $exeName, $total / 1KB)
+    if ($total -gt $BudgetMB * 1MB) {
+        $failed = $true
+        Write-Host "$(if ($env:GITHUB_ACTIONS) { '::error title=Executable size::' } else { '[size] FAIL: ' })$size, over the $BudgetMB MB budget"
+    } elseif ($total -gt $BudgetMB * 1MB * 0.9) {
+        Write-Host "$(if ($env:GITHUB_ACTIONS) { '::warning title=Executable size::' } else { '[size] WARNING: ' })$size, above 90% of the $BudgetMB MB budget"
+    }
 }
 $report | ForEach-Object { Write-Host $_ }
 if ($Out) {
     $folder = Split-Path -Parent $Out
     if ($folder) { New-Item -ItemType Directory -Force $folder | Out-Null }
     $report | Out-File -Encoding utf8 $Out
+}
+if ($env:GITHUB_STEP_SUMMARY -and $report.Count) {
+    (@("### Executable size", '```') + $report + '```') | Out-File -Append -Encoding utf8 $env:GITHUB_STEP_SUMMARY
 }
 if ($failed) { exit 1 }
 exit 0

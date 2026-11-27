@@ -966,6 +966,13 @@ function(mealkit_add_game name)
 
     # Pre-ship checks: folder layout (tools/check_layout.ps1, fails on violation) → merge notices (MealKit + engine libraries in the game exe + game libraries + fonts)
     # → shipping folder (MealKitExport.cmake also checks the exe size budget)
+    # Windows PowerShell where it exists, else PowerShell 7 (Linux has only "pwsh" unless an alias was installed)
+    find_program(MEALKIT_POWERSHELL NAMES powershell pwsh NO_CMAKE_FIND_ROOT_PATH)
+    if(NOT MEALKIT_POWERSHELL)
+        set(mealkit_powershell powershell)
+    else()
+        set(mealkit_powershell "${MEALKIT_POWERSHELL}")
+    endif()
     set(export_notices "${CMAKE_BINARY_DIR}/export_notices/${name}/THIRD_PARTY_NOTICES.txt")
     # Shipping folder: export/<os>/<name>, or export/<os>/<name>-<version> if mealkit.project's exportVersionFolder is on
     set(export_os ${MEALKIT_BUILD_OS})
@@ -1006,10 +1013,10 @@ function(mealkit_add_game name)
         set(mealkit_exe_budget_mb 20)
     endif()
     add_custom_target(${name}_export
-        COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/check_layout.ps1"
+        COMMAND "${mealkit_powershell}" -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/check_layout.ps1"
             -Project "${project_dir}"
         COMMAND "${export_cooker}" --cook "${export_pack}"
-        COMMAND powershell -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/gen_notices.ps1"
+        COMMAND "${mealkit_powershell}" -NoProfile -ExecutionPolicy Bypass -File "${MEALKIT_ENGINE_DIR}/tools/gen_notices.ps1"
             -Project "${project_dir}" -Out "${export_notices}"
         COMMAND ${CMAKE_COMMAND}
             -DGAME_EXE=$<TARGET_FILE:${name}>

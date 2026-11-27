@@ -2,6 +2,8 @@
 # On every commit, builds Windows MSVC (Release, Editor) and clang-cl, Linux x64 Clang headless and the Linux X11 + Vulkan front end (no GPU: build, tests and mp_test only), and macOS ARM64 Clang headless,
 # runs tools/ci_test.ps1 (unit tests, fixed input recording replay, headless mp_test) in each build, then
 # tools/ci_compare.ps1 checks that detmath-bits and per-tick hashes match across all builds. Any difference fails.
+# The Windows MSVC and Linux front end jobs also build the shipping export of both samples: it fails over the 5 MB executable budget,
+# warns above 90% of it, and tools/size_report.ps1 prints the size per library and module (job summary and artifact).
 # The runners have no GPU, so screen capture and shadow/rewind checks stay in local tools/check.ps1. No Steam/EOS SDK, so the "none" backend is built.
 name: CI
 
@@ -65,6 +67,14 @@ jobs:
           tools\check_layout.ps1
           if ($LASTEXITCODE -ne 0) { exit 1 }
           tools\gen_notices.ps1 -Check
+      - name: Shipping export of both samples (5 MB executable budget)
+        if: matrix.checks
+        shell: cmd
+        run: call build.bat Export
+      - name: Executable size per library and module
+        if: ${{ !cancelled() && matrix.checks }}
+        shell: powershell
+        run: tools\size_report.ps1 -Name sandbox,coop -Out ci-out/${{ matrix.name }}/size-report.txt
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
@@ -120,7 +130,7 @@ jobs:
       - name: Build (the Linux game exe, headless exes, mealkit_tests)
         shell: pwsh
         run: ./build.ps1 Release -Target sandbox, sandbox_headless, coop_headless, mealkit_tests # the X11 + Vulkan front end (MEALKIT_LINUX_FRONTEND=ON through tools/build.ps1)
-      - name: Build (Editor: mealkit + sample game libraries)
+      - name: "Build (Editor: mealkit + sample game libraries)"
         shell: pwsh
         run: ./build.ps1 Editor
       - name: Test (the same replays and hashes as the headless job)
@@ -129,6 +139,13 @@ jobs:
       - name: Multiplayer between Linux peers (mp_test)
         shell: pwsh
         run: tools/mp_test.ps1 -Headless -Clients 3 -Ticks 900
+      - name: Shipping export of both samples (5 MB executable budget)
+        shell: pwsh
+        run: ./build.ps1 Export
+      - name: Executable size per library and module
+        if: ${{ !cancelled() }}
+        shell: pwsh
+        run: tools/size_report.ps1 -Name sandbox,coop -Out ci-out/linux-x64-frontend/size-report.txt
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
