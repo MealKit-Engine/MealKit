@@ -922,6 +922,14 @@ function(mealkit_add_game name)
     endif()
     target_link_libraries(${name} PRIVATE mealkit${engine_suffix} ${game_libs})
     mealkit_game_pch(${name} ${sim_sources} "${ARG_HEADLESS}")
+    if(NOT MEALKIT_DEBUG_UI AND NOT EMSCRIPTEN AND NOT APPLE)
+        # Shipping exe: a linker map beside it, for the size per library and module (tools/size_report.ps1). The exe doesn't change
+        if(MSVC)
+            target_link_options(${name} PRIVATE "/MAP:${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${name}.map")
+        else()
+            target_link_options(${name} PRIVATE "-Wl,-Map=${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/${name}.map")
+        endif()
+    endif()
     if(EMSCRIPTEN)
         # Browser: <name>.html + .js + .wasm from the engine's page (cmake/web/shell.html, a canvas filling the window).
         # The pack is fetched by the page at start (platform/web/Web.cpp), not embedded, so it can be cached apart from the code

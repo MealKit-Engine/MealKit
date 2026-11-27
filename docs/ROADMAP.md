@@ -77,7 +77,6 @@ The engine version is `VERSION` at the repo root. **MealKit is a beta and stays 
 ## Smaller engine items
 
 ### [ ] Small leftovers
-- Shipping exe size breakdown: FuseTag's Release exe is 4.63 MB of the 5 MB budget (LTCG and `/OPT:REF` already drop unused code). Measure what each library and module takes before the next runtime library is added (E8 keeps it in CI afterwards).
 - Kernel memory: miniaudio allocation hooks and per-tag budgets.
 - `audio` stays in the engine until its glue moves into MkAudio.
 - Docs repo: `--dump-reference` reference generation and Weblate (agents already have `API.txt`, CHANGELOG "API index for agents").
@@ -192,7 +191,7 @@ Re-reviewed 2026-11-25 against a second term list (Unreal 5, Unity 6, GAS, Niaga
 
 The section was lost in an earlier cleanup; rebuilt 2026-11-25 from the item names the user gave. E2 (gamepad rumble) and E6 (dev console) are in `docs/ROADMAP_HUMAN.md`; E3 and E4 are not in any document any more (check `docs/CHANGELOG.md` before assuming they are done). E7 (joints) is done (`docs/CHANGELOG.md` "Joints"). E1 (paths) is done (`docs/CHANGELOG.md` "Paths"); `objects` platforms and virtual cameras don't use `path` objects yet (they can when a game asks).
 
-- [ ] E8. **Executable size watch in CI** (S). `ci.yml` builds the shipping exe of a sample, fails above the 5 MB budget (and warns above a set margin), and prints the size per library and module (the breakdown in "Small leftovers"). Open: which sample is measured and the warning margin.
+- [ ] E8. **Executable size watch in CI** (S). `ci.yml` builds the shipping exe of a sample, fails above the 5 MB budget (and warns above a set margin), and prints the size per library and module (`tools/size_report.ps1`, `docs/CHANGELOG.md` "Shipping exe size breakdown"). Open: which sample is measured and the warning margin.
 
 ## AI agents and game developer ease (proposed 2026-11-18, not scheduled)
 
